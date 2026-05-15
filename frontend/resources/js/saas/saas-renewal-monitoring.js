@@ -178,13 +178,37 @@
         var anomaliesList = qs("[data-renewal-anomalies-list]", root);
         var detailPanel = qs("[data-renewal-detail-panel]", root);
         var detailKey = qs("[data-renewal-detail-key]", root);
+        var detailModalElement = qs("[data-renewal-detail-modal]", root);
         var recordsPageInfo = qs("[data-renewal-records-page-info]", root);
         var recordsPagination = qs("[data-renewal-records-pagination]", root);
+        var detailModalInstance = null;
 
         var state = {
             page: 1,
             lastPage: 1,
         };
+
+        function showDetailModal() {
+            if (!detailModalElement) return;
+
+            if (window.bootstrap && typeof window.bootstrap.Modal === "function") {
+                if (!detailModalInstance) {
+                    detailModalInstance = new window.bootstrap.Modal(detailModalElement);
+                }
+                detailModalInstance.show();
+                return;
+            }
+
+            detailModalElement.classList.add("show");
+            detailModalElement.style.display = "block";
+            detailModalElement.removeAttribute("aria-hidden");
+        }
+
+        function renderDetailLoading(renewalPeriodKey) {
+            setText(detailKey, renewalPeriodKey || "Memuat");
+            if (!detailPanel) return;
+            detailPanel.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div><div class="fw-semibold">Memuat detail renewal...</div><div class="text-muted small">Mohon tunggu sebentar.</div></div>';
+        }
 
         function queryParams() {
             var params = {
@@ -213,15 +237,17 @@
             if (!recordsBody) return;
 
             if (!rows || !rows.length) {
-                recordsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Tidak ada record renewal untuk filter ini.</td></tr>';
+                recordsBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Tidak ada record renewal untuk filter ini.</td></tr>';
             } else {
                 recordsBody.innerHTML = rows.map(function (row) {
                     return '<tr>' +
-                        '<td><div class="fw-semibold">' + escapeHtml(row.renewalPeriodKey || '-') + '</div><div class="text-muted small">Invoice ' + escapeHtml((row.invoice && row.invoice.number) || '-') + '</div></td>' +
+                        '<td><div class="fw-semibold">' + escapeHtml(row.renewalPeriodKey || '-') + '</div><div class="text-muted small">Key renewal tenant</div></td>' +
                         '<td><div class="fw-semibold">' + escapeHtml((row.company && row.company.name) || '-') + '</div><div class="text-muted small">' + escapeHtml((row.company && row.company.code) || '-') + '</div></td>' +
+                        '<td><div class="fw-semibold">' + escapeHtml((row.invoice && row.invoice.number) || '-') + '</div><div class="text-muted small">' + escapeHtml(formatMoney(row.invoice && row.invoice.amountDue)) + '</div></td>' +
                         '<td>' + statusBadge(row.subscription && row.subscription.status, row.invoice && row.invoice.isPaid) + '<div class="text-muted small mt-1">' + escapeHtml(normalizeLabel((row.subscription && row.subscription.billingCycle) || '-')) + '</div></td>' +
                         '<td><div class="fw-semibold">' + escapeHtml((row.reason && row.reason.code) || '-') + '</div><div class="text-muted small">' + escapeHtml((row.reason && row.reason.message) || '-') + '</div></td>' +
-                        '<td class="text-end"><button type="button" class="btn btn-outline-secondary btn-sm" data-renewal-detail-trigger="' + escapeHtml(row.renewalPeriodKey || '') + '"><i class="ti ti-eye"></i> Detail</button></td>' +
+                        '<td><div class="small text-muted">Issue: ' + escapeHtml(formatDate(row.invoice && row.invoice.issueDate)) + '</div><div class="small text-muted">Due: ' + escapeHtml(formatDate(row.invoice && row.invoice.dueDate)) + '</div></td>' +
+                        '<td class="text-end"><button type="button" class="btn btn-outline-secondary btn-sm" data-renewal-detail-trigger="' + escapeHtml(row.renewalPeriodKey || '') + '"><i class="ti ti-eye"></i> Preview</button></td>' +
                         '</tr>';
                 }).join('');
             }
@@ -259,14 +285,29 @@
             var timeline = Array.isArray(data.timeline) ? data.timeline : [];
 
             detailPanel.innerHTML =
-                '<div class="mb-3">' +
-                '<div class="fw-semibold">' + escapeHtml((data.company && data.company.name) || '-') + '</div>' +
-                '<div class="text-muted small">' + escapeHtml((data.company && data.company.code) || '-') + ' • Subscription ' + escapeHtml((data.subscription && data.subscription.status) || '-') + '</div>' +
-                '<div class="text-muted small mt-1">Invoice ' + escapeHtml((data.invoice && data.invoice.number) || '-') + ' • ' + escapeHtml(formatMoney(data.invoice && data.invoice.amountDue)) + '</div>' +
-                '<div class="mt-2">' + badge((data.reason && data.reason.code) || 'NO_REASON', data.invoice && data.invoice.isPaid ? 'success' : 'warning') + '</div>' +
+                '<div class="row g-3 mb-4">' +
+                '<div class="col-lg-5">' +
+                '<div class="border rounded-3 p-3 h-100">' +
+                '<div class="text-uppercase text-muted small fw-semibold mb-2">Company</div>' +
+                '<div class="fw-semibold fs-5">' + escapeHtml((data.company && data.company.name) || '-') + '</div>' +
+                '<div class="text-muted small">' + escapeHtml((data.company && data.company.code) || '-') + '</div>' +
+                '<div class="mt-3">' + badge((data.reason && data.reason.code) || 'NO_REASON', data.invoice && data.invoice.isPaid ? 'success' : 'warning') + '</div>' +
                 '<div class="text-muted small mt-2">' + escapeHtml((data.reason && data.reason.message) || '-') + '</div>' +
                 '</div>' +
-                '<div class="border rounded-2">' +
+                '</div>' +
+                '<div class="col-lg-7">' +
+                '<div class="border rounded-3 p-3 h-100">' +
+                '<div class="text-uppercase text-muted small fw-semibold mb-2">Invoice & Subscription</div>' +
+                '<div class="fw-semibold">Invoice ' + escapeHtml((data.invoice && data.invoice.number) || '-') + '</div>' +
+                '<div class="text-muted small mt-1">Amount due: ' + escapeHtml(formatMoney(data.invoice && data.invoice.amountDue)) + '</div>' +
+                '<div class="text-muted small">Issue date: ' + escapeHtml(formatDate(data.invoice && data.invoice.issueDate)) + '</div>' +
+                '<div class="text-muted small">Due date: ' + escapeHtml(formatDate(data.invoice && data.invoice.dueDate)) + '</div>' +
+                '<div class="text-muted small mt-3">Subscription status: ' + escapeHtml(normalizeLabel((data.subscription && data.subscription.status) || '-')) + '</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
+                '<div class="border rounded-3">' +
+                '<div class="px-3 py-2 border-bottom bg-light fw-semibold">Timeline Renewal</div>' +
                 (timeline.length ? timeline.map(function (item) {
                     return '<div class="p-3 border-bottom">' +
                         '<div class="d-flex justify-content-between align-items-start gap-2"><div class="fw-semibold">' + escapeHtml(normalizeLabel(item.event_type || '-')) + '</div><div class="text-muted small">' + escapeHtml(formatDateTime(item.occurred_at)) + '</div></div>' +
@@ -279,6 +320,8 @@
 
         function fetchDetail(renewalPeriodKey) {
             if (!renewalPeriodKey) return Promise.resolve();
+            renderDetailLoading(renewalPeriodKey);
+            showDetailModal();
             return request('get', '/saas/renewal-monitoring/records/' + encodeURIComponent(String(renewalPeriodKey)), {})
                 .then(function (data) {
                     if (!data.success) throw { response: { data: data, status: 200 } };
@@ -288,7 +331,7 @@
 
         function loadAll() {
             hide(errorBox);
-            if (recordsBody) recordsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Memuat data...</td></tr>';
+            if (recordsBody) recordsBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Memuat data...</td></tr>';
             if (anomaliesList) anomaliesList.innerHTML = '<div class="list-group-item text-muted text-center py-4">Memuat data...</div>';
 
             var params = queryParams();
@@ -311,7 +354,7 @@
             }).catch(function (err) {
                 show(errorBox);
                 setText(errorBox, formatApiError(err));
-                if (recordsBody) recordsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Gagal memuat data.</td></tr>';
+                if (recordsBody) recordsBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Gagal memuat data.</td></tr>';
                 if (anomaliesList) anomaliesList.innerHTML = '<div class="list-group-item text-muted text-center py-4">Gagal memuat data.</div>';
             });
         }
@@ -348,8 +391,9 @@
 
         [inputReason, inputCompanyId].forEach(function (element) {
             if (!element) return;
+            var eventName = element.tagName === 'SELECT' ? 'change' : 'input';
             var timer = null;
-            element.addEventListener('input', function () {
+            element.addEventListener(eventName, function () {
                 if (timer) window.clearTimeout(timer);
                 timer = window.setTimeout(function () {
                     state.page = 1;

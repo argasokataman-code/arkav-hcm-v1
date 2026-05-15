@@ -11,6 +11,15 @@ describe('SaaS renewal monitoring wiring', () => {
 
     localStorage.setItem('arcav_access_token', 'token-abc');
     window.__ARCAV_DISABLE_AUTOINIT__ = true;
+    window.bootstrap = {
+      Modal: function Modal(element) {
+        return {
+          show() {
+            element.classList.add('show');
+          },
+        };
+      },
+    };
     window.AuthApi = {
       tokenKey: 'arcav_access_token',
       request: vi.fn(),
@@ -23,7 +32,7 @@ describe('SaaS renewal monitoring wiring', () => {
         <div class="content" data-saas-renewal-monitoring-page>
           <select data-renewal-days><option value="30" selected>30</option></select>
           <select data-renewal-status><option value="">all</option></select>
-          <input data-renewal-reason value="" />
+          <select data-renewal-reason><option value="">all</option></select>
           <input data-renewal-company-id value="" />
           <button data-renewal-refresh type="button"></button>
           <button data-renewal-reset type="button"></button>
@@ -40,8 +49,10 @@ describe('SaaS renewal monitoring wiring', () => {
           <div data-renewal-records-pagination></div>
           <table><tbody data-renewal-records-body></tbody></table>
           <div data-renewal-anomalies-list></div>
-          <div data-renewal-detail-key></div>
-          <div data-renewal-detail-panel></div>
+          <div data-renewal-detail-modal>
+            <div data-renewal-detail-key></div>
+            <div data-renewal-detail-panel></div>
+          </div>
         </div>
       </div>
     `;
@@ -137,6 +148,7 @@ describe('SaaS renewal monitoring wiring', () => {
     await vi.waitFor(() => {
       expect(document.querySelector('[data-renewal-summary-total]').textContent).toContain('12');
       expect(document.querySelector('[data-renewal-records-body]').innerHTML).toContain('sub_99_2026_05');
+      expect(document.querySelector('[data-renewal-records-body]').innerHTML).toContain('INV-000501');
       expect(document.querySelector('[data-renewal-anomalies-list]').innerHTML).toContain('XENDIT_DOWN');
     });
 
@@ -146,6 +158,7 @@ describe('SaaS renewal monitoring wiring', () => {
       expect(requestMock).toHaveBeenCalledWith('get', '/saas/renewal-monitoring/records/sub_99_2026_05', {});
       expect(document.querySelector('[data-renewal-detail-panel]').innerHTML).toContain('WEBHOOK_INVOICE_PAID');
       expect(document.querySelector('[data-renewal-detail-panel]').innerHTML).toContain('Renewal Paid');
+      expect(document.querySelector('[data-renewal-detail-modal]').classList.contains('show')).toBe(true);
     });
   });
 });

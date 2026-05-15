@@ -79,7 +79,7 @@
 						</select>
 					</div>
 					<div class="col-lg-3">
-						<label class="form-label mb-1">Status</label>
+						<label class="form-label mb-1">Status Payment</label>
 						<select class="form-select" data-renewal-status>
 							<option value="">Semua status</option>
 							<option value="paid">Paid</option>
@@ -89,7 +89,23 @@
 					</div>
 					<div class="col-lg-3">
 						<label class="form-label mb-1">Reason code</label>
-						<input type="text" class="form-control" placeholder="XENDIT_DOWN, ..." data-renewal-reason>
+						<select class="form-select" data-renewal-reason>
+							<option value="">Semua reason code</option>
+							<option value="WEBHOOK_CHARGE_SUCCEEDED">WEBHOOK_CHARGE_SUCCEEDED</option>
+							<option value="WEBHOOK_INVOICE_PAID">WEBHOOK_INVOICE_PAID</option>
+							<option value="RECONCILIATION_PAID">RECONCILIATION_PAID</option>
+							<option value="AWAITING_GATEWAY_SETTLEMENT">AWAITING_GATEWAY_SETTLEMENT</option>
+							<option value="RENEWAL_RETRY_SCHEDULED">RENEWAL_RETRY_SCHEDULED</option>
+							<option value="RENEWAL_MAX_RETRY_EXCEEDED">RENEWAL_MAX_RETRY_EXCEEDED</option>
+							<option value="RENEWAL_GRACE_EXPIRED">RENEWAL_GRACE_EXPIRED</option>
+							<option value="RENEWAL_PROCESS_EXCEPTION">RENEWAL_PROCESS_EXCEPTION</option>
+							<option value="XENDIT_PAYMENT_FAILED">XENDIT_PAYMENT_FAILED</option>
+							<option value="XENDIT_INVOICE_EXPIRED">XENDIT_INVOICE_EXPIRED</option>
+							<option value="XENDIT_DOWN">XENDIT_DOWN</option>
+							<option value="STALE_INVOICE_DETECTED">STALE_INVOICE_DETECTED</option>
+							<option value="RENEWAL_WORKER_CRASHED">RENEWAL_WORKER_CRASHED</option>
+							<option value="FEATURE_CRASH">FEATURE_CRASH</option>
+						</select>
 					</div>
 					<div class="col-lg-3">
 						<label class="form-label mb-1">Company ID</label>
@@ -114,13 +130,15 @@
 								<tr>
 									<th>Renewal Key</th>
 									<th>Company</th>
+									<th>Invoice</th>
 									<th>Status</th>
 									<th>Reason</th>
+									<th>Tanggal</th>
 									<th class="text-end">Aksi</th>
 								</tr>
 							</thead>
 							<tbody data-renewal-records-body>
-								<tr><td colspan="5" class="text-center text-muted py-4">Memuat data...</td></tr>
+								<tr><td colspan="7" class="text-center text-muted py-4">Memuat data...</td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -144,16 +162,29 @@
 						</div>
 					</div>
 				</div>
+			</div>
+		</div>
+	</div>
+</div>
 
-				<div class="card">
-					<div class="card-header d-flex justify-content-between align-items-center">
-						<h5 class="mb-0">Detail Record</h5>
-						<span class="badge bg-secondary-subtle text-secondary" data-renewal-detail-key>Belum dipilih</span>
-					</div>
-					<div class="card-body" data-renewal-detail-panel>
-						<div class="text-muted text-center py-4">Pilih salah satu record untuk melihat timeline renewal.</div>
-					</div>
+<div class="modal fade" id="renewalMonitoringDetailModal" tabindex="-1" aria-hidden="true" data-renewal-detail-modal>
+	<div class="modal-dialog modal-xl modal-dialog-scrollable">
+		<div class="modal-content">
+			<div class="modal-header">
+				<div>
+					<h5 class="modal-title mb-1">Preview Detail Renewal</h5>
+					<div class="text-muted small">Timeline renewal, invoice, dan reason code untuk record yang dipilih.</div>
 				</div>
+				<div class="d-flex align-items-center gap-2">
+					<span class="badge bg-secondary-subtle text-secondary" data-renewal-detail-key>Belum dipilih</span>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+			</div>
+			<div class="modal-body" data-renewal-detail-panel>
+				<div class="text-muted text-center py-4">Pilih salah satu record untuk melihat preview detail renewal.</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-light" data-bs-dismiss="modal">Tutup</button>
 			</div>
 		</div>
 	</div>

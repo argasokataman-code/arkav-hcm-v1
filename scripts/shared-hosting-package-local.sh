@@ -123,6 +123,29 @@ if [[ ! -f "$STAGING_DIR/backend/public/build/.vite/manifest.json" ]] && [[ ! -f
   exit 1
 fi
 
+echo "[shared-hosting-package-local] pruning non-runtime asset metadata from staging..."
+rm -rf \
+  "$STAGING_DIR/backend/public/build/plugins/--tabler-icons" \
+  "$STAGING_DIR/backend/public/build/plugins/icons/remix" \
+  "$STAGING_DIR/backend/public/build/plugins/fontawesome/js"
+
+find "$STAGING_DIR/backend/public/build" -type f \( \
+  -name '*.map' -o \
+  -name '*.html' -o \
+  -name 'package.json' \
+\) -delete
+
+rm -f \
+  "$STAGING_DIR/backend/public/build/img/theme/pattern-03.svg" \
+  "$STAGING_DIR/backend/public/build/img/theme/sidebar-bg-01.svg" \
+  "$STAGING_DIR/backend/public/build/img/theme/sidebar-bg-02.svg" \
+  "$STAGING_DIR/backend/public/build/img/theme/sidebar-bg-03.svg" \
+  "$STAGING_DIR/backend/public/build/img/theme/sidebar-bg-04.svg" \
+  "$STAGING_DIR/backend/public/build/img/theme/sidebar-bg-05.svg" \
+  "$STAGING_DIR/backend/public/build/img/theme/sidebar-bg-06.svg" \
+  "$STAGING_DIR/backend/public/build/plugins/remix/fonts/remixicon.glyph.json" \
+  "$STAGING_DIR/backend/public/build/plugins/icons/bootstrap/bootstrap-icons.json"
+
 mkdir -p "$STAGING_DIR/scripts"
 cp "$ROOT_DIR/scripts/shared-hosting-deploy.sh" "$STAGING_DIR/scripts/shared-hosting-deploy.sh"
 cp "$ROOT_DIR/scripts/shared-hosting-deploy-easy.sh" "$STAGING_DIR/scripts/shared-hosting-deploy-easy.sh"
@@ -161,6 +184,16 @@ chmod +x \
 
 echo "[shared-hosting-package-local] creating artifact: $ARTIFACT"
 tar -C "$STAGING_DIR" -czf "$ARTIFACT" .
+
+ARTIFACT_SIZE_MB="$(du -m "$ARTIFACT" | awk '{print $1}')"
+echo "[shared-hosting-package-local] artifact size: ${ARTIFACT_SIZE_MB} MB"
+
+if [[ "$ARTIFACT_SIZE_MB" -ge 95 ]]; then
+  echo "[shared-hosting-package-local] ERROR: artifact is still too large (${ARTIFACT_SIZE_MB} MB >= 95 MB)" >&2
+  echo "[shared-hosting-package-local] Reduce packaged runtime assets before pushing this artifact." >&2
+  rm -rf "$STAGING_DIR"
+  exit 1
+fi
 
 rm -rf "$STAGING_DIR"
 

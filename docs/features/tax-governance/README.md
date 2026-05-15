@@ -19,6 +19,10 @@ Halaman web (guard `hcm.web.admin`):
 5. `/tax-employees/employee-tax-profiles`
 6. `/tax-employees/reports`
 
+Halaman web global-only (guard `hcm.web.global-admin`):
+1. `/saas/pricing` dan `/saas/pricing/reports` untuk console **Pricing & Plans** lintas tenant.
+2. `/platform-tax-compliance/policies` dan `/platform-tax-compliance/reports` untuk government tax compliance platform.
+
 API runtime (prefix `/v1/hcm/tax-governance`):
 
 | Endpoint | Method | Keterangan |
@@ -41,9 +45,9 @@ API runtime (prefix `/v1/hcm/tax-governance`):
 | `/reports/tenant-self-audit` | GET | Enhanced self-audit snapshot |
 | `/reports/tenant-self-audit-export` | GET | Export self-audit (json/pdf) |
 | `/reports/tenant-compliance-status` | GET | Compliance snapshot statutory + billing + employee profiles |
-| `/platform-billing/policies` | GET/POST | Policy platform billing tax |
-| `/platform-billing/reports` | GET | Report billing tax lintas tenant |
-| `/platform-billing/invoices` | GET | Invoice snapshot billing tax |
+| `/platform-billing/policies` | GET/POST | Snapshot policy/rate untuk screen Pricing & Plans |
+| `/platform-billing/reports` | GET | Revenue summary lintas tenant untuk screen Pricing & Plans |
+| `/platform-billing/invoices` | GET | Invoice evidence billing month untuk Pricing & Plans |
 | `/platform-tax-compliance/policies` | GET/POST | Kebijakan government layer |
 | `/platform-tax-compliance/reports` | GET | Laporan tax payable & net profit platform |
 
@@ -66,9 +70,10 @@ API runtime (prefix `/v1/hcm/tax-governance`):
 ### Flow Platform (Super Admin)
 
 1. Platform admin memantau compliance lintas tenant via dashboard dan anomaly registry.
-2. Revenue platform domain subscription dan addon di-capture otomatis via event domain terkait.
-3. Billing tax reports dan invoices tersedia untuk rekonsiliasi platform.
-4. Halaman `platform-tax-compliance/policies` default ke mode **Overview (read-only)** untuk mengurangi risiko salah edit. Form edit hanya muncul setelah klik **Edit Konfigurasi Aktif** atau **Buat Konfigurasi Baru**, lalu simpan dilindungi dialog konfirmasi ringkasan perubahan.
+2. Platform admin memakai `/saas/pricing` untuk melihat katalog plan aktif, menyesuaikan harga/status add-on, dan membaca revenue summary lintas tenant sebelum pajak.
+3. Revenue platform domain subscription dan addon di-capture otomatis via event domain terkait.
+4. Billing tax reports dan invoice snapshot tersedia untuk rekonsiliasi platform, termasuk panel Revenue Summary pada `/saas/pricing`.
+5. Halaman `platform-tax-compliance/policies` default ke mode **Overview (read-only)** untuk mengurangi risiko salah edit. Form edit hanya muncul setelah klik **Edit Konfigurasi Aktif** atau **Buat Konfigurasi Baru**, lalu simpan dilindungi dialog konfirmasi ringkasan perubahan.
 
 ## Lifecycle Policy Tenant
 

@@ -13,6 +13,7 @@ Modul Packages mengelola katalog paket SaaS, pricing, status paket, dan assignme
 ## UI Aktif
 
 - Entry points: `/saas/packages` dan `/packages`.
+- Console pricing global `/saas/pricing` memakai katalog package ini sebagai sumber read-only untuk plan inti; mutasi plan inti tetap dilakukan dari halaman Packages, sedangkan add-on dapat disesuaikan dari console pricing sebagai shortcut operasional global admin.
 - Monitoring compliance paket lintas tenant tersedia di `/super-admin/package-compliance` (global admin) dengan modal detail employee termasking untuk investigasi tenant warning/violation.
 - Manager script aktif: `frontend/resources/js/packages-management.js`.
 - Dokumen detail teknis dan E2E ada di [IMPLEMENTATION.md](IMPLEMENTATION.md) dan [E2E-TESTING.md](E2E-TESTING.md).

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\CompanyUser;
+use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -94,6 +95,116 @@ class HcmTaxGovernanceApiTest extends TestCase
             ->getJson('/v1/hcm/tax-governance/platform-tax-compliance/reports?month=2026-05')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_employee_cannot_access_platform_billing_endpoints(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'pricing-admin-runtime@example.com']);
+        $employeeToken = $this->employeeTokenForCompany($admin['company'], 'pricing-employee-runtime@example.com');
+
+        $headers = $this->withCompanyContext([
+            'Authorization' => 'Bearer ' . $employeeToken,
+        ], $admin['company_id']);
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/tax-governance/platform-billing/policies?per_page=5')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->postJson('/v1/hcm/tax-governance/platform-billing/policies', [
+                'subscription_tax_rate' => 10,
+                'addon_markup_rate' => 5,
+                'billing_month' => '2026-05',
+                'effective_from' => '2026-05-01',
+                'status' => 'active',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/tax-governance/platform-billing/reports?month=2026-05')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($headers)
+            ->getJson('/v1/hcm/tax-governance/platform-billing/invoices?month=2026-05')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_tenant_admin_without_global_scope_cannot_access_platform_billing_endpoints(): void
+    {
+        $tenantAdmin = $this->createHcmAdminWithCompany(['email' => 'pricing-tenant-admin-runtime@example.com']);
+
+        $this->withHeaders($this->complianceHeaders($tenantAdmin))
+            ->getJson('/v1/hcm/tax-governance/platform-billing/policies?per_page=5')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+
+        $this->withHeaders($this->complianceHeaders($tenantAdmin))
+            ->getJson('/v1/hcm/tax-governance/platform-billing/reports?month=2026-05')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_global_admin_can_create_platform_billing_policy_and_read_reports_for_pricing_screen(): void
+    {
+        $admin = $this->createHcmAdminWithCompany(['email' => 'pricing-global-admin-runtime@example.com']);
+        $this->elevateToGlobalAdmin('pricing-global-admin-runtime@example.com');
+
+        $this->withHeaders($this->complianceHeaders($admin))
+            ->postJson('/v1/hcm/tax-governance/platform-billing/policies', [
+                'subscription_tax_rate' => 10,
+                'addon_markup_rate' => 5,
+                'billing_cycle_type' => 'monthly',
+                'billing_month' => '2026-05',
+                'effective_from' => '2026-05-01',
+                'status' => 'active',
+                'notes' => 'Runtime pricing screen policy',
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.billing_month', '2026-05')
+            ->assertJsonPath('data.subscription_tax_rate', 10)
+            ->assertJsonPath('data.addon_markup_rate', 5);
+
+        Invoice::query()->create([
+            'invoice_number' => 'INV-PRICING-202605-001',
+            'company_id' => $admin['company_id'],
+            'issue_date' => '2026-05-05',
+            'due_date' => '2026-05-20',
+            'amount_due' => 125000,
+            'billing_tax_rate_snapshot' => 10,
+            'status' => 'issued',
+            'is_paid' => false,
+        ]);
+
+        $this->withHeaders($this->complianceHeaders($admin))
+            ->getJson('/v1/hcm/tax-governance/platform-billing/policies?billing_month=2026-05&global_mode=1&per_page=10')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.view_mode', 'global')
+            ->assertJsonPath('data.items_global.0.billing_month', '2026-05')
+            ->assertJsonPath('data.items_global.0.subscription_tax_rate', 10)
+            ->assertJsonPath('data.items_global.0.addon_markup_rate', 5);
+
+        $this->withHeaders($this->complianceHeaders($admin))
+            ->getJson('/v1/hcm/tax-governance/platform-billing/reports?month=2026-05')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.summary_global.total_gross_revenue', 125000)
+            ->assertJsonPath('data.summary_global.total_tax_due', 12500)
+            ->assertJsonPath('data.tenants_global.0.company_id', $admin['company_id'])
+            ->assertJsonPath('data.tenants_global.0.company_name', $admin['company']->name);
+
+        $this->withHeaders($this->complianceHeaders($admin))
+            ->getJson('/v1/hcm/tax-governance/platform-billing/invoices?month=2026-05')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.month', '2026-05')
+            ->assertJsonPath('data.invoice_snapshots.0.invoice_number', 'INV-PRICING-202605-001')
+            ->assertJsonPath('data.invoice_snapshots.0.company_id', $admin['company_id']);
     }
 
     public function test_global_admin_can_create_and_list_platform_tax_compliance_policies(): void

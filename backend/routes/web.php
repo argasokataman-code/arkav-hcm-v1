@@ -305,22 +305,6 @@ Route::prefix('platform-tax-compliance')->middleware('hcm.web.global-admin')->gr
     })->name('platform-tax-compliance.reports');
 });
 
-Route::get('/saas/platform-tax', function () {
-    return view('saas.platform-tax');
-})->middleware('hcm.web.global-admin')->name('saas.platform-tax');
-
-Route::get('/saas/pricing', function () {
-    return view('tax-billing-subscribers-settings', [
-        'taxGovernanceScreen' => 'platform-billing',
-    ]);
-})->middleware('hcm.web.global-admin')->name('saas.pricing');
-
-Route::get('/saas/pricing/reports', function () {
-    return view('tax-billing-subscribers-settings', [
-        'taxGovernanceScreen' => 'platform-billing',
-    ]);
-})->middleware('hcm.web.global-admin')->name('saas.pricing.reports');
-
 Route::middleware('hcm.web.admin')->prefix('tax-employees')->group(function (): void {
     Route::get('/', function () {
         return view('finance.tax-rates', [

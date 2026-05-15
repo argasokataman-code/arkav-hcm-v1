@@ -8658,6 +8658,268 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
+  /v1/hcm/tax-governance/platform-billing/policies:
+    get:
+      tags: [HCM]
+      summary: List global platform billing policies for Pricing & Plans screen
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: billing_month
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [draft, active, inactive]
+        - name: global_mode
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string, format: uuid }
+                            company_id: { type: integer }
+                            company_name: { type: string, nullable: true }
+                            billing_month: { type: string }
+                            billing_cycle_type: { type: string, enum: [monthly, yearly, custom] }
+                            tax_rate_percentage: { type: number }
+                            base_calculation_method: { type: string, example: invoice_amount_due }
+                            effective_from: { type: string, format: date, nullable: true }
+                            effective_to: { type: string, format: date, nullable: true }
+                            status: { type: string, enum: [draft, active, inactive] }
+                            notes: { type: string, nullable: true }
+                            created_at: { type: string, format: date-time, nullable: true }
+                      items_global:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            version: { type: string }
+                            billing_month: { type: string }
+                            billing_cycle_type: { type: string, enum: [monthly, yearly, custom] }
+                            subscription_tax_rate: { type: number }
+                            addon_markup_rate: { type: number }
+                            source: { type: string }
+                            domain: { type: string }
+                            status: { type: string, enum: [draft, active, inactive] }
+                            created_at: { type: string, format: date-time, nullable: true }
+                            effective_from: { type: string, format: date, nullable: true }
+                            notes: { type: string, nullable: true }
+                      view_mode: { type: string, enum: [company, global] }
+                      meta:
+                        type: object
+                        properties:
+                          page: { type: integer }
+                          per_page: { type: integer }
+                          total: { type: integer }
+                          items_global_total: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [HCM]
+      summary: Create or update global platform billing policy snapshot
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subscription_tax_rate, addon_markup_rate]
+              properties:
+                subscription_tax_rate:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+                addon_markup_rate:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+                billing_cycle_type:
+                  type: string
+                  enum: [monthly, yearly, custom]
+                billing_month:
+                  type: string
+                  pattern: '^\d{4}-\d{2}$'
+                effective_from:
+                  type: string
+                  format: date
+                status:
+                  type: string
+                  enum: [draft, active, inactive]
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      version: { type: string }
+                      billing_month: { type: string }
+                      billing_cycle_type: { type: string, enum: [monthly, yearly, custom] }
+                      effective_from: { type: string, format: date }
+                      status: { type: string, enum: [draft, active, inactive] }
+                      subscription_tax_rate: { type: number }
+                      addon_markup_rate: { type: number }
+                      affected_company_count: { type: integer }
+                      notes: { type: string, nullable: true }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/tax-governance/platform-billing/reports:
+    get:
+      tags: [HCM]
+      summary: Cross-tenant billing revenue summary for Pricing & Plans screen
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      month: { type: string }
+                      summary:
+                        type: object
+                        properties:
+                          tenant_count: { type: integer }
+                          tenant_count_with_policy: { type: integer }
+                          total_invoice_amount: { type: number }
+                          total_taxable_revenue_amount: { type: number }
+                          total_cleared_revenue_amount: { type: number }
+                          total_uncleared_revenue_amount: { type: number }
+                          total_disputed_revenue_amount: { type: number }
+                          total_reversed_revenue_amount: { type: number }
+                          total_tax_due: { type: number }
+                          unpaid_invoice_count: { type: integer }
+                          total_subscription_revenue: { type: number }
+                          total_addon_revenue: { type: number }
+                          total_gross_revenue: { type: number }
+                          total_net_revenue: { type: number }
+                          effective_tax_rate: { type: number }
+                      summary_global:
+                        type: object
+                        properties:
+                          total_subscription_revenue: { type: number }
+                          total_addon_revenue: { type: number }
+                          total_gross_revenue: { type: number }
+                          total_tax_due: { type: number }
+                          total_net_revenue: { type: number }
+                          effective_tax_rate: { type: number }
+                      tenants_global:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            company_id: { type: integer }
+                            company_name: { type: string, nullable: true }
+                            tenant: { type: string }
+                            plan: { type: string }
+                            billing_month: { type: string, nullable: true }
+                            billing_cycle_type: { type: string, nullable: true }
+                            next_renewal_month: { type: string, nullable: true }
+                            subscription_revenue: { type: number }
+                            addon_revenue: { type: number }
+                            gross_revenue: { type: number }
+                            tax_amount_due: { type: number }
+                            net_revenue: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/tax-governance/platform-billing/invoices:
+    get:
+      tags: [HCM]
+      summary: Invoice evidence snapshot for platform billing month
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      month: { type: string }
+                      invoice_snapshots:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            company_id: { type: integer }
+                            company_name: { type: string, nullable: true }
+                            invoice_uuid: { type: string, format: uuid, nullable: true }
+                            invoice_number: { type: string }
+                            amount_due: { type: number }
+                            status: { type: string, enum: [paid, unpaid] }
+                            issue_date: { type: string, format: date, nullable: true }
+                            due_date: { type: string, format: date, nullable: true }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
   /v1/saas/tax/spt-ppn:
     get:
       tags: [SaaS]

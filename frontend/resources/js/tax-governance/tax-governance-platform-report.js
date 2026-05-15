@@ -29,8 +29,11 @@ export function renderPlatformReportModule(deps, root, reportResponse) {
     }
     var installmentRows = Array.isArray(data.tax_installments) ? data.tax_installments : [];
 
-    setText(qs("[data-tax-platform-summary-subscription-revenue]", root), formatMoney(summary.total_subscription_revenue || summary.total_invoice_amount || 0));
-    setText(qs("[data-tax-platform-summary-addon-revenue]", root), formatMoney(summary.total_addon_revenue || summary.total_uncleared_revenue_amount || 0));
+    var subscriptionRevenueTotal = Number(summary.total_subscription_revenue || summary.subscription_revenue || summary.total_invoice_amount || 0);
+    var addonRevenueTotal = Number(summary.total_addon_revenue || summary.addon_revenue || 0);
+
+    setText(qs("[data-tax-platform-summary-subscription-revenue]", root), formatMoney(subscriptionRevenueTotal));
+    setText(qs("[data-tax-platform-summary-addon-revenue]", root), formatMoney(addonRevenueTotal));
     setText(qs("[data-tax-platform-summary-net-revenue]", root), formatMoney(effectiveGrossRevenueTotal));
 
     setText(qs("[data-tax-compliance-summary-gross]", root), formatMoney(effectiveGrossRevenueTotal));
@@ -73,7 +76,8 @@ export function renderPlatformReportModule(deps, root, reportResponse) {
     }
 
     var tableColCount = tbody.closest("table") && tbody.closest("table").tHead && tbody.closest("table").tHead.rows[0] ? tbody.closest("table").tHead.rows[0].cells.length : 8;
-    var isGovernmentTable = getActiveScreen(root) === "platform-tax-compliance" || tableColCount === 6 || tableColCount === 7;
+    var activeScreen = getActiveScreen(root);
+    var isGovernmentTable = activeScreen === "platform-tax-compliance" || (!activeScreen && (tableColCount === 6 || tableColCount === 7));
 
     tbody.innerHTML = rows
         .map(function (item) {

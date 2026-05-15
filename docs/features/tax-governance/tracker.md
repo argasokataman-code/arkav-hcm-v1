@@ -14,6 +14,7 @@
 | Anomaly registry (tenant) | ✅ Done | resolve + acknowledge tersedia |
 | Revenue capture event-driven | ✅ Done | SubscriptionCreated/AddOnPurchased listeners aktif |
 | Platform billing policies/reports/invoices | ✅ Done | Endpoint aktif |
+| Pricing & Plans (`/saas/pricing`) | ✅ Hardening pass 2026-05-15 | Route dedupe + docs/OpenAPI sync + backend/UI regression test |
 | Government layer (platform-tax-compliance) | ✅ Done | Endpoint aktif |
 | Platform tax reporting (`/saas/platform-tax`) | ✅ Hardening pass 2026-05-15 | Rumus PPN/PPh23 diluruskan, deadline UI surfaced, export/docs sinkron |
 | Frontend halaman employee tax profiles | ✅ Done | `/tax-employees/employee-tax-profiles` aktif |
@@ -42,3 +43,4 @@
 | 2026-05-03 | Aktifkan workflow submit/approve/reject/publish + UUID-only policyRef | HcmTaxGovernanceWorkflowApiTest 4 tests pass |
 | 2026-05-03 | Aktifkan break-glass flow + dashboard route + auto-PTKP default | HcmTaxGovernanceWorkflowApiTest 4 tests pass |
 | 2026-05-15 | Hardening `/saas/platform-tax`: perbaikan basis DPP tax-inclusive, filter invoice nol, deadline bulanan/tahunan di UI, parity export & docs sync | PlatformTaxSummaryApiTest + platform-tax.wiring.test.js |
+| 2026-05-15 | Hardening `/saas/pricing`: hapus route ganda, pertegas boundary plan vs add-on, sync matriks akses + OpenAPI, tambah regression test backend/UI | HcmTaxGovernanceApiTest + saas-pricing.wiring.test.js |

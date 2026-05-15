@@ -38,9 +38,11 @@
         <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="alert">
             <i class="ti ti-info-circle mt-1"></i>
             <div>
-                <div class="fw-semibold">Halaman ini adalah katalog produk SaaS: subscription plan dan add-on yang dijual ke tenant.</div>
+                <div class="fw-semibold">Halaman ini adalah konsol Pricing &amp; Plans untuk katalog produk SaaS yang dijual ke tenant.</div>
                 <div class="small">
-                    Harga produk ditampilkan dalam Rupiah (Rp), bukan persentase.
+                    Plan inti tetap dikelola di halaman Packages.
+                    Halaman ini dipakai untuk review katalog plan, menyesuaikan harga/status add-on, dan membaca ringkasan revenue lintas tenant.
+                    Semua harga ditampilkan dalam Rupiah (Rp), bukan persentase.
                     Untuk pajak platform ke pemerintah, gunakan menu
                     <a href="{{ route('platform-tax-compliance.policies') }}">Government Tax &amp; Compliance</a>.
                 </div>
@@ -55,7 +57,7 @@
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                     <h5 class="mb-0"><i class="ti ti-package me-2 text-primary"></i>Subscription Plans</h5>
-                    <small class="text-muted">Data dari modul Packages — baca saja. Edit plan melalui halaman Packages.</small>
+                    <small class="text-muted">Sumber data dari modul Packages. Tabel ini read-only; edit plan inti tetap melalui halaman Packages.</small>
                 </div>
                 <a href="{{ url('saas/packages') }}" class="btn btn-outline-primary btn-sm">
                     <i class="ti ti-external-link me-1"></i>Kelola Plans
@@ -87,7 +89,7 @@
         <div class="card mb-3">
             <div class="card-header">
                 <h5 class="mb-0"><i class="ti ti-puzzle me-2 text-purple"></i>Add-on Catalog</h5>
-                <small class="text-muted">Fitur tambahan yang dapat dibeli tenant secara terpisah. Harga dalam Rupiah.</small>
+                <small class="text-muted">Fitur tambahan yang dapat dibeli tenant secara terpisah. Harga dan status add-on dapat disesuaikan langsung dari layar ini.</small>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -115,7 +117,7 @@
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                     <h5 class="mb-0"><i class="ti ti-chart-bar me-2 text-success"></i>Revenue Summary</h5>
-                    <small class="text-muted">Ringkasan pendapatan platform — <strong>sebelum pajak</strong>. Baca saja, bukan konfigurasi.</small>
+                    <small class="text-muted">Ringkasan pendapatan platform lintas tenant — <strong>sebelum pajak</strong>. Panel ini observability, bukan konfigurasi pricing.</small>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <input type="month" class="form-control" data-tax-platform-report-month>

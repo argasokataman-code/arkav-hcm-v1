@@ -286,6 +286,9 @@ Response `200`:
 
 ### `GET /v1/hcm/tax-governance/platform-billing/policies`
 
+Runtime note:
+- endpoint ini memasok layer policy/rate untuk screen global-only `/saas/pricing` dan `/saas/pricing/reports`.
+
 Query opsional:
 1. `billing_month`: `YYYY-MM`
 2. `status`: `draft|active|inactive`
@@ -314,6 +317,9 @@ Response `201`:
 - mode legacy: mengembalikan policy company-level seperti sebelumnya.
 
 ### `GET /v1/hcm/tax-governance/platform-billing/reports`
+
+Runtime note:
+- endpoint ini mengisi panel **Revenue Summary** pada `/saas/pricing` bersama katalog plan/add-on dari `/v1/saas/packages` dan `/v1/saas/package-addons`.
 
 Query minimum:
 1. `month` dengan format `YYYY-MM`
@@ -401,9 +407,10 @@ Response `200`:
 ### `GET /v1/hcm/tax-governance/platform-billing/invoices`
 
 Query minimum:
-1. `period_start`
-2. `period_end`
-3. tidak ada format export; response berisi `invoice_snapshots` untuk billing month.
+1. `month` dengan format `YYYY-MM`
+
+Catatan runtime:
+- tidak ada format export; response berisi `invoice_snapshots` untuk billing month yang sama dengan report platform billing.
 
 Response `200`:
 - snapshot invoice billing tax lintas tenant untuk evidence dan rekonsiliasi.

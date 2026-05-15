@@ -27,7 +27,11 @@ class AttendanceApiTest extends TestCase
         if (! $this->company) {
             $this->company = Company::query()->firstOrCreate(
                 ['code' => 'TEST_COMPANY'],
-                ['name' => 'Test Company', 'domain' => 'test-company.local']
+                [
+                    'name' => 'Test Company',
+                    'domain' => 'test-company.local',
+                    'timezone' => 'UTC',
+                ]
             );
         }
 

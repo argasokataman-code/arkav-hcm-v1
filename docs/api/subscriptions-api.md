@@ -176,6 +176,7 @@ Mengupdate subscription.
 Catatan reactivation manual:
 - Jika status berubah dari `suspended` ke `active`, server akan otomatis menghapus jejak suspension (`suspended_at`, `suspension_reason`) dan window grace (`grace_started_at`, `grace_ends_at`).
 - Server juga mencatat audit event `subscription_events.event_type = resumed` dengan reason code `SUBSCRIPTION_REACTIVATED_MANUAL_UPDATE`.
+- Audit payload reactivation manual menyertakan `source = subscription_update`, `from_status = suspended`, dan `to_status = active` untuk membedakan jalur update dari jalur renew.
 - Notifikasi email reactivation dikirim ke billing contact company (`company.owner`).
 
 **Request Parameters**

@@ -24,7 +24,9 @@ class AttendanceSelfieTest extends TestCase
         parent::setUp();
 
         // Create test company
-        $this->company = Company::factory()->create();
+        $this->company = Company::factory()->create([
+            'timezone' => 'UTC',
+        ]);
 
         // Login via identity flow to get a real API token (api.token middleware)
         $this->postJson('/v1/identity/auth/register', [

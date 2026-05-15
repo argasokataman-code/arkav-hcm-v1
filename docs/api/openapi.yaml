@@ -7160,6 +7160,7 @@ paths:
         Supports manual status updates.
         If status transitions from `suspended` to `active`, server clears suspension/grace markers,
         records a `subscription_events` audit entry (`event_type=resumed`, reason code `SUBSCRIPTION_REACTIVATED_MANUAL_UPDATE`),
+        stores audit payload markers `source=subscription_update`, `from_status=suspended`, `to_status=active`,
         and sends reactivation email to the company billing contact.
       security:
         - bearerAuth: []

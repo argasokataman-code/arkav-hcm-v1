@@ -301,13 +301,16 @@ class SubscriptionController extends Controller
             $this->companyStatusSynchronizer->syncFromSubscription($subscription->fresh('company'));
 
             if ($isReactivation) {
-                $this->recordManualReactivationEvent(
+                $this->recordSubscriptionEvent(
                     $request,
                     $subscription,
+                    'resumed',
                     'SUBSCRIPTION_REACTIVATED_MANUAL_UPDATE',
                     'Subscription reactivated by admin via subscription update endpoint.',
                     [
                         'source' => 'subscription_update',
+                        'from_status' => 'suspended',
+                        'to_status' => 'active',
                     ]
                 );
             }

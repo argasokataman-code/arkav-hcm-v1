@@ -390,6 +390,201 @@ describe('Packages management wiring', () => {
     expect(rowText).toContain('Total riwayat: 19');
   });
 
+  it('renders package features modal badges without losing manager context', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const target = String(url);
+
+      if (target === '/api-token') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { token: 'packages-token' } }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/packages?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: 'pkg-uuid',
+                code: 'growth',
+                name: 'Growth',
+                description: 'Growth package',
+                monthlyPrice: 200,
+                yearlyPrice: 2200,
+                billingUnit: 'company',
+                status: 'active',
+                features: [
+                  { id: 1, code: 'payroll', name: 'Payroll', limit: null },
+                  { id: 2, code: 'max_employees', name: 'Maximum Employees', limit: 25 },
+                ],
+              },
+            ],
+            pagination: { last_page: 1 },
+          }),
+        };
+      }
+
+      if (target.startsWith('/v1/saas/package-addons?')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+      };
+    });
+
+    const manager = await loadPackagesManager(fetchMock);
+
+    expect(() => manager.showFeaturesModal('pkg-uuid')).not.toThrow();
+    expect(document.getElementById('features_container').textContent).toContain('Growth');
+    expect(document.getElementById('features_container').textContent).toContain('Included: 2');
+    expect(document.getElementById('features_container').textContent).toContain('Maximum Employees: 25 org');
+  });
+
+  it('blurs focused controls before features modal hides', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const target = String(url);
+
+      if (target === '/api-token') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { token: 'packages-token' } }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+      };
+    });
+
+    await loadPackagesManager(fetchMock);
+
+    const featuresModal = document.getElementById('featuresModal');
+    featuresModal.innerHTML = '<button type="button" class="btn-close">Close</button>';
+    const closeButton = featuresModal.querySelector('button');
+    closeButton.focus();
+
+    expect(document.activeElement).toBe(closeButton);
+
+    featuresModal.dispatchEvent(new Event('hide.bs.modal'));
+
+    expect(document.activeElement).not.toBe(closeButton);
+  });
+
+  it('resets package modal scroll containers when modal state is refreshed', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const target = String(url);
+
+      if (target === '/api-token') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { token: 'packages-token' } }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+      };
+    });
+
+    const manager = await loadPackagesManager(fetchMock);
+    const packageModal = document.getElementById('packageModal');
+
+    packageModal.innerHTML = `
+      <div class="modal-body">
+        <div class="package-modal-panel"></div>
+        <div class="package-modal-panel">
+          <div class="package-feature-catalog"></div>
+          <div data-package-compliance-snapshot></div>
+        </div>
+      </div>
+    `;
+
+    const scrollables = packageModal.querySelectorAll('.modal-body, .package-modal-panel, .package-feature-catalog, [data-package-compliance-snapshot]');
+    scrollables.forEach((element) => {
+      element.scrollTop = 48;
+    });
+
+    manager.resetPackageModalState();
+
+    scrollables.forEach((element) => {
+      expect(element.scrollTop).toBe(0);
+    });
+  });
+
+  it('resets package modal scroll containers on modal lifecycle events', async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const target = String(url);
+
+      if (target === '/api-token') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { token: 'packages-token' } }),
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: [], pagination: { last_page: 1 } }),
+      };
+    });
+
+    await loadPackagesManager(fetchMock);
+
+    const packageModal = document.getElementById('packageModal');
+    packageModal.innerHTML = `
+      <div class="modal-body">
+        <div class="package-modal-panel"></div>
+        <div class="package-modal-panel">
+          <div class="package-feature-catalog"></div>
+          <div data-package-compliance-snapshot></div>
+        </div>
+      </div>
+    `;
+
+    const scrollables = packageModal.querySelectorAll('.modal-body, .package-modal-panel, .package-feature-catalog, [data-package-compliance-snapshot]');
+    scrollables.forEach((element) => {
+      element.scrollTop = 64;
+    });
+
+    packageModal.dispatchEvent(new Event('show.bs.modal'));
+
+    scrollables.forEach((element) => {
+      expect(element.scrollTop).toBe(0);
+      element.scrollTop = 64;
+    });
+
+    packageModal.dispatchEvent(new Event('shown.bs.modal'));
+    scrollables.forEach((element) => {
+      expect(element.scrollTop).toBe(0);
+      element.scrollTop = 64;
+    });
+
+    packageModal.dispatchEvent(new Event('hidden.bs.modal'));
+    scrollables.forEach((element) => {
+      expect(element.scrollTop).toBe(0);
+    });
+  });
+
   it('shows info popup when package delete is blocked with PACKAGE_IN_USE', async () => {
     const fetchMock = vi.fn(async (url, options = {}) => {
       const target = String(url);

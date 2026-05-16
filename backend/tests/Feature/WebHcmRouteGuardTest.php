@@ -235,6 +235,37 @@ class WebHcmRouteGuardTest extends TestCase
         }
     }
 
+    public function test_hcm_admin_api_cookie_can_open_payslip_report(): void
+    {
+        $company = $this->createCompany(['code' => 'webguard_payslip_admin']);
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'QA Payslip Admin',
+            'email' => 'qa.payslip@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $admin = User::query()->where('email', 'qa.payslip@example.com')->firstOrFail();
+        $this->attachUserToCompany($company, $admin);
+
+        $loginResponse = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'qa.payslip@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => $company->code,
+        ]);
+
+        $loginResponse->assertOk()->assertCookie($this->cookieName());
+        $token = $this->readCookieValueFromLoginResponse($loginResponse);
+        $this->assertNotEmpty($token);
+
+        $this->withHeader('Cookie', $this->cookieName().'='.$token)
+            ->withHeader('X-Company-Code', $company->code)
+            ->followingRedirects()
+            ->get('/payslip-report')
+            ->assertOk();
+    }
+
     public function test_non_hcm_admin_api_cookie_redirected_from_promotion_resignation_termination(): void
     {
         $company = $this->createCompany(['code' => 'webguard_api_member']);

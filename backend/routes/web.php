@@ -10,6 +10,8 @@ use App\Http\Controllers\KnowledgebaseController;
 use App\Support\HcmKnowledgebase;
 use App\Http\Controllers\CronjobController;
 use App\Http\Controllers\WilayahLocationController;
+use App\Models\Company;
+use App\Models\CompanySetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use App\Models\HcmLeaveTypeSetting;
@@ -811,6 +813,10 @@ Route::get('/schedules', function (Request $request) {
     return redirect('/attendance-employee');
 })->name('schedules-legacy');
 
+Route::get('/teams', function () {
+    return view('teams');
+})->middleware('hcm.web.admin')->name('teams');
+
 Route::get('/teams/{id}/members', function (string $id) {
     return view('team-members', ['teamId' => $id]);
 })->whereNumber('id')->middleware('hcm.web.admin')->name('team-members');
@@ -1430,8 +1436,22 @@ Route::middleware('hcm.web.admin')->group(function (): void {
         return view('employee-report');
     })->name('employee-report');
 
-    Route::get('payslip-report', function () {
-        return view('payslip-report');
+    Route::get('payslip-report', function (Request $request) {
+        $companyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        $company = $companyId > 0 ? Company::query()->find($companyId) : null;
+        $companyAddress = '';
+
+        if ($company !== null) {
+            $companyAddress = (string) (CompanySetting::query()
+                ->where('company_id', $company->id)
+                ->where('key', 'company_profile_address')
+                ->value('value') ?? '');
+        }
+
+        return view('payslip-report', [
+            'companyName' => $company?->name ?? config('app.name', 'Arcav'),
+            'companyAddress' => $companyAddress,
+        ]);
     })->name('payslip-report');
 
     Route::get('attendance-report', function () {

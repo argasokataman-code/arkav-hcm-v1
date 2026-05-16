@@ -1,6 +1,19 @@
 import { API_BASE, API_ADDONS_BASE, FEATURE_LIMIT_INPUT_CODE, apiRequest, esc, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures, isPackageFeatureIncluded } from "../shared.js";
 
 const modalMethods = {
+    resetPackageModalScrollState: function () {
+      [
+        "#packageModal .modal-body",
+        "#packageModal .package-modal-panel",
+        "#packageModal .package-feature-catalog",
+        "#packageModal [data-package-compliance-snapshot]",
+      ].forEach(function (selector) {
+        document.querySelectorAll(selector).forEach(function (element) {
+          element.scrollTop = 0;
+        });
+      });
+    },
+
     resetPackageModalState: function () {
       const title = document.getElementById("packageModalTitle");
       const submitBtn = document.querySelector("#packageForm button[type='submit']");
@@ -15,6 +28,7 @@ const modalMethods = {
       if (maxEmployeesInput) {
         maxEmployeesInput.value = "";
       }
+      this.resetPackageModalScrollState();
       this.queueComplianceSnapshotRefresh(true);
     },
 
@@ -164,6 +178,7 @@ const modalMethods = {
             self.updateFeatureSelectionSummary();
 
             self.currentEditId = id;
+            self.resetPackageModalScrollState();
             self.queueComplianceSnapshotRefresh(true);
             if (self.packageModalInstance) self.packageModalInstance.show();
           } else {
@@ -283,6 +298,7 @@ const modalMethods = {
     },
 
     showFeaturesModal: function (id) {
+      const self = this;
       const pkg = this.packages.find(function (row) {
         return String(row.id) === String(id);
       });
@@ -297,7 +313,7 @@ const modalMethods = {
         '<div class="text-muted small mb-2">Included: <strong>' + String(included.length) + '</strong></div>' +
         '<div class="d-flex flex-wrap gap-2">' +
         (included.map(function (f) {
-          return '<span class="badge bg-light text-dark">' + esc(this.describeFeatureBadge(f)) + '</span>';
+          return '<span class="badge bg-light text-dark">' + esc(self.describeFeatureBadge(f)) + '</span>';
         }).join("") || '<span class="text-muted">No features yet</span>') +
         '</div>';
 

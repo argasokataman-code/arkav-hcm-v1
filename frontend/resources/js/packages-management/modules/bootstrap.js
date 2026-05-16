@@ -1,5 +1,48 @@
 import { API_FEATURE_CATALOG, FEATURE_LIMIT_INPUT_CODE, apiRequest, getDefaultFeatureCatalog, getFeatureLibrary, getRuntimeFeatureDisplayName, isRecognizedRuntimeFeatureCode, setFeatureLibrary } from "../shared.js";
 
+function blurFocusedElementWithin(container) {
+  const activeElement = document.activeElement;
+  if (
+    container &&
+    activeElement &&
+    typeof activeElement.blur === "function" &&
+    container.contains(activeElement)
+  ) {
+    activeElement.blur();
+  }
+}
+
+function bindModalFocusGuard(modalId) {
+  const modalEl = document.getElementById(modalId);
+  if (!modalEl || modalEl.dataset.arcavFocusGuardBound === "true") {
+    return;
+  }
+
+  modalEl.addEventListener("hide.bs.modal", function () {
+    blurFocusedElementWithin(modalEl);
+  });
+
+  modalEl.dataset.arcavFocusGuardBound = "true";
+}
+
+function bindPackageModalScrollReset(manager) {
+  const modalEl = document.getElementById("packageModal");
+  if (!modalEl || modalEl.dataset.arcavScrollResetBound === "true") {
+    return;
+  }
+
+  const reset = function () {
+    if (manager && typeof manager.resetPackageModalScrollState === "function") {
+      manager.resetPackageModalScrollState();
+    }
+  };
+
+  modalEl.addEventListener("show.bs.modal", reset);
+  modalEl.addEventListener("shown.bs.modal", reset);
+  modalEl.addEventListener("hidden.bs.modal", reset);
+  modalEl.dataset.arcavScrollResetBound = "true";
+}
+
 const bootstrapMethods = {
     init: function () {
       if (this.isInitialized) {
@@ -15,6 +58,16 @@ const bootstrapMethods = {
       this.addonModalInstance = window.bootstrap
         ? window.bootstrap.Modal.getOrCreateInstance(document.getElementById("addonModal"))
         : null;
+      bindPackageModalScrollReset(this);
+      [
+        "packageModal",
+        "addonModal",
+        "featuresModal",
+        "featureCatalogModal",
+        "modulePreviewModal",
+        "featureMatrixModal",
+        "deleteModal",
+      ].forEach(bindModalFocusGuard);
       const self = this;
       this.loadFeatureCatalog().finally(function () {
         self.loadPackages();

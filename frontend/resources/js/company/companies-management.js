@@ -122,6 +122,31 @@
     );
   }
 
+  function blurFocusedElementWithin(container) {
+    const activeElement = document.activeElement;
+    if (
+      container &&
+      activeElement &&
+      typeof activeElement.blur === "function" &&
+      container.contains(activeElement)
+    ) {
+      activeElement.blur();
+    }
+  }
+
+  function bindModalFocusGuard(modalId) {
+    const modalEl = document.getElementById(modalId);
+    if (!modalEl || modalEl.dataset.arcavFocusGuardBound === "true") {
+      return;
+    }
+
+    modalEl.addEventListener("hide.bs.modal", function () {
+      blurFocusedElementWithin(modalEl);
+    });
+
+    modalEl.dataset.arcavFocusGuardBound = "true";
+  }
+
   // Main CompaniesManager object
   const CompaniesManager = {
     toast: function (message, tone) {
@@ -161,6 +186,10 @@
      */
     bindEvents: function () {
       const self = this;
+
+      bindModalFocusGuard("add_company");
+      bindModalFocusGuard("edit_company");
+      bindModalFocusGuard("delete_modal");
 
       // Form submissions
       const addForm = document.getElementById("add_company_form");

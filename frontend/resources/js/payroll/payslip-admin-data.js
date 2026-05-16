@@ -682,8 +682,9 @@
                 var meData = payload && payload.success && payload.data ? payload.data : null;
 
                 var isGlobalAdmin = !!(meData && meData.hcmGlobalAdmin === true);
+                var isTenantAdmin = !!(meData && meData.hcmAdmin === true);
                 var canViewPayroll = !!(meData && meData.permissions && meData.permissions['payroll.view']);
-                if (meData && !isGlobalAdmin && !canViewPayroll) {
+                if (meData && !isGlobalAdmin && !isTenantAdmin && !canViewPayroll) {
                     showAccessError("Akses ditolak. Halaman Payslip Report hanya untuk role payroll/admin yang memiliki izin.");
                     return;
                 }

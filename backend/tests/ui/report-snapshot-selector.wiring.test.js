@@ -280,4 +280,80 @@ describe('Manual snapshot selector reporting', () => {
     expect(document.querySelector('[data-payslip-admin-error]').textContent).toContain('bukan payroll report');
     expect(document.querySelector('[data-payslip-admin-body]').textContent).toContain('bukan payroll report');
   });
+
+  it('allows legacy tenant hcm admin to load payslip report without explicit payroll.view', async () => {
+    document.body.innerHTML = `
+      <div class="d-none" data-payslip-admin-error></div>
+      <div data-payslip-admin-run-info></div>
+      <div data-payslip-admin-summary style="display:none">
+        <span data-payslip-admin-count></span>
+        <span data-payslip-admin-employees></span>
+        <span data-payslip-admin-periods></span>
+        <span data-payslip-admin-total-net></span>
+      </div>
+      <table><tbody data-payslip-admin-body></tbody></table>
+    `;
+
+    window.AuthApi = {
+      handleUnauthorizedFromApi: vi.fn(() => false),
+      request: vi.fn().mockImplementation((method, url) => {
+        if (method === 'get' && url === '/identity/auth/me') {
+          return Promise.resolve({
+            success: true,
+            data: {
+              hcmAdmin: true,
+              permissions: {},
+            },
+          });
+        }
+
+        throw new Error(`Unhandled AuthApi.request: ${method} ${url}`);
+      }),
+    };
+
+    window.axios = vi.fn().mockResolvedValue({
+      data: {
+        success: true,
+        data: {
+          rows: [
+            {
+              rowKey: '2026-4-17',
+              periodYear: 2026,
+              periodMonth: 4,
+              runStatus: 'finalized',
+              paymentStatus: 'paid',
+              employeeName: 'Sinta Admin',
+              email: 'sinta@example.com',
+              designation: 'Payroll Admin',
+              team: 'Finance',
+              userId: 17,
+              totals: {
+                earningsTotal: 10000000,
+                deductionsTotal: 500000,
+                netPay: 9500000,
+              },
+              emailDelivery: {
+                status: 'sent',
+              },
+            },
+          ],
+          summary: {
+            totalRows: 1,
+            totalEmployees: 1,
+            totalPeriods: 1,
+          },
+        },
+      },
+    });
+
+    await loadModule('payslip', '/payslip-report');
+
+    expect(window.AuthApi.request).toHaveBeenCalledWith('get', '/identity/auth/me');
+    expect(window.axios).toHaveBeenCalledWith(expect.objectContaining({
+      method: 'get',
+      url: '/v1/hcm/payroll/admin-slips',
+    }));
+    expect(document.querySelector('[data-payslip-admin-body]').textContent).toContain('Sinta Admin');
+    expect(document.querySelector('[data-payslip-admin-error]').classList.contains('d-none')).toBe(true);
+  });
 });

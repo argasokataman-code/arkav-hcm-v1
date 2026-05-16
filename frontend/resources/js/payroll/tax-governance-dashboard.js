@@ -24,7 +24,7 @@ function loadRenderPlatformReportModule() {
     }
     try {
         var dynamicImport = new Function("modulePath", "return import(modulePath);");
-        __arcavRenderPlatformReportModulePromise = dynamicImport("./tax-governance/tax-governance-platform-report.js")
+        __arcavRenderPlatformReportModulePromise = dynamicImport("../tax-governance/tax-governance-platform-report.js")
             .then(function (mod) {
                 if (mod && typeof mod.renderPlatformReportModule === "function") {
                     __arcavRenderPlatformReportModuleRef = mod.renderPlatformReportModule;
@@ -61,7 +61,7 @@ function loadPricingPlansScreenModuleLoader() {
     }
     try {
         var dynamicImport = new Function("modulePath", "return import(modulePath);");
-        __arcavLoadPricingPlansScreenModulePromise = dynamicImport("./tax-governance/tax-governance-platform-pricing.js")
+        __arcavLoadPricingPlansScreenModulePromise = dynamicImport("../tax-governance/tax-governance-platform-pricing.js")
             .then(function (mod) {
                 if (mod && typeof mod.loadPricingPlansScreenModule === "function") {
                     __arcavLoadPricingPlansScreenModuleRef = mod.loadPricingPlansScreenModule;

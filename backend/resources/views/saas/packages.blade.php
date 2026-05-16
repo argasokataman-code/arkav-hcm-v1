@@ -185,18 +185,24 @@
                                 <div class="small text-muted mb-2" data-feature-healthcheck-status>Healthcheck: belum dijalankan.</div>
                                 <div class="row g-3">
                                     <div class="col-xl-8">
-                                        <div class="mb-3">
-                                            <input type="text" class="form-control" id="input_package_feature_search" placeholder="Cari fitur: payroll, approval, API, laporan, dll">
+                                        <div class="package-feature-pane">
+                                            <div class="mb-3 package-feature-search-wrap">
+                                                <input type="text" class="form-control" id="input_package_feature_search" placeholder="Cari fitur: payroll, approval, API, laporan, dll">
+                                            </div>
+                                            <div class="package-feature-scroll-region">
+                                                <div id="input_package_feature_chips" class="package-feature-catalog"></div>
+                                            </div>
                                         </div>
-                                        <div id="input_package_feature_chips" class="package-feature-catalog"></div>
                                     </div>
                                     <div class="col-xl-4">
-                                        <div class="package-compliance-panel" data-package-compliance-snapshot>
+                                        <div class="package-compliance-pane">
+                                            <div class="package-compliance-panel" data-package-compliance-snapshot>
                                             <div class="d-flex align-items-center justify-content-between mb-2">
                                                 <h6 class="fw-bold mb-0">Package Compliance</h6>
                                                 <span class="badge text-bg-light" data-package-compliance-overall>Checking...</span>
                                             </div>
                                             <p class="text-muted small mb-0">Snapshot compliance akan otomatis diperbarui saat fitur package diubah.</p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -349,6 +355,20 @@
         overflow-y: auto;
     }
 
+    #packageModal .modal-body > .row,
+    #packageModal .col-lg-4,
+    #packageModal .col-lg-8 {
+        min-height: 0;
+    }
+
+    #packageModal .col-lg-4,
+    #packageModal .col-lg-8,
+    #packageModal .col-xl-8,
+    #packageModal .col-xl-4 {
+        display: flex;
+        flex-direction: column;
+    }
+
     .package-modal-panel {
         border: 1px solid #e4e7ec;
         border-radius: 12px;
@@ -367,6 +387,36 @@
         overflow: hidden;
     }
 
+    #packageModal .col-lg-8 .package-modal-panel > .row.g-3 {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    #packageModal .col-lg-8 .package-modal-panel > .row.g-3 > .col-xl-8,
+    #packageModal .col-lg-8 .package-modal-panel > .row.g-3 > .col-xl-4 {
+        min-height: 0;
+    }
+
+    .package-feature-pane,
+    .package-compliance-pane {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex: 1 1 auto;
+    }
+
+    .package-feature-search-wrap {
+        flex: 0 0 auto;
+    }
+
+    .package-feature-scroll-region {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: calc(100vh - 20rem);
+        overflow-y: auto;
+        padding-right: 0.25rem;
+    }
+
     .package-feature-summary {
         border: 1px solid #e4e7ec;
         border-radius: 10px;
@@ -375,11 +425,7 @@
     }
 
     .package-feature-catalog {
-        max-height: none;
         min-height: 260px;
-        flex: 1 1 auto;
-        overflow-y: auto;
-        padding-right: 0.25rem;
     }
 
     .package-feature-item {
@@ -479,7 +525,9 @@
         border-radius: 10px;
         background: #f8fafc;
         padding: 0.75rem;
-        max-height: 56vh;
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: 100%;
         overflow-y: auto;
     }
 
@@ -526,6 +574,9 @@
 
         .package-feature-catalog {
             min-height: 180px;
+        }
+
+        .package-feature-scroll-region {
             max-height: 42vh;
         }
 

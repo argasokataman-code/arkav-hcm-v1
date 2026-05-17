@@ -371,6 +371,440 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/hcm/email-settings:
+    get:
+      tags: [HCM]
+      summary: Get active email settings profile (global HCM admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Active email profile
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      provider:
+                        type: string
+                        enum: [smtp, mailtrap]
+                      fromAddress:
+                        type: string
+                        nullable: true
+                        format: email
+                      fromName:
+                        type: string
+                        nullable: true
+                      smtp:
+                        type: object
+                        properties:
+                          host:
+                            type: string
+                            nullable: true
+                          port:
+                            type: integer
+                          encryption:
+                            type: string
+                            nullable: true
+                            enum: [tls, ssl, none]
+                          username:
+                            type: string
+                            nullable: true
+                          passwordMasked:
+                            type: string
+                            nullable: true
+                          configured:
+                            type: boolean
+                      mailtrap:
+                        type: object
+                        properties:
+                          accountId:
+                            type: integer
+                            nullable: true
+                          apiTokenMasked:
+                            type: string
+                            nullable: true
+                          configured:
+                            type: boolean
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    put:
+      tags: [HCM]
+      summary: Update active email settings profile (global HCM admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider]
+              properties:
+                provider:
+                  type: string
+                  enum: [smtp, mailtrap]
+                fromAddress:
+                  type: string
+                  nullable: true
+                  format: email
+                fromName:
+                  type: string
+                  nullable: true
+                smtp:
+                  type: object
+                  properties:
+                    host:
+                      type: string
+                      nullable: true
+                    port:
+                      type: integer
+                      minimum: 1
+                      maximum: 65535
+                    encryption:
+                      type: string
+                      nullable: true
+                      enum: [tls, ssl, none]
+                    username:
+                      type: string
+                      nullable: true
+                    password:
+                      type: string
+                      nullable: true
+                mailtrap:
+                  type: object
+                  properties:
+                    accountId:
+                      type: integer
+                      nullable: true
+                      minimum: 1
+                    apiToken:
+                      type: string
+                      nullable: true
+      responses:
+        '200':
+          description: Updated email profile
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      provider:
+                        type: string
+                        enum: [smtp, mailtrap]
+                      fromAddress:
+                        type: string
+                        nullable: true
+                        format: email
+                      fromName:
+                        type: string
+                        nullable: true
+                      smtp:
+                        type: object
+                        properties:
+                          host:
+                            type: string
+                            nullable: true
+                          port:
+                            type: integer
+                          encryption:
+                            type: string
+                            nullable: true
+                            enum: [tls, ssl, none]
+                          username:
+                            type: string
+                            nullable: true
+                          passwordMasked:
+                            type: string
+                            nullable: true
+                          configured:
+                            type: boolean
+                      mailtrap:
+                        type: object
+                        properties:
+                          accountId:
+                            type: integer
+                            nullable: true
+                          apiTokenMasked:
+                            type: string
+                            nullable: true
+                          configured:
+                            type: boolean
+                  meta:
+                    type: object
+                    properties:
+                      updatedBy:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            nullable: true
+                          uuid:
+                            type: string
+                            nullable: true
+                          email:
+                            type: string
+                            nullable: true
+                            format: email
+                      updatedAt:
+                        type: string
+                        nullable: true
+                        format: date-time
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/email-settings/mailtrap-status:
+    get:
+      tags: [HCM]
+      summary: Check Mailtrap connectivity and visible token metadata (global HCM admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Mailtrap connectivity status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      provider:
+                        type: string
+                        example: mailtrap
+                      accountId:
+                        type: integer
+                        nullable: true
+                      credentialSource:
+                        type: string
+                        enum: [env, settings]
+                      tokenConfigured:
+                        type: boolean
+                      tokenLast4:
+                        type: string
+                        nullable: true
+                      connected:
+                        type: boolean
+                      visibleTokenCount:
+                        type: integer
+                      visibleTokens:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              nullable: true
+                            name:
+                              type: string
+                              nullable: true
+                            last4:
+                              type: string
+                              nullable: true
+                            expiresAt:
+                              type: string
+                              nullable: true
+                              format: date-time
+                      error:
+                        type: object
+                        nullable: true
+                        properties:
+                          code:
+                            type: string
+                          message:
+                            type: string
+                      mode:
+                        type: string
+                        enum: [env, settings]
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/email-settings/test-connection:
+    post:
+      tags: [HCM]
+      summary: Test SMTP or Mailtrap connectivity without persisting credentials (global HCM admin only, throttled 5 requests per minute)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider]
+              properties:
+                provider:
+                  type: string
+                  enum: [smtp, mailtrap]
+                timeout:
+                  type: integer
+                  minimum: 1
+                  maximum: 30
+                smtp:
+                  type: object
+                  properties:
+                    host:
+                      type: string
+                      nullable: true
+                    port:
+                      type: integer
+                      minimum: 1
+                      maximum: 65535
+                    encryption:
+                      type: string
+                      nullable: true
+                      enum: [tls, ssl, none]
+                    username:
+                      type: string
+                      nullable: true
+                    password:
+                      type: string
+                      nullable: true
+                mailtrap:
+                  type: object
+                  properties:
+                    accountId:
+                      type: integer
+                      nullable: true
+                      minimum: 1
+                    apiToken:
+                      type: string
+                      nullable: true
+      responses:
+        '200':
+          description: Connectivity probe result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      provider:
+                        type: string
+                        enum: [smtp, mailtrap]
+                      mode:
+                        type: string
+                        example: ephemeral
+                      persisted:
+                        type: boolean
+                        nullable: true
+                      accountId:
+                        type: integer
+                        nullable: true
+                      tokenConfigured:
+                        type: boolean
+                        nullable: true
+                      connected:
+                        type: boolean
+                      visibleTokenCount:
+                        type: integer
+                        nullable: true
+                      visibleTokens:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              nullable: true
+                            name:
+                              type: string
+                              nullable: true
+                            last4:
+                              type: string
+                              nullable: true
+                            expiresAt:
+                              type: string
+                              nullable: true
+                              format: date-time
+                      testedAt:
+                        type: string
+                        format: date-time
+                      details:
+                        type: object
+                        nullable: true
+                        additionalProperties: true
+                      error:
+                        type: object
+                        nullable: true
+                        properties:
+                          code:
+                            type: string
+                            enum: [TIMEOUT, DNS_ERROR, CONNECTION_REFUSED, TLS_ERROR, AUTH_FAILED, CONNECTION_FAILED, CONFIGURATION_ERROR]
+                          message:
+                            type: string
+                  meta:
+                    type: object
+                    properties:
+                      lastTestStatus:
+                        type: object
+                        properties:
+                          provider:
+                            type: string
+                            nullable: true
+                          mode:
+                            type: string
+                            nullable: true
+                          connected:
+                            type: boolean
+                          testedAt:
+                            type: string
+                            nullable: true
+                            format: date-time
+                          details:
+                            type: object
+                            nullable: true
+                            additionalProperties: true
+                          error:
+                            type: object
+                            properties:
+                              code:
+                                type: string
+                                nullable: true
+                              message:
+                                type: string
+                                nullable: true
+                          updatedBy:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                nullable: true
+                              uuid:
+                                type: string
+                                nullable: true
+                              email:
+                                type: string
+                                nullable: true
+                                format: email
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '429': { $ref: '#/components/responses/TooManyRequestsError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1/hcm/notifications/send-email:
     post:
       tags: [HCM]
@@ -410,9 +844,9 @@ paths:
                       to: { type: string, format: email }
                       subject: { type: string }
                       sentAt: { type: string, format: date-time }
-        '401': { : '#/components/responses/UnauthorizedError' }
-        '403': { : '#/components/responses/ForbiddenError' }
-        '422': { : '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
         '500':
           description: Email send failed
           content:
@@ -427,6 +861,178 @@ paths:
                     properties:
                       code: { type: string, example: MAIL_ERROR }
                       message: { type: string }
+
+  /webhooks/email-inbound:
+    post:
+      tags: [HCM]
+      summary: Receive inbound email provider webhooks
+      description: Public webhook endpoint secured by `X-Email-Inbound-Token` or `token` body field. Persists inbound email metadata as `email.inbound.received` in notification deliveries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                message_id:
+                  type: string
+                messageId:
+                  type: string
+                from:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: object
+                        additionalProperties: true
+                to:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: object
+                        additionalProperties: true
+                subject:
+                  type: string
+                text:
+                  type: string
+                html:
+                  type: string
+                received_at:
+                  type: string
+                  format: date-time
+      parameters:
+        - name: X-Email-Inbound-Token
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Inbound email accepted or deduplicated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      duplicate:
+                        type: boolean
+                      deliveryId:
+                        type: integer
+                      messageId:
+                        type: string
+                        nullable: true
+        '401':
+          description: Invalid webhook token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Webhook token not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /webhooks/email-delivery-status:
+    post:
+      tags: [HCM]
+      summary: Receive outbound email delivery status webhooks
+      description: Public webhook endpoint secured by `X-Email-Delivery-Token` or `token` body field. Updates outbound compose email delivery status by delivery UUID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                delivery_uuid:
+                  type: string
+                deliveryUuid:
+                  type: string
+                notification_uuid:
+                  type: string
+                notificationUuid:
+                  type: string
+                event:
+                  type: string
+                status:
+                  type: string
+                reason:
+                  type: string
+                error:
+                  type: string
+                message_id:
+                  type: string
+      parameters:
+        - name: X-Email-Delivery-Token
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: X-Arcav-Delivery-UUID
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Delivery status accepted and applied
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      deliveryId:
+                        type: integer
+                      deliveryUuid:
+                        type: string
+                      event:
+                        type: string
+                      status:
+                        type: string
+                        enum: [sent, delivered, deferred, dropped, failed]
+        '401':
+          description: Invalid webhook token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Delivery UUID not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Delivery UUID missing from payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Webhook token not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v1/hcm/notifications:
     get:
@@ -3983,8 +4589,9 @@ paths:
       tags: [Payroll]
       summary: Rebuild draft payroll run (HCM admin)
       description: |
-        Membuat draft payroll untuk periode. Jika draft `monthly` sudah ada, endpoint mengembalikan draft existing (idempotent, tanpa rebuild ulang).
-        `422` jika periode sudah punya run `finalized` (`PAYROLL_PERIOD_FINALIZED`).
+        Membuat ulang draft payroll untuk periode menggunakan source of truth tenant terbaru. Endpoint ini membutuhkan permission `payroll.run`.
+        Jika draft `monthly` sudah ada, draft lama dibersihkan lalu dibangun ulang agar operator mendapat snapshot payroll terbaru.
+        `422` jika periode sudah punya run `finalized` (`PAYROLL_PERIOD_FINALIZED`) dan environment bukan `local` / `development` / `testing`.
       security:
         - bearerAuth: []
       parameters:
@@ -4050,6 +4657,7 @@ paths:
                       reusedExistingDraft:
                         type: boolean
                         example: false
+                        description: Selalu `false` pada runtime aktif karena endpoint selalu merebuild draft monthly.
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
@@ -5036,7 +5644,7 @@ paths:
       tags: [Payroll]
       summary: Create or rebuild standalone PKWT compensation draft payroll (HCM admin)
       description: |
-        Membuat atau membangun ulang payroll run draft dengan `purpose=pkwt_compensation` untuk periode terpilih.
+        Membuat atau membangun ulang payroll run draft dengan `purpose=pkwt_compensation` untuk periode terpilih. Endpoint ini membutuhkan permission `payroll.pkwt.manage`.
         Setelah draft terbentuk, pembayaran dilakukan melalui endpoint generic `POST /payroll-runs/{id}/disburse`.
         Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
         `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
@@ -5195,6 +5803,8 @@ paths:
     put:
       tags: [Payroll]
       summary: Upsert THR settings for a calendar year (HCM admin)
+      description: |
+        Menyimpan pengaturan THR tahunan untuk tenant aktif. Endpoint ini membutuhkan permission `payroll.thr.manage`.
       security:
         - bearerAuth: []
       parameters:
@@ -5243,7 +5853,8 @@ paths:
       tags: [Payroll]
       summary: Regenerate THR draft list for a year (HCM admin)
       description: |
-        Membutuhkan `calculationCutoffDate` di thr-settings tahun tersebut. `422` THR_SETUP_CUTOFF_REQUIRED / THR_YEAR_ALREADY_ASSIGNED.
+        Membutuhkan `calculationCutoffDate` di thr-settings tahun tersebut. Endpoint ini membutuhkan permission `payroll.thr.manage`.
+        `422` THR_SETUP_CUTOFF_REQUIRED / THR_YEAR_ALREADY_ASSIGNED.
       security:
         - bearerAuth: []
       requestBody:
@@ -5265,7 +5876,7 @@ paths:
       tags: [Payroll]
       summary: Eksekusi pembayaran THR via payment gateway (subset userIds, HCM admin)
       description: |
-        Batch harus `draft`. Memanggil driver disbursement (`hcm.thr_disbursement_driver`, default stub).
+        Batch harus `draft`. Endpoint ini membutuhkan permission `payroll.disburse`. Memanggil driver disbursement (`hcm.thr_disbursement_driver`, default stub).
         Baris `paid` dilewati. Sukses → `paymentStatus=paid`, generate slip PDF; gagal → `failed` + alasan (retry dari UI).
         Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
         `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
@@ -5294,7 +5905,8 @@ paths:
       tags: [Payroll]
       summary: Posting batch THR ke run payroll final (HCM admin)
       description: |
-        Membutuhkan semua baris eligible THR>0 sudah `paid`. `paymentDate` di thr-settings. Run `purpose=thr` final; batch jadi `assigned`.
+        Membutuhkan semua baris eligible THR>0 sudah `paid`. Endpoint ini membutuhkan permission `payroll.thr.manage`.
+        `paymentDate` di thr-settings. Run `purpose=thr` final; batch jadi `assigned`.
         `422` THR_POST_UNPAID_PAYABLE_LINES jika masih ada eligible belum paid.
         Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
         `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
@@ -5319,7 +5931,8 @@ paths:
       tags: [Payroll]
       summary: Tandai slip THR sudah dikirim (bulk, HCM admin)
       description: |
-        Mencatat `slip_notify_sent_at` untuk `lineIds` di `batchId`. Integrasi email/WA dapat ditambahkan di belakang endpoint ini.
+        Mencatat `slip_notify_sent_at` untuk `lineIds` di `batchId`. Endpoint ini membutuhkan permission `payroll.thr.manage`.
+        Integrasi email/WA dapat ditambahkan di belakang endpoint ini.
       security:
         - bearerAuth: []
       requestBody:
@@ -5554,6 +6167,7 @@ paths:
     get:
       tags: [Payroll]
       summary: List payroll item assignments per employee (HCM admin)
+      description: Membutuhkan permission `payroll.view`.
       security:
         - bearerAuth: []
       parameters:
@@ -5568,6 +6182,7 @@ paths:
     post:
       tags: [Payroll]
       summary: Assign payroll item to employee (HCM admin)
+      description: Membutuhkan permission `payroll.manage`.
       security:
         - bearerAuth: []
       requestBody:
@@ -5595,6 +6210,7 @@ paths:
     put:
       tags: [Payroll]
       summary: Update payroll item assignment (HCM admin)
+      description: Membutuhkan permission `payroll.manage`.
       security:
         - bearerAuth: []
       parameters:
@@ -5620,6 +6236,7 @@ paths:
     delete:
       tags: [Payroll]
       summary: Delete payroll item assignment (HCM admin)
+      description: Membutuhkan permission `payroll.manage`.
       security:
         - bearerAuth: []
       parameters:

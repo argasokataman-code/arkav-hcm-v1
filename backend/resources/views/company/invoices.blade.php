@@ -33,11 +33,10 @@
         <div class="alert alert-info d-flex align-items-start gap-2" role="alert">
             <i class="ti ti-info-circle mt-1"></i>
             <div>
-                <strong>Disclosure Pemrosesan Pembayaran:</strong>
-                Informasi pembayaran Anda diproses oleh penyedia pembayaran pihak ketiga
-                (Xendit dan/atau Stripe). Untuk transaksi lintas negara, data tertentu dapat
-                diproses pada infrastruktur di luar Indonesia sesuai kebutuhan pelaksanaan kontrak
-                layanan (UU PDP Pasal 49 huruf b).
+                <strong>Keamanan Pembayaran:</strong>
+                Pembayaran Anda diproses oleh Xendit atau Stripe (penyedia pembayaran pihak ketiga).
+                Untuk transaksi internasional, data Anda dapat diproses di luar negeri — tetap
+                terlindungi sesuai standar perlindungan data pribadi Indonesia.
             </div>
         </div>
 
@@ -142,7 +141,7 @@
         <!-- Info Alert -->
         <div class="alert alert-info mt-3" role="alert">
             <i class="ti ti-info-circle me-2"></i>
-            <strong>Need Help?</strong> If you have questions about your invoice, please contact our support team at billing@arcav.com
+            <strong>Perlu Bantuan?</strong> Untuk pertanyaan seputar invoice atau tagihan, buka tiket melalui menu <a href="{{ url('/tickets-employee') }}" class="alert-link">Tiket Bantuan</a> atau hubungi tim support perusahaan Anda.
         </div>
 
     </div>

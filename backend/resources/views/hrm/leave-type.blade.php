@@ -73,7 +73,6 @@
                             <a href="{{ url('approval-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Approval Settings</a>
                             @if ($isGlobalHcmAdmin)<a href="{{ url('invoice-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Invoice Settings</a>@endif
                             <a href="{{ url('leave-type') }}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Leave Type</a>
-                            <a href="{{ url('appearance') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Appearance</a>
                         </div>
                     </div>
                 </div>
@@ -269,89 +268,131 @@
 </div>
 
 <script>
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function() {
     const apiBaseUrl = '/v1/hcm';
     const leaveTypeModalEl = document.getElementById('leaveTypeModal');
-    const leaveTypeModal = new bootstrap.Modal(leaveTypeModalEl);
+    const leaveTypeForm = document.getElementById('leaveTypeForm');
+    const refreshLeaveTypesBtn = document.getElementById('refreshLeaveTypesBtn');
+    const leaveTypeFormError = document.getElementById('leaveTypeFormError');
+    const leaveTypePageError = document.getElementById('leaveTypePageError');
+    const leaveTypeId = document.getElementById('leaveTypeId');
+    const leaveTypeCode = document.getElementById('leaveTypeCode');
+    const leaveTypeName = document.getElementById('leaveTypeName');
+    const leaveTypeDays = document.getElementById('leaveTypeDays');
+    const leaveTypeMaxCarryDays = document.getElementById('leaveTypeMaxCarryDays');
+    const leaveTypeSortOrder = document.getElementById('leaveTypeSortOrder');
+    const leaveTypeIsEnabled = document.getElementById('leaveTypeIsEnabled');
+    const leaveTypeCarryForward = document.getElementById('leaveTypeCarryForward');
+    const leaveTypeEarnedLeave = document.getElementById('leaveTypeEarnedLeave');
+    const leaveTypeModalTitle = document.getElementById('leaveTypeModalTitle');
+    const leaveTypeSubmitBtn = document.getElementById('leaveTypeSubmitBtn');
+
+    function metaContent(name) {
+        return document.querySelector(`meta[name="${name}"]`)?.getAttribute('content') || null;
+    }
+
+    function readValue(element) {
+        return (element?.value || '').trim();
+    }
+
+    function setAlertState(element, message) {
+        if (!element) {
+            return;
+        }
+
+        element.textContent = message || '';
+        element.classList.toggle('d-none', !message);
+    }
+
+    function toBoolean(value, fallback = false) {
+        if (value === undefined || value === null || value === '') {
+            return fallback;
+        }
+
+        return String(value) === '1' || String(value).toLowerCase() === 'true';
+    }
+
+    function rowToData(button) {
+        const dataset = button?.dataset || {};
+
+        return {
+            id: dataset.leaveTypeId || '',
+            code: dataset.leaveTypeCode || '',
+            name: dataset.leaveTypeName || '',
+            days: dataset.leaveTypeDays || '',
+            maxCarryDays: dataset.leaveTypeMaxCarryDays || '',
+            sortOrder: dataset.leaveTypeSortOrder || '',
+            isEnabled: dataset.leaveTypeIsEnabled || '1',
+            carryForward: dataset.leaveTypeCarryForward || '0',
+            earnedLeave: dataset.leaveTypeEarnedLeave || '0',
+        };
+    }
 
     function getAuthToken() {
         return localStorage.getItem('arcav_access_token') ||
             sessionStorage.getItem('arcav_access_token') ||
             localStorage.getItem('token') ||
             sessionStorage.getItem('token') ||
-            $('meta[name="api-token"]').attr('content') ||
-            $('meta[name="auth-token"]').attr('content') ||
+            metaContent('api-token') ||
+            metaContent('auth-token') ||
             null;
     }
 
     function authHeaders(extraHeaders = {}) {
         return Object.assign({
             'Authorization': `Bearer ${getAuthToken() || ''}`,
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            'X-CSRF-TOKEN': metaContent('csrf-token') || ''
         }, extraHeaders);
     }
 
     function showFormError(message) {
-        $('#leaveTypeFormError').removeClass('d-none').text(message);
+        setAlertState(leaveTypeFormError, message);
     }
 
     function clearFormError() {
-        $('#leaveTypeFormError').addClass('d-none').text('');
+        setAlertState(leaveTypeFormError, '');
     }
 
     function showPageError(message) {
-        $('#leaveTypePageError').removeClass('d-none').text(message);
+        setAlertState(leaveTypePageError, message);
     }
 
     function clearPageError() {
-        $('#leaveTypePageError').addClass('d-none').text('');
+        setAlertState(leaveTypePageError, '');
     }
 
     function resetForm() {
         clearFormError();
         clearPageError();
-        $('#leaveTypeForm')[0].reset();
-        $('#leaveTypeId').val('');
-        $('#leaveTypeCode').prop('readonly', false);
-        $('#leaveTypeModalTitle').text('Add Leave Type');
-        $('#leaveTypeSubmitBtn').text('Save');
-        $('#leaveTypeIsEnabled').prop('checked', true);
-        $('#leaveTypeCarryForward').prop('checked', false);
-        $('#leaveTypeEarnedLeave').prop('checked', false);
+        leaveTypeForm?.reset();
+        leaveTypeId.value = '';
+        leaveTypeCode.readOnly = false;
+        leaveTypeModalTitle.textContent = 'Add Leave Type';
+        leaveTypeSubmitBtn.textContent = 'Save';
+        leaveTypeIsEnabled.checked = true;
+        leaveTypeCarryForward.checked = false;
+        leaveTypeEarnedLeave.checked = false;
     }
 
     function fillForm(data) {
-        $('#leaveTypeId').val(data.id || '');
-        $('#leaveTypeCode').val(data.code || '').prop('readonly', true);
-        $('#leaveTypeName').val(data.name || '');
-        $('#leaveTypeDays').val(data.days ?? '');
-        $('#leaveTypeMaxCarryDays').val(data.maxCarryDays ?? '');
-        $('#leaveTypeSortOrder').val(data.sortOrder ?? '');
-        $('#leaveTypeIsEnabled').prop('checked', Boolean(Number(data.isEnabled ?? 1)));
-        $('#leaveTypeCarryForward').prop('checked', Boolean(Number(data.carryForward ?? 0)));
-        $('#leaveTypeEarnedLeave').prop('checked', Boolean(Number(data.earnedLeave ?? 0)));
-    }
-
-    function rowToData($button) {
-        return {
-            id: $button.data('leave-type-id'),
-            code: $button.data('leave-type-code'),
-            name: $button.data('leave-type-name'),
-            days: $button.data('leave-type-days'),
-            maxCarryDays: $button.data('leave-type-max-carry-days'),
-            sortOrder: $button.data('leave-type-sort-order'),
-            isEnabled: $button.data('leave-type-is-enabled'),
-            carryForward: $button.data('leave-type-carry-forward'),
-            earnedLeave: $button.data('leave-type-earned-leave'),
-        };
+        leaveTypeId.value = data.id || '';
+        leaveTypeCode.value = data.code || '';
+        leaveTypeCode.readOnly = true;
+        leaveTypeName.value = data.name || '';
+        leaveTypeDays.value = data.days ?? '';
+        leaveTypeMaxCarryDays.value = data.maxCarryDays ?? '';
+        leaveTypeSortOrder.value = data.sortOrder ?? '';
+        leaveTypeIsEnabled.checked = toBoolean(data.isEnabled, true);
+        leaveTypeCarryForward.checked = toBoolean(data.carryForward, false);
+        leaveTypeEarnedLeave.checked = toBoolean(data.earnedLeave, false);
     }
 
     function payloadFromForm() {
-        const code = $('#leaveTypeCode').val().trim();
-        const name = $('#leaveTypeName').val().trim();
-        const daysValue = $('#leaveTypeDays').val().trim();
-        const maxCarryValue = $('#leaveTypeMaxCarryDays').val().trim();
-        const sortOrderValue = $('#leaveTypeSortOrder').val().trim();
+        const code = readValue(leaveTypeCode);
+        const name = readValue(leaveTypeName);
+        const daysValue = readValue(leaveTypeDays);
+        const maxCarryValue = readValue(leaveTypeMaxCarryDays);
+        const sortOrderValue = readValue(leaveTypeSortOrder);
 
         return {
             code,
@@ -359,100 +400,119 @@ $(document).ready(function() {
             days: daysValue === '' ? null : Number(daysValue),
             maxCarryDays: maxCarryValue === '' ? null : Number(maxCarryValue),
             sortOrder: sortOrderValue === '' ? null : Number(sortOrderValue),
-            isEnabled: $('#leaveTypeIsEnabled').is(':checked'),
-            carryForward: $('#leaveTypeCarryForward').is(':checked'),
-            earnedLeave: $('#leaveTypeEarnedLeave').is(':checked'),
+            isEnabled: leaveTypeIsEnabled.checked,
+            carryForward: leaveTypeCarryForward.checked,
+            earnedLeave: leaveTypeEarnedLeave.checked,
         };
     }
 
-    function request(method, url, data) {
-        return $.ajax({
-            url,
-            type: method,
+    async function request(method, url, data) {
+        const response = await fetch(url, {
+            method,
             headers: authHeaders({ 'Content-Type': 'application/json' }),
-            dataType: 'json',
-            data: data ? JSON.stringify(data) : undefined,
+            body: data ? JSON.stringify(data) : undefined,
         });
+
+        let payload = null;
+
+        try {
+            payload = await response.json();
+        } catch (error) {
+            payload = null;
+        }
+
+        if (!response.ok) {
+            const requestError = new Error(payload?.error?.message || payload?.message || 'Request failed.');
+            requestError.payload = payload;
+            throw requestError;
+        }
+
+        return payload;
     }
 
-    $('#refreshLeaveTypesBtn').on('click', function() {
+    refreshLeaveTypesBtn?.addEventListener('click', function() {
         window.location.reload();
     });
 
-    $(document).on('click', '[data-leave-type-mode="create"]', function() {
-        resetForm();
-        $('#leaveTypeModalTitle').text('Add Leave Type');
-        $('#leaveTypeSubmitBtn').text('Create');
-        $('#leaveTypeCode').prop('readonly', false);
-    });
+    document.addEventListener('click', function(event) {
+        const createButton = event.target.closest('[data-leave-type-mode="create"]');
+        if (createButton) {
+            resetForm();
+            leaveTypeModalTitle.textContent = 'Add Leave Type';
+            leaveTypeSubmitBtn.textContent = 'Create';
+            leaveTypeCode.readOnly = false;
+            return;
+        }
 
-    $(document).on('click', '[data-leave-type-mode="edit"]', function() {
-        resetForm();
-        const data = rowToData($(this));
-        fillForm(data);
-        $('#leaveTypeModalTitle').text('Edit Leave Type');
-        $('#leaveTypeSubmitBtn').text('Save Changes');
-    });
+        const editButton = event.target.closest('[data-leave-type-mode="edit"]');
+        if (editButton) {
+            resetForm();
+            fillForm(rowToData(editButton));
+            leaveTypeModalTitle.textContent = 'Edit Leave Type';
+            leaveTypeSubmitBtn.textContent = 'Save Changes';
+            return;
+        }
 
-    $(document).on('click', '[data-leave-type-toggle]', function() {
+        const toggleButton = event.target.closest('[data-leave-type-toggle]');
+        if (!toggleButton) {
+            return;
+        }
+
         clearPageError();
-        const button = $(this);
-        const data = rowToData(button);
-        const nextEnabled = !Boolean(Number(data.isEnabled));
+        const data = rowToData(toggleButton);
+        const nextEnabled = !toBoolean(data.isEnabled, true);
         const payload = {
             name: String(data.name || '').trim(),
             days: data.days === '' || data.days === null ? null : Number(data.days),
             maxCarryDays: data.maxCarryDays === '' || data.maxCarryDays === null ? null : Number(data.maxCarryDays),
             sortOrder: data.sortOrder === '' || data.sortOrder === null ? null : Number(data.sortOrder),
             isEnabled: nextEnabled,
-            carryForward: Boolean(Number(data.carryForward)),
-            earnedLeave: Boolean(Number(data.earnedLeave)),
+            carryForward: toBoolean(data.carryForward, false),
+            earnedLeave: toBoolean(data.earnedLeave, false),
         };
 
-        button.prop('disabled', true);
+        toggleButton.disabled = true;
         request('PUT', `${apiBaseUrl}/leave-types/${data.id}`, payload)
-            .done(function(response) {
-                if (response?.success) {
-                    window.location.reload();
-                    return;
+            .then(function(response) {
+                if (!response?.success) {
+                    throw new Error(response?.error?.message || response?.message || 'Failed to update leave type.');
                 }
-                throw new Error(response?.error?.message || response?.message || 'Failed to update leave type.');
+
+                window.location.reload();
             })
-            .fail(function(xhr) {
-                const message = xhr.responseJSON?.error?.message || xhr.responseJSON?.message || 'Failed to update leave type.';
-                showPageError(message);
+            .catch(function(error) {
+                showPageError(error?.payload?.error?.message || error?.payload?.message || error?.message || 'Failed to update leave type.');
             })
-            .always(function() {
-                button.prop('disabled', false);
+            .finally(function() {
+                toggleButton.disabled = false;
             });
     });
 
-    $('#leaveTypeForm').on('submit', function(event) {
+    leaveTypeForm?.addEventListener('submit', function(event) {
         event.preventDefault();
         clearFormError();
         clearPageError();
 
-        const id = $('#leaveTypeId').val().trim();
+        const id = readValue(leaveTypeId);
         const payload = payloadFromForm();
         const method = id ? 'PUT' : 'POST';
         const endpoint = id ? `${apiBaseUrl}/leave-types/${id}` : `${apiBaseUrl}/leave-types`;
 
-        $('#leaveTypeSubmitBtn').prop('disabled', true);
+        leaveTypeSubmitBtn.disabled = true;
 
         request(method, endpoint, payload)
-            .done(function(response) {
+            .then(function(response) {
                 if (!response?.success) {
                     throw new Error(response?.error?.message || response?.message || 'Failed to save leave type.');
                 }
 
                 window.location.reload();
             })
-            .fail(function(xhr) {
-                const message = xhr.responseJSON?.error?.message || xhr.responseJSON?.message || 'Failed to save leave type.';
-                showFormError(message);
+            .catch(function(error) {
+                showFormError(error?.payload?.error?.message || error?.payload?.message || error?.message || 'Failed to save leave type.');
             })
-            .always(function() {
-                $('#leaveTypeSubmitBtn').prop('disabled', false);
+            .finally(function() {
+                leaveTypeSubmitBtn.disabled = false;
             });
     });
 
@@ -462,16 +522,16 @@ $(document).ready(function() {
 
         if (mode === 'create') {
             resetForm();
-            $('#leaveTypeModalTitle').text('Add Leave Type');
-            $('#leaveTypeSubmitBtn').text('Create');
+            leaveTypeModalTitle.textContent = 'Add Leave Type';
+            leaveTypeSubmitBtn.textContent = 'Create';
             return;
         }
 
         resetForm();
-        const data = rowToData($(trigger));
+        const data = rowToData(trigger);
         fillForm(data);
-        $('#leaveTypeModalTitle').text('Edit Leave Type');
-        $('#leaveTypeSubmitBtn').text('Save Changes');
+        leaveTypeModalTitle.textContent = 'Edit Leave Type';
+        leaveTypeSubmitBtn.textContent = 'Save Changes';
     });
 });
 </script>

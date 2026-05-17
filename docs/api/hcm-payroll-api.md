@@ -36,21 +36,27 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 
 | Endpoint | Siapa |
 |----------|--------|
-| `GET /payroll-periods/active` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
-| `GET/POST /payroll-periods`, `GET /payroll-periods/{id}`, `POST .../calculate-draft` | **HCM Admin** saja (`403` `AUTH_FORBIDDEN`) |
+| `GET /payroll-periods`, `GET /payroll-periods/{id}`, `GET /payroll-periods/active` | **HCM Admin** dengan `payroll.view` |
+| `POST /payroll-periods` | **HCM Admin** dengan `payroll.manage` |
+| `POST /payroll-periods/{id}/calculate-draft` | **HCM Admin** dengan `payroll.run` |
 | `GET /payroll/settings`, `PUT /payroll/settings`, `GET /payroll/settings/history` | **HCM Admin** saja (`settings.manage`) — konfigurasi payday/cutoff payroll bulanan tenant aktif, plus audit trail governance |
-| `GET /payroll-runs/history`, `GET /payroll-runs/{id}`, `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/void`, `POST /payroll-runs/{id}/mock-hosted-checkout`, `POST /payroll-runs/{id}/mock-hosted-checkout/confirm`, `POST /payroll-runs/{id}/disburse` | **HCM Admin** saja |
+| `GET /payroll-runs/history`, `GET /payroll-runs/{id}`, `GET /payroll/admin-run-slips`, `GET /payroll/admin-slips` | **HCM Admin** dengan `payroll.view` |
+| `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/void` | **HCM Admin** dengan `payroll.finalize` |
+| `POST /payroll-runs/{id}/mock-hosted-checkout`, `POST /payroll-runs/{id}/mock-hosted-checkout/confirm`, `POST /payroll-runs/{id}/disburse`, `POST /payroll-runs/{id}/reset-payments` | **HCM Admin** dengan `payroll.disburse` |
 | `GET /payroll/my-slip-latest-period` | **Semua user terautentikasi** — cari periode terbaru yang punya run payroll `finalized` untuk user pemanggil |
 | `GET /payroll/my-slip` | **Semua user terautentikasi** — ringkasan slip gaji milik sendiri untuk periode query (`earnings`, `deductions`, `totals`, `downloadUrl`) jika ada run **`finalized`** |
 | `GET /payroll/my-slip-pdf` | **Semua user terautentikasi** — unduh PDF slip gaji milik sendiri untuk periode query; `404` bila belum ada run final |
 | `GET /payroll/my-slip-lines` | **Semua user terautentikasi** — hanya baris **`user_id` = pemanggil**; data slip hanya jika ada run **`finalized`** untuk periode tersebut; baris **digabung** dari run **`purpose` `monthly`**, **`thr`**, dan **`pkwt_compensation`** (jika ada pada bulan yang sama) |
 | `GET /payroll/my-thr-slip` | **Semua user terautentikasi** — JSON slip THR milik sendiri (baris batch yang sudah punya PDF); `data.history` untuk pemilih tahun |
-| `GET /payroll/pkwt-compensations`, `POST /payroll/pkwt-compensations/post-payroll`, `POST /payroll/pkwt-calculate` | **HCM Admin** saja — preview daftar karyawan PKWT jatuh tempo, generate/rebuild draft payroll kompensasi PKWT, dan kalkulator estimasi cepat |
+| `GET /payroll/pkwt-compensations`, `POST /payroll/pkwt-calculate` | **HCM Admin** dengan `payroll.view` |
+| `POST /payroll/pkwt-compensations/post-payroll` | **HCM Admin** dengan `payroll.pkwt.manage` — generate/rebuild draft payroll kompensasi PKWT |
 | `GET /payroll/thr-batch/lines/{line}/slip` | **HCM admin** semua baris; **karyawan** hanya jika **`line` milik pemanggil** (`403` jika bukan) |
 | `POST /payroll/thr-calculate` | **HCM Admin** saja — estimasi THR bruto (Permenaker 6/2016, pro rata); **bukan** slip final dan **tanpa** PPh 21 TER |
-| `GET /payroll/thr-settings`, `PUT /payroll/thr-settings/{calendarYear}` | **HCM Admin** saja — pengaturan per tahun: tanggal Lebaran (referensi), tanggal pembayaran THR, cut-off perhitungan pro rata, catatan |
-| `GET /payroll/thr-batch`, `POST /payroll/thr-batch/generate`, `POST /payroll/thr-batch/disburse`, `POST /payroll/thr-batch/post-payroll`, `POST /payroll/thr-batch/send-slip` | **HCM Admin** saja — batch THR: gateway disburse → slip PDF → posting run `purpose=thr` |
-| `GET/POST /payroll-item-assignments`, `PUT/DELETE /payroll-item-assignments/{id}` | **HCM Admin** saja — assignment payroll item custom per karyawan |
+| `GET /payroll/thr-settings`, `GET /payroll/thr-batch` | **HCM Admin** dengan `payroll.view` |
+| `PUT /payroll/thr-settings/{calendarYear}`, `POST /payroll/thr-batch/generate`, `POST /payroll/thr-batch/post-payroll`, `POST /payroll/thr-batch/send-slip` | **HCM Admin** dengan `payroll.thr.manage` |
+| `POST /payroll/thr-batch/disburse` | **HCM Admin** dengan `payroll.disburse` — batch THR: gateway disburse |
+| `GET /payroll-item-assignments` | **HCM Admin** dengan `payroll.view` |
+| `POST /payroll-item-assignments`, `PUT /payroll-item-assignments/{id}`, `DELETE /payroll-item-assignments/{id}` | **HCM Admin** dengan `payroll.manage` — assignment payroll item custom per karyawan |
 
 ## Endpoints
 
@@ -81,12 +87,15 @@ Daftar periode (maks. 100 terbaru), urut tahun & bulan menurun.
 
 ### `POST /payroll-periods/{id}/calculate-draft`
 
-Membangun run `draft` payroll untuk periode secara **aman dari multi-click**:
+Membangun ulang run `draft` payroll untuk periode menggunakan source of truth tenant terbaru.
 
-- Jika sudah ada run `draft` bulanan pada periode yang sama, endpoint **tidak rebuild ulang** dan mengembalikan run draft existing (`reusedExistingDraft = true`).
+- Endpoint ini memerlukan permission **`payroll.run`**.
+- Jika sudah ada run `draft` bulanan pada periode yang sama, draft lama **dibersihkan lalu dibangun ulang** agar operator mendapat snapshot payroll terbaru.
 - Jika belum ada draft, endpoint membuat run `draft` baru dan menyisipkan baris per karyawan `active` / `probation` yang punya profil (lihat ringkasan engine di atas).
 
-**422** `PAYROLL_PERIOD_FINALIZED` jika periode sudah memiliki run `finalized` (recalc tidak diizinkan sampai ada void / periode baru — backlog).
+**422** `PAYROLL_PERIOD_FINALIZED` jika periode sudah memiliki run `finalized` dan environment bukan `local` / `development` / `testing`.
+
+Pada environment `local`, `development`, atau `testing`, finalized monthly run lama akan di-void otomatis dan metadata pembayaran line dibersihkan agar draft bisa direbuild untuk kebutuhan QA/dev.
 
 **200** `data`: `run` (ringkas), `lineCount`, `employeeCount`, `anomalies`, `reusedExistingDraft`.
 

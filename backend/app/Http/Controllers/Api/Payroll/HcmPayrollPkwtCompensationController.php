@@ -54,7 +54,7 @@ class HcmPayrollPkwtCompensationController extends Controller
 
     public function postPayroll(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.pkwt.manage')) {
             return $forbidden;
         }
 

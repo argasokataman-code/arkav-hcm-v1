@@ -54,7 +54,7 @@ class SettingsController extends Controller
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'group' => 'nullable|string|in:general,business,localization,seo,authentication,ai,preferences,appearance,custom_code',
+            'group' => 'nullable|string|in:general,business,localization,seo,authentication,ai,preferences,custom_code',
         ]);
 
         $group = (string) ($validated['group'] ?? 'general');
@@ -91,7 +91,7 @@ class SettingsController extends Controller
         }
 
         $validated = $request->validate([
-            'group' => 'required|string|in:general,business,localization,seo,authentication,ai,preferences,appearance,custom_code',
+            'group' => 'required|string|in:general,business,localization,seo,authentication,ai,preferences,custom_code',
             'settings' => 'required|array',
         ]);
 
@@ -169,7 +169,7 @@ class SettingsController extends Controller
 
         $validated = $request->validate([
             'value' => 'required',
-            'group' => 'string|in:general,business,localization,seo,authentication,ai,preferences,appearance,custom_code',
+            'group' => 'string|in:general,business,localization,seo,authentication,ai,preferences,custom_code',
         ]);
 
         $group = $validated['group'] ?? 'general';

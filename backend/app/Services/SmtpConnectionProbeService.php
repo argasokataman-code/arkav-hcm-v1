@@ -40,7 +40,7 @@ class SmtpConnectionProbeService
                 'host' => $host !== '' ? $host : null,
                 'port' => $port > 0 ? $port : 587,
                 'encryption' => $encryption,
-                'username' => $this->normalizeNullableString($config['username'] ?? null),
+                'usernameMasked' => $this->maskProbeIdentifier($config['username'] ?? null),
                 'timeout' => $timeout,
             ],
             'error' => null,
@@ -190,5 +190,20 @@ class SmtpConnectionProbeService
         }
 
         return min($timeout, 30);
+    }
+
+    private function maskProbeIdentifier(mixed $value): ?string
+    {
+        $text = $this->normalizeNullableString($value);
+        if ($text === null) {
+            return null;
+        }
+
+        $length = strlen($text);
+        if ($length <= 2) {
+            return str_repeat('*', $length);
+        }
+
+        return substr($text, 0, 1).str_repeat('*', max(1, $length - 2)).substr($text, -1);
     }
 }

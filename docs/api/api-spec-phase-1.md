@@ -10,6 +10,8 @@ Sumber kebenaran kontrak saat ini:
 ## Feature specs (per menu/service)
 
 - Identity: `docs/api/identity-api.md`
+- Email settings: `docs/api/email-settings-api.md`
+- Email webhooks: `docs/api/email-webhooks-api.md`
 - Employees: `docs/api/hcm-employees-api.md`
 - Training: `docs/api/hcm-training-api.md`
 - Tickets: `docs/api/hcm-tickets-api.md`

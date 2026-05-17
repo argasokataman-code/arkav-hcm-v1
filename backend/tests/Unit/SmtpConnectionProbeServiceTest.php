@@ -29,6 +29,8 @@ class SmtpConnectionProbeServiceTest extends TestCase
         $this->assertNull($result['error']);
         $this->assertSame('smtp', $result['provider']);
         $this->assertSame('ephemeral', $result['mode']);
+        $this->assertSame('s*******r', $result['details']['usernameMasked']);
+        $this->assertArrayNotHasKey('username', $result['details']);
     }
 
     public function test_probe_normalizes_auth_failure(): void

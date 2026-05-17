@@ -69,7 +69,6 @@
                             <a href="{{ url('approval-settings') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Approval Settings</a>
                             <a href="{{ url('invoice-settings') }}" class="d-inline-flex align-items-center rounded active py-2 px-3"><i class="ti ti-arrow-badge-right me-2"></i>Invoice Settings</a>
                             <a href="{{ url('leave-type') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Leave Type</a>
-                            <a href="{{ url('appearance') }}" class="d-inline-flex align-items-center rounded py-2 px-3">Appearance</a>
                         </div>
                     </div>
                 </div>

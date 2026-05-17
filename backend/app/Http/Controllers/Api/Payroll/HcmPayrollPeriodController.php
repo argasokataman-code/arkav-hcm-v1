@@ -198,7 +198,7 @@ class HcmPayrollPeriodController extends Controller
 
     public function calculateDraft(Request $request, int $id): JsonResponse
     {
-        $forbidden = $this->ensurePermission($request, 'payroll.view');
+        $forbidden = $this->ensurePermission($request, 'payroll.run');
         if ($forbidden) {
             return $forbidden;
         }

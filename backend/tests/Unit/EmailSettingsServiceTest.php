@@ -130,6 +130,88 @@ class EmailSettingsServiceTest extends TestCase
         $this->assertSame(55, $snapshot['updatedBy']['id']);
     }
 
+    public function test_persist_test_connection_snapshot_strips_sensitive_detail_keys(): void
+    {
+        $service = new EmailSettingsService();
+
+        $snapshot = $service->persistTestConnectionSnapshot([
+            'provider' => 'smtp',
+            'mode' => 'ephemeral',
+            'connected' => false,
+            'testedAt' => '2026-04-24T13:10:00+00:00',
+            'details' => [
+                'host' => 'smtp.example.com',
+                'port' => 587,
+                'username' => 'smtp-user',
+                'usernameMasked' => 's*******r',
+                'password' => 'smtp-secret',
+                'auth' => [
+                    'apiToken' => 'mt-secret-token',
+                    'secretHintMasked' => '***7890',
+                ],
+            ],
+        ]);
+
+        $stored = Setting::get('email_last_test_details');
+
+        $this->assertIsArray($stored);
+        $this->assertSame('smtp.example.com', $stored['host']);
+        $this->assertSame('s*******r', $stored['usernameMasked']);
+        $this->assertArrayNotHasKey('username', $stored);
+        $this->assertArrayNotHasKey('password', $stored);
+        $this->assertIsArray($stored['auth']);
+        $this->assertArrayNotHasKey('apiToken', $stored['auth']);
+        $this->assertSame('***7890', $stored['auth']['secretHintMasked']);
+        $this->assertSame($stored, $snapshot['details']);
+    }
+
+    public function test_update_profile_keeps_existing_secrets_when_secret_fields_are_omitted(): void
+    {
+        $service = new EmailSettingsService();
+
+        $service->updateProfile([
+            'provider' => 'smtp',
+            'fromAddress' => 'noreply@example.com',
+            'fromName' => 'Arkav Mail',
+            'smtp' => [
+                'host' => 'smtp.example.com',
+                'port' => 587,
+                'encryption' => 'tls',
+                'username' => 'smtp-user',
+                'password' => 'smtp-secret-1234',
+            ],
+            'mailtrap' => [
+                'accountId' => 3229,
+                'apiToken' => 'mailtrap-token-7890',
+            ],
+        ]);
+
+        $storedSmtpBefore = (string) Setting::get('email_smtp_password');
+        $storedTokenBefore = (string) Setting::get('email_mailtrap_api_token');
+
+        $result = $service->updateProfile([
+            'provider' => 'smtp',
+            'fromAddress' => 'support@example.com',
+            'fromName' => 'Arkav Support',
+            'smtp' => [
+                'host' => 'smtp.example.com',
+                'port' => 2525,
+                'encryption' => 'tls',
+                'username' => 'smtp-user',
+            ],
+            'mailtrap' => [
+                'accountId' => 3229,
+            ],
+        ]);
+
+        $this->assertSame($storedSmtpBefore, (string) Setting::get('email_smtp_password'));
+        $this->assertSame($storedTokenBefore, (string) Setting::get('email_mailtrap_api_token'));
+        $this->assertSame('****1234', $result['data']['smtp']['passwordMasked']);
+        $this->assertSame('****7890', $result['data']['mailtrap']['apiTokenMasked']);
+        $this->assertSame('support@example.com', $result['data']['fromAddress']);
+        $this->assertSame('Arkav Support', $result['data']['fromName']);
+    }
+
     public function test_resolve_runtime_smtp_transport_uses_explicit_smtp_profile(): void
     {
         Setting::set('email_provider', 'smtp', 'email');

@@ -359,7 +359,9 @@ Endpoint:
 - `PUT /v1/hcm/email-settings`
 - `GET /v1/hcm/email-settings/mailtrap-status`
 - `POST /v1/hcm/email-settings/test-connection`
-- `POST /v1/hcm/email-settings/compose`
+
+Catatan:
+- Compose manual halaman `/email` memakai endpoint notifications `POST /v1/hcm/notifications/send-email`, bukan group `email-settings`.
 
 #### D. Tax Governance platform endpoints global-only (controller-level)
 

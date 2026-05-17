@@ -46,7 +46,7 @@ class HcmPayrollThrSettingsController extends Controller
 
     public function upsert(Request $request, string $calendarYear): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.thr.manage')) {
             return $forbidden;
         }
 

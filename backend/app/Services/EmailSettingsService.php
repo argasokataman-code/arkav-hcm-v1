@@ -111,7 +111,8 @@ class EmailSettingsService
         Setting::set('email_last_test_mode', $this->normalizeNullableString($result['mode'] ?? null), 'email');
         Setting::set('email_last_test_connected', ! empty($result['connected']) ? '1' : '0', 'email');
         Setting::set('email_last_test_tested_at', $this->normalizeNullableString($result['testedAt'] ?? now()->toIso8601String()), 'email');
-        Setting::set('email_last_test_details', is_array($result['details'] ?? null) ? $result['details'] : null, 'email');
+        $details = is_array($result['details'] ?? null) ? $this->sanitizeSnapshotDetails($result['details']) : null;
+        Setting::set('email_last_test_details', $details, 'email');
 
         $error = is_array($result['error'] ?? null) ? $result['error'] : null;
         Setting::set('email_last_test_error_code', $this->normalizeNullableString($error['code'] ?? null), 'email');
@@ -136,7 +137,7 @@ class EmailSettingsService
             'mode' => $this->normalizeNullableString(Setting::get('email_last_test_mode')),
             'connected' => (bool) Setting::get('email_last_test_connected', false),
             'testedAt' => $this->normalizeNullableString(Setting::get('email_last_test_tested_at')),
-            'details' => is_array($details) ? $details : null,
+            'details' => is_array($details) ? $this->sanitizeSnapshotDetails($details) : null,
             'error' => [
                 'code' => $this->normalizeNullableString(Setting::get('email_last_test_error_code')),
                 'message' => $this->normalizeNullableString(Setting::get('email_last_test_error_message')),
@@ -318,6 +319,53 @@ class EmailSettingsService
         $number = (int) ($value ?? 0);
 
         return $number > 0 ? $number : null;
+    }
+
+    /**
+     * @param array<string, mixed> $details
+     * @return array<string, mixed>
+     */
+    private function sanitizeSnapshotDetails(array $details): array
+    {
+        $sanitized = [];
+
+        foreach ($details as $key => $value) {
+            $normalizedKey = strtolower((string) $key);
+
+            if ($this->isSensitiveSnapshotKey($normalizedKey)) {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $nested = $this->sanitizeSnapshotDetails($value);
+                if ($nested !== []) {
+                    $sanitized[(string) $key] = $nested;
+                }
+
+                continue;
+            }
+
+            if (is_scalar($value) || $value === null) {
+                $sanitized[(string) $key] = $value;
+            }
+        }
+
+        return $sanitized;
+    }
+
+    private function isSensitiveSnapshotKey(string $key): bool
+    {
+        if (str_ends_with($key, 'masked')) {
+            return false;
+        }
+
+        foreach (['password', 'token', 'secret', 'apikey', 'api_key', 'username'] as $fragment) {
+            if (str_contains($key, $fragment)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function normalizeEncryption(mixed $value): ?string

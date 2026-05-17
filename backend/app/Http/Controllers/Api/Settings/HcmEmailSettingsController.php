@@ -4,19 +4,13 @@ namespace App\Http\Controllers\Api\Settings;
 
 use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
 use App\Http\Controllers\Controller;
-use App\Mail\AdminComposeMailable;
 use App\Services\EmailSettingsService;
 use App\Services\MailtrapAccountApiService;
-use App\Services\NotificationDeliveryRecorder;
 use App\Services\SmtpConnectionProbeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use RuntimeException;
-use Throwable;
 
 class HcmEmailSettingsController extends Controller
 {
@@ -59,7 +53,7 @@ class HcmEmailSettingsController extends Controller
         $envApiToken = trim((string) config('services.mailtrap.api_token', ''));
         $envAccountId = (int) config('services.mailtrap.account_id');
 
-        $credentialSource = $settingsCredentials['configured'] ? 'env' : 'env';
+        $credentialSource = $settingsCredentials['configured'] ? 'settings' : 'env';
         $apiToken = $settingsCredentials['configured']
             ? (string) $settingsCredentials['apiToken']
             : $envApiToken;
@@ -77,7 +71,7 @@ class HcmEmailSettingsController extends Controller
             'visibleTokenCount' => 0,
             'visibleTokens' => [],
             'error' => null,
-            'mode' => 'env',
+            'mode' => $credentialSource,
         ];
 
         try {
@@ -98,7 +92,10 @@ class HcmEmailSettingsController extends Controller
                 'data' => $data,
             ]);
         } catch (RuntimeException $e) {
-            $data['error'] = $e->getMessage();
+            $data['error'] = [
+                'code' => 'CONNECTION_FAILED',
+                'message' => 'Mailtrap connection failed.',
+            ];
 
             return response()->json([
                 'success' => true,
@@ -199,107 +196,6 @@ class HcmEmailSettingsController extends Controller
                 'lastTestStatus' => $this->settingsService()->persistTestConnectionSnapshot($result, $request->user()),
             ],
         ]);
-    }
-
-    public function sendCompose(Request $request): JsonResponse
-    {
-        if ($forbidden = $this->ensureGlobalHcmAdmin($request)) {
-            return $forbidden;
-        }
-
-        $validator = Validator::make($request->all(), [
-            'to' => 'required|email',
-            'subject' => 'required|string|max:255',
-            'message' => 'required|string|max:5000',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'VALIDATION_ERROR',
-                    'message' => 'Validation failed.',
-                    'details' => $validator->errors()->toArray(),
-                ],
-            ], 422);
-        }
-
-        $data = $validator->validated();
-        $senderName = trim((string) ($request->user()?->name ?? ''));
-        if ($senderName === '') {
-            $senderName = trim((string) ($this->settingsService()->getProfile()['fromName'] ?? ''));
-        }
-        if ($senderName === '') {
-            $senderName = (string) config('app.name', 'Arkav');
-        }
-
-        $deliveryUuid = (string) Str::uuid();
-
-        try {
-            Mail::to($data['to'])->send(new AdminComposeMailable(
-                $data['subject'],
-                $data['message'],
-                $senderName,
-                $deliveryUuid,
-            ));
-
-            $transport = $this->settingsService()->resolveRuntimeSmtpTransport();
-            $delivery = app(NotificationDeliveryRecorder::class)->recordSent('email.compose.sent', 'mail', [
-                'notificationUuid' => $deliveryUuid,
-                'recipient' => $data['to'],
-                'metadata' => [
-                    'deliveryUuid' => $deliveryUuid,
-                    'subject' => $data['subject'],
-                    'messagePreview' => mb_substr($data['message'], 0, 160),
-                    'senderUserId' => (int) ($request->user()?->id ?? 0),
-                    'senderEmail' => (string) ($request->user()?->email ?? ''),
-                    'transportAccepted' => true,
-                    'mailDefaultDriver' => (string) config('mail.default'),
-                    'transportSource' => $transport['source'] ?? null,
-                    'transportHost' => $transport['host'] ?? null,
-                ],
-            ]);
-
-            Log::info('EMAIL_COMPOSE_ACCEPTED_BY_TRANSPORT', [
-                'deliveryId' => $delivery->id,
-                'deliveryUuid' => $deliveryUuid,
-                'recipient' => $data['to'],
-                'subject' => $data['subject'],
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'to' => $data['to'],
-                    'subject' => $data['subject'],
-                    'sentAt' => now()->toIso8601String(),
-                ],
-            ]);
-        } catch (Throwable $exception) {
-            report($exception);
-
-            $delivery = app(NotificationDeliveryRecorder::class)->recordFailed('email.compose.failed', 'mail', [
-                'notificationUuid' => $deliveryUuid,
-                'recipient' => $data['to'] ?? null,
-                'lastError' => $exception->getMessage(),
-            ]);
-
-            Log::error('EMAIL_COMPOSE_SEND_FAILED', [
-                'deliveryId' => $delivery->id,
-                'deliveryUuid' => $deliveryUuid,
-                'recipient' => $data['to'] ?? null,
-                'subject' => $data['subject'] ?? null,
-                'error' => $exception->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code' => 'EMAIL_SEND_FAILED',
-                    'message' => 'Email gagal dikirim. Periksa konfigurasi env SMTP lalu coba lagi.',
-                ],
-            ], 500);
-        }
     }
 
     private function settingsService(): EmailSettingsService

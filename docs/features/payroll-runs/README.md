@@ -10,7 +10,7 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 
 - Web: `/payroll-run`, `/payroll-run-history`, dan flow payroll terkait hanya tersedia lewat middleware `hcm.web.admin`.
 - API: endpoint `payroll-periods`, `payroll-runs`, `payroll/send-slips`, dan THR batch hanya dapat dipanggil HCM Admin, kecuali endpoint self-service seperti `my-slip-lines` atau `my-thr-slip` yang memang ditujukan untuk employee.
-- Permission praktis: guard server tetap menjadi sumber kebenaran; tombol frontend hanya mengikuti status yang diberikan backend.
+- Permission praktis: guard server tetap menjadi sumber kebenaran; tombol frontend hanya mengikuti status yang diberikan backend. Mutasi inti kini dipisah tegas: `calculate-draft` memakai `payroll.run`, assignment payroll item memakai `payroll.manage`, THR setup/post/send memakai `payroll.thr.manage`, PKWT post payroll memakai `payroll.pkwt.manage`, dan aksi bayar memakai `payroll.disburse`.
 
 ## UI Aktif
 
@@ -23,7 +23,7 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 
 1. HCM Admin membuka `/payroll-run` untuk periode payroll aktif.
 2. Admin menjalankan Calculate Draft. Halaman tidak menghitung otomatis saat dibuka.
-3. Jika draft sudah ada dan statusnya masih `draft`, tombol Calculate tetap boleh dipakai untuk refresh atau reuse draft lama.
+3. Jika draft sudah ada dan statusnya masih `draft`, tombol Calculate tetap boleh dipakai untuk rebuild draft menggunakan source of truth terbaru; runtime aktif tidak lagi mengandalkan reuse draft stale.
 4. Setelah draft tersedia, admin meninjau baris run dan hanya bisa melanjutkan export reconciliation ketika status tetap `draft`.
 5. Admin menjalankan Export Reconciliation untuk action `payroll_run` dengan `actionKey=disburse`, lalu wajib mengunduh file sampai sukses.
 6. Sesudah unduhan evidence berhasil, baru tombol Pay via Gateway atau Pay now dapat digunakan untuk batch pembayaran.
@@ -96,9 +96,9 @@ Komponen auto-provisioned via `resolveOrCreateComponent` di `PayrollDraftBuilder
 
 ## Status
 
-- Status implementation: **ready for deployment**
+- Status implementation: **runtime aktif, tetapi evidence manual E2E export/payment per role belum 100% tertutup**
 - Tracker: [tracker.md](tracker.md)
-- Snapshot saat ini: actual payroll inti sudah aktif end-to-end untuk surface runtime yang dipublikasikan, termasuk payslip web/PDF, overtime roll-up, deduction engine BPJS/PPh21 TER, void-before-paid, dan history payroll.
+- Snapshot saat ini: actual payroll inti sudah aktif end-to-end untuk surface runtime yang dipublikasikan, termasuk payslip web/PDF, overtime roll-up, deduction engine BPJS/PPh21 TER, void-before-paid, history payroll, dan hardening guard permission mutasi payroll. Closure release penuh masih menunggu bukti manual E2E export/payment per role.
 
 ## Catatan QA
 

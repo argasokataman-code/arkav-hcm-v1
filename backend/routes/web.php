@@ -1527,10 +1527,6 @@ Route::get('/preferences', function () {
     return view('preferences');
 })->middleware('hcm.web.admin')->name('preferences');
 
-Route::get('/appearance', function () {
-    return view('appearance');
-})->middleware('hcm.web.admin')->name('appearance');
-
 Route::get('/language', function () {
     return view('language');
 })->middleware('hcm.web.global-admin')->name('language');

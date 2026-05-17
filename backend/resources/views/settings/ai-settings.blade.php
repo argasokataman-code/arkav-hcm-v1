@@ -77,7 +77,6 @@
                             @if ($isGlobalHcmAdmin)
                             @endif
                             <a href="{{url('preference')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Preferences</a>
-                            <a href="{{url('appearance')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Appearance</a>
                             @if ($isGlobalHcmAdmin)
                             <a href="{{url('language')}}" class="d-inline-flex align-items-center rounded py-2 px-3">Language</a>
                             @endif

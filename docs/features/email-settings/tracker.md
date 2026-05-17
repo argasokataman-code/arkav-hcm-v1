@@ -2,18 +2,37 @@
 
 ## Snapshot
 
-- Date: 2026-04-25
-- Status: In Progress (outbound observability webhook baseline completed; provider abstraction next)
+- Date: 2026-05-17
+- Status: In Progress (docs parity restored; settings API active; web page baseline active)
 - Owner: Engineering (Backend + Frontend)
+
+## Audit Correction 2026-05-17
+
+- Source of truth runtime saat ini:
+	- Web aktif `GET /email-settings` sekarang memuat profile runtime, Mailtrap health, dan modal save/test connection berbasis API.
+	- Route `/email-template` sudah dihapus dari surface aktif.
+	- API email settings yang aktif hanya `GET /v1/hcm/email-settings`, `PUT /v1/hcm/email-settings`, `GET /v1/hcm/email-settings/mailtrap-status`, dan `POST /v1/hcm/email-settings/test-connection`.
+	- Compose manual halaman `/email` memakai `POST /v1/hcm/notifications/send-email`, bukan group `email-settings`.
+- Hardening yang sudah ditutup pada audit correction ini:
+	- `mailtrap-status` sekarang melaporkan `credentialSource` / `mode` dengan benar (`settings|env`).
+	- `test-connection` sekarang di-throttle `5 requests / minute`.
+	- Probe SMTP tidak lagi memantulkan username mentah di response/snapshot; hanya nilai masked.
+	- Fallback raw exception Mailtrap pada endpoint status disanitasi ke error generik.
+	- Service layer sekarang memfilter ulang `email_last_test_details` agar key sensitif tidak pernah tersimpan mentah.
+	- Save profile mempertahankan secret existing jika field secret di request memang tidak dikirim.
+	- Ghost modal Blade untuk route `/email-template` yang sudah dihapus ikut dibersihkan dari partial global.
+- Catatan historis:
+	- Beberapa item lama di tracker ini merekam eksperimen wiring UI/modal dan compose path yang tidak lagi menjadi runtime aktif.
+	- Gunakan section ini, route Laravel, dan dokumen API sebagai sumber kebenaran saat audit/fixing lanjutan.
 
 ## Current Capability Check
 
 1. Runtime Mailtrap status API: available.
-2. Email settings web pages (`/email-settings`, `/email-template`): available.
-3. SMTP/PHP Mailer credential persistence from UI: available (baseline).
-4. Email template CRUD runtime: not available.
+2. Email settings web page (`/email-settings`): available as runtime control-plane baseline.
+3. SMTP/PHP Mailer credential persistence from active UI: available for baseline save/test flow.
+4. Email template CRUD runtime: not available, and `/email-template` route is removed from active surface.
 5. Provider-agnostic email control-plane from admin panel: not available.
-6. Compose send API runtime (`POST /v1/hcm/email-settings/compose`): available.
+6. Compose send API runtime: available via `POST /v1/hcm/notifications/send-email`.
 7. Sent mailbox runtime list on `/email` (outbound log source): available (outbound only).
 8. Inbound webhook runtime (`POST /webhooks/email-inbound`): available (token-protected + idempotent).
 9. Polling fallback IMAP (`php artisan email:poll-imap-inbox`): available (opsional, konfigurasi-driven).
@@ -21,25 +40,22 @@
 
 ## Evidence (Code Surface)
 
-- `backend/app/Http/Controllers/Api/HcmEmailSettingsController.php`
+- `backend/app/Http/Controllers/Api/Settings/HcmEmailSettingsController.php`
 - `backend/app/Services/MailtrapAccountApiService.php`
 - `backend/app/Providers/AppServiceProvider.php`
 - `backend/config/services.php`
 - `backend/config/mail.php`
 - `backend/app/Console/Commands/EmailSendTestCommand.php`
 - `backend/tests/Unit/EmailSettingsServiceTest.php`
-- `backend/resources/views/email-settings.blade.php`
-- `backend/resources/views/email-template.blade.php`
-- `backend/resources/views/components/modal-popup.blade.php`
-- `backend/tests/ui/email-settings.wiring.test.js`
-- `frontend/resources/js/email-settings-data.js`
+- `backend/resources/views/settings/email-settings.blade.php`
 - `backend/routes/api.php`
 - `backend/routes/web.php`
-- `backend/tests/Unit/HcmEmailSettingsControllerTest.php`
 - `backend/tests/Feature/HcmEmailComposeApiTest.php`
 - `backend/tests/Feature/EmailComposeWebTest.php`
 - `backend/resources/views/email.blade.php`
 - `frontend/resources/js/email.js`
+- `backend/routes/api/notifications.php`
+- `backend/app/Http/Controllers/Api/Notifications/NotificationController.php`
 - `backend/app/Http/Controllers/Api/EmailInboundWebhookController.php`
 - `backend/app/Http/Controllers/Api/EmailDeliveryStatusWebhookController.php`
 - `backend/app/Console/Commands/PollEmailInboxImapCommand.php`
@@ -48,11 +64,11 @@
 
 ## Gap Register
 
-1. API vs web authorization policy untuk `mailtrap-status` sudah diselaraskan (global-admin only), lanjut monitor impact tenant admin.
-2. OpenAPI coverage untuk `GET /v1/hcm/email-settings/mailtrap-status` sudah ditambahkan.
-3. Email settings forms in UI masih template-only dan belum save runtime.
-4. Email template page masih statis (belum CRUD backend runtime).
-5. Belum ada test-connection endpoint untuk SMTP/provider profiles.
+1. Coverage frontend/Vitest untuk wiring `/email-settings` masih perlu ditambahkan.
+2. Runtime email template belum ada dan route `/email-template` sudah dihapus dari surface aktif.
+3. Compose manual memakai feature notifications; jangan menaruh kontraknya lagi di group `email-settings`.
+4. Provider abstraction/failover masih belum ada.
+5. Hardening security untuk test-connection dan secret handling masih perlu dilanjutkan.
 
 ## Single-Track Master Todo
 
@@ -70,7 +86,7 @@ Prinsip eksekusi:
 
 Active pointer:
 
-- Current execution start point: Item 40 (active).
+- Current execution start point: Item 56 (active).
 - Recommended order: strictly ascending, kecuali ada blocker teknis yang memaksa swap.
 
 ### A. Hardening Dasar Yang Sudah Ada
@@ -300,22 +316,17 @@ Detail outcome per blok akhir:
 
 ## Current Execution Note
 
-- Slice aktif: item 40-55 pada halaman `/email-settings` (dengan baseline test wiring sudah masuk).
+- Slice aktif: baseline web control-plane sudah aktif; backlog berikutnya fokus ke provider abstraction, template runtime, dan coverage frontend.
 - Evidence code saat ini:
-	- `backend/public/build/js/email-settings-data.js` ditambahkan untuk menggantikan inline script runtime halaman.
-	- `frontend/resources/js/email-settings-data.js` diselaraskan sebagai source modul UI untuk dukungan test/wiring frontend.
-	- `backend/resources/views/email-settings.blade.php` sekarang memakai hook data-attribute untuk Mailtrap status, provider switch, dan shell feedback.
-	- `backend/resources/views/components/modal-popup.blade.php` sekarang punya form runtime baseline untuk SMTP dan Mailtrap, termasuk tombol `Test Connection`, area result, dan modal feedback.
-	- `backend/routes/web.php`, `backend/resources/views/email.blade.php`, dan `frontend/resources/js/email.js` sekarang menampilkan compose runtime yang submit lewat API bearer-token ke mailer aktif, bukan placeholder/submit sesi web yang gagal `419`.
-	- `backend/app/Http/Controllers/Api/HcmEmailSettingsController.php`, `backend/tests/Feature/HcmEmailComposeApiTest.php`, dan `backend/tests/ui/email-compose.wiring.test.js` menambah baseline runtime compose-send untuk kontrak API + wiring UI.
-	- `backend/app/Mail/AdminComposeMailable.php` dan `backend/tests/Feature/EmailComposeWebTest.php` tetap menjaga fallback regression untuk validasi form web.
-	- `backend/tests/ui/email-settings.wiring.test.js` ditambahkan untuk load, test-connection, save success, dan save validation error path.
+	- `backend/resources/views/settings/email-settings.blade.php` menjadi source of truth halaman aktif dan sekarang me-wire profile runtime + Mailtrap health + save/test modal.
+	- `backend/app/Http/Controllers/Api/Settings/HcmEmailSettingsController.php` tetap memegang profile settings, Mailtrap status, dan test-connection API runtime.
+	- `backend/routes/api/email-settings.php` sekarang hanya memuat empat endpoint settings/probe yang benar-benar menjadi scope feature email-settings.
+	- `backend/routes/api/notifications.php`, `backend/tests/Feature/HcmEmailComposeApiTest.php`, dan `frontend/resources/js/email.js` menjadi source of truth compose manual `/email`.
+	- `docs/api/openapi.yaml`, `docs/api/email-settings-api.md`, `docs/features/email-settings/README.md`, dan matrix permission sudah diselaraskan ulang terhadap runtime aktif.
 - Kondisi saat ini:
-	- Load Mailtrap status: aktif via modul JS baru.
-	- Load profile settings: aktif via `GET /v1/hcm/email-settings`.
-	- Test connection UI state: aktif baseline untuk SMTP/Mailtrap (`Testing...`, success/warning/error result).
-	- Save modal provider: aktif baseline via `PUT /v1/hcm/email-settings` dan sudah punya wiring regression test success/error path.
-	- Unsaved-change guard: aktif baseline via `beforeunload` selama ada perubahan field/provider.
-	- Feedback konsisten: toast + alert fallback sudah aktif untuk success/error/info/warning event.
-	- Compose UI `/email`: aktif baseline via `POST /v1/hcm/email-settings/compose` dengan bearer token + feedback success/error inline.
-	- Verifikasi browser compose runtime sudah mencapai submit sukses UI setelah wiring dipindah ke endpoint API bearer-token.
+	- Halaman `/email-settings`: aktif sebagai baseline control-plane untuk konfigurasi efektif mail runtime.
+	- API profile settings: aktif via `GET/PUT /v1/hcm/email-settings`.
+	- API test connection: aktif via `POST /v1/hcm/email-settings/test-connection`.
+	- API Mailtrap status: aktif via `GET /v1/hcm/email-settings/mailtrap-status` dengan `credentialSource` dan `mode` yang akurat (`settings|env`).
+	- Compose UI `/email`: aktif via `POST /v1/hcm/notifications/send-email`.
+	- Surface `/email-template`: tidak aktif lagi dan belum memiliki runtime pengganti.

@@ -168,10 +168,6 @@ Route::middleware('hcm.web.admin')->prefix('employee-allowance-governance')->nam
     })->name('reports');
 });
 
-Route::get('/appearance', function () {
-    return view('settings.appearance');
-})->middleware('hcm.web.admin')->name('appearance');
-
 // Global-admin-only settings
 Route::get('/notification-observability', function () {
     return view('administration.monitoring.notification-observability');

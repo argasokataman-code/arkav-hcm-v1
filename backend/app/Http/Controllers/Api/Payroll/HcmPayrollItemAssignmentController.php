@@ -59,7 +59,7 @@ class HcmPayrollItemAssignmentController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.manage')) {
             return $forbidden;
         }
 
@@ -130,7 +130,7 @@ class HcmPayrollItemAssignmentController extends Controller
 
     public function update(Request $request, string $id): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.manage')) {
             return $forbidden;
         }
 
@@ -219,7 +219,7 @@ class HcmPayrollItemAssignmentController extends Controller
 
     public function destroy(Request $request, string $id): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.manage')) {
             return $forbidden;
         }
 

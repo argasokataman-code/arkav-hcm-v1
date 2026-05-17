@@ -100,7 +100,7 @@ class HcmPayrollThrBatchController extends Controller
 
     public function generate(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.thr.manage')) {
             return $forbidden;
         }
 
@@ -135,7 +135,7 @@ class HcmPayrollThrBatchController extends Controller
 
     public function disburse(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.disburse')) {
             return $forbidden;
         }
 
@@ -193,7 +193,7 @@ class HcmPayrollThrBatchController extends Controller
 
     public function postPayroll(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.thr.manage')) {
             return $forbidden;
         }
 
@@ -393,7 +393,7 @@ class HcmPayrollThrBatchController extends Controller
 
     public function sendSlip(Request $request): JsonResponse
     {
-        if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
+        if ($forbidden = $this->ensurePermission($request, 'payroll.thr.manage')) {
             return $forbidden;
         }
 

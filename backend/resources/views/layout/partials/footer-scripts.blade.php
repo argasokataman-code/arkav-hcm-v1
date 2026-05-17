@@ -365,6 +365,10 @@
     <script src="{{ URL::asset('build/js/settings/invoice-settings-data.js') }}"></script>
 @endif
 
+@if (Route::is(['email-settings']))
+    <script src="{{ URL::asset('build/js/settings/email-settings-data.js') }}?v={{ file_exists(public_path('build/js/settings/email-settings-data.js')) ? filemtime(public_path('build/js/settings/email-settings-data.js')) : time() }}"></script>
+@endif
+
 @if (Route::is(['notification-settings']))
     <script src="{{ URL::asset('build/js/notifications/notification-settings-data.js') }}"></script>
 @endif

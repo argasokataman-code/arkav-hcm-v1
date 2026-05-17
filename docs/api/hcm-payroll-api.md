@@ -371,7 +371,7 @@ Mengonfirmasi bahwa sesi hosted payment sudah selesai sebelum disburse dijalanka
 
 ### Export reconciliation payroll run (`POST /v1/reconciliation/exports`)
 
-Untuk request dengan `featureKey=payroll_run` dan `actionKey=disburse`, CSV yang di-generate server memuat line payroll (`run_id`, `user_id`, `component_code`, `amount`, dll.) plus `dataset_checksum` untuk verifikasi integritas dataset export.
+Untuk request dengan `featureKey=payroll_run` dan `actionKey=disburse`, file reconciliation yang di-generate server pada flow runtime payroll run menggunakan XLSX dan memuat line payroll (`run_id`, `user_id`, `component_code`, `amount`, dll.) plus `dataset_checksum` untuk verifikasi integritas dataset export.
 
 Baris ringkasan `SUBTOTAL` per karyawan dan `GRAND_TOTAL` menghitung nilai `gross_total`/`deductions_total`/`net_total` hanya dari line yang berdampak ke take-home pay (`affects_net_pay=true` pada master `hcm_salary_components`; fallback `true` jika line belum tertaut komponen).
 
@@ -443,6 +443,8 @@ Membangun ulang **satu** batch **draft** untuk `calendarYear`: menghapus draft l
 ### `POST /payroll/thr-batch/disburse`
 
 Mengeksekusi **payment gateway** (stub / integrasi Xendit-Midtrans nanti) untuk **`userIds`** tercentang. Batch **`draft`**. Baris sudah **`paid`** dilewati (tidak dipanggil ulang ke gateway). Baris yang dipilih harus **eligible** dan **`thrGross` &gt; 0**.
+
+Pada flow runtime aktif, evidence export reconciliation untuk THR menggunakan file **XLSX** sebelum operator melanjutkan proses bayar atau post payroll.
 
 **200** `data`: `disbursementId` (nullable jika semua terpilih sudah paid), `skippedAlreadyPaidUserIds`, `lines[]` terbaru, `batch` (dengan `canPostToPayroll`).
 
@@ -607,6 +609,8 @@ Endpoint ini dipakai untuk preview sekaligus membaca status payroll kompensasi P
 ### `POST /payroll/pkwt-compensations/post-payroll`
 
 **HCM Admin only.** Membuat atau membangun ulang draft payroll **standalone** dengan `purpose = pkwt_compensation` untuk periode terpilih.
+
+Pada flow runtime aktif, evidence export reconciliation untuk PKWT compensation menggunakan file **XLSX** sebelum draft diposting ke payroll.
 
 Flow setelah endpoint ini:
 

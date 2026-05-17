@@ -327,7 +327,7 @@ const _state: {
     currentRows: EmployeeRow[];
     currentTaxAnomalies: PayrollTaxAnomalies;
     loading: boolean;
-    /** Set after user completes CSV download for `currentRunId` (gate Pay via Gateway). */
+    /** Set after user completes reconciliation evidence download for `currentRunId` (gate Pay via Gateway). */
     reconciliationDownloadedForRunId: number | null;
 } = {
     currentPeriodId: null,

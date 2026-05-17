@@ -215,7 +215,7 @@
                                     <li class="list-group-item d-flex justify-content-between align-items-start" data-payroll-step="export">
                                         <div class="ms-2 me-auto">
                                             <div class="fw-semibold">Export evidence</div>
-                                            <div class="text-muted small">Buat lalu unduh CSV reconciliation terbaru sebagai bukti sebelum payment.</div>
+                                            <div class="text-muted small">Buat lalu unduh file XLSX reconciliation terbaru sebagai bukti sebelum payment.</div>
                                         </div>
                                         <span class="badge bg-light text-dark rounded-pill" data-payroll-step-status>Menunggu</span>
                                     </li>
@@ -304,7 +304,7 @@
 
                                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                                     <button type="button" class="btn btn-outline-primary" data-payroll-run-calculate disabled title="Hitung / refresh draft selama run masih status draft.">Calculate Draft</button>
-                                    <button type="button" class="btn btn-outline-secondary" data-payroll-run-export-evidence disabled title="Hanya aktif jika run berstatus draft. Urutan: Calculate Draft → Export → unduh CSV → Pay via Gateway.">Export Reconciliation</button>
+                                    <button type="button" class="btn btn-outline-secondary" data-payroll-run-export-evidence disabled title="Hanya aktif jika run berstatus draft. Urutan: Calculate Draft → Export → unduh XLSX → Pay via Gateway.">Export Reconciliation</button>
                                     <button type="button" class="btn btn-success" data-payroll-run-disburse disabled title="Aktif setelah unduh file export reconciliation untuk run ini.">Pay via Gateway</button>
                                 </div>
                                 <div class="small text-muted" data-payroll-run-action-guidance>
@@ -488,12 +488,12 @@
                         <div class="modal-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <p class="text-muted small mb-0">
                                 <i class="ti ti-info-circle me-1"></i>
-                                File CSV akan dibuat dari data di atas. Setelah diunduh, tombol Pay via Gateway akan terbuka.
+                                File XLSX akan dibuat dari data di atas. Setelah diunduh, tombol Pay via Gateway akan terbuka.
                             </p>
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
                                 <button type="button" class="btn btn-secondary" data-recon-preview-download>
-                                    <i class="ti ti-download me-1"></i>Download CSV &amp; Konfirmasi Evidence
+                                    <i class="ti ti-download me-1"></i>Download XLSX &amp; Konfirmasi Evidence
                                 </button>
                             </div>
                         </div>

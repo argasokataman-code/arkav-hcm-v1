@@ -74,7 +74,7 @@ function buildPayrollRunDom() {
       '<div data-recon-preview-net></div>' +
       '<div data-recon-preview-gross></div>' +
       '<tbody data-recon-preview-body></tbody>' +
-      '<button type="button" data-recon-preview-download>Download CSV</button>' +
+      '<button type="button" data-recon-preview-download>Download XLSX</button>' +
     '</div>';
 }
 
@@ -154,7 +154,7 @@ describe('Payroll run late-arrival migration wiring', function () {
           success: true,
           data: {
             id: 19,
-            filePath: 'reconciliation/company_1/payroll-run-88.csv',
+            filePath: 'reconciliation/company_1/payroll-run-88.xlsx',
           },
         });
       }

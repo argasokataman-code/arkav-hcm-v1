@@ -263,12 +263,12 @@
                         <div class="modal-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <p class="text-muted small mb-0">
                                 <i class="ti ti-info-circle me-1"></i>
-                                File CSV akan dibuat dari data di atas. Setelah diunduh, tombol Pay THR akan terbuka.
+                                File XLSX akan dibuat dari data di atas. Setelah diunduh, tombol Pay THR akan terbuka.
                             </p>
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
                                 <button type="button" class="btn btn-secondary" data-thr-recon-preview-download>
-                                    <i class="ti ti-download me-1"></i>Download CSV &amp; Konfirmasi Evidence
+                                    <i class="ti ti-download me-1"></i>Download XLSX &amp; Konfirmasi Evidence
                                 </button>
                             </div>
                         </div>

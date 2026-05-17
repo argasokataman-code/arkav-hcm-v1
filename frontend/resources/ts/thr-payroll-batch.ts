@@ -105,7 +105,7 @@ function reconciliationExportFileName(filePath: string | undefined | null, evide
             return last;
         }
     }
-    return `reconciliation-thr-${evidenceId}.csv`;
+    return `reconciliation-thr-${evidenceId}.xlsx`;
 }
 
 async function downloadReconciliationEvidenceFile(evidenceId: number, filePath?: string | null): Promise<void> {
@@ -280,7 +280,7 @@ async function triggerThrExportReconciliation(batchId: number, lines: BatchLine[
             actionKey: "disburse",
             scopeRef: String(batchId),
             filterPayload: filterPayload,
-            format: "csv",
+            format: "xlsx",
         })) as any;
 
         if (res && res.data && res.data.id) {

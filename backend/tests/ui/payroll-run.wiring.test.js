@@ -97,7 +97,7 @@ function buildPayrollRunDom() {
       '<div data-recon-preview-net></div>' +
       '<div data-recon-preview-gross></div>' +
       '<tbody data-recon-preview-body></tbody>' +
-      '<button type="button" data-recon-preview-download>Download CSV</button>' +
+      '<button type="button" data-recon-preview-download>Download XLSX</button>' +
     '</div>';
 }
 
@@ -183,7 +183,7 @@ describe('Payroll run wiring', function () {
           success: true,
           data: {
             id: 9,
-            filePath: 'reconciliation/company_1/payroll-run-44.csv',
+            filePath: 'reconciliation/company_1/payroll-run-44.xlsx',
           },
         });
       }
@@ -224,7 +224,7 @@ describe('Payroll run wiring', function () {
     document.querySelector('[data-recon-preview-download]').click();
     await flush();
 
-    expect(downloadMock).toHaveBeenCalledWith('/reconciliation/exports/9/download', 'payroll-run-44.csv');
+    expect(downloadMock).toHaveBeenCalledWith('/reconciliation/exports/9/download', 'payroll-run-44.xlsx');
     expect(disburseButton.disabled).toBe(false);
     expect(document.querySelector('[data-payroll-run-stage-title]').textContent).toContain('Pay via Gateway');
     expect(document.querySelector('[data-payroll-step="pay"] [data-payroll-step-status]').textContent).toBe('ACTIVE');
@@ -1392,7 +1392,7 @@ describe('Payroll run wiring', function () {
           success: true,
           data: {
             id: 9,
-            filePath: 'reconciliation/company_1/payroll-run-44.csv',
+            filePath: 'reconciliation/company_1/payroll-run-44.xlsx',
           },
         });
       }

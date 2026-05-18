@@ -9,6 +9,7 @@ use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\User;
+use App\Models\HcmTaxGovernancePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
@@ -174,6 +175,36 @@ class HcmPayrollRunApiTest extends TestCase
         $this->withHeaders(['Authorization' => 'Bearer '.$employee])
             ->getJson('/v1/hcm/payroll-runs/'.$data['runId'])
             ->assertStatus(403);
+    }
+
+    public function test_payroll_run_show_returns_policy_snapshots_for_active_run(): void
+    {
+        $admin = $this->adminToken();
+
+        $policy = HcmTaxGovernancePolicy::query()->create([
+            'company_id' => $this->company?->id,
+            'policy_code' => 'PAYROLL-RUN-SNAPSHOT',
+            'name' => 'Payroll Run Snapshot Policy',
+            'status' => HcmTaxGovernancePolicy::STATUS_PUBLISHED,
+            'effective_start_date' => '2026-08-01',
+            'effective_end_date' => null,
+            'rules' => ['scheme' => 'TER'],
+            'rate_schedules' => [],
+            'version' => 7,
+        ]);
+
+        $data = $this->createAndFinalizeDraft($admin, 2026, 8);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$admin,
+            'X-Company-Id' => (string) $this->company?->id,
+        ])->getJson('/v1/hcm/payroll-runs/'.$data['runId'])
+            ->assertOk()
+            ->assertJsonPath('data.run.policySnapshot.paydayDay', 28)
+            ->assertJsonPath('data.run.policySnapshot.resolvedPaydayDate', '2026-08-28')
+            ->assertJsonPath('data.run.taxGovernancePolicy.id', $policy->id)
+            ->assertJsonPath('data.run.taxGovernancePolicy.policyCode', 'PAYROLL-RUN-SNAPSHOT')
+            ->assertJsonPath('data.run.taxGovernancePolicy.version', 7);
     }
 
     public function test_admin_can_view_payroll_run_history(): void
@@ -771,7 +802,7 @@ class HcmPayrollRunApiTest extends TestCase
             $this->assertSame('paid', strtolower((string) $line->meta['paymentStatus']));
             $this->assertSame($gatewayRef, $line->meta['gatewayReference']);
             $this->assertSame($firstPaidAt, $line->meta['paidAt']);
-            $this->assertSame('gateway-simulated', $line->meta['paymentChannel']);
+            $this->assertSame('manual-external', $line->meta['paymentChannel']);
         }
     }
 

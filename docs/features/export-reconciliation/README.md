@@ -32,6 +32,7 @@ Export Reconciliation adalah fitur kontrol sebelum aksi finansial yang irreversi
 ## Integrasi
 
 - Payroll Runs: gate finalize/disburse payroll run dan batch payroll terkait. Lihat `docs/features/payroll-runs/README.md`.
+- Runtime payroll saat ini memakai schema export payment-ready yang diseragamkan lintas `payroll_run`, `thr_batch`, dan `pkwt_compensation`, sehingga satu pola file bisa dipakai operator untuk monthly payroll, THR, dan kompensasi PKWT.
 - Purchase Transactions, invoice, dan payment verification: billing action sensitif menjadi kandidat gate export. Lihat `docs/features/purchase-transaction/README.md`.
 - Reporting: evidence export membantu audit dan investigasi saat angka finansial dipertanyakan. Lihat `docs/features/reporting/README.md`.
 - Subscriptions dan Trial/Billing Dashboard: rollout gate di area billing harus sinkron dengan status invoice/subscription tenant. Lihat `docs/features/subscriptions/README.md` dan `docs/features/trial-billing-dashboard/README.md`.
@@ -72,6 +73,7 @@ Endpoint `POST /v1/reconciliation/exports` mendukung payload UI yang sudah terpa
 - `filters` diperlakukan sebagai alias `filterPayload`
 - untuk `csv`, `filePath` boleh kosong: server akan menulis file evidence ke `reconciliation/generated/...` (disk `local`)
 - setelah evidence berhasil dibuat dari UI payroll/THR/PKWT, browser memicu unduhan file via `AuthApi.downloadV1Binary` (GET evidence download dengan header token/tenant yang sama seperti API JSON).
+- untuk `payroll_run/disburse`, `thr_batch/disburse|post_payroll`, dan `pkwt_compensation/post_payroll`, server menulis file payment-ready seragam dengan kolom `payroll_type`, `reference_period`, `reference_id`, `employee_id`, `employee_name`, `bank_name`, `account_number`, `account_holder_name`, `bank_branch`, `gross_total`, `overtime_total`, `deductions_total`, `transfer_amount`, `bank_data_status`, `dataset_checksum`.
 
 Detail kontrak: [API-CONTRACT.md](API-CONTRACT.md) + `docs/api/openapi.yaml`.
 

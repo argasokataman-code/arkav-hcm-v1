@@ -2,9 +2,9 @@
 
 ## Snapshot Status
 
-- Tanggal: 2026-05-17
-- Status: runtime hardened, release evidence masih parsial
-- Ringkasan: runtime actual payroll inti aktif untuk surface yang dipublikasikan; void-before-paid, payslip web/PDF, overtime roll-up, deduction engine, dan history payroll sudah punya evidence implementasi. Audit lanjutan Mei 2026 menutup celah RBAC pada mutasi payroll, THR, PKWT, dan payroll item assignment, tetapi closure release 100% masih menunggu bukti manual E2E export/payment per role.
+- Tanggal: 2026-05-18
+- Status: runtime hardened, monthly reporting aktif, release evidence masih parsial
+- Ringkasan: runtime actual payroll inti aktif untuk surface yang dipublikasikan; void-before-paid, payslip web/PDF/email, overtime roll-up, deduction engine, history payroll, Monthly Report admin, dan export reconciliation payment-ready lintas monthly/THR/PKWT sudah punya evidence implementasi. Closure release 100% tetap menunggu bukti manual E2E export/payment per role.
 
 ## Evidence Terbaru
 
@@ -13,10 +13,13 @@
 - Backend payroll run flow tervalidasi di `backend/tests/Feature/HcmPayrollRunApiTest.php`.
 - API payroll/send-slips dan related payroll flow tervalidasi di `backend/tests/Feature/HcmPayrollApiTest.php`.
 - Gate export reconciliation terkait payroll run tervalidasi di `backend/tests/Feature/ReconciliationExportApiTest.php`.
+- Monthly Report admin (`/monthly-report`) dan export gabungan monthly/THR/PKWT tervalidasi di `backend/tests/Feature/HcmPayrollApiTest.php` + `backend/tests/Feature/WebHcmRouteGuardTest.php`.
+- Export reconciliation payment-ready seragam untuk `payroll_run`, `thr_batch`, dan `pkwt_compensation` tervalidasi di `backend/tests/Feature/ReconciliationExportApiTest.php`.
 - README dan UI payroll kini menegaskan bahwa perubahan setup payroll harus memakai void dulu bila run sudah finalized tetapi belum paid.
 - Metadata `voidedAt` / `voidedBy*` sekarang tersimpan di `hcm_payroll_runs` dan diekspos ke `auditTrail` history/detail payroll run.
 - `/payslip` web aktif memakai `my-slip`, `my-slip-latest-period`, dan `my-slip-pdf` pada runtime employee.
 - Overtime approved dan deduction engine BPJS/PPh21 TER sudah tervalidasi lewat `backend/tests/Feature/HcmPayrollApiTest.php`.
+- Summary overtime eksplisit untuk `my-slip`, `admin-slips`, `monthly-report`, export CSV Monthly Report, slip PDF, dan email payslip tervalidasi di `backend/tests/Feature/HcmPayrollApiTest.php` + build Vite `npm run build`.
 - **H3 (2026-04-23)** Integrasi cuti tanpa gaji + kerja hari libur aktif via feature flag `payroll.leave_integration_enabled`. Default OFF (tidak mengubah tenant existing). Evidence: `backend/tests/Feature/PayrollLeaveHolidayIntegrationTest.php` (3 tests, 13 assertions — flag OFF no-op, flag ON global emit deduction + addition, flag per-tenant via `company_settings`). Full regresi payroll masih hijau: `HcmPayrollPeriodApiTest`, `HcmPayrollRunApiTest`, `HcmPayrollItemApiTest`, `HcmPayrollThrApiTest`, `HcmPayrollPkwtApiTest` → 88 tests / 2166 assertions pass.
 - **H4 (2026-05-17)** Hardening permission mutasi payroll: `calculate-draft` kini butuh `payroll.run`; THR setup/generate/post/send butuh `payroll.thr.manage`; THR disburse butuh `payroll.disburse`; PKWT post payroll butuh `payroll.pkwt.manage`; payroll item assignment mutate butuh `payroll.manage`. Validasi sesi ini: `php -l` lulus untuk controller payroll terkait + `backend/tests/TestCase.php`, serta API doc/OpenAPI payroll disinkronkan.
 

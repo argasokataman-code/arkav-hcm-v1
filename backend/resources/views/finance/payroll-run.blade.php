@@ -128,6 +128,10 @@
                                             <div class="text-muted small">Panduan operasional</div>
                                             <div class="small mb-0" data-payroll-settings-preview-note>Perubahan variabel payroll setelah cutoff akan diperlakukan sebagai input periode berikutnya.</div>
                                         </div>
+                                        <div class="col-md-4">
+                                            <div class="text-muted small">Overtime</div>
+                                            <div class="fw-semibold text-info" data-payroll-detail-overtime>Rp0</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -208,7 +212,7 @@
                                     <li class="list-group-item d-flex justify-content-between align-items-start" data-payroll-step="review">
                                         <div class="ms-2 me-auto">
                                             <div class="fw-semibold">Review payroll</div>
-                                            <div class="text-muted small">Tinjau eligibility, total THP, tenant aktif, snapshot policy, dan anomali operasional.</div>
+                                            <div class="text-muted small">Tinjau eligibility, subtotal overtime, total THP, tenant aktif, snapshot policy, dan anomali operasional.</div>
                                         </div>
                                         <span class="badge bg-light text-dark rounded-pill" data-payroll-step-status>Menunggu</span>
                                     </li>
@@ -221,8 +225,8 @@
                                     </li>
                                     <li class="list-group-item d-flex justify-content-between align-items-start" data-payroll-step="pay">
                                         <div class="ms-2 me-auto">
-                                            <div class="fw-semibold">Pay via gateway</div>
-                                            <div class="text-muted small">Lanjutkan batch transfer hanya setelah evidence valid terunduh dan policy mengizinkan.</div>
+                                            <div class="fw-semibold">Catat pembayaran manual</div>
+                                            <div class="text-muted small">Tandai payroll sebagai sudah dibayar di luar aplikasi hanya setelah evidence valid terunduh dan policy mengizinkan.</div>
                                         </div>
                                         <span class="badge bg-light text-dark rounded-pill" data-payroll-step-status>Menunggu</span>
                                     </li>
@@ -259,6 +263,13 @@
                                                 <div class="text-muted" data-payroll-checklist-tax-profile-note>Menunggu hasil deteksi anomali profil PPh21…</div>
                                             </div>
                                             <span class="badge bg-light text-dark" data-payroll-checklist-tax-profile>Status</span>
+                                        </div>
+                                        <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-start gap-2">
+                                            <div>
+                                                <div class="fw-semibold">Subtotal overtime</div>
+                                                <div class="text-muted" data-payroll-checklist-overtime-note>Menunggu subtotal overtime pada run aktif…</div>
+                                            </div>
+                                            <span class="badge bg-light text-dark" data-payroll-checklist-overtime>Status</span>
                                         </div>
                                         <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-start gap-2">
                                             <div>
@@ -304,8 +315,8 @@
 
                                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                                     <button type="button" class="btn btn-outline-primary" data-payroll-run-calculate disabled title="Hitung / refresh draft selama run masih status draft.">Calculate Draft</button>
-                                    <button type="button" class="btn btn-outline-secondary" data-payroll-run-export-evidence disabled title="Hanya aktif jika run berstatus draft. Urutan: Calculate Draft → Export → unduh XLSX → Pay via Gateway.">Export Reconciliation</button>
-                                    <button type="button" class="btn btn-success" data-payroll-run-disburse disabled title="Aktif setelah unduh file export reconciliation untuk run ini.">Pay via Gateway</button>
+                                    <button type="button" class="btn btn-outline-secondary" data-payroll-run-export-evidence disabled title="Hanya aktif jika run berstatus draft. Urutan: Calculate Draft → Export → unduh XLSX → tandai dibayar manual.">Export Reconciliation</button>
+                                    <button type="button" class="btn btn-success" data-payroll-run-disburse disabled title="Aktif setelah unduh file export reconciliation untuk run ini.">Tandai Dibayar Manual</button>
                                 </div>
                                 <div class="small text-muted" data-payroll-run-action-guidance>
                                     Gunakan Calculate Draft untuk memulai run payroll aktif.
@@ -350,6 +361,7 @@
                                     </th>
                                     <th>Karyawan</th>
                                     <th class="text-end">Bruto</th>
+                                    <th class="text-end">Overtime</th>
                                     <th class="text-end">Potongan</th>
                                     <th class="text-end">Netto</th>
                                     <th class="text-center">THR</th>
@@ -361,7 +373,7 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td colspan="10" class="text-center text-muted py-4">Payroll akan muncul otomatis setelah draft tersedia.</td>
+                                    <td colspan="11" class="text-center text-muted py-4">Payroll akan muncul otomatis setelah draft tersedia.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -392,14 +404,14 @@
                 <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Pay via Gateway</h5>
+                            <h5 class="modal-title">Tandai Dibayar Manual</h5>
                             <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
                                 <i class="ti ti-x"></i>
                             </button>
                         </div>
                         <div class="modal-body">
                             <div class="alert alert-light border small mb-3">
-                                Gateway akan memfinalkan draft bila masih draft, lalu memproses batch pembayaran yang dipilih secara aman dan idempotent.
+                                Setelah payroll dibayar di luar aplikasi, gunakan modal ini untuk memfinalkan draft bila masih draft lalu mencatat batch pembayaran secara manual, aman, dan idempotent.
                             </div>
                             <div class="border rounded bg-light p-3 mb-3">
                                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
@@ -410,6 +422,7 @@
                                     <div class="col-sm-6 d-flex justify-content-between"><span class="text-muted">Periode</span><strong data-payroll-gateway-period>—</strong></div>
                                     <div class="col-sm-6 d-flex justify-content-between"><span class="text-muted">Karyawan dipilih</span><strong data-payroll-gateway-count>0</strong></div>
                                     <div class="col-sm-6 d-flex justify-content-between"><span class="text-muted">Total Penghasilan</span><span class="text-success fw-semibold" data-payroll-gateway-gross>Rp0</span></div>
+                                    <div class="col-sm-6 d-flex justify-content-between"><span class="text-muted">Total Overtime</span><span class="text-info fw-semibold" data-payroll-gateway-overtime>Rp0</span></div>
                                     <div class="col-sm-6 d-flex justify-content-between"><span class="text-muted">Total Potongan</span><span class="text-danger fw-semibold" data-payroll-gateway-deductions>Rp0</span></div>
                                     <div class="col-sm-6 d-flex justify-content-between"><span class="text-muted">Total THP</span><strong data-payroll-gateway-total>Rp0</strong></div>
                                 </div>
@@ -425,7 +438,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
-                            <button type="button" class="btn btn-success" data-payroll-gateway-pay>Pay now</button>
+                            <button type="button" class="btn btn-success" data-payroll-gateway-pay>Simpan pembayaran manual</button>
                         </div>
                     </div>
                 </div>
@@ -462,6 +475,10 @@
                                         <span class="text-muted">Total Bruto</span>
                                         <strong data-recon-preview-gross>Rp0</strong>
                                     </div>
+                                    <div class="col-sm-3 d-flex justify-content-between border-end">
+                                        <span class="text-muted">Total Overtime</span>
+                                        <strong class="text-info" data-recon-preview-overtime>Rp0</strong>
+                                    </div>
                                 </div>
                             </div>
                             <div class="table-responsive">
@@ -470,6 +487,7 @@
                                         <tr>
                                             <th>Karyawan</th>
                                             <th class="text-end">Bruto</th>
+                                            <th class="text-end">Overtime</th>
                                             <th class="text-end">Potongan</th>
                                             <th class="text-end">THP</th>
                                             <th class="text-center">Komponen</th>
@@ -479,7 +497,7 @@
                                     </thead>
                                     <tbody data-recon-preview-body>
                                         <tr>
-                                            <td colspan="7" class="text-center text-muted py-4">Memuat data…</td>
+                                            <td colspan="8" class="text-center text-muted py-4">Memuat data…</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -488,7 +506,7 @@
                         <div class="modal-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <p class="text-muted small mb-0">
                                 <i class="ti ti-info-circle me-1"></i>
-                                File XLSX akan dibuat dari data di atas. Setelah diunduh, tombol Pay via Gateway akan terbuka.
+                                File XLSX akan dibuat dari data di atas. Setelah diunduh, tombol Tandai Dibayar Manual akan terbuka.
                             </p>
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>

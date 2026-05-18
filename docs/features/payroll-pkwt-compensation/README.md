@@ -2,7 +2,7 @@
 
 ## Ringkasan
 
-Halaman `/payroll-pkwt-compensation` dipakai HCM Admin untuk melihat daftar karyawan PKWT yang kontraknya berakhir pada bulan tertentu, menghitung estimasi kompensasi proporsional, membangun draft payroll purpose `pkwt_compensation`, lalu meneruskan pembayaran lewat flow payroll run.
+Halaman `/payroll-pkwt-compensation` dipakai HCM Admin untuk melihat daftar karyawan PKWT yang kontraknya berakhir pada bulan tertentu, menghitung estimasi kompensasi proporsional, membangun draft payroll purpose `pkwt_compensation`, lalu mencatat pembayaran manual lewat flow payroll run.
 
 Fitur ini menutup jarak antara data kontrak di profil karyawan dan kebutuhan pembayaran kompensasi kontrak yang terpisah dari payroll monthly biasa. Status dokumentasi dan evidence terbaru dicatat di `tracker.md`.
 
@@ -25,7 +25,7 @@ Fitur ini menutup jarak antara data kontrak di profil karyawan dan kebutuhan pem
 2. Sistem menampilkan preview employee eligible, masa kerja, upah acuan berbasis gaji pokok aktif, dan nominal kompensasi.
 3. Admin dapat menjalankan quick calculator untuk satu kontrak sebagai verifikasi cepat.
 4. Jika data sudah benar, admin menjalankan `Generate draft payroll` untuk membuat atau membangun ulang run purpose `pkwt_compensation` pada periode tersebut.
-5. Pembayaran aktual dilakukan lewat flow payroll run/disburse untuk run yang sudah terbentuk.
+5. Setelah settlement dilakukan di luar aplikasi, admin mencatat pembayaran aktual lewat flow payroll run/disburse untuk run yang sudah terbentuk.
 6. Setelah run final, hasil kompensasi ikut masuk ke slip employee pada bulan kalender yang sama.
 
 ## Lifecycle Dan Keputusan Bisnis
@@ -42,6 +42,7 @@ Fitur ini menutup jarak antara data kontrak di profil karyawan dan kebutuhan pem
 - Payroll Runs: run purpose `pkwt_compensation` dibayar dan dihistori lewat flow payroll run biasa. Lihat `../payroll-runs/README.md`.
 - Payslip: hasil final ikut muncul di `/payslip` pada bulan yang sama. Lihat `../payslip/README.md`.
 - Export Reconciliation: post-payroll dapat digate oleh evidence export. Lihat `../export-reconciliation/README.md`.
+- Export Reconciliation runtime aktif sekarang memakai schema payment-ready yang sama dengan payroll bulanan dan THR, sehingga operator mendapat format file manual settlement yang konsisten.
 
 ## Kontrak API
 
@@ -53,6 +54,6 @@ Referensi kontrak utama: `docs/api/hcm-payroll-api.md` dan `docs/api/openapi.yam
 
 ## Existing Vs Target
 
-- Existing: preview employee eligible, quick calculator, generate standalone payroll, status run aktif, dan integrasi ke slip employee sudah aktif.
+- Existing: preview employee eligible, quick calculator, generate standalone payroll, status run aktif, integrasi ke slip employee, dan export payment-ready seragam sudah aktif.
 - Existing: halaman sudah memuat indicator evidence/export untuk flow yang butuh rekonsiliasi.
 - Target: penguatan selanjutnya terutama berupa evidence manual payment flow dan review kebijakan saat aturan kompensasi kontrak berubah, bukan pembangunan runtime dasarnya.

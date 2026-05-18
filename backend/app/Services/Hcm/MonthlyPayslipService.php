@@ -7,6 +7,7 @@ use App\Models\CompanySetting;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
+use App\Models\HcmSalaryComponent;
 use App\Models\User;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -34,9 +35,11 @@ final class MonthlyPayslipService
                 'employee' => $this->serializeEmployee($user),
                 'earnings' => [],
                 'deductions' => [],
+                'overtime' => $this->emptyOvertimeSummary(),
                 'totals' => [
                     'earningsTotal' => 0.0,
                     'deductionsTotal' => 0.0,
+                    'overtimeTotal' => 0.0,
                     'netPay' => 0.0,
                 ],
                 'slipNumber' => $this->slipNumber($periodYear, $periodMonth, $user->id),
@@ -59,9 +62,11 @@ final class MonthlyPayslipService
                 'employee' => $this->serializeEmployee($user),
                 'earnings' => [],
                 'deductions' => [],
+                'overtime' => $this->emptyOvertimeSummary(),
                 'totals' => [
                     'earningsTotal' => 0.0,
                     'deductionsTotal' => 0.0,
+                    'overtimeTotal' => 0.0,
                     'netPay' => 0.0,
                 ],
                 'slipNumber' => $this->slipNumber($periodYear, $periodMonth, $user->id),
@@ -86,6 +91,7 @@ final class MonthlyPayslipService
         $netAffecting = $serializedLines->where('affectsNetPay', true)->values();
         $earnings = $netAffecting->where('kind', 'addition')->values();
         $deductions = $netAffecting->where('kind', 'deduction')->values();
+        $overtime = $this->summarizeOvertimeLines($earnings);
 
         $earningsTotal = round((float) $earnings->sum('amount'), 2);
         $deductionsTotal = round((float) $deductions->sum('amount'), 2);
@@ -98,9 +104,11 @@ final class MonthlyPayslipService
             'employee' => $this->serializeEmployee($user),
             'earnings' => $earnings->all(),
             'deductions' => $deductions->all(),
+            'overtime' => $overtime,
             'totals' => [
                 'earningsTotal' => $earningsTotal,
                 'deductionsTotal' => $deductionsTotal,
+                'overtimeTotal' => $overtime['amountTotal'],
                 'netPay' => $netPay,
             ],
             'slipNumber' => $this->slipNumber($periodYear, $periodMonth, $user->id),
@@ -203,6 +211,38 @@ final class MonthlyPayslipService
     private function slipNumber(int $year, int $month, int $userId): string
     {
         return sprintf('PS-%04d-%02d-%d', $year, $month, $userId);
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $lines
+     * @return array{amountTotal: float, lineCount: int}
+     */
+    private function summarizeOvertimeLines(Collection $lines): array
+    {
+        $overtimeLines = $lines
+            ->filter(fn (array $line): bool => $this->isOvertimeComponentCode($line['componentCode'] ?? null))
+            ->values();
+
+        return [
+            'amountTotal' => round((float) $overtimeLines->sum(fn (array $line): float => (float) ($line['amount'] ?? 0)), 2),
+            'lineCount' => $overtimeLines->count(),
+        ];
+    }
+
+    /**
+     * @return array{amountTotal: float, lineCount: int}
+     */
+    private function emptyOvertimeSummary(): array
+    {
+        return [
+            'amountTotal' => 0.0,
+            'lineCount' => 0,
+        ];
+    }
+
+    private function isOvertimeComponentCode(mixed $componentCode): bool
+    {
+        return (string) $componentCode === HcmSalaryComponent::CODE_OVERTIME_PAY;
     }
 
     private function latestFinalizedRun(int $periodId, string $purpose, ?int $companyId = null): ?HcmPayrollRun

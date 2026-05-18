@@ -29,6 +29,10 @@
             <td style="padding: 4px 0;">Rp {{ number_format((float) ($totals['deductionsTotal'] ?? 0), 0, ',', '.') }}</td>
         </tr>
         <tr>
+            <td style="padding: 4px 12px 4px 0; color: #6b7280;">Overtime</td>
+            <td style="padding: 4px 0;">Rp {{ number_format((float) ($totals['overtimeTotal'] ?? 0), 0, ',', '.') }}</td>
+        </tr>
+        <tr>
             <td style="padding: 4px 12px 4px 0; color: #6b7280;">Take Home Pay</td>
             <td style="padding: 4px 0;"><strong>Rp {{ number_format((float) ($totals['netPay'] ?? 0), 0, ',', '.') }}</strong></td>
         </tr>

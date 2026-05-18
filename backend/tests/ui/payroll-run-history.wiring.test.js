@@ -84,11 +84,31 @@ describe('Payroll run history wiring', function () {
           success: true,
           data: {
             run: { id: 44, status: 'void', paymentStatus: 'unpaid', finalizedByUserName: 'Admin Payroll' },
-            lines: [],
+            lines: [
+              {
+                userId: 7,
+                userName: 'Nadia',
+                kind: 'addition',
+                componentCode: 'upah_lembur',
+                componentName: 'Upah Lembur',
+                category: 'overtime',
+                amount: 125000,
+                affectsNetPay: true,
+              },
+            ],
             auditTrail: [{ event: 'finalized', at: '2026-08-25T09:00:00Z' }],
             summary: {
-              totals: { earningsTotal: 20000000, deductionsTotal: 5000000, netPay: 15000000, lineCount: 0 },
-              employeeBreakdown: [],
+              totals: { earningsTotal: 20000000, overtimeTotal: 125000, deductionsTotal: 5000000, netPay: 15000000, lineCount: 1 },
+              employeeBreakdown: [
+                {
+                  userId: 7,
+                  userName: 'Nadia',
+                  lineCount: 1,
+                  earningsTotal: 20000000,
+                  deductionsTotal: 5000000,
+                  netPay: 15000000,
+                },
+              ],
               componentBreakdown: [],
             },
           },
@@ -122,5 +142,8 @@ describe('Payroll run history wiring', function () {
 
     expect(document.querySelector('[data-payroll-history-detail]').innerHTML).toContain('badge bg-danger">VOID');
     expect(document.querySelector('[data-payroll-history-detail]').innerHTML).toContain('badge bg-secondary">UNPAID');
+    expect(document.querySelector('[data-payroll-history-detail]').innerHTML).toContain('Total Overtime');
+    expect(document.querySelector('[data-payroll-history-detail]').innerHTML).toContain('Overtime');
+    expect(document.querySelector('[data-payroll-history-detail]').innerHTML).toContain('125.000');
   });
 });

@@ -39,10 +39,12 @@ function buildPayrollRunDom() {
       '<div data-payroll-checklist-policy-note></div>' +
       '<div data-payroll-checklist-evidence-note></div>' +
       '<div data-payroll-checklist-disburse-note></div>' +
+      '<div data-payroll-checklist-overtime-note></div>' +
       '<div data-payroll-checklist-tenant></div>' +
       '<div data-payroll-checklist-policy></div>' +
       '<div data-payroll-checklist-evidence></div>' +
       '<div data-payroll-checklist-disburse></div>' +
+      '<div data-payroll-checklist-overtime></div>' +
       '<div data-payroll-run-reconciliation-hint class="d-none"></div>' +
       '<div data-payroll-run-tenant-hint class="d-none"></div>' +
       '<div data-payroll-run-tax-policy-hint class="d-none"></div>' +
@@ -54,7 +56,7 @@ function buildPayrollRunDom() {
       '<button type="button" data-payroll-run-calculate disabled>Calculate Draft</button>' +
       '<button type="button" data-payroll-run-void disabled>Void</button>' +
       '<button type="button" data-payroll-run-export-evidence disabled>Export Reconciliation</button>' +
-      '<button type="button" data-payroll-run-disburse disabled>Pay via Gateway</button>' +
+      '<button type="button" data-payroll-run-disburse disabled>Tandai Dibayar Manual</button>' +
       '<button type="button" data-payroll-run-reset-payments>Reset</button>' +
       '<span data-payroll-run-emp-count>0</span>' +
       '<span data-payroll-run-selected-count>0</span>' +
@@ -71,11 +73,12 @@ function buildPayrollRunDom() {
       '<div data-payroll-gateway-period></div>' +
       '<div data-payroll-gateway-count></div>' +
       '<div data-payroll-gateway-gross></div>' +
+      '<div data-payroll-gateway-overtime></div>' +
       '<div data-payroll-gateway-deductions></div>' +
       '<div data-payroll-gateway-total></div>' +
       '<div data-payroll-gateway-status></div>' +
       '<div data-payroll-gateway-list></div>' +
-      '<button type="button" data-payroll-gateway-pay>Pay now</button>' +
+      '<button type="button" data-payroll-gateway-pay>Simpan pembayaran manual</button>' +
     '</div>' +
     '<div id="payroll_detail_modal">' +
       '<div data-payroll-detail-name></div>' +
@@ -86,6 +89,7 @@ function buildPayrollRunDom() {
       '<div data-payroll-detail-thr></div>' +
       '<div data-payroll-detail-compensation></div>' +
       '<div data-payroll-detail-gross></div>' +
+      '<div data-payroll-detail-overtime></div>' +
       '<div data-payroll-detail-deductions></div>' +
       '<div data-payroll-detail-net></div>' +
       '<div data-payroll-detail-line-count></div>' +
@@ -96,6 +100,7 @@ function buildPayrollRunDom() {
       '<div data-recon-preview-count></div>' +
       '<div data-recon-preview-net></div>' +
       '<div data-recon-preview-gross></div>' +
+      '<div data-recon-preview-overtime></div>' +
       '<tbody data-recon-preview-body></tbody>' +
       '<button type="button" data-recon-preview-download>Download XLSX</button>' +
     '</div>';
@@ -168,6 +173,19 @@ describe('Payroll run wiring', function () {
                 paymentStatus: 'unpaid',
                 meta: { userName: 'Nadia' },
               },
+              {
+                userId: 7,
+                userName: 'Nadia',
+                kind: 'addition',
+                componentName: 'Upah Lembur',
+                componentCode: 'upah_lembur',
+                category: 'overtime',
+                amount: 125000,
+                sortOrder: 2,
+                affectsNetPay: true,
+                paymentStatus: 'unpaid',
+                meta: { userName: 'Nadia' },
+              },
             ],
             specialRecipients: { thrUserIds: [], compensationUserIds: [] },
           },
@@ -188,11 +206,11 @@ describe('Payroll run wiring', function () {
         });
       }
 
-      if (verb === 'post' && path === '/hcm/payroll-runs/44/mock-hosted-checkout') {
+      if (verb === 'post' && path === '/hcm/payroll-runs/44/disburse') {
         return wrap({
           success: true,
-          flow: {
-            hostedCheckoutUrl: 'https://example.test/mock-hosted-payment.html?flow=payroll_disburse',
+          data: {
+            gatewayReference: 'MANUAL-REF-44',
           },
         });
       }
@@ -224,20 +242,24 @@ describe('Payroll run wiring', function () {
     document.querySelector('[data-recon-preview-download]').click();
     await flush();
 
+    expect(document.querySelector('[data-payroll-checklist-overtime]').textContent).toBe('ADA');
+    expect(document.querySelector('[data-payroll-checklist-overtime-note]').textContent).toContain('overtime_total');
+    expect(document.querySelector('[data-recon-preview-overtime]').textContent).toContain('125');
     expect(downloadMock).toHaveBeenCalledWith('/reconciliation/exports/9/download', 'payroll-run-44.xlsx');
     expect(disburseButton.disabled).toBe(false);
-    expect(document.querySelector('[data-payroll-run-stage-title]').textContent).toContain('Pay via Gateway');
+    expect(document.querySelector('[data-payroll-run-stage-title]').textContent).toContain('Tandai Dibayar Manual');
     expect(document.querySelector('[data-payroll-step="pay"] [data-payroll-step-status]').textContent).toBe('ACTIVE');
-    expect(document.querySelector('[data-payroll-checklist-evidence]').textContent).toBe('DOWNLOADED');
+    expect(document.querySelector('[data-payroll-checklist-evidence]').textContent).toBe('SIAP');
 
     disburseButton.click();
     await flush();
 
+    expect(document.querySelector('[data-payroll-gateway-overtime]').textContent).toContain('125');
     document.querySelector('[data-payroll-gateway-pay]').click();
     await flush();
 
     var disburseCall = requestMock.mock.calls.find(function (call) {
-      return call[0] === 'post' && call[1] === '/hcm/payroll-runs/44/mock-hosted-checkout';
+      return call[0] === 'post' && call[1] === '/hcm/payroll-runs/44/disburse';
     });
 
     expect(disburseCall).toBeTruthy();
@@ -403,9 +425,9 @@ describe('Payroll run wiring', function () {
     expect(document.querySelector('[data-payroll-step="calculate"] [data-payroll-step-status]').textContent).toBe('DONE');
     expect(document.querySelector('[data-payroll-step="review"] [data-payroll-step-status]').textContent).toBe('ACTIVE');
     expect(document.querySelector('[data-payroll-step="export"] [data-payroll-step-status]').textContent).toBe('ACTIVE');
-    expect(document.querySelector('[data-payroll-checklist-tenant]').textContent).toBe('OK');
-    expect(document.querySelector('[data-payroll-checklist-policy]').textContent).toBe('READY');
-    expect(document.querySelector('[data-payroll-checklist-disburse]').textContent).toBe('OPEN');
+    expect(document.querySelector('[data-payroll-checklist-tenant]').textContent).toBe('SIAP');
+    expect(document.querySelector('[data-payroll-checklist-policy]').textContent).toBe('SIAP');
+    expect(document.querySelector('[data-payroll-checklist-disburse]').textContent).toBe('SIAP');
     expect(document.querySelector('[data-payroll-checklist-tenant-note]').textContent).toContain('PT Demo Tenant');
   });
 
@@ -1333,14 +1355,12 @@ describe('Payroll run wiring', function () {
     expect(document.querySelector('[data-payroll-run-reset-payments]').textContent).toBe('Reset Pembayaran (DEV)');
   });
 
-  it('shows before-payday policy error from disburse response', async function () {
+  it('shows before-payday policy error from manual payment response', async function () {
     function wrap(payload) {
       return { data: payload };
     }
 
-    window.history.replaceState({}, '', '/payroll-run?payroll_mock_payment_status=completed&payroll_run_id=44&callback_token=tok_1234567890abcdef&selected_user_ids=7');
-
-    var requestMock = vi.fn(async function (method, path) {
+    var requestMock = vi.fn(async function (method, path, data) {
       var verb = String(method).toLowerCase();
 
       if (verb === 'get' && path === '/hcm/payroll-periods/active') {
@@ -1397,17 +1417,6 @@ describe('Payroll run wiring', function () {
         });
       }
 
-      if (verb === 'post' && path === '/hcm/payroll-runs/44/mock-hosted-checkout/confirm') {
-        return wrap({
-          success: true,
-          data: {
-            runId: 44,
-            selectedUserIds: [7],
-            status: 'completed',
-          },
-        });
-      }
-
       if (verb === 'post' && path === '/hcm/payroll-runs/44/disburse') {
         return wrap({
           success: false,
@@ -1418,7 +1427,7 @@ describe('Payroll run wiring', function () {
         });
       }
 
-      throw new Error('Unexpected request: ' + method + ' ' + path);
+      throw new Error('Unexpected request: ' + method + ' ' + path + ' ' + JSON.stringify(data || null));
     });
 
     window.AuthApi = {
@@ -1427,6 +1436,18 @@ describe('Payroll run wiring', function () {
     };
 
     await loadPayrollRunModule();
+    await flush();
+
+    document.querySelector('[data-payroll-run-export-evidence]').click();
+    await flush();
+
+    document.querySelector('[data-recon-preview-download]').click();
+    await flush();
+
+    document.querySelector('[data-payroll-run-disburse]').click();
+    await flush();
+
+    document.querySelector('[data-payroll-gateway-pay]').click();
     await flush();
 
     expect(window.ArcavUi.showToast).toHaveBeenCalledWith(

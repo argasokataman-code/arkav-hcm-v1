@@ -20,13 +20,15 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 - **Allowance tetap** → tidak lagi dibaca dari kolom kompensasi legacy; allowance yang ikut payroll monthly harus datang dari assignment payroll item/governance yang aktif.
 - **Lembur approved** dalam periode ikut diakumulasi sebagai addition payroll bulanan.
 - **Potongan karyawan** dasar (mis. BPJS & **PPh21 bulanan berbasis lookup TER A/B/C** sesuai status pajak) ikut dibentuk sebagai deduction lines.
-- Slip bulanan mandiri sudah tersedia sebagai **JSON summary** (`GET /payroll/my-slip`) dan **PDF download** (`GET /payroll/my-slip-pdf`) setelah run periode berstatus **`finalized`**.
+- Slip bulanan mandiri sudah tersedia sebagai **JSON summary** (`GET /payroll/my-slip`) dan **PDF download** (`GET /payroll/my-slip-pdf`) setelah run periode berstatus **`finalized`**, termasuk summary overtime eksplisit (`overtime.amountTotal`, `totals.overtimeTotal`).
 - Listing admin payslip (`GET /payroll/admin-slips`) kini menyertakan helper `emailDelivery` per baris (`status`, `label`, `canResend`, `attemptedAt`, `lastError`) berbasis log `notification_deliveries`, sehingga admin bisa cepat mendeteksi email gagal dan melakukan resend.
+- Admin kini punya **Monthly Report** terpusat via **`GET /payroll/monthly-report`** dan **`GET /payroll/monthly-report/export`** untuk melihat gabungan run `monthly`, `thr`, dan `pkwt_compensation` per karyawan-periode, lengkap dengan export CSV/XLSX yang siap dipakai sebagai laporan operasional termasuk kolom overtime eksplisit.
 - UI `/payslip` dapat menemukan periode slip terbaru milik user lewat **`GET /payroll/my-slip-latest-period`** untuk fallback awal jika bulan berjalan belum memiliki run final.
-- Preview **kompensasi PKWT** bulanan untuk admin tersedia via **`GET /payroll/pkwt-compensations`**, dapat diposting menjadi draft payroll via **`POST /payroll/pkwt-compensations/post-payroll`**, lalu dibayar lewat endpoint generic **`POST /payroll-runs/{id}/disburse`** seperti flow off-cycle lain.
+- Preview **kompensasi PKWT** bulanan untuk admin tersedia via **`GET /payroll/pkwt-compensations`**, dapat diposting menjadi draft payroll via **`POST /payroll/pkwt-compensations/post-payroll`**, lalu ditandai **paid** secara manual lewat endpoint generic **`POST /payroll-runs/{id}/disburse`** seperti flow off-cycle lain.
+- Export reconciliation payroll kini distandardkan untuk flow `payroll_run/disburse`, `thr_batch/disburse|post_payroll`, dan `pkwt_compensation/post_payroll` dengan schema payment-ready yang sama: `payroll_type`, `reference_period`, `reference_id`, `employee_id`, `employee_name`, `bank_name`, `account_number`, `account_holder_name`, `bank_branch`, `gross_total`, `overtime_total`, `deductions_total`, `transfer_amount`, `bank_data_status`, `dataset_checksum`.
 - Admin payroll kini dapat membuat **assignment payroll item per karyawan** via endpoint `payroll-item-assignments`; assignment aktif otomatis dimasukkan ke draft payroll bulanan sesuai tanggal efektif.
 - Nominal negatif dari DB diperlakukan sebagai **0**.
-- Halaman payroll bulanan kini **auto-load periode aktif**, mendukung **select-all / subset** pembayaran gateway, dan draft periodik direfresh scheduler **00:00 WIB** selama periodenya masih `open`.
+- Halaman payroll bulanan kini **auto-load periode aktif**, mendukung **select-all / subset** penandaan pembayaran manual, dan draft periodik direfresh scheduler **00:00 WIB** selama periodenya masih `open`.
 - Policy bulanan tenant kini dapat dikonfigurasi via **`GET/PUT /payroll/settings`** untuk `paydayDay`, `cutoffOffsetDays`, `payrollTimezone`, `disburseBeforePaydayAllowed`, dan `paydayHolidayStrategy`.
 - Draft run `purpose=monthly` kini menyimpan **`policySnapshot`** agar resolved payday/cutoff yang dipakai saat draft dibuat tetap audit-friendly walau setting tenant berubah sesudahnya.
 
@@ -40,11 +42,11 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 | `POST /payroll-periods` | **HCM Admin** dengan `payroll.manage` |
 | `POST /payroll-periods/{id}/calculate-draft` | **HCM Admin** dengan `payroll.run` |
 | `GET /payroll/settings`, `PUT /payroll/settings`, `GET /payroll/settings/history` | **HCM Admin** saja (`settings.manage`) — konfigurasi payday/cutoff payroll bulanan tenant aktif, plus audit trail governance |
-| `GET /payroll-runs/history`, `GET /payroll-runs/{id}`, `GET /payroll/admin-run-slips`, `GET /payroll/admin-slips` | **HCM Admin** dengan `payroll.view` |
+| `GET /payroll-runs/history`, `GET /payroll-runs/{id}`, `GET /payroll/admin-run-slips`, `GET /payroll/admin-slips`, `GET /payroll/monthly-report`, `GET /payroll/monthly-report/export` | **HCM Admin** dengan `payroll.view` |
 | `POST /payroll-runs/{id}/finalize`, `POST /payroll-runs/{id}/void` | **HCM Admin** dengan `payroll.finalize` |
-| `POST /payroll-runs/{id}/mock-hosted-checkout`, `POST /payroll-runs/{id}/mock-hosted-checkout/confirm`, `POST /payroll-runs/{id}/disburse`, `POST /payroll-runs/{id}/reset-payments` | **HCM Admin** dengan `payroll.disburse` |
+| `POST /payroll-runs/{id}/mock-hosted-checkout`, `POST /payroll-runs/{id}/mock-hosted-checkout/confirm`, `POST /payroll-runs/{id}/disburse`, `POST /payroll-runs/{id}/reset-payments` | **HCM Admin** dengan `payroll.disburse` — dua endpoint `mock-hosted-checkout*` saat ini tetap terdaftar tetapi diblokir dengan respons export-only |
 | `GET /payroll/my-slip-latest-period` | **Semua user terautentikasi** — cari periode terbaru yang punya run payroll `finalized` untuk user pemanggil |
-| `GET /payroll/my-slip` | **Semua user terautentikasi** — ringkasan slip gaji milik sendiri untuk periode query (`earnings`, `deductions`, `totals`, `downloadUrl`) jika ada run **`finalized`** |
+| `GET /payroll/my-slip` | **Semua user terautentikasi** — ringkasan slip gaji milik sendiri untuk periode query (`earnings`, `deductions`, `overtime`, `totals`, `downloadUrl`) jika ada run **`finalized`** |
 | `GET /payroll/my-slip-pdf` | **Semua user terautentikasi** — unduh PDF slip gaji milik sendiri untuk periode query; `404` bila belum ada run final |
 | `GET /payroll/my-slip-lines` | **Semua user terautentikasi** — hanya baris **`user_id` = pemanggil**; data slip hanya jika ada run **`finalized`** untuk periode tersebut; baris **digabung** dari run **`purpose` `monthly`**, **`thr`**, dan **`pkwt_compensation`** (jika ada pada bulan yang sama) |
 | `GET /payroll/my-thr-slip` | **Semua user terautentikasi** — JSON slip THR milik sendiri (baris batch yang sudah punya PDF); `data.history` untuk pemilih tahun |
@@ -54,7 +56,7 @@ Phase 1.1 (April 2026) — **hitung draft** dari profil karyawan + komponen peri
 | `POST /payroll/thr-calculate` | **HCM Admin** saja — estimasi THR bruto (Permenaker 6/2016, pro rata); **bukan** slip final dan **tanpa** PPh 21 TER |
 | `GET /payroll/thr-settings`, `GET /payroll/thr-batch` | **HCM Admin** dengan `payroll.view` |
 | `PUT /payroll/thr-settings/{calendarYear}`, `POST /payroll/thr-batch/generate`, `POST /payroll/thr-batch/post-payroll`, `POST /payroll/thr-batch/send-slip` | **HCM Admin** dengan `payroll.thr.manage` |
-| `POST /payroll/thr-batch/disburse` | **HCM Admin** dengan `payroll.disburse` — batch THR: gateway disburse |
+| `POST /payroll/thr-batch/disburse` | **HCM Admin** dengan `payroll.disburse` — batch THR: catat pembayaran manual eksternal |
 | `GET /payroll-item-assignments` | **HCM Admin** dengan `payroll.view` |
 | `POST /payroll-item-assignments`, `PUT /payroll-item-assignments/{id}`, `DELETE /payroll-item-assignments/{id}` | **HCM Admin** dengan `payroll.manage` — assignment payroll item custom per karyawan |
 
@@ -277,21 +279,23 @@ Identifier saat ini masih menerima **numeric legacy** pada runtime controller (`
 
 ### `POST /payroll-runs/{id}/disburse`
 
-Eksekusi gateway pembayaran payroll bulanan untuk subset **`userIds[]`** yang dicentang pada halaman run. Jika run masih `draft`, endpoint ini akan **otomatis finalize + post period** lebih dulu, lalu menandai karyawan terpilih sebagai **`paid`** secara idempotent.
+Mencatat payroll bulanan sebagai **sudah dibayar di luar aplikasi** untuk subset **`userIds[]`** yang dicentang pada halaman run. Jika run masih `draft`, endpoint ini akan **otomatis finalize + post period** lebih dulu, lalu menandai karyawan terpilih sebagai **`paid`** secara idempotent.
 
-Mulai April 2026, flow pembayaran payroll run wajib melewati hosted mock checkout dua langkah:
-1. `POST /payroll-runs/{id}/mock-hosted-checkout` untuk membuat sesi hosted payment + callback token.
-2. `POST /payroll-runs/{id}/mock-hosted-checkout/confirm` setelah user kembali dari hosted page.
+Flow runtime aktif sekarang bersifat **export-only**:
+1. operator membuat evidence lewat export reconciliation,
+2. operator mengunduh file XLSX,
+3. settlement dana dilakukan di luar aplikasi,
+4. endpoint ini dipakai untuk menandai pembayaran manual sebagai selesai.
 
-Endpoint `disburse` wajib menerima `mockApprovalToken` yang sama dengan token sesi hosted payment terkonfirmasi. Jika token belum ada/invalid, server menolak request dengan error `PAYROLL_MOCK_PAYMENT_REQUIRED` atau `PAYROLL_MOCK_PAYMENT_TOKEN_INVALID`.
+Endpoint `POST /payroll-runs/{id}/mock-hosted-checkout` dan `POST /payroll-runs/{id}/mock-hosted-checkout/confirm` tetap ada untuk kompatibilitas route, tetapi server saat ini mengembalikan **410** `PAYROLL_GATEWAY_DISABLED_EXPORT_ONLY`.
 
-Karyawan hanya dianggap **eligible** jika total net pay periodenya **`> 0`** (hanya komponen yang memengaruhi net pay). User dengan THP `<= 0` otomatis dikeluarkan dari target pembayaran.
+Karyawan hanya dianggap **eligible** jika total net pay periodenya **`> 0`** (hanya komponen yang memengaruhi net pay). User dengan THP `<= 0` otomatis dikeluarkan dari target penandaan pembayaran.
 
 Untuk run `purpose=monthly`, endpoint juga menegakkan payday policy dari `policySnapshot` run. Jika `disburseBeforePaydayAllowed=false`, request sebelum `resolvedPaydayDate` akan ditolak server dengan policy error eksplisit. Jika snapshot belum ada pada run lama, controller fallback ke setting tenant payroll bulanan saat ini.
 
 Kontrak MVP saat ini adalah **hard-block murni tanpa override inline**. Jika tenant membutuhkan exception operasional, admin harus memastikan policy tenant yang disetujui sudah dipakai oleh snapshot run yang aktif: recalculate untuk run `draft`, atau `void` lalu hitung ulang untuk run `finalized` yang belum `paid`.
 
-Karyawan yang sudah berstatus `paid` dilewati secara otomatis dan dikembalikan di `skippedAlreadyPaidUserIds`. Jika semua karyawan terpilih sudah paid, endpoint tetap mengembalikan **200** dengan `gatewayReference` yang sudah ada (no-op idempotent). Perlindungan race condition ditangani oleh `lockForUpdate()` pada transaksi DB.
+Karyawan yang sudah berstatus `paid` dilewati secara otomatis dan dikembalikan di `skippedAlreadyPaidUserIds`. Jika semua karyawan terpilih sudah paid, endpoint tetap mengembalikan **200** dengan `gatewayReference` yang sudah ada (no-op idempotent). Nilai `gatewayReference` kini dipakai sebagai **manual completion reference** untuk kompatibilitas payload. Perlindungan race condition ditangani oleh `lockForUpdate()` pada transaksi DB.
 
 Untuk run `monthly` yang memiliki `lateArrivalBuffer` dan sudah selesai dibayar untuk seluruh user **eligible** (net pay `> 0`), endpoint akan menjalankan auto-migration GAP-OPS-01:
 - memastikan periode payroll bulan berikutnya tersedia,
@@ -306,8 +310,7 @@ Migrasi ini menyiapkan carryover overtime post-cutoff ke draft periode berikutny
 | Field | Wajib | Aturan |
 |-------|--------|--------|
 | `userIds` | kondisional | array int `users.id`; wajib jika `applyAll` tidak dikirim/false |
-| `applyAll` | kondisional | boolean; kirim `true` untuk disburse seluruh karyawan **eligible** di run |
-| `mockApprovalToken` | ya (runtime mock active) | string token dari flow `mock-hosted-checkout` yang sudah dikonfirmasi |
+| `applyAll` | kondisional | boolean; kirim `true` untuk menandai seluruh karyawan **eligible** di run |
 
 **200** `data`:
 - `run` — ringkasan run dengan `paymentStatus`, `paidEmployeeCount`, `employeeCount`, `paidAt`, `gatewayReference`
@@ -315,6 +318,7 @@ Migrasi ini menyiapkan carryover overtime post-cutoff ke draft periode berikutny
 - `ineligibleUserIds[]` — user yang ada di run tapi THP `<= 0`, sehingga tidak diproses pembayaran
 - `skippedAlreadyPaidUserIds[]`
 - `gatewayReference`
+- `completionMode = manual_external`
 - `payment { status, employeeCount, paidEmployeeCount, paidUserIds, paidAt }`
 - `lateArrivalMigration` (nullable) — ringkasan hasil auto-migration post-cutoff jika dieksekusi (`targetPeriodId`, `targetPeriodYear`, `targetPeriodMonth`, `targetRunId`)
 
@@ -324,13 +328,11 @@ Migrasi ini menyiapkan carryover overtime post-cutoff ke draft periode berikutny
 - `PAYROLL_RUN_EMPTY` jika draft belum memiliki baris
 - `PAYROLL_FINALIZED_EXISTS` jika periode sudah punya run finalized lain dengan purpose yang sama
 - `PAYROLL_TAX_PROFILE_INCOMPLETE` jika masih ada line PPh21 dengan `missingTaxProfile=true`
-- `PAYROLL_MOCK_PAYMENT_REQUIRED` jika sesi hosted payment belum dibuat/terkonfirmasi
-- `PAYROLL_MOCK_PAYMENT_TOKEN_INVALID` jika `mockApprovalToken` tidak cocok dengan sesi hosted payment
-- `PAYROLL_MOCK_PAYMENT_SELECTION_MISMATCH` jika daftar user berbeda dari sesi hosted payment
+- `PAYROLL_GATEWAY_DISABLED_EXPORT_ONLY` jika client lama masih mencoba flow hosted checkout payroll
 
 ### `POST /payroll-runs/{id}/mock-hosted-checkout`
 
-Membuat sesi hosted mock payment untuk payroll run aktif dan daftar user yang dipilih.
+Endpoint kompatibilitas yang sekarang **dinonaktifkan** untuk flow payroll export-only.
 
 **Body JSON**
 
@@ -339,41 +341,42 @@ Membuat sesi hosted mock payment untuk payroll run aktif dan daftar user yang di
 | `userIds` | kondisional | array int `users.id`; wajib jika `applyAll` tidak dikirim/false |
 | `applyAll` | kondisional | boolean; kirim `true` untuk seluruh user eligible |
 
-**200** `data`:
-- `runId`
-- `selectedUserIds[]`
-- `flow.mode = hosted`
-- `flow.hostedCheckoutUrl`
-- `flow.callbackToken`
-
-**422**
-- `PAYROLL_DISBURSE_NO_EMPLOYEES` jika tidak ada user eligible untuk sesi payment.
-- `PAYROLL_TAX_PROFILE_INCOMPLETE` jika masih ada line PPh21 dengan `missingTaxProfile=true` pada run.
+**410** `PAYROLL_GATEWAY_DISABLED_EXPORT_ONLY`
 
 ### `POST /payroll-runs/{id}/mock-hosted-checkout/confirm`
 
-Mengonfirmasi bahwa sesi hosted payment sudah selesai sebelum disburse dijalankan.
+Endpoint kompatibilitas yang sekarang **dinonaktifkan** untuk flow payroll export-only.
 
-**Body JSON**
+**410** `PAYROLL_GATEWAY_DISABLED_EXPORT_ONLY`
 
-| Field | Wajib | Aturan |
-|-------|--------|--------|
-| `callbackToken` | ya | token dari flow hosted checkout |
-| `userIds` | ya | array int user yang harus sama persis dengan sesi hosted checkout |
+### Export reconciliation payroll (`POST /v1/reconciliation/exports`)
 
-**200** `data`: `runId`, `selectedUserIds[]`, `status=completed`.
+Untuk request dengan `featureKey/actionKey` berikut:
 
-**422**
-- `PAYROLL_MOCK_PAYMENT_NOT_FOUND`
-- `PAYROLL_MOCK_PAYMENT_TOKEN_INVALID`
-- `PAYROLL_MOCK_PAYMENT_EXPIRED`
-- `PAYROLL_MOCK_PAYMENT_SELECTION_MISMATCH`
+- `payroll_run/disburse`
+- `thr_batch/disburse`
+- `thr_batch/post_payroll`
+- `pkwt_compensation/post_payroll`
 
-### Export reconciliation payroll run (`POST /v1/reconciliation/exports`)
+server akan meng-generate file reconciliation berbentuk **summary pembayaran per karyawan** dengan schema seragam berikut:
 
-Untuk request dengan `featureKey=payroll_run` dan `actionKey=disburse`, file reconciliation yang di-generate server pada flow runtime payroll run menggunakan XLSX dan memuat line payroll (`run_id`, `user_id`, `component_code`, `amount`, dll.) plus `dataset_checksum` untuk verifikasi integritas dataset export.
+- `payroll_type`
+- `reference_period`
+- `reference_id`
+- `employee_id`
+- `employee_name`
+- `bank_name`
+- `account_number`
+- `account_holder_name`
+- `bank_branch`
+- `gross_total`
+- `overtime_total`
+- `deductions_total`
+- `transfer_amount`
+- `bank_data_status`
+- `dataset_checksum`
 
-Baris ringkasan `SUBTOTAL` per karyawan dan `GRAND_TOTAL` menghitung nilai `gross_total`/`deductions_total`/`net_total` hanya dari line yang berdampak ke take-home pay (`affects_net_pay=true` pada master `hcm_salary_components`; fallback `true` jika line belum tertaut komponen).
+`payroll_type` bernilai `monthly`, `thr`, atau `pkwt_compensation`. `reference_id` memakai prefix runtime (`run:{id}` untuk payroll run / PKWT payroll run, `thr_batch:{id}` untuk batch THR). Nilai `gross_total` / `overtime_total` / `deductions_total` / `transfer_amount` hanya menghitung line yang berdampak ke take-home pay (`affects_net_pay=true` pada master `hcm_salary_components`; fallback `true` jika line belum tertaut komponen). Pada payroll monthly, `overtime_total` memisahkan subtotal komponen `upah_lembur`; pada THR dan PKWT compensation nilainya saat ini `0`. Format ini sengaja diseragamkan agar file yang sama tetap sah sebagai evidence export sekaligus cukup operasional untuk admin mengeksekusi pembayaran manual tenant tanpa kolom teknis kosong yang membingungkan.
 
 ### `POST /payroll/thr-calculate`
 
@@ -442,9 +445,9 @@ Membangun ulang **satu** batch **draft** untuk `calendarYear`: menghapus draft l
 
 ### `POST /payroll/thr-batch/disburse`
 
-Mengeksekusi **payment gateway** (stub / integrasi Xendit-Midtrans nanti) untuk **`userIds`** tercentang. Batch **`draft`**. Baris sudah **`paid`** dilewati (tidak dipanggil ulang ke gateway). Baris yang dipilih harus **eligible** dan **`thrGross` &gt; 0**.
+Mencatat **pembayaran manual eksternal** untuk **`userIds`** tercentang. Batch **`draft`**. Baris sudah **`paid`** dilewati. Baris yang dipilih harus **eligible** dan **`thrGross` &gt; 0**.
 
-Pada flow runtime aktif, evidence export reconciliation untuk THR menggunakan file **XLSX** sebelum operator melanjutkan proses bayar atau post payroll.
+Pada flow runtime aktif, evidence export reconciliation untuk THR menggunakan file **XLSX** sebelum operator melanjutkan proses tandai bayar atau post payroll.
 
 **200** `data`: `disbursementId` (nullable jika semua terpilih sudah paid), `skippedAlreadyPaidUserIds`, `lines[]` terbaru, `batch` (dengan `canPostToPayroll`).
 
@@ -567,7 +570,8 @@ Query wajib: `periodYear`, `periodMonth` (sama aturan seperti POST periode).
 
 - `period`, `run`, `runs[]`, `employee`
 - `earnings[]` dan `deductions[]` hasil agregasi dari run final **`monthly`** dan, bila ada, **`thr`** pada bulan yang sama untuk user pemanggil
-- `totals`: `earningsTotal`, `deductionsTotal`, `netPay`
+- `overtime`: `amountTotal`, `lineCount`
+- `totals`: `earningsTotal`, `deductionsTotal`, `overtimeTotal`, `netPay`
 - `slipNumber` format `SLIP-YYYY-MM-USERID`
 - `downloadUrl` ke endpoint PDF jika slip tersedia; `null` bila belum ada run final
 
@@ -583,6 +587,68 @@ Mengembalikan periode payroll terbaru yang memiliki run `finalized` dan memuat b
 - `run`: ringkasan run (`id`, `purpose`, `status`, `finalizedAt`) yang menjadi sumber periode terbaru, atau `null`.
 
 Endpoint ini dipakai sebagai fallback UX pada initial load halaman `/payslip` agar user otomatis diarahkan ke periode slip terakhir yang tersedia.
+
+### `GET /payroll/monthly-report?periodYear=&periodMonth=`
+
+**HCM Admin only.** Mengembalikan laporan payroll bulanan detail yang menggabungkan run final `monthly`, `thr`, dan `pkwt_compensation` per kombinasi periode-karyawan.
+
+Query opsional:
+
+- `periodYear` — integer 2000–2100
+- `periodMonth` — integer 1–12
+
+**200** `data`:
+
+- `rows[]`:
+  - `rowKey`
+  - `periodYear`, `periodMonth`
+  - `userId`, `employeeName`, `email`
+  - `designation`, `team`
+  - `bankName`, `accountNumber`, `bankBranch`
+  - `paymentStatus` — agregasi `paid|partial|unpaid` lintas purpose pada row yang sama
+  - `breakdown.monthly|thr|pkwt_compensation` (jika purpose tersebut ada): `runId`, `paymentStatus`, `earningsTotal`, `deductionsTotal`, `overtime.amountTotal`, `netPay`, `earnings[]`, `deductions[]`
+  - `overtime.amountTotal`, `overtime.lineCount`
+  - `totals.earningsTotal`, `totals.deductionsTotal`, `totals.overtimeTotal`, `totals.netPay`
+- `summary`:
+  - `totalRows`
+  - `totalEmployees`
+  - `totalPeriods`
+  - `totalNetPay`
+  - `totalOvertimePay`
+  - `totalsByPurpose.monthly`
+  - `totalsByPurpose.thr`
+  - `totalsByPurpose.pkwt_compensation`
+
+Endpoint ini dipakai oleh halaman admin `/monthly-report` untuk satu layar gabungan payroll reguler, THR, dan kompensasi PKWT.
+
+### `GET /payroll/monthly-report/export?periodYear=&periodMonth=&format=`
+
+**HCM Admin only.** Mengunduh laporan Monthly Report dalam format tabular.
+
+Query:
+
+- `periodYear` — opsional
+- `periodMonth` — opsional
+- `format` — opsional, `csv|xlsx`, default `xlsx`
+
+Header export:
+
+- `period`
+- `employee_id`
+- `employee_name`
+- `email`
+- `designation`
+- `team`
+- `bank_name`
+- `account_number`
+- `bank_branch`
+- `payment_status`
+- `monthly_run_id`, `monthly_gross`, `monthly_overtime`, `monthly_deductions`, `monthly_net`
+- `thr_run_id`, `thr_gross`, `thr_overtime`, `thr_deductions`, `thr_net`
+- `pkwt_run_id`, `pkwt_gross`, `pkwt_overtime`, `pkwt_deductions`, `pkwt_net`
+- `total_gross`, `total_overtime`, `total_deductions`, `total_net`
+
+Setiap baris tetap satu employee per periode, sehingga admin dapat memakai file ini sebagai laporan detail lintas run tanpa kehilangan breakdown per purpose.
 
 ### `GET /payroll/my-slip-pdf?periodYear=&periodMonth=`
 
@@ -602,7 +668,7 @@ Menghasilkan **PDF** slip gaji bulanan milik sendiri untuk periode yang diminta.
 - `preview.summary`: `totalEmployees`, `eligibleEmployees`, `grandTotal`
 - `preview.lines[]`: `userId`, `employeeNo`, `fullName`, `designation`, `contractStartDate`, `contractEndDate`, `baseSalary`, `fixedAllowance`, `referenceMonthlyWage`, `monthsOfService`, `multiplier`, `compensationAmount`
 - `fixedAllowance` pada preview PKWT dipertahankan untuk backward compatibility payload, tetapi runtime saat ini selalu `0` karena tunjangan tetap operasional hanya dikelola lewat allowance governance.
-- `run`: `null` atau ringkasan payroll run PKWT saat ini: `id`, `purpose`, `status`, `finalizedAt`, `period`, `payment { status, employeeCount, paidEmployeeCount, paidUserIds[], paidAt, gatewayReference }`
+- `run`: `null` atau ringkasan payroll run PKWT saat ini: `id`, `purpose`, `status`, `finalizedAt`, `period`, `payment { status, employeeCount, paidEmployeeCount, paidUserIds[], paidAt, gatewayReference }` (`gatewayReference` dipakai sebagai manual completion reference untuk kompatibilitas)
 
 Endpoint ini dipakai untuk preview sekaligus membaca status payroll kompensasi PKWT aktif pada periode tersebut.
 
@@ -610,12 +676,12 @@ Endpoint ini dipakai untuk preview sekaligus membaca status payroll kompensasi P
 
 **HCM Admin only.** Membuat atau membangun ulang draft payroll **standalone** dengan `purpose = pkwt_compensation` untuk periode terpilih.
 
-Pada flow runtime aktif, evidence export reconciliation untuk PKWT compensation menggunakan file **XLSX** sebelum draft diposting ke payroll.
+Pada flow runtime aktif, evidence export reconciliation untuk PKWT compensation menggunakan file **CSV/XLSX** dengan schema payment-ready yang sama seperti monthly payroll dan THR sebelum draft diposting ke payroll.
 
 Flow setelah endpoint ini:
 
 - draft dibuat/rebuild dari preview eligible bulan itu,
-- pembayaran dilakukan lewat **`POST /payroll-runs/{id}/disburse`**,
+- pembayaran dicatat manual lewat **`POST /payroll-runs/{id}/disburse`** setelah settlement eksternal,
 - hasil final ikut muncul di `my-slip-lines`, admin slips, dan agregasi payslip bulanan pada periode yang sama.
 
 **Body JSON**:
@@ -679,7 +745,7 @@ Query wajib: `periodYear`, `periodMonth` (sama aturan seperti POST periode).
 | `THR_ASSIGN_USER_NOT_IN_BATCH` | 422 | `userIds` disburse tidak semua ada di batch |
 | `THR_ASSIGN_NO_POSITIVE_LINES` | 422 | Tidak ada THR positif untuk diposting |
 | `THR_PAYROLL_FINALIZED_EXISTS` | 422 | Run THR final sudah ada untuk periode bayar |
-| `THR_DISBURSE_NO_EMPLOYEES` | 422 | Disburse tanpa `userIds` |
+| `THR_DISBURSE_NO_EMPLOYEES` | 422 | Tandai bayar tanpa `userIds` |
 | `THR_DISBURSE_LINE_NOT_PAYABLE` | 422 | Baris tidak eligible / THR nihil |
 | `THR_POST_UNPAID_PAYABLE_LINES` | 422 | Masih ada eligible THR&gt;0 yang belum `paid` |
 | `THR_SEND_SLIP_*` | 422 | Bulk kirim slip — validasi batch/line/PDF |

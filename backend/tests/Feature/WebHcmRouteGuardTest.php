@@ -264,6 +264,12 @@ class WebHcmRouteGuardTest extends TestCase
             ->followingRedirects()
             ->get('/payslip-report')
             ->assertOk();
+
+        $this->withHeader('Cookie', $this->cookieName().'='.$token)
+            ->withHeader('X-Company-Code', $company->code)
+            ->followingRedirects()
+            ->get('/monthly-report')
+            ->assertOk();
     }
 
     public function test_non_hcm_admin_api_cookie_redirected_from_promotion_resignation_termination(): void

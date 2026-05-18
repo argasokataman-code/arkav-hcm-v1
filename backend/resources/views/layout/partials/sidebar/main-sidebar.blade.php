@@ -555,7 +555,7 @@
 @endif
 @if ($isHcmAdmin && ! $hideTenantOperationalReports)
                         <li class="submenu">
-                            <a href="javascript:void(0);"class="{{ Request::is('expenses-report','invoice-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report') ? 'active subdrop' : '' }}">
+                            <a href="javascript:void(0);"class="{{ Request::is('expenses-report','invoice-report','user-report','employee-report','payslip-report','monthly-report','attendance-report','leave-report','daily-report') ? 'active subdrop' : '' }}">
                                 <i class="ti ti-user-star"></i><span>Reports</span>
                                 <span class="menu-arrow"></span>
                             </a>
@@ -563,6 +563,7 @@
                                 <li><a href="{{url('user-report')}}" class="{{ Request::is('user-report') ? 'active' : '' }}">User Report</a></li>
                                 <li><a href="{{url('employee-report')}}" class="{{ Request::is('employee-report') ? 'active' : '' }}">Employee Report</a></li>
                                 <li><a href="{{url('payslip-report')}}" class="{{ Request::is('payslip-report') ? 'active' : '' }}">Payslip Report (All Employees)</a></li>
+                                <li><a href="{{url('monthly-report')}}" class="{{ Request::is('monthly-report') ? 'active' : '' }}">Monthly Report</a></li>
                                 <li><a href="{{url('attendance-report')}}" class="{{ Request::is('attendance-report') ? 'active' : '' }}">Attendance Report</a></li>
                                 <li><a href="{{url('leave-report')}}" class="{{ Request::is('leave-report') ? 'active' : '' }}">Leave Report</a></li>
                                 <li><a href="{{url('daily-report')}}" class="{{ Request::is('daily-report') ? 'active' : '' }}">Daily Report</a></li>

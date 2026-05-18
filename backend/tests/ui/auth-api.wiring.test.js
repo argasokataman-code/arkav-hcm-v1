@@ -10,6 +10,10 @@ describe('AuthApi wiring', () => {
   beforeEach(() => {
     document.body.innerHTML = '<div class="main-wrapper" data-subscription-status="trial" data-role-scope="hcm-admin"></div>';
     localStorage.clear();
+    delete window.AuthUser;
+    delete window.__ARCAV_LAST_REDIRECT__;
+    delete window.__ARCAV_AUTH_SESSION_MONITOR_INTERVAL_MS__;
+    window.__ARCAV_DISABLE_REDIRECTS__ = true;
   });
 
   it('exposes AuthApi on window after script load', async () => {
@@ -62,5 +66,34 @@ describe('AuthApi wiring', () => {
     expect(api.isUnauthorizedApiPayload(401, { error: { code: 'AUTH_UNAUTHORIZED' } })).toBe(true);
     expect(api.isUnauthorizedApiPayload(401, { error: { code: 'AUTH_INVALID_CREDENTIALS' } })).toBe(false);
     expect(api.isUnauthorizedApiPayload(403, { error: { code: 'AUTH_FORBIDDEN' } })).toBe(false);
+  });
+
+  it('redirects idle protected pages to login when heartbeat sees expired auth', async () => {
+    window.AuthUser = { id: 99 };
+    localStorage.setItem('arcav_active_tenant', JSON.stringify({ companyCode: 'ACME' }));
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      value: false,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ success: false, error: { code: 'AUTH_UNAUTHORIZED', message: 'Unauthorized.' } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = await loadAuthApi();
+    await api.probeAuthSession();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/v1/identity/auth/me',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'same-origin',
+      }),
+    );
+    expect(window.__ARCAV_LAST_REDIRECT__).toBe('/login');
+    expect(localStorage.getItem('arcav_active_tenant')).toBeNull();
   });
 });

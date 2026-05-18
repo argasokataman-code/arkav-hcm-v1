@@ -47,10 +47,11 @@ import {
     steps,
 } from './public-landing-reference-sections.jsx';
 
-export function OnboardingModal({ error, formState, onChange, onChangeConsent, onClose, onSubmit, packages, submitting, turnstileEnabled, turnstileSiteKey, onTurnstileTokenChange }) {
+export function OnboardingModal({ error, formState, onChange, onChangeConsent, onClose, onSubmit, packages, submitting, turnstileEnabled, turnstileHideTestNotice, turnstileSiteKey, onTurnstileTokenChange, requestedStartMode }) {
     const selectedPackage = packages.find((packageItem) => packageItem.uuid === formState.packageUuid) || null;
     const isTrialSelected = isTrialPackage(selectedPackage);
     const lockBillingCycle = isTrialSelected;
+    const isPendingPaymentRegistration = requestedStartMode === 'pending_payment' && !isTrialSelected;
     const fieldErrors = useMemo(() => buildFieldErrors(error?.details), [error]);
     const fe = (name) => fieldErrors[name] || null;
     const [showPdpModal, setShowPdpModal] = useState(false);
@@ -193,21 +194,25 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                                                         <option value="yearly">Yearly</option>
                                                     </select>
                                                 </div>
-                                                <div className="col-md-3">
-                                                    <label className="form-label fw-semibold">Mulai sebagai</label>
-                                                    <select className="form-select" name="startMode" value={formState.startMode} onChange={onChange} disabled>
-                                                        {isTrialSelected ? (
-                                                            <option value="trial">Trial</option>
-                                                        ) : (
-                                                            <option value="pending_payment">Langsung subscribe</option>
-                                                        )}
-                                                    </select>
-                                                </div>
+                                                {isPendingPaymentRegistration ? null : (
+                                                    <div className="col-md-3">
+                                                        <label className="form-label fw-semibold">Mode aktivasi</label>
+                                                        <select className="form-select" name="startMode" value={formState.startMode} onChange={onChange} disabled>
+                                                            {isTrialSelected ? (
+                                                                <option value="trial">Trial</option>
+                                                            ) : (
+                                                                <option value="pending_payment">Aktivasi subscription</option>
+                                                            )}
+                                                        </select>
+                                                    </div>
+                                                )}
                                                 <div className="col-12">
                                                     <div className="small text-muted">
-                                                        {isTrialSelected
-                                                            ? 'Paket trial dipaksa ke billing monthly dan mode trial.'
-                                                            : 'Paket berbayar langsung subscribe (pending payment). Untuk mencoba trial dulu, pilih paket Trial.'}
+                                                        {isPendingPaymentRegistration
+                                                            ? 'Registrasi company baru ini akan lanjut ke aktivasi subscription setelah onboarding selesai.'
+                                                            : isTrialSelected
+                                                            ? 'Paket trial otomatis memakai billing bulanan dan aktivasi trial.'
+                                                            : 'Paket berbayar akan lanjut ke aktivasi subscription setelah onboarding selesai.'}
                                                     </div>
                                                 </div>
                                             </div>
@@ -322,7 +327,9 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                                                 {turnstileEnabled && turnstileSiteKey ? (
                                                     <div className="col-12">
                                                         <label className="form-label">Verifikasi keamanan</label>
-                                                        <div ref={turnstileContainerRef}></div>
+                                                        <div className={turnstileHideTestNotice ? 'mpl-turnstile-shell mpl-turnstile-shell--hide-test-notice' : 'mpl-turnstile-shell'}>
+                                                            <div ref={turnstileContainerRef}></div>
+                                                        </div>
                                                         <div className="form-text">Selesaikan captcha sebelum submit onboarding.</div>
                                                     </div>
                                                 ) : null}
@@ -974,7 +981,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                             <div className="mpl-nav-actions">
                                 <a href={bootstrap.loginUrl} className="mpl-btn-ghost">Login</a>
                                 <button type="button" className="mpl-btn" onClick={() => openOnboarding(primaryPackageUuid)}>
-                                    {hasActiveTrialPackages ? 'Mulai Gratis' : 'Mulai Sekarang'} <ArrowRight size={18} weight="bold" />
+                                    {hasActiveTrialPackages ? 'Mulai Trial' : 'Mulai Sekarang'} <ArrowRight size={18} weight="bold" />
                                 </button>
                             </div>
                         </div>
@@ -999,7 +1006,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                         <div className="mpl-nav-actions">
                             <a href={bootstrap.loginUrl} className="mpl-btn-ghost">Login</a>
                             <button type="button" className="mpl-btn" onClick={() => openOnboarding(primaryPackageUuid)}>
-                                {hasActiveTrialPackages ? 'Mulai Gratis' : 'Mulai Sekarang'} <ArrowRight size={18} weight="bold" />
+                                {hasActiveTrialPackages ? 'Mulai Trial' : 'Mulai Sekarang'} <ArrowRight size={18} weight="bold" />
                             </button>
                         </div>
                     </div>
@@ -1169,7 +1176,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                         <div className="mpl-card text-center">
                             <h3 className="mb-2">Paket belum tersedia</h3>
                             <p className="mb-3">Belum ada paket aktif. Aktifkan paket terlebih dulu agar pilihan harga tampil di halaman ini.</p>
-                            <a className="mpl-btn" href={bootstrap.trialUrl}>Buka halaman trial</a>
+                            <a className="mpl-btn" href={bootstrap.trialUrl}>Buka halaman onboarding</a>
                         </div>
                     )}
                 </div>
@@ -1184,7 +1191,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                             <p>Bergabung dengan perusahaan yang ingin operasional HR lebih rapi, payroll lebih tenang, dan onboarding lebih cepat.</p>
                             <div className="mpl-cta-actions">
                                 <button type="button" className="mpl-btn" onClick={() => openOnboarding(primaryPackageUuid)}>
-                                    {hasActiveTrialPackages ? 'Coba Gratis 30 Hari' : 'Mulai Sekarang'} <ArrowRight size={18} weight="bold" />
+                                    {hasActiveTrialPackages ? 'Mulai Trial' : 'Mulai Sekarang'} <ArrowRight size={18} weight="bold" />
                                 </button>
                                 <button type="button" className="mpl-btn-outline" onClick={() => setShowDemo(true)}>
                                     Lihat Demo
@@ -1208,7 +1215,7 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                                 <BrandMark bootstrap={bootstrap} />
                                 <div className="mpl-footer-brand">{bootstrap.companyName}</div>
                             </div>
-                            <p className="mpl-footer-copy">Platform HCM modern untuk perusahaan Indonesia. Kelola tim dengan lebih efisien dan terstruktur sambil menjaga package dan onboarding flow tetap utuh.</p>
+                            <p className="mpl-footer-copy">Platform HCM untuk perusahaan Indonesia yang ingin proses HR lebih rapi, cepat, dan mudah dijalankan dari satu tempat.</p>
                         </div>
                         <div>
                             <ul className="mpl-footer-links">
@@ -1250,7 +1257,9 @@ export function PublicLandingReferenceApp({ bootstrap }) {
                     onTurnstileTokenChange={handleTurnstileTokenChange}
                     packages={packages}
                     submitting={submitting}
+                    requestedStartMode={autoOpenSpec?.requestedStartMode || null}
                     turnstileEnabled={Boolean(bootstrap?.turnstileEnabled && bootstrap?.turnstileSiteKey)}
+                    turnstileHideTestNotice={Boolean(bootstrap?.turnstileHideTestNotice)}
                     turnstileSiteKey={String(bootstrap?.turnstileSiteKey || '').trim()}
                 />
             ) : null}

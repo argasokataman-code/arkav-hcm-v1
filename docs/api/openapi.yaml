@@ -5027,12 +5027,16 @@ paths:
   /v1/hcm/payroll-runs/{id}/disburse:
     post:
       tags: [Payroll]
-      summary: Disburse monthly payroll via gateway (HCM admin)
+      summary: Mark monthly payroll paid manually (HCM admin)
       description: |
-        Menjalankan pembayaran gateway untuk subset `userIds` yang dipilih. Jika run masih `draft`, API akan
+        Mencatat penyelesaian pembayaran manual eksternal untuk subset `userIds` yang dipilih. Jika run masih `draft`, API akan
         otomatis memfinalkan run dan menandai periodenya sebagai `posted` sebelum menulis status pembayaran per karyawan.
         Pemanggilan berulang aman/idempotent: user yang sudah `paid` akan dilewati.
-        Hanya user dengan total net pay `> 0` yang eligible untuk didisburse.
+        Hanya user dengan total net pay `> 0` yang eligible untuk ditandai paid.
+        Evidence export reconciliation runtime aktif memakai schema payment-ready seragam dengan kolom
+        `payroll_type`, `reference_period`, `reference_id`, `employee_id`, `employee_name`, `bank_name`,
+        `account_number`, `account_holder_name`, `bank_branch`, `gross_total`, `overtime_total`,
+        `deductions_total`, `transfer_amount`, `bank_data_status`, `dataset_checksum`.
         Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
         `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
       security:
@@ -5049,15 +5053,16 @@ paths:
                 userIds:
                   type: array
                   items:
-                    type: string
-                    format: uuid
-                  description: Optional subset of employee user UUIDs to disburse. Required when applyAll is not true.
+                    oneOf:
+                      - { type: integer }
+                      - { type: string, format: uuid }
+                  description: Optional subset of employee identifiers to mark paid. Numeric `users.id` is the primary path; UUID fallback remains supported.
                 applyAll:
                   type: boolean
-                  description: Set true to disburse all eligible employees in the run explicitly.
+                  description: Set true to mark all eligible employees in the run as paid explicitly.
       responses:
         '200':
-          description: Gateway disbursement processed
+          description: Manual payroll payment recorded
           content:
             application/json:
               schema:
@@ -5083,6 +5088,9 @@ paths:
                       gatewayReference:
                         type: string
                         nullable: true
+                      completionMode:
+                        type: string
+                        example: manual_external
                       payment:
                         type: object
                         properties:
@@ -5109,6 +5117,117 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /v1/hcm/payroll/monthly-report:
+    get:
+      tags: [Payroll]
+      summary: Get combined monthly payroll report across monthly THR and PKWT runs
+      description: |
+        Mengembalikan laporan admin per employee-periode yang menggabungkan run final `monthly`, `thr`, dan
+        `pkwt_compensation`. Dipakai oleh halaman `/monthly-report`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: periodYear
+          in: query
+          required: false
+          schema: { type: integer, minimum: 2000, maximum: 2100 }
+        - name: periodMonth
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 12 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      rows:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            rowKey: { type: string, example: '2026-9-15' }
+                            periodYear: { type: integer, example: 2026 }
+                            periodMonth: { type: integer, example: 9 }
+                            userId: { type: integer, example: 15 }
+                            employeeName: { type: string, example: 'Payroll Employee' }
+                            email: { type: string, nullable: true, example: 'employee@example.test' }
+                            designation: { type: string, example: 'Staff Finance' }
+                            team: { type: string, example: 'Finance' }
+                            bankName: { type: string, nullable: true, example: 'BCA' }
+                            accountNumber: { type: string, nullable: true, example: '1234567890' }
+                            bankBranch: { type: string, nullable: true, example: 'KCU Sudirman' }
+                            paymentStatus: { type: string, enum: [unpaid, partial, paid], example: paid }
+                            breakdown:
+                              type: object
+                              additionalProperties: true
+                            overtime:
+                              type: object
+                              properties:
+                                amountTotal: { type: number, format: float, example: 250000 }
+                                lineCount: { type: integer, example: 1 }
+                            totals:
+                              type: object
+                              properties:
+                                earningsTotal: { type: number, format: float, example: 6500000 }
+                                deductionsTotal: { type: number, format: float, example: 250000 }
+                                overtimeTotal: { type: number, format: float, example: 250000 }
+                                netPay: { type: number, format: float, example: 6250000 }
+                      summary:
+                        type: object
+                        properties:
+                          totalRows: { type: integer, example: 10 }
+                          totalEmployees: { type: integer, example: 8 }
+                          totalPeriods: { type: integer, example: 2 }
+                          totalNetPay: { type: number, format: float, example: 32500000 }
+                          totalOvertimePay: { type: number, format: float, example: 1750000 }
+                          totalsByPurpose:
+                            type: object
+                            properties:
+                              monthly: { type: number, format: float, example: 28000000 }
+                              thr: { type: number, format: float, example: 3000000 }
+                              pkwt_compensation: { type: number, format: float, example: 1500000 }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/payroll/monthly-report/export:
+    get:
+      tags: [Payroll]
+      summary: Export combined monthly payroll report
+      description: |
+        Mengunduh laporan Monthly Report admin dalam format `csv` atau `xlsx` dengan satu baris per employee-periode.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: periodYear
+          in: query
+          required: false
+          schema: { type: integer, minimum: 2000, maximum: 2100 }
+        - name: periodMonth
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 12 }
+        - name: format
+          in: query
+          required: false
+          schema: { type: string, enum: [csv, xlsx], default: xlsx }
+      responses:
+        '200':
+          description: Binary export file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/payroll/my-slip-latest-period:
     get:
       tags: [Payroll]
@@ -5173,7 +5292,7 @@ paths:
       summary: Current user monthly payslip summary (authenticated)
       description: |
         Query `periodYear`, `periodMonth`. Mengembalikan ringkasan slip milik user login berupa
-        `earnings`, `deductions`, `totals`, `slipNumber`, dan `downloadUrl`.
+        `earnings`, `deductions`, `overtime`, `totals`, `slipNumber`, dan `downloadUrl`.
         Jika periode belum ada atau belum ada run `finalized`, endpoint tetap `200` dengan `run=null` dan total `0`.
       security:
         - bearerAuth: []
@@ -5332,6 +5451,16 @@ paths:
                             meta:
                               type: object
                               nullable: true
+                      overtime:
+                        type: object
+                        properties:
+                          amountTotal:
+                            type: number
+                            format: float
+                            example: 182947.98
+                          lineCount:
+                            type: integer
+                            example: 1
                       totals:
                         type: object
                         properties:
@@ -5343,6 +5472,10 @@ paths:
                             type: number
                             format: float
                             example: 250000
+                          overtimeTotal:
+                            type: number
+                            format: float
+                            example: 182947.98
                           netPay:
                             type: number
                             format: float
@@ -5675,7 +5808,8 @@ paths:
       summary: Create or rebuild standalone PKWT compensation draft payroll (HCM admin)
       description: |
         Membuat atau membangun ulang payroll run draft dengan `purpose=pkwt_compensation` untuk periode terpilih. Endpoint ini membutuhkan permission `payroll.pkwt.manage`.
-        Setelah draft terbentuk, pembayaran dilakukan melalui endpoint generic `POST /payroll-runs/{id}/disburse`.
+        Setelah draft terbentuk, penyelesaian pembayaran dicatat melalui endpoint generic `POST /payroll-runs/{id}/disburse` setelah settlement eksternal.
+        Evidence export reconciliation runtime aktif memakai schema payment-ready yang sama dengan monthly payroll dan THR.
         Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
         `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
       security:
@@ -5904,10 +6038,11 @@ paths:
   /v1/hcm/payroll/thr-batch/disburse:
     post:
       tags: [Payroll]
-      summary: Eksekusi pembayaran THR via payment gateway (subset userIds, HCM admin)
+      summary: Catat pembayaran manual THR (subset userIds, HCM admin)
       description: |
-        Batch harus `draft`. Endpoint ini membutuhkan permission `payroll.disburse`. Memanggil driver disbursement (`hcm.thr_disbursement_driver`, default stub).
-        Baris `paid` dilewati. Sukses → `paymentStatus=paid`, generate slip PDF; gagal → `failed` + alasan (retry dari UI).
+        Batch harus `draft`. Endpoint ini membutuhkan permission `payroll.disburse`.
+        Baris `paid` dilewati. Baris yang dipilih akan ditandai `paymentStatus=paid`, disimpan manual completion reference-nya, lalu generate slip PDF.
+        Evidence export reconciliation runtime aktif memakai schema payment-ready yang sama dengan monthly payroll dan PKWT compensation.
         Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
         `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
       security:
@@ -6013,10 +6148,21 @@ paths:
         Menyimpan evidence export untuk gate aksi berisiko. Endpoint ini membutuhkan tenant context aktif.
 
         **Kompatibilitas UI:** klien payroll/THR/PKWT mengirim `format` (alias `fileFormat`) dan `filterPayload`.
-        Jika `filePath` tidak dikirim dan `fileFormat`/`format` adalah **`csv`**, server akan **menulis file CSV evidence**
+        Jika `filePath` tidak dikirim dan `fileFormat`/`format` adalah **`csv`** atau **`xlsx`**, server akan **menulis file evidence**
         ke disk `local` pada path `reconciliation/generated/...` lalu menyimpan evidence.
 
-        Untuk `xlsx` / `pdf`, `filePath` tetap **wajib** (server tidak auto-generate).
+        Untuk `featureKey/actionKey` payroll berikut:
+        - `payroll_run/disburse`
+        - `thr_batch/disburse`
+        - `thr_batch/post_payroll`
+        - `pkwt_compensation/post_payroll`
+
+        payload yang digenerate server berbentuk summary pembayaran per karyawan dengan schema seragam:
+        `payroll_type`, `reference_period`, `reference_id`, `employee_id`, `employee_name`, `bank_name`, `account_number`,
+        `account_holder_name`, `bank_branch`, `gross_total`, `overtime_total`, `deductions_total`, `transfer_amount`, `bank_data_status`,
+        `dataset_checksum`.
+
+        Untuk `pdf`, `filePath` tetap **wajib**.
       security:
         - bearerAuth: []
       requestBody:
@@ -6040,7 +6186,7 @@ paths:
                   type: string
                   enum: [csv, xlsx, pdf]
                 filePath:
-                  description: Path relatif di disk `local`. Wajib untuk `xlsx|pdf`; opsional untuk `csv` (auto-generate bila kosong).
+                  description: Path relatif di disk `local`. Wajib untuk `pdf`; opsional untuk `csv|xlsx` (auto-generate bila kosong).
                   type: string
                 rowCount:
                   description: Opsional; jika tidak dikirim akan diinfer dari `filterPayload` (mis. `lineIds` / `periods`) atau 0.

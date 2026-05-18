@@ -310,7 +310,7 @@
         var detail = document.querySelector("[data-pkwt-pay-confirm-detail]");
         if (detail) {
             var employeeCount = run && run.payment ? Number(run.payment.employeeCount || 0) : 0;
-            detail.textContent = "Run #" + String(run.id) + " • Karyawan: " + String(employeeCount) + ". Lanjutkan pembayaran sekarang?";
+            detail.textContent = "Run #" + String(run.id) + " • Karyawan: " + String(employeeCount) + ". Lanjutkan pencatatan pembayaran manual sekarang?";
         }
         modal.show();
         return true;
@@ -603,12 +603,12 @@
         if (confirmBtn) {
             confirmBtn.addEventListener("click", function () {
                 if (!pendingPayRunId) {
-                    notify("Run payment tidak ditemukan.", true);
+                    notify("Run payroll tidak ditemukan.", true);
                     return;
                 }
                 var modal = getPayConfirmModal();
-                setButtonBusy(confirmBtn, true, "Processing…");
-                setButtonBusy(payBtn, true, "Paying…");
+                setButtonBusy(confirmBtn, true, "Menyimpan…");
+                setButtonBusy(payBtn, true, "Mencatat…");
                 apiRequest("post", "/v1/hcm/payroll-runs/" + encodeURIComponent(pendingPayRunId) + "/disburse", { applyAll: true })
                     .then(function (resp) {
                         if (!resp || resp.success !== true) {
@@ -622,7 +622,7 @@
                         if (modal) {
                             modal.hide();
                         }
-                        notify("Pembayaran kompensasi PKWT selesai.", false);
+                        notify("Pembayaran kompensasi PKWT berhasil dicatat manual.", false);
                         loadList();
                     })
                     .catch(function (errObj) {

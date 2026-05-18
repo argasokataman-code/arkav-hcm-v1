@@ -38,6 +38,10 @@
     if (el) el.textContent = value;
   }
 
+  function isOvertimeRow(row) {
+    return String(row?.componentCode || '') === 'upah_lembur';
+  }
+
   function renderRows(container, rows, emptyLabel) {
     if (!container) return;
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -47,9 +51,12 @@
 
     container.innerHTML = rows.map((row) => {
       const label = row.componentName || row.componentCode || 'Komponen';
+      const overtimeBadge = isOvertimeRow(row)
+        ? '<span class="badge bg-info-subtle text-info border border-info-subtle ms-2">Overtime</span>'
+        : '';
       return '<div class="list-group-item">'
         + '<div class="d-flex align-items-center justify-content-between gap-3">'
-        + '<span>' + label + '</span>'
+        + '<span>' + label + overtimeBadge + '</span>'
         + '<strong>' + formatIdr(row.amount || 0) + '</strong>'
         + '</div>'
         + '</div>';
@@ -122,6 +129,7 @@
       setText(document.querySelector('[data-payslip-employee-team]'), employee.team || '—');
 
       setText(document.querySelector('[data-payslip-earnings-total]'), formatIdr(totals.earningsTotal || 0));
+  setText(document.querySelector('[data-payslip-overtime-total]'), formatIdr(totals.overtimeTotal || data.overtime?.amountTotal || 0));
       setText(document.querySelector('[data-payslip-deductions-total]'), formatIdr(totals.deductionsTotal || 0));
       setText(document.querySelector('[data-payslip-net-pay]'), formatIdr(totals.netPay || 0));
 

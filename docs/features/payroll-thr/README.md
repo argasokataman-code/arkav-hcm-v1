@@ -2,7 +2,7 @@
 
 ## Ringkasan
 
-Halaman `/payroll-thr` dipakai HCM Admin untuk mengelola siklus THR per tahun kalender: menyimpan tanggal referensi hari raya, cut-off pro rata, menghitung estimasi THR, membuat batch karyawan eligible, mengeksekusi pembayaran, lalu mem-posting hasilnya ke payroll purpose `thr`.
+Halaman `/payroll-thr` dipakai HCM Admin untuk mengelola siklus THR per tahun kalender: menyimpan tanggal referensi hari raya, cut-off pro rata, menghitung estimasi THR, membuat batch karyawan eligible, mencatat pembayaran manual eksternal, lalu mem-posting hasilnya ke payroll purpose `thr`.
 
 Flow ini terpisah dari payroll bulanan karena tanggal bayar THR sering tidak sama dengan tanggal payroll rutin. Status dokumentasi dan evidence terbaru dicatat di `tracker.md`.
 
@@ -25,7 +25,7 @@ Flow ini terpisah dari payroll bulanan karena tanggal bayar THR sering tidak sam
 2. Admin bisa menjalankan kalkulator cepat untuk satu karyawan/kontrak sebagai sanity check.
 3. Setelah cut-off tersedia, admin menjalankan generate batch untuk membentuk daftar karyawan eligible pada tahun tersebut.
 4. Admin meninjau nominal per karyawan, lalu menjalankan export reconciliation bila enforcement aktif.
-5. Admin membayar line THR yang terpilih lewat flow disburse batch.
+5. Admin menandai line THR yang terpilih sebagai sudah dibayar di luar aplikasi lewat flow disburse batch.
 6. Setelah seluruh line payable berstatus `paid`, admin mem-posting batch menjadi payroll purpose `thr`.
 7. Hasil final ikut muncul di slip employee dan tersedia sebagai PDF slip THR per line.
 
@@ -43,6 +43,7 @@ Flow ini terpisah dari payroll bulanan karena tanggal bayar THR sering tidak sam
 - Payslip: periode yang sama akan menampilkan hasil THR di `/payslip`. Lihat `../payslip/README.md`.
 - Employee Salary: dasar pro rata memakai gaji pokok pada implementasi saat ini. Lihat `../employee-salary/README.md`.
 - Export Reconciliation: disburse dan post-payroll bisa digate oleh evidence export. Lihat `../export-reconciliation/README.md`.
+- Export Reconciliation runtime aktif sekarang memakai schema payment-ready yang sama dengan payroll bulanan dan PKWT compensation, sehingga operator tidak perlu mempelajari format file berbeda untuk pembayaran manual THR.
 
 ## Kontrak API
 
@@ -60,6 +61,6 @@ Referensi kontrak utama: `docs/api/hcm-payroll-api.md` dan `docs/api/openapi.yam
 
 ## Existing Vs Target
 
-- Existing: UI pengaturan tahunan, kalkulator THR, batch generate, disburse, post-payroll, slip PDF, dan evidence indicator sudah aktif.
+- Existing: UI pengaturan tahunan, kalkulator THR, batch generate, mark-paid manual, post-payroll, slip PDF, evidence indicator, dan export payment-ready seragam sudah aktif.
 - Existing: batch sudah menghormati filter employee aktif/probation dan mengecualikan resignation/termination approved.
 - Target: penguatan selanjutnya lebih ke bukti operasional dan manual E2E admin, bukan lagi kekosongan runtime dasar.

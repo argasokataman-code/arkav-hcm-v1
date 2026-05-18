@@ -13,6 +13,7 @@
 		'loginUrl' => url('/login'),
 		'trialUrl' => url('/trial'),
 		'turnstileEnabled' => (bool) config('turnstile.enabled'),
+		'turnstileHideTestNotice' => (bool) config('turnstile.hide_test_notice'),
 		'turnstileSiteKey' => (string) config('turnstile.site_key'),
 		'packages' => $packages->map(function ($package) {
 			$featureHighlights = $package->features

@@ -59,8 +59,12 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
 
         $run = \App\Support\PayrollDraftBuilder::rebuildDraftRun($period, (int) $company->id);
 
-        $this->assertNull($run->hcm_tax_governance_policy_id);
-        $this->assertNull($run->hcm_tax_governance_policy_version);
+        $this->assertSame($policy->id, $run->hcm_tax_governance_policy_id);
+        $this->assertSame(3, $run->hcm_tax_governance_policy_version);
+        $this->assertSame((string) $policy->uuid, data_get($run->meta, 'taxGovernancePolicy.uuid'));
+        $this->assertSame('published', data_get($run->meta, 'taxGovernancePolicy.status'));
+        $this->assertSame(28, data_get($run->meta, 'policySnapshot.paydayDay'));
+        $this->assertSame('2026-05-28', data_get($run->meta, 'policySnapshot.resolvedPaydayDate'));
     }
 
     public function test_payroll_run_has_null_policy_id_when_no_published_policy_exists(): void
@@ -127,14 +131,14 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
         $runApril = \App\Support\PayrollDraftBuilder::rebuildDraftRun(HcmPayrollPeriod::findOrFail($periodAprilId), (int) $company->id);
         $runMay = \App\Support\PayrollDraftBuilder::rebuildDraftRun(HcmPayrollPeriod::findOrFail($periodMayId), (int) $company->id);
 
-        $this->assertNull($runApril->hcm_tax_governance_policy_id);
-        $this->assertNull($runApril->hcm_tax_governance_policy_version);
-        $this->assertNull($runMay->hcm_tax_governance_policy_id);
-        $this->assertNull($runMay->hcm_tax_governance_policy_version);
+        $this->assertSame($policyApril->id, $runApril->hcm_tax_governance_policy_id);
+        $this->assertSame(1, $runApril->hcm_tax_governance_policy_version);
+        $this->assertSame($policyMay->id, $runMay->hcm_tax_governance_policy_id);
+        $this->assertSame(2, $runMay->hcm_tax_governance_policy_version);
 
         $freshApril = HcmPayrollRun::query()->findOrFail($runApril->id);
-        $this->assertNull($freshApril->hcm_tax_governance_policy_id);
-        $this->assertNull(data_get($freshApril->meta, 'taxGovernancePolicy.uuid'));
+        $this->assertSame($policyApril->id, $freshApril->hcm_tax_governance_policy_id);
+        $this->assertSame((string) $policyApril->uuid, data_get($freshApril->meta, 'taxGovernancePolicy.uuid'));
     }
 
     // ─────────────────────────────────────────────────────────────────────────

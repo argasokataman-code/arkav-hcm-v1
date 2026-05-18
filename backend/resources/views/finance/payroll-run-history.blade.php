@@ -83,7 +83,7 @@
         </div>
 
         <div class="modal fade" id="payroll_history_detail_modal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Detail History Monthly Payroll</h5>

@@ -31,15 +31,55 @@
         ? $activeCompany->activeSubscription()
         : null;
     $currentPackage = $currentSubscription?->package;
-    $currentPackageSummary = $currentPackage ? [
-        'uuid' => $currentPackage->uuid,
-        'name' => $currentPackage->name,
-        'code' => $currentPackage->code,
-        'monthly_price' => (float) ($currentPackage->monthly_price ?? 0),
-        'yearly_price' => (float) ($currentPackage->yearly_price ?? 0),
-        'description' => $currentPackage->description,
-        'feature_codes' => $currentPackage->features->pluck('feature_code')->values()->all(),
-    ] : null;
+    $summarizePackage = function (?\App\Models\Package $package): ?array {
+        if (! $package) {
+            return null;
+        }
+
+        $featureCodes = $package->features->pluck('feature_code')->values()->all();
+        $maxEmployees = $package->features
+            ->firstWhere('feature_code', 'max_employees')?->limit;
+
+        return [
+            'uuid' => $package->uuid,
+            'name' => $package->name,
+            'code' => $package->code,
+            'monthly_price' => (float) ($package->monthly_price ?? 0),
+            'yearly_price' => (float) ($package->yearly_price ?? 0),
+            'description' => $package->description,
+            'feature_codes' => $featureCodes,
+            'feature_count' => count($featureCodes),
+            'max_employees' => $maxEmployees !== null ? (int) $maxEmployees : null,
+        ];
+    };
+    $currentPackageSummary = $summarizePackage($currentPackage);
+    $currentFeatureCount = count($currentPackageSummary['feature_codes'] ?? []);
+    $currentMaxEmployees = $currentPackageSummary['max_employees'] ?? null;
+    $currentSubscriptionStatusLabel = match ((string) ($currentSubscription?->status ?? '')) {
+        'active' => 'Aktif',
+        'trial' => 'Trial',
+        'pending_payment' => 'Menunggu Pembayaran',
+        'suspended' => 'Ditangguhkan',
+        'expired' => 'Kedaluwarsa',
+        'cancelled' => 'Dibatalkan',
+        default => $currentSubscription?->status ? \Illuminate\Support\Str::headline((string) $currentSubscription->status) : 'Belum aktif',
+    };
+    $currentBillingCycleLabel = match ((string) ($currentSubscription?->billing_cycle ?? '')) {
+        'yearly' => 'Tahunan',
+        'monthly' => 'Bulanan',
+        default => $currentSubscription?->billing_cycle ? \Illuminate\Support\Str::headline((string) $currentSubscription->billing_cycle) : '-',
+    };
+    $currentSubscriptionEndsAt = $currentSubscription?->ends_at ?? $currentSubscription?->trial_ends_at;
+    $currentSubscriptionEndsLabel = $currentSubscriptionEndsAt
+        ? \Illuminate\Support\Carbon::parse($currentSubscriptionEndsAt)->translatedFormat('d M Y')
+        : 'Tidak dibatasi';
+    $currentSubscriptionStartsLabel = $currentSubscription?->starts_at
+        ? \Illuminate\Support\Carbon::parse($currentSubscription->starts_at)->translatedFormat('d M Y')
+        : 'Belum tercatat';
+    $currentRecurringAmountLabel = $currentSubscription
+        ? 'Rp '.number_format((float) ($currentSubscription->amount ?? 0), 0, ',', '.')
+        : 'Rp 0';
+    $currentRecurringAmountMeta = ($currentSubscription?->billing_cycle === 'yearly') ? 'per tahun' : 'per bulan';
 
     $recommendedPackages = collect();
     if ($normalizedBlockedFeature !== '') {
@@ -57,17 +97,7 @@
             })
             ->orderByRaw('COALESCE(monthly_price, 0) asc')
             ->get(['uuid', 'name', 'code', 'description', 'monthly_price', 'yearly_price', 'is_global_admin_only'])
-            ->map(function (\App\Models\Package $package): array {
-                return [
-                    'uuid' => $package->uuid,
-                    'name' => $package->name,
-                    'code' => $package->code,
-                    'description' => $package->description,
-                    'monthly_price' => (float) ($package->monthly_price ?? 0),
-                    'yearly_price' => (float) ($package->yearly_price ?? 0),
-                    'feature_codes' => $package->features->pluck('feature_code')->values()->all(),
-                ];
-            })
+            ->map(fn (\App\Models\Package $package): array => $summarizePackage($package))
             ->values();
     }
 
@@ -84,17 +114,7 @@
         })
         ->orderByRaw('COALESCE(monthly_price, 0) asc')
         ->get(['uuid', 'name', 'code', 'description', 'monthly_price', 'yearly_price', 'is_global_admin_only'])
-        ->map(function (\App\Models\Package $package): array {
-            return [
-                'uuid' => $package->uuid,
-                'name' => $package->name,
-                'code' => $package->code,
-                'description' => $package->description,
-                'monthly_price' => (float) ($package->monthly_price ?? 0),
-                'yearly_price' => (float) ($package->yearly_price ?? 0),
-                'feature_codes' => $package->features->pluck('feature_code')->values()->all(),
-            ];
-        })
+        ->map(fn (\App\Models\Package $package): array => $summarizePackage($package))
         ->values();
 
     $recommendationMode = 'empty';
@@ -459,6 +479,9 @@
                                     <div>
                                         <h4 class="mb-1" id="upgrade-current-package-name">{{ $currentPackage?->name ?? 'Belum ada paket aktif' }}</h4>
                                         <div class="text-muted small" id="upgrade-current-package-code">{{ $currentPackage?->code ?? 'Aktifkan paket dulu untuk mulai berlangganan.' }}</div>
+                                        @if ($currentPackage?->description)
+                                            <p class="text-muted small mb-0 mt-2" id="upgrade-current-package-description">{{ $currentPackage->description }}</p>
+                                        @endif
                                     </div>
                                     <div class="avatar avatar-lg rounded-circle bg-white text-primary border">
                                         <i class="ti ti-package fs-24"></i>
@@ -475,15 +498,32 @@
                                 @if ($currentPackage)
                                     <div class="upgrade-summary-list">
                                         <div class="upgrade-summary-item">
-                                            <div class="text-muted small mb-1">Harga bulanan</div>
-                                            <div class="upgrade-price text-primary fw-bold" id="upgrade-current-package-monthly">Rp {{ number_format((float) ($currentPackage->monthly_price ?? 0), 0, ',', '.') }}</div>
-                                            <div class="upgrade-price-meta">per bulan</div>
+                                            <div class="text-muted small mb-1">Tagihan aktif</div>
+                                            <div class="upgrade-price text-primary fw-bold" id="upgrade-current-package-monthly">{{ $currentRecurringAmountLabel }}</div>
+                                            <div class="upgrade-price-meta">{{ $currentRecurringAmountMeta }}</div>
+                                        </div>
+                                        <div class="upgrade-summary-item">
+                                            <div class="text-muted small mb-1">Status subscription</div>
+                                            <div class="fw-semibold" id="upgrade-current-subscription-status">{{ $currentSubscriptionStatusLabel }}</div>
+                                            <div class="small text-muted" id="upgrade-current-billing-cycle">Siklus {{ $currentBillingCycleLabel }}</div>
+                                        </div>
+                                        <div class="upgrade-summary-item">
+                                            <div class="text-muted small mb-1">Masa aktif</div>
+                                            <div class="fw-semibold" id="upgrade-current-subscription-starts">Mulai {{ $currentSubscriptionStartsLabel }}</div>
+                                            <div class="small text-muted" id="upgrade-current-subscription-ends">Berakhir {{ $currentSubscriptionEndsLabel }}</div>
+                                        </div>
+                                        <div class="upgrade-summary-item">
+                                            <div class="text-muted small mb-1">Ringkasan paket</div>
+                                            <div class="fw-semibold" id="upgrade-current-feature-count">{{ $currentFeatureCount }} fitur aktif</div>
+                                            <div class="small text-muted" id="upgrade-current-package-yearly">Harga katalog tahunan Rp {{ number_format((float) ($currentPackage->yearly_price ?? 0), 0, ',', '.') }}</div>
+                                            <div class="small text-muted" id="upgrade-current-max-employees">{{ $currentMaxEmployees !== null ? 'Batas employee '.$currentMaxEmployees.' orang' : 'Batas employee mengikuti konfigurasi fitur tenant.' }}</div>
                                         </div>
                                         <div class="upgrade-summary-item">
                                             <div class="text-muted small mb-1">Ketersediaan fitur target</div>
                                             <div id="upgrade-current-feature-status" class="fw-semibold {{ in_array($normalizedBlockedFeature, $currentPackageSummary['feature_codes'] ?? [], true) ? 'text-success' : 'text-warning' }}">
                                                 {{ in_array($normalizedBlockedFeature, $currentPackageSummary['feature_codes'] ?? [], true) ? 'Sudah tersedia' : 'Belum termasuk di paket aktif' }}
                                             </div>
+                                            <div class="small text-muted">Perbandingan ini mengikuti feature gate yang sedang memblok tenant saat ini.</div>
                                         </div>
                                     </div>
                                 @else
@@ -521,6 +561,12 @@
                                                     <div class="text-muted small mb-2">{{ $package['code'] }}</div>
                                                     <div class="upgrade-price text-primary fw-bold mb-1">Rp {{ number_format((float) ($package['monthly_price'] ?? 0), 0, ',', '.') }}</div>
                                                     <div class="upgrade-price-meta mb-2">per bulan</div>
+                                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                                        <span class="upgrade-feature-chip"><i class="ti ti-layers-subtract"></i>{{ (int) ($package['feature_count'] ?? 0) }} fitur</span>
+                                                        @if (($package['max_employees'] ?? null) !== null)
+                                                            <span class="upgrade-feature-chip"><i class="ti ti-users"></i>Maks {{ (int) $package['max_employees'] }} employee</span>
+                                                        @endif
+                                                    </div>
                                                     <div class="small text-muted">
                                                         @if ($recommendationMode === 'fallback')
                                                             {{ $package['description'] ?: 'Alternatif paket aktif yang bisa kamu pilih sambil menunggu paket dengan fitur target tersedia.' }}
@@ -528,6 +574,7 @@
                                                             {{ $package['description'] ?: 'Paket aktif yang mendukung fitur terblokir.' }}
                                                         @endif
                                                     </div>
+                                                    <div class="small text-muted mt-2">Harga tahunan Rp {{ number_format((float) ($package['yearly_price'] ?? 0), 0, ',', '.') }}</div>
                                                 </div>
                                             </div>
                                         </div>

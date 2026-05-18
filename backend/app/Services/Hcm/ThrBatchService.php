@@ -187,7 +187,8 @@ final class ThrBatchService
     }
 
     /**
-     * Kirim subset karyawan (tercentang) ke payment gateway; baris sudah paid dilewati.
+     * Tandai subset karyawan (tercentang) sebagai sudah dibayar manual di luar aplikasi;
+     * baris yang sudah paid dilewati.
      *
      * @param  list<int>  $userIds
      * @return array{disbursement: ?HcmThrDisbursement, lines: list<array<string, mixed>>, skippedAlreadyPaidUserIds: list<int>}
@@ -221,7 +222,7 @@ final class ThrBatchService
             }
 
             $skippedAlreadyPaid = [];
-            $gatewayItems = [];
+            $payableUserIds = [];
 
             foreach ($userIds as $uid) {
                 $line = $lines[$uid];
@@ -233,17 +234,10 @@ final class ThrBatchService
                 if (! $line->eligible || (float) $line->thr_gross <= 0) {
                     throw new \InvalidArgumentException('THR_DISBURSE_LINE_NOT_PAYABLE');
                 }
-                $profile = $line->user?->employeeProfile;
-                $gatewayItems[] = [
-                    'userId' => $uid,
-                    'amount' => round((float) $line->thr_gross, 2),
-                    'bankAccountNo' => $profile?->bank_account_no,
-                    'bankName' => $profile?->bank_name,
-                    'recipientName' => (string) $line->full_name,
-                ];
+                $payableUserIds[] = $uid;
             }
 
-            if ($gatewayItems === []) {
+            if ($payableUserIds === []) {
                 return [
                     'disbursement' => null,
                     'lines' => $this->serializeAllLines($batch->id, $companyId),
@@ -251,17 +245,31 @@ final class ThrBatchService
                 ];
             }
 
+            $completedAt = now();
+            $results = [];
+            $refsByUser = [];
+            foreach ($payableUserIds as $uid) {
+                $ref = sprintf('MANUAL-THR-%d-%d-%s', $batch->id, $uid, strtoupper(substr(sha1((string) $uid.'|'.$completedAt->format('c')), 0, 6)));
+                $refsByUser[$uid] = $ref;
+                $results[] = [
+                    'userId' => $uid,
+                    'status' => 'success',
+                    'ref' => $ref,
+                    'failureReason' => null,
+                    'amount' => round((float) $lines[$uid]->thr_gross, 2),
+                ];
+            }
+
             $disbursement = HcmThrDisbursement::query()->create([
                 'hcm_thr_batch_id' => $batch->id,
                 'status' => HcmThrDisbursement::STATUS_PROCESSING,
-                'driver' => (string) config('hcm.thr_disbursement_driver', 'stub'),
-                'meta' => ['userIds' => array_column($gatewayItems, 'userId')],
+                'driver' => 'manual_external',
+                'meta' => [
+                    'userIds' => $payableUserIds,
+                    'mode' => 'manual_external',
+                ],
                 'initiated_by_user_id' => $initiatedByUserId,
             ]);
-
-            $results = $this->disbursementGateway->disburseBatch($gatewayItems);
-
-            $completedAt = now();
             $meta = $disbursement->meta ?? [];
             $meta['results'] = $results;
             $disbursement->update([
@@ -270,44 +278,19 @@ final class ThrBatchService
                 'meta' => $meta,
             ]);
 
-            $resultByUser = [];
-            foreach ($results as $r) {
-                $resultByUser[(int) $r['userId']] = $r;
-            }
-
-            foreach ($gatewayItems as $item) {
-                $uid = $item['userId'];
-                $r = $resultByUser[$uid] ?? null;
-                if ($r === null) {
-                    continue;
-                }
+            foreach ($payableUserIds as $uid) {
                 $line = $lines[$uid];
-                if ($r['status'] === 'success') {
-                    $line->update([
-                        'payment_status' => HcmThrBatchLine::PAYMENT_PAID,
-                        'payment_failure_reason' => null,
-                        'payment_gateway_ref' => $r['ref'],
-                        'paid_at' => $completedAt,
-                        'last_disbursement_id' => $disbursement->id,
-                    ]);
-                } else {
-                    $line->update([
-                        'payment_status' => HcmThrBatchLine::PAYMENT_FAILED,
-                        'payment_failure_reason' => $r['failureReason'],
-                        'payment_gateway_ref' => $r['ref'],
-                        'paid_at' => null,
-                        'last_disbursement_id' => $disbursement->id,
-                    ]);
-                }
+                $line->update([
+                    'payment_status' => HcmThrBatchLine::PAYMENT_PAID,
+                    'payment_failure_reason' => null,
+                    'payment_gateway_ref' => $refsByUser[$uid] ?? null,
+                    'paid_at' => $completedAt,
+                    'last_disbursement_id' => $disbursement->id,
+                ]);
             }
 
             $batchFresh = $batch->fresh();
-            foreach ($gatewayItems as $item) {
-                $uid = $item['userId'];
-                $r = $resultByUser[$uid] ?? null;
-                if ($r === null || $r['status'] !== 'success') {
-                    continue;
-                }
+            foreach ($payableUserIds as $uid) {
                 $line = HcmThrBatchLine::query()
                     ->where('hcm_thr_batch_id', $batch->id)
                     ->where('user_id', $uid)

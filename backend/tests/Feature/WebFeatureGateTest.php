@@ -54,6 +54,13 @@ class WebFeatureGateTest extends TestCase
             ]);
         }
 
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'max_employees',
+            'feature_name' => 'Max Employees',
+            'limit' => 42,
+        ]);
+
         Subscription::query()->create([
             'company_id' => $company->id,
             'package_uuid' => $package->uuid,
@@ -162,5 +169,38 @@ class WebFeatureGateTest extends TestCase
             ->withHeader('X-Company-Code', $tenant['company']->code)
             ->get('/tickets-admin')
             ->assertOk();
+    }
+
+    public function test_upgrade_page_shows_dynamic_current_plan_details_for_active_tenant(): void
+    {
+        $tenant = $this->makeAdminTenant('UpgradeView', ['tickets', 'payroll', 'training']);
+
+        Package::query()->where('code', 'wfg-upgradeview')->update([
+            'description' => 'Paket aktif tenant untuk validasi detail dinamis.',
+            'yearly_price' => 1188000,
+        ]);
+
+        Subscription::query()->where('company_id', $tenant['company']->id)->update([
+            'amount' => 123000,
+            'billing_cycle' => 'yearly',
+            'ends_at' => now()->addDays(21),
+        ]);
+
+        $this->actingAs($tenant['user'])
+            ->withHeader('X-Company-Code', $tenant['company']->code)
+            ->get('/upgrade?blocked=training')
+            ->assertOk()
+            ->assertSee('Paket aktif tenant untuk validasi detail dinamis.', false)
+            ->assertSee('Tagihan aktif', false)
+            ->assertSee('Rp 123.000', false)
+            ->assertSee('per tahun', false)
+            ->assertSee('Status subscription', false)
+            ->assertSee('Aktif', false)
+            ->assertSee('Siklus Tahunan', false)
+            ->assertSee('Mulai', false)
+            ->assertSee('Ringkasan paket', false)
+            ->assertSee('4 fitur aktif', false)
+            ->assertSee('Harga katalog tahunan Rp 1.188.000', false)
+            ->assertSee('Batas employee 42 orang', false);
     }
 }

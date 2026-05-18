@@ -326,6 +326,17 @@ class ReconciliationExportApiTest extends TestCase
         $employeeUserId = (int) User::query()->where('email', 'recon-employee@example.com')->value('id');
         $companyId = $this->activeCompanyIdForUser('qa.login@example.com');
 
+        EmployeeProfile::query()->where('user_id', $adminUserId)->update([
+            'bank_name' => 'BCA',
+            'bank_account_no' => '1234567890',
+            'bank_branch' => 'Jakarta Pusat',
+        ]);
+        EmployeeProfile::query()->where('user_id', $employeeUserId)->update([
+            'bank_name' => 'Bank Mandiri',
+            'bank_account_no' => '9876543210',
+            'bank_branch' => 'Jakarta Selatan',
+        ]);
+
         // Create period and payroll run for current year/month
         $now = now();
         $runId = $this->createDraftRun($admin, (int) $now->year, (int) $now->month);
@@ -339,6 +350,17 @@ class ReconciliationExportApiTest extends TestCase
             'affects_net_pay' => true,
             'is_active' => true,
         ]);
+        $overtimeAddition = HcmSalaryComponent::query()->firstOrCreate(
+            ['code' => HcmSalaryComponent::CODE_OVERTIME_PAY],
+            [
+                'company_id' => $companyId,
+                'name' => 'Upah Lembur',
+                'kind' => 'addition',
+                'category' => 'overtime',
+                'affects_net_pay' => true,
+                'is_active' => true,
+            ],
+        );
         $nonNetAddition = HcmSalaryComponent::query()->create([
             'company_id' => $companyId,
             'code' => 'test_non_net_add',
@@ -369,6 +391,19 @@ class ReconciliationExportApiTest extends TestCase
             'category' => 'other_addition',
             'amount' => 1000000,
             'sort_order' => 10,
+            'meta' => [],
+        ]);
+        HcmPayrollLine::query()->create([
+            'company_id' => $companyId,
+            'hcm_payroll_run_id' => $runId,
+            'user_id' => $adminUserId,
+            'hcm_salary_component_id' => $overtimeAddition->id,
+            'component_code' => HcmSalaryComponent::CODE_OVERTIME_PAY,
+            'component_name' => 'Upah Lembur',
+            'kind' => 'addition',
+            'category' => 'overtime',
+            'amount' => 150000,
+            'sort_order' => 15,
             'meta' => [],
         ]);
         HcmPayrollLine::query()->create([
@@ -418,32 +453,173 @@ class ReconciliationExportApiTest extends TestCase
         $filePath = (string) $export->json('data.filePath');
         $csvContent = Storage::disk('local')->get($filePath);
 
-        // Verify CSV contains payroll line data headers
-        $this->assertStringContainsString('run_id', $csvContent);
-        $this->assertStringContainsString('user_id', $csvContent);
-        $this->assertStringContainsString('component_code', $csvContent);
-        $this->assertStringContainsString('amount', $csvContent);
+        // Verify CSV now contains unified payroll export headers
+        $this->assertStringContainsString('payroll_type', $csvContent);
+        $this->assertStringContainsString('reference_period', $csvContent);
+        $this->assertStringContainsString('reference_id', $csvContent);
+        $this->assertStringContainsString('employee_id', $csvContent);
+        $this->assertStringContainsString('employee_name', $csvContent);
+        $this->assertStringContainsString('bank_name', $csvContent);
+        $this->assertStringContainsString('account_number', $csvContent);
+        $this->assertStringContainsString('account_holder_name', $csvContent);
+        $this->assertStringContainsString('bank_branch', $csvContent);
         $this->assertStringContainsString('gross_total', $csvContent);
+        $this->assertStringContainsString('overtime_total', $csvContent);
         $this->assertStringContainsString('deductions_total', $csvContent);
-        $this->assertStringContainsString('net_total', $csvContent);
-        $this->assertStringContainsString('GRAND_TOTAL', $csvContent);
-        // SUBTOTAL only present when there are actual payroll lines for the filtered users
+        $this->assertStringContainsString('transfer_amount', $csvContent);
+        $this->assertStringContainsString('bank_data_status', $csvContent);
+        $this->assertStringContainsString('Recon Admin', $csvContent);
+        $this->assertStringContainsString('Recon Employee', $csvContent);
+        $this->assertStringContainsString('BCA', $csvContent);
+        $this->assertStringContainsString('1234567890', $csvContent);
+        $this->assertStringContainsString('Bank Mandiri', $csvContent);
+        $this->assertStringContainsString('9876543210', $csvContent);
 
-        $grandTotalLine = collect(preg_split('/\r\n|\n|\r/', $csvContent) ?: [])
-            ->first(fn (string $line): bool => str_contains($line, 'GRAND_TOTAL'));
-        $this->assertNotNull($grandTotalLine, 'Expected GRAND_TOTAL row in reconciliation CSV.');
+        $lines = array_values(array_filter(preg_split('/\r\n|\n|\r/', $csvContent) ?: []));
+        $this->assertCount(3, $lines, 'Expected one header row plus one payment row per employee.');
 
-        $grandTotalCols = str_getcsv((string) $grandTotalLine);
-        $this->assertSame(1000000.0, (float) ($grandTotalCols[8] ?? 0), 'Expected gross_total in GRAND_TOTAL to only include affects_net_pay additions.');
-        $this->assertSame(200000.0, (float) ($grandTotalCols[9] ?? 0), 'Expected deductions_total in GRAND_TOTAL to include affects_net_pay deductions.');
-        $this->assertSame(800000.0, (float) ($grandTotalCols[10] ?? 0), 'Expected net_total in GRAND_TOTAL to be gross minus deductions.');
+        $adminLine = collect($lines)->first(fn (string $line): bool => str_contains($line, 'Recon Admin'));
+        $employeeLine = collect($lines)->first(fn (string $line): bool => str_contains($line, 'Recon Employee'));
+
+        $this->assertNotNull($adminLine, 'Expected admin payment row in reconciliation CSV.');
+        $this->assertNotNull($employeeLine, 'Expected employee payment row in reconciliation CSV.');
+
+        $adminCols = str_getcsv((string) $adminLine);
+        $employeeCols = str_getcsv((string) $employeeLine);
+
+        $this->assertSame('monthly', $adminCols[0] ?? null);
+        $this->assertSame(sprintf('%04d-%02d', (int) $now->year, (int) $now->month), $adminCols[1] ?? null);
+        $this->assertSame('run:'.$runId, $adminCols[2] ?? null);
+        $this->assertSame('Recon Admin', $adminCols[4] ?? null);
+        $this->assertSame('BCA', $adminCols[5] ?? null);
+        $this->assertSame('1234567890', $adminCols[6] ?? null);
+        $this->assertSame('Recon Admin', $adminCols[7] ?? null);
+        $this->assertSame(1150000.0, (float) ($adminCols[9] ?? 0));
+        $this->assertSame(150000.0, (float) ($adminCols[10] ?? 0));
+        $this->assertSame(0.0, (float) ($adminCols[11] ?? 0));
+        $this->assertSame(1150000.0, (float) ($adminCols[12] ?? 0));
+        $this->assertSame('ready', $adminCols[13] ?? null);
+
+        $this->assertSame('monthly', $employeeCols[0] ?? null);
+        $this->assertSame('Recon Employee', $employeeCols[4] ?? null);
+        $this->assertSame('Bank Mandiri', $employeeCols[5] ?? null);
+        $this->assertSame('9876543210', $employeeCols[6] ?? null);
+        $this->assertSame('Recon Employee', $employeeCols[7] ?? null);
+        $this->assertSame(0.0, (float) ($employeeCols[9] ?? 0));
+        $this->assertSame(0.0, (float) ($employeeCols[10] ?? 0));
+        $this->assertSame(200000.0, (float) ($employeeCols[11] ?? 0));
+        $this->assertSame(-200000.0, (float) ($employeeCols[12] ?? 0));
+        $this->assertSame('ready', $employeeCols[13] ?? null);
 
         // Verify it's not just metadata
         $this->assertStringNotContainsString('feature_key,action_key', $csvContent);
+        $this->assertStringNotContainsString('METADATA', $csvContent);
+        $this->assertStringNotContainsString('SUBTOTAL', $csvContent);
+        $this->assertStringNotContainsString('GRAND_TOTAL', $csvContent);
 
         echo "\n✅ Payroll export CSV content:\n";
         echo "---\n";
         echo substr($csvContent, 0, 500); // Print first 500 chars
         echo "\n---\n";
+    }
+
+    public function test_thr_batch_export_generates_structured_payroll_rows(): void
+    {
+        Storage::fake('local');
+
+        $employeeToken = $this->employeeToken();
+        $admin = $this->adminToken();
+        $employee = User::query()->where('email', 'recon-employee@example.com')->firstOrFail();
+
+        EmployeeProfile::query()->where('user_id', $employee->id)->update([
+            'hire_date' => '2024-01-15',
+            'base_salary' => 3500000,
+            'bank_name' => 'BNI',
+            'bank_account_no' => '99887766',
+            'bank_branch' => 'Bandung',
+        ]);
+
+        unset($employeeToken);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->putJson('/v1/hcm/payroll/thr-settings/2028', [
+                'eidDate' => '2028-04-10',
+                'paymentDate' => '2028-04-05',
+                'calculationCutoffDate' => '2028-04-09',
+            ])
+            ->assertOk();
+
+        $generate = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll/thr-batch/generate', ['calendarYear' => 2028])
+            ->assertOk();
+
+        $batchId = (int) $generate->json('data.batch.id');
+        $eligibleLine = collect($generate->json('data.lines'))
+            ->first(fn (array $line): bool => (bool) ($line['eligible'] ?? false) && (int) ($line['userId'] ?? 0) === (int) $employee->id);
+
+        $this->assertNotNull($eligibleLine);
+
+        $export = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/reconciliation/exports', [
+                'featureKey' => 'thr_batch',
+                'actionKey' => 'disburse',
+                'scopeRef' => (string) $batchId,
+                'fileFormat' => 'csv',
+                'filterPayload' => [
+                    'lineIds' => [(int) ($eligibleLine['id'] ?? 0)],
+                ],
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $csvContent = Storage::disk('local')->get((string) $export->json('data.filePath'));
+        $this->assertStringContainsString('payroll_type,reference_period,reference_id', $csvContent);
+        $this->assertStringContainsString('thr', $csvContent);
+        $this->assertStringContainsString('thr_batch:'.$batchId, $csvContent);
+        $this->assertStringContainsString('Recon Employee', $csvContent);
+        $this->assertStringContainsString('BNI', $csvContent);
+        $this->assertStringContainsString('99887766', $csvContent);
+    }
+
+    public function test_pkwt_compensation_export_generates_structured_payroll_rows(): void
+    {
+        Storage::fake('local');
+
+        $employeeToken = $this->employeeToken();
+        $admin = $this->adminToken();
+        $employee = User::query()->where('email', 'recon-employee@example.com')->firstOrFail();
+
+        EmployeeProfile::query()->where('user_id', $employee->id)->update([
+            'contract_type' => 'pkwt',
+            'contract_start_date' => '2025-05-01',
+            'contract_end_date' => '2026-05-31',
+            'base_salary' => 4200000,
+            'bank_name' => 'BRI',
+            'bank_account_no' => '44556677',
+            'bank_branch' => 'Surabaya',
+        ]);
+
+        unset($employeeToken);
+
+        $export = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/reconciliation/exports', [
+                'featureKey' => 'pkwt_compensation',
+                'actionKey' => 'post_payroll',
+                'scopeRef' => '2026-05',
+                'fileFormat' => 'csv',
+                'filterPayload' => [
+                    'lineIds' => [$employee->id],
+                ],
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $csvContent = Storage::disk('local')->get((string) $export->json('data.filePath'));
+        $this->assertStringContainsString('payroll_type,reference_period,reference_id', $csvContent);
+        $this->assertStringContainsString('pkwt_compensation', $csvContent);
+        $this->assertStringContainsString('period:2026-05', $csvContent);
+        $this->assertStringContainsString('Recon Employee', $csvContent);
+        $this->assertStringContainsString('BRI', $csvContent);
+        $this->assertStringContainsString('44556677', $csvContent);
     }
 }

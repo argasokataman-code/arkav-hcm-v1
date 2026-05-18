@@ -922,6 +922,29 @@ class HcmPayrollApiTest extends TestCase
             ->assertJsonPath('data.slipNumber', 'PS-2026-06-'.$worker->id)
             ->assertJsonCount(3, 'data.earnings')
             ->assertJsonCount(0, 'data.deductions');
+
+        $slipResponse = $this->withHeaders(['Authorization' => 'Bearer '.$workerTok])
+            ->getJson('/v1/hcm/payroll/my-slip?periodYear=2026&periodMonth=6')
+            ->assertOk();
+
+        $overtimeLine = collect($slipResponse->json('data.earnings'))
+            ->first(fn (array $line): bool => ($line['componentCode'] ?? null) === HcmSalaryComponent::CODE_OVERTIME_PAY);
+
+        $this->assertNotNull($overtimeLine);
+        $this->assertSame(1, (int) $slipResponse->json('data.overtime.lineCount'));
+        $this->assertEquals((float) ($overtimeLine['amount'] ?? 0), (float) $slipResponse->json('data.overtime.amountTotal'));
+        $this->assertEquals((float) ($overtimeLine['amount'] ?? 0), (float) $slipResponse->json('data.totals.overtimeTotal'));
+
+        $adminRows = (array) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->getJson('/v1/hcm/payroll/admin-slips?periodYear=2026&periodMonth=6')
+            ->assertOk()
+            ->json('data.rows');
+
+        $adminRow = collect($adminRows)->first(fn (array $row): bool => (int) ($row['userId'] ?? 0) === (int) $worker->id);
+
+        $this->assertNotNull($adminRow);
+        $this->assertEquals((float) ($overtimeLine['amount'] ?? 0), (float) ($adminRow['overtime']['amountTotal'] ?? 0));
+        $this->assertEquals((float) ($overtimeLine['amount'] ?? 0), (float) ($adminRow['totals']['overtimeTotal'] ?? 0));
     }
 
     public function test_finalized_monthly_payslip_pdf_can_be_downloaded(): void
@@ -1038,6 +1061,146 @@ class HcmPayrollApiTest extends TestCase
         });
 
         $this->assertNotNull($targetRow);
+    }
+
+    public function test_monthly_report_aggregates_monthly_thr_and_pkwt_runs_and_can_export(): void
+    {
+        $this->workerToken();
+        $admin = $this->adminToken();
+        $worker = User::query()->where('email', 'payroll-worker@example.com')->firstOrFail();
+
+        EmployeeProfile::query()->where('user_id', $worker->id)->update([
+            'designation' => 'Finance Staff',
+            'team' => 'Finance',
+            'bank_name' => 'BCA',
+            'bank_account_no' => '111222333',
+            'bank_branch' => 'Jakarta',
+        ]);
+
+        $otComponent = HcmSalaryComponent::resolveForOvertimePay();
+
+        OvertimeRequest::query()->create([
+            'company_id' => (int) $this->company?->id,
+            'user_id' => $worker->id,
+            'hcm_salary_component_id' => $otComponent?->id,
+            'request_type' => 'employee_request',
+            'work_date' => '2026-09-18',
+            'minutes' => 90,
+            'status' => 'approved',
+            'approved_by_user_id' => User::query()->where('email', 'payroll-admin@example.com')->firstOrFail()->id,
+            'approved_at' => now(),
+            'notes' => 'Monthly report overtime visibility test',
+        ]);
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 9,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $runId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->json('data.run.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/finalize')
+            ->assertOk();
+
+        $period = \App\Models\HcmPayrollPeriod::query()->findOrFail($periodId);
+        $companyId = (int) $this->company?->id;
+        $thrComponent = HcmSalaryComponent::query()->create([
+            'company_id' => $companyId,
+            'code' => 'thr_test',
+            'name' => 'THR Test',
+            'kind' => 'addition',
+            'category' => 'bonus',
+            'affects_net_pay' => true,
+            'is_active' => true,
+        ]);
+        $pkwtComponent = HcmSalaryComponent::query()->create([
+            'company_id' => $companyId,
+            'code' => 'pkwt_test',
+            'name' => 'PKWT Test',
+            'kind' => 'addition',
+            'category' => 'compensation',
+            'affects_net_pay' => true,
+            'is_active' => true,
+        ]);
+
+        $thrRun = HcmPayrollRun::query()->create([
+            'company_id' => $companyId,
+            'hcm_payroll_period_id' => $period->id,
+            'purpose' => HcmPayrollRun::PURPOSE_THR,
+            'status' => HcmPayrollRun::STATUS_FINALIZED,
+            'calculated_at' => now(),
+            'finalized_at' => now(),
+            'finalized_by_user_id' => User::query()->where('email', 'payroll-admin@example.com')->firstOrFail()->id,
+        ]);
+        $pkwtRun = HcmPayrollRun::query()->create([
+            'company_id' => $companyId,
+            'hcm_payroll_period_id' => $period->id,
+            'purpose' => HcmPayrollRun::PURPOSE_PKWT_COMPENSATION,
+            'status' => HcmPayrollRun::STATUS_FINALIZED,
+            'calculated_at' => now(),
+            'finalized_at' => now(),
+            'finalized_by_user_id' => User::query()->where('email', 'payroll-admin@example.com')->firstOrFail()->id,
+        ]);
+
+        HcmPayrollLine::query()->create([
+            'company_id' => $companyId,
+            'hcm_payroll_run_id' => $thrRun->id,
+            'user_id' => $worker->id,
+            'hcm_salary_component_id' => $thrComponent->id,
+            'component_code' => 'thr_test',
+            'component_name' => 'THR Test',
+            'kind' => 'addition',
+            'category' => 'bonus',
+            'amount' => 1500000,
+            'sort_order' => 10,
+            'meta' => ['paymentStatus' => 'paid'],
+        ]);
+        HcmPayrollLine::query()->create([
+            'company_id' => $companyId,
+            'hcm_payroll_run_id' => $pkwtRun->id,
+            'user_id' => $worker->id,
+            'hcm_salary_component_id' => $pkwtComponent->id,
+            'component_code' => 'pkwt_test',
+            'component_name' => 'PKWT Test',
+            'kind' => 'addition',
+            'category' => 'compensation',
+            'amount' => 700000,
+            'sort_order' => 10,
+            'meta' => ['paymentStatus' => 'paid'],
+        ]);
+
+        $report = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->getJson('/v1/hcm/payroll/monthly-report?periodYear=2026&periodMonth=9')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $targetRow = collect($report->json('data.rows'))->first(fn (array $row): bool => (int) ($row['userId'] ?? 0) === (int) $worker->id);
+
+        $this->assertNotNull($targetRow);
+        $this->assertSame('BCA', $targetRow['bankName'] ?? null);
+        $this->assertSame((int) $thrRun->id, (int) (($targetRow['breakdown'][HcmPayrollRun::PURPOSE_THR]['runId'] ?? 0)));
+        $this->assertSame((int) $pkwtRun->id, (int) (($targetRow['breakdown'][HcmPayrollRun::PURPOSE_PKWT_COMPENSATION]['runId'] ?? 0)));
+        $this->assertGreaterThan(0, (float) (($targetRow['breakdown'][HcmPayrollRun::PURPOSE_MONTHLY]['overtime']['amountTotal'] ?? 0)));
+        $this->assertGreaterThan(0, (float) (($targetRow['totals']['overtimeTotal'] ?? 0)));
+        $this->assertGreaterThan(0, (float) (($report->json('data.summary.totalOvertimePay')) ?? 0));
+        $this->assertGreaterThan(0, (float) (($report->json('data.summary.totalsByPurpose.thr')) ?? 0));
+        $this->assertGreaterThan(0, (float) (($report->json('data.summary.totalsByPurpose.pkwt_compensation')) ?? 0));
+
+        $exportResponse = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->get('/v1/hcm/payroll/monthly-report/export?periodYear=2026&periodMonth=9&format=csv')
+            ->assertOk()
+            ->assertHeader('content-disposition');
+
+        $exportBody = $exportResponse->streamedContent();
+        $this->assertStringContainsString('monthly_overtime', $exportBody);
+        $this->assertStringContainsString('total_overtime', $exportBody);
     }
 
     public function test_hcm_admin_can_send_finalized_monthly_slips_with_uuid_identifier(): void

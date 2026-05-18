@@ -31,7 +31,7 @@ function buildPayrollRunDom() {
       '<button type="button" data-payroll-run-calculate disabled>Calculate Draft</button>' +
       '<button type="button" data-payroll-run-void disabled>Void</button>' +
       '<button type="button" data-payroll-run-export-evidence disabled>Export Reconciliation</button>' +
-      '<button type="button" data-payroll-run-disburse disabled>Pay via Gateway</button>' +
+      '<button type="button" data-payroll-run-disburse disabled>Tandai Dibayar Manual</button>' +
       '<button type="button" data-payroll-run-reset-payments>Reset</button>' +
       '<span data-payroll-run-emp-count>0</span>' +
       '<span data-payroll-run-selected-count>0</span>' +
@@ -52,7 +52,7 @@ function buildPayrollRunDom() {
       '<div data-payroll-gateway-total></div>' +
       '<div data-payroll-gateway-status></div>' +
       '<div data-payroll-gateway-list></div>' +
-      '<button type="button" data-payroll-gateway-pay>Pay now</button>' +
+      '<button type="button" data-payroll-gateway-pay>Simpan pembayaran manual</button>' +
     '</div>' +
     '<div id="payroll_detail_modal">' +
       '<div data-payroll-detail-name></div>' +
@@ -97,7 +97,7 @@ describe('Payroll run late-arrival migration wiring', function () {
     };
   });
 
-  it('opens hosted checkout flow when disburse is confirmed from gateway modal', async function () {
+  it('posts manual payment completion when disburse is confirmed from the payment modal', async function () {
     function wrap(payload) {
       return { data: payload };
     }
@@ -159,12 +159,12 @@ describe('Payroll run late-arrival migration wiring', function () {
         });
       }
 
-      if (verb === 'post' && path === '/hcm/payroll-runs/88/mock-hosted-checkout') {
+      if (verb === 'post' && path === '/hcm/payroll-runs/88/disburse') {
         return {
           data: {
             success: true,
-            flow: {
-              hostedCheckoutUrl: 'https://example.test/payroll/mock-checkout?payroll_run_id=88',
+            data: {
+              gatewayReference: 'MANUAL-REF-88',
             },
           },
         };
@@ -199,7 +199,7 @@ describe('Payroll run late-arrival migration wiring', function () {
 
     expect(requestMock).toHaveBeenCalledWith(
       'post',
-      '/hcm/payroll-runs/88/mock-hosted-checkout',
+      '/hcm/payroll-runs/88/disburse',
       { userIds: [77] },
     );
     expect(window.ArcavUi.showToast).not.toHaveBeenCalledWith(

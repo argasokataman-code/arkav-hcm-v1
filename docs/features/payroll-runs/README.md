@@ -2,9 +2,9 @@
 
 ## Ringkasan
 
-Fitur payroll run menutup jarak antara data kompensasi karyawan, katalog payroll item, dan hasil slip gaji final. Di sini sistem membentuk periode payroll, menghitung draft run, menampilkan baris slip minimal, mengunci finalisasi, dan menjalankan disbursement bulanan dengan gate export reconciliation sebelum pembayaran.
+Fitur payroll run menutup jarak antara data kompensasi karyawan, katalog payroll item, dan hasil slip gaji final. Di sini sistem membentuk periode payroll, menghitung draft run, menampilkan baris slip minimal, mengunci finalisasi, dan mencatat penyelesaian pembayaran bulanan secara manual setelah gate export reconciliation terpenuhi.
 
-Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll-lifecycle.md` dengan tahapan pre-payroll, actual, dan post-payroll. Implementasi runtime yang aktif saat ini berfokus pada inti actual payroll: hitung draft, finalisasi, histori run, self-service slip lines, dan batch disburse yang dikontrol evidence export.
+Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll-lifecycle.md` dengan tahapan pre-payroll, actual, dan post-payroll. Implementasi runtime yang aktif saat ini berfokus pada inti actual payroll: hitung draft, finalisasi, histori run, self-service slip lines, dan batch mark-paid manual yang dikontrol evidence export.
 
 ## Akses
 
@@ -14,9 +14,9 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 
 ## UI Aktif
 
-- Halaman aktif: `/payroll-run` untuk run periode aktif dan `/payroll-run-history` untuk histori run.
+- Halaman aktif: `/payroll-run` untuk run periode aktif, `/payroll-run-history` untuk histori run, dan `/monthly-report` untuk laporan gabungan monthly + THR + PKWT.
 - `/payroll-run` dikunci ke periode aktif: tahun readonly dan bulan disabled agar admin tidak salah mengeksekusi periode historis dari layar operasional utama.
-- Halaman `/payslip` sudah menjadi surface self-service employee untuk slip bulanan yang menggabungkan run `monthly`, `thr`, dan `pkwt_compensation` pada bulan kalender yang sama.
+- Halaman `/payslip` sudah menjadi surface self-service employee untuk slip bulanan yang menggabungkan run `monthly`, `thr`, dan `pkwt_compensation` pada bulan kalender yang sama, dengan summary overtime eksplisit di payload, UI, PDF, dan email.
 - Slip THR karyawan belum punya halaman web khusus; employee memakai `GET /payroll/my-thr-slip` dan unduhan PDF `GET /payroll/thr-batch/lines/{line}/slip`.
 
 ## Flow Bisnis End-to-End
@@ -25,8 +25,8 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 2. Admin menjalankan Calculate Draft. Halaman tidak menghitung otomatis saat dibuka.
 3. Jika draft sudah ada dan statusnya masih `draft`, tombol Calculate tetap boleh dipakai untuk rebuild draft menggunakan source of truth terbaru; runtime aktif tidak lagi mengandalkan reuse draft stale.
 4. Setelah draft tersedia, admin meninjau baris run dan hanya bisa melanjutkan export reconciliation ketika status tetap `draft`.
-5. Admin menjalankan Export Reconciliation untuk action `payroll_run` dengan `actionKey=disburse`, lalu wajib mengunduh file sampai sukses.
-6. Sesudah unduhan evidence berhasil, baru tombol Pay via Gateway atau Pay now dapat digunakan untuk batch pembayaran.
+5. Admin menjalankan Export Reconciliation untuk action `payroll_run` dengan `actionKey=disburse`, lalu wajib mengunduh file sampai sukses. File yang dihasilkan berbentuk summary per karyawan dengan bank/rekening dan nominal transfer agar bisa dipakai untuk pembayaran manual tenant.
+6. Sesudah unduhan evidence berhasil, baru tombol tandai dibayar manual dapat digunakan untuk batch pembayaran.
 7. Jika draft sudah difinalisasi tetapi ternyata masih perlu koreksi setup, admin dapat melakukan `void` selama belum ada line yang berstatus `paid`, lalu menghitung draft ulang pada periode aktif yang sama.
 8. Setelah disburse atau reset pembayaran dev, admin harus export dan unduh lagi sebelum batch bayar berikutnya, supaya evidence tidak dipakai berulang tanpa jejak baru.
 9. Jika run sudah finalized, void, atau posted, histori dan audit trail dipantau dari `/payroll-run-history`.
@@ -38,13 +38,16 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 - Finalize: ditolak dengan `PAYROLL_RUN_EMPTY` jika run tidak memiliki baris eligible.
 - Posted: setelah finalize berhasil, periode induk berubah menjadi `posted`.
 - Void: hanya boleh untuk run `finalized` yang belum memiliki line `paid`; bila tidak ada finalized run lain di periode yang sama maka periode dibuka kembali agar draft bisa dihitung ulang.
-- Disburse: hanya boleh berjalan sesudah evidence export reconciliation untuk action yang sama tersedia dan, bila enforcement diaktifkan, lolos gate server.
+- Disburse: endpoint tetap bernama `disburse`, tetapi runtime aktif memakainya untuk mencatat pembayaran manual eksternal sesudah evidence export reconciliation tersedia dan, bila enforcement diaktifkan, lolos gate server.
 - THR run: flow THR mass memakai purpose `thr`, sedangkan payroll reguler memakai purpose `monthly`; employee self-service kemudian melihat gabungan line final monthly dan THR per bulan kalender.
+- Monthly Report: admin mempunyai surface laporan detail tersendiri yang menggabungkan run final `monthly`, `thr`, dan `pkwt_compensation` per employee-periode agar review dan export lintas payroll tidak tersebar di tiga halaman berbeda.
+- Monthly Report dan admin payslip report kini juga mengangkat overtime sebagai summary eksplisit (`overtime.amountTotal` + `totals.overtimeTotal`), bukan hanya sebagai line item di daftar earnings.
 
 ## Integrasi
 
 - Payroll API: `docs/api/hcm-payroll-api.md` mencakup `payroll-periods`, `payroll-runs`, `payroll/my-slip-lines`, `send-slips`, dan THR batch.
-- Export reconciliation: gate disbursement terkait dengan evidence export `payroll_run/disburse`, termasuk file download sebagai bukti operator sudah mengambil hasil export.
+- Export reconciliation: gate disbursement terkait dengan evidence export `payroll_run/disburse`, termasuk file download sebagai bukti operator sudah mengambil hasil export. Runtime aktif memakai format payment-ready satu baris per karyawan, bukan campuran line payroll + subtotal teknis.
+- Export reconciliation payroll kini juga seragam lintas THR dan PKWT compensation, sehingga admin/operator mendapatkan layout payment-ready yang sama untuk tiga flow manual settlement payroll.
 - Salary components dan payroll items: draft payroll bergantung pada data kompensasi dan katalog item yang dibentuk di feature terkait.
 - THR: halaman `/payroll-thr` dapat membuat run purpose `thr`, lalu hasilnya ikut tampil pada self-service slip lines sesuai bulan kalender.
 
@@ -56,26 +59,27 @@ Untuk roadmap penuh payroll, alur target tetap mengacu ke `docs/planning/payroll
 
 ## Existing Vs Target
 
-- Existing: implementasi aktif saat ini sudah menutup calculate draft, finalize, void finalized run yang belum dibayar, history, self-service slip lines, slip PDF, dan gate disburse berbasis reconciliation export.
+- Existing: implementasi aktif saat ini sudah menutup calculate draft, finalize, void finalized run yang belum dibayar, history, self-service slip lines, slip PDF, monthly report admin gabungan, dan gate mark-paid manual berbasis reconciliation export.
 - Existing: `/payslip` web sudah memakai runtime aktif `my-slip`, `my-slip-latest-period`, dan `my-slip-pdf` untuk audience employee.
+- Existing: payload payroll untuk payslip, admin slips, dan monthly report kini menyertakan summary overtime eksplisit agar UI/export tidak perlu menebak dari line mentah.
 - Target: penguatan berikutnya lebih bersifat operasional dan governance, seperti audit append-only terpisah, hardening post-payroll controls lintas integrasi eksternal, dan review kebijakan payroll lintas tenant.
 
 ## Kondisi Existing vs Target Bisnis
 
 ### Existing runtime yang sudah aktif
 
-- periode payroll aktif, calculate draft, finalize, history run, audit trail dasar, dan disbursement gate berbasis export reconciliation sudah berjalan;
+- periode payroll aktif, calculate draft, finalize, history run, audit trail dasar, dan gate pembayaran manual berbasis export reconciliation sudah berjalan;
 - run finalized yang belum dibayar sekarang bisa di-void dari UI/API, lalu periode aktif dapat dihitung ulang tanpa membiarkan run paid ikut dibatalkan;
 - history payroll sekarang juga menyimpan metadata `voidedAt` / `voidedBy*` sehingga event `voided` punya waktu dan actor yang bisa dibaca dari detail/history API;
-- endpoint self-service `my-slip-lines` dan THR slip API sudah menjadi surface employee yang aktif setelah finalization;
+- endpoint self-service `my-slip-lines`, `my-slip`, THR slip API, dan surface admin `/monthly-report` sudah menjadi surface aktif setelah finalization, dengan overtime summary eksplisit di payslip, admin slips, dan monthly report;
 - identifier `userIds` pada send slips/disburse sudah mengikuti kontrak runtime aktif frontend dengan numeric `users.id` sebagai jalur utama dan UUID fallback tetap didukung server;
-- evidence export sekarang harus diunduh ulang setelah disburse/reset dev agar operator tidak memakai evidence lama tanpa jejak baru.
+- evidence export sekarang harus diunduh ulang setelah penandaan paid/reset dev agar operator tidak memakai evidence lama tanpa jejak baru.
 
 ### Gap yang masih terbuka
 
 - model audit append-only yang lebih kaya di luar payload runtime masih backlog bila nantinya dibutuhkan untuk jejak kepatuhan terpisah dari surface operasional;
 - post-payroll controls lanjutan untuk reversal/adjustment lintas integrasi eksternal masih perlu diputuskan bila scope bisnis melewati flow void-before-paid yang sekarang aktif;
-- boundary dokumentasi monthly run vs THR run vs PKWT compensation tetap perlu dijaga sinkron saat modul payroll berkembang, walau runtime aktifnya sudah tersedia.
+- boundary dokumentasi monthly run vs THR run vs PKWT compensation tetap perlu dijaga sinkron saat modul payroll berkembang, walau runtime aktifnya sudah tersedia dan kini sudah punya surface gabungan `/monthly-report`.
 
 ### Integrasi cuti tanpa gaji & kerja hari libur (opt-in)
 
@@ -90,15 +94,15 @@ Komponen auto-provisioned via `resolveOrCreateComponent` di `PayrollDraftBuilder
 
 ### Keputusan kompromi sementara
 
-- payroll run dianggap siap dipakai untuk lifecycle operasional inti yang saat ini dijual di produk: draft, finalize, void-before-paid, history, self-service slip, PDF, dan disburse bergate reconciliation;
+- payroll run dianggap siap dipakai untuk lifecycle operasional inti yang saat ini dijual di produk: draft, finalize, void-before-paid, history, self-service slip, PDF, dan mark-paid manual bergate reconciliation;
 - review lanjutan yang tersisa diposisikan sebagai hardening governance/compliance, bukan blocker runtime untuk deploy surface payroll yang aktif;
 - tracker feature dipakai untuk memisahkan evidence deploy-readiness saat ini dari enhancement audit/governance yang mungkin ditambahkan kemudian.
 
 ## Status
 
-- Status implementation: **runtime aktif, tetapi evidence manual E2E export/payment per role belum 100% tertutup**
+- Status implementation: **runtime aktif dengan Monthly Report dan export payment-ready seragam, tetapi evidence manual E2E export/mark-paid per role belum 100% tertutup**
 - Tracker: [tracker.md](tracker.md)
-- Snapshot saat ini: actual payroll inti sudah aktif end-to-end untuk surface runtime yang dipublikasikan, termasuk payslip web/PDF, overtime roll-up, deduction engine BPJS/PPh21 TER, void-before-paid, history payroll, dan hardening guard permission mutasi payroll. Closure release penuh masih menunggu bukti manual E2E export/payment per role.
+- Snapshot saat ini: actual payroll inti sudah aktif end-to-end untuk surface runtime yang dipublikasikan, termasuk payslip web/PDF, overtime roll-up, deduction engine BPJS/PPh21 TER, void-before-paid, history payroll, dan hardening guard permission mutasi payroll. Closure release penuh masih menunggu bukti manual E2E export/mark-paid per role.
 
 ## Catatan QA
 

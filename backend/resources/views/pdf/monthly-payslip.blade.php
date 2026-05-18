@@ -32,7 +32,7 @@
     $employee = $slip['employee'] ?? [];
     $earnings = $slip['earnings'] ?? [];
     $deductions = $slip['deductions'] ?? [];
-    $totals = $slip['totals'] ?? ['earningsTotal' => 0, 'deductionsTotal' => 0, 'netPay' => 0];
+    $totals = $slip['totals'] ?? ['earningsTotal' => 0, 'deductionsTotal' => 0, 'overtimeTotal' => 0, 'netPay' => 0];
     $slipNumber = $slip['slipNumber'] ?? '#';
     $addr = is_string($companyAddress ?? null) ? trim((string) $companyAddress) : '';
     $cname = is_string($companyName ?? null) ? trim((string) $companyName) : '';
@@ -125,6 +125,7 @@
     </table>
 
     <div class="total-bar">
+        <p class="mb-1"><span class="muted">Total overtime:</span> <span class="fw-bold primary">Rp {{ number_format((float) ($totals['overtimeTotal'] ?? 0), 2, ',', '.') }}</span></p>
         <p class="total-amount mb-0">Take home pay: Rp {{ number_format((float) ($totals['netPay'] ?? 0), 2, ',', '.') }}</p>
         <p class="muted mb-0" style="margin-top:6px;">Dokumen ini dihasilkan otomatis dari run payroll yang sudah difinalisasi.</p>
     </div>

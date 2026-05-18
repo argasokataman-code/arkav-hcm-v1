@@ -45,6 +45,8 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
     Route::get('/payroll/my-slip-pdf', [HcmPayrollRunController::class, 'mySlipPdf']);
     Route::get('/payroll/admin-run-slips', [HcmPayrollRunController::class, 'adminRunSlips']);
     Route::get('/payroll/admin-slips', [HcmPayrollRunController::class, 'adminSlips']);
+    Route::get('/payroll/monthly-report', [HcmPayrollRunController::class, 'monthlyReport']);
+    Route::get('/payroll/monthly-report/export', [HcmPayrollRunController::class, 'exportMonthlyReport']);
     Route::post('/payroll/send-slips', [HcmPayrollRunController::class, 'sendMonthlySlips']);
 
     // THR (Bonus)

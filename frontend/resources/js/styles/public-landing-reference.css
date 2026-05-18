@@ -222,6 +222,23 @@
     border-color: var(--mpl-primary-border);
 }
 
+.mpl-turnstile-shell {
+    display: inline-block;
+    max-width: 100%;
+}
+
+.mpl-turnstile-shell--hide-test-notice {
+    position: relative;
+    width: min(100%, 320px);
+    height: 52px;
+    overflow: hidden;
+}
+
+.mpl-turnstile-shell--hide-test-notice > div {
+    transform: translateY(-1px);
+    transform-origin: top left;
+}
+
 .mpl-toggler {
     display: none;
     width: 3rem;

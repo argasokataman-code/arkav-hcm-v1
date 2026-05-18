@@ -75,9 +75,6 @@
                             <p>Terdapat <span class="text-primary text-decoration-underline" data-approval-leave>-</span> Persetujuan Cuti & <span class="text-primary text-decoration-underline" data-approval-overtime>-</span> Pengajuan Lembur</p>
                         </div>
                     </div>
-                    <div class="d-flex align-items-center flex-wrap mb-1">
-                        <a href="#" class="btn btn-primary btn-md mb-2" data-bs-toggle="modal" data-bs-target="#add_leaves"><i class="ti ti-square-rounded-plus me-1"></i>Add Requests</a>
-                    </div>
                 </div>
             </div>
             <!-- /Welcome Wrap -->

@@ -126,6 +126,7 @@
                             <p class="text-muted small mb-0">Jumlah periode / total net pay</p>
                             <h6 class="mb-1" data-payslip-admin-periods>0</h6>
                             <h5 class="mb-0 text-primary" data-payslip-admin-total-net>Rp 0</h5>
+                            <div class="small text-info">Overtime: <strong data-payslip-admin-total-overtime>Rp 0</strong></div>
                         </div>
                     </div>
                 </div>
@@ -154,6 +155,7 @@
                                 <th>Karyawan</th>
                                 <th>Jabatan / Tim</th>
                                 <th class="text-end">Penghasilan</th>
+                                <th class="text-end">Overtime</th>
                                 <th class="text-end">Potongan</th>
                                 <th class="text-end">Net Pay</th>
                                 <th>Status Email</th>
@@ -162,7 +164,7 @@
                         </thead>
                         <tbody data-payslip-admin-body>
                             <tr>
-                                <td colspan="11" class="text-center text-muted py-5">Memuat data payslip lintas periode…</td>
+                                <td colspan="12" class="text-center text-muted py-5">Memuat data payslip lintas periode…</td>
                             </tr>
                         </tbody>
                     </table>

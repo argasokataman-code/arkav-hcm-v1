@@ -120,7 +120,7 @@
 
             <div class="card mb-4" data-thr-batch-panel>
                 <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-                    <h5 class="mb-0">Mass calculate &amp; pay THR</h5>
+                    <h5 class="mb-0">Mass calculate &amp; catat bayar THR</h5>
                     <span class="badge bg-light text-dark">HCM Admin</span>
                 </div>
                 <div class="card-body">
@@ -135,8 +135,8 @@
                     </div>
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                         <button type="button" class="btn btn-primary" data-thr-batch-generate>Generate list</button>
-                        <button type="button" class="btn btn-outline-secondary" data-thr-batch-export-evidence title="Export data reconciliation untuk bukti audit sebelum pay/posting">Export Reconciliation</button>
-                        <button type="button" class="btn btn-success" data-thr-batch-disburse disabled>Pay THR</button>
+                        <button type="button" class="btn btn-outline-secondary" data-thr-batch-export-evidence title="Export data reconciliation untuk bukti audit sebelum bayar manual/posting">Export Reconciliation</button>
+                        <button type="button" class="btn btn-success" data-thr-batch-disburse disabled>Tandai THR Dibayar</button>
                         <button type="button" class="btn btn-outline-secondary" data-thr-batch-send-slip disabled>Kirim slip</button>
                     </div>
                     <div class="border rounded px-3 py-2 mb-0 bg-light small d-flex flex-wrap gap-4">
@@ -168,7 +168,7 @@
                                     <th class="text-end">THR bruto</th>
                                     <th>Bayar</th>
                                     <th>Dibayar</th>
-                                    <th title="Referensi gateway">Ref</th>
+                                    <th title="Referensi pembayaran">Ref</th>
                                     <th>Slip</th>
                                 </tr>
                             </thead>
@@ -179,29 +179,29 @@
             </div>
 
             <div class="modal fade" id="thrDisburseConfirmModal" tabindex="-1" aria-hidden="true"
-                data-thr-disburse-gateway-driver="{{ config('hcm.thr_disbursement_driver', 'stub') }}">
+                data-thr-disburse-gateway-driver="manual_external">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Eksekusi pembayaran (gateway)</h5>
+                            <h5 class="modal-title">Catat pembayaran manual THR</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <p class="mb-3">Sistem akan memanggil <strong>payment gateway</strong> untuk karyawan tercentang yang masih bisa dibayar (belum status <strong>paid</strong>).</p>
+                            <p class="mb-3">Gunakan modal ini setelah THR dibayar di luar aplikasi untuk mencatat karyawan tercentang yang masih bisa dibayar (belum status <strong>paid</strong>).</p>
                             <ul class="list-unstyled small mb-3">
                                 <li class="mb-2"><span class="text-muted">Tahun THR (batch):</span> <strong data-thr-disburse-modal-year>—</strong></li>
-                                <li class="mb-2"><span class="text-muted">Mode gateway (server):</span> <strong data-thr-disburse-modal-driver>—</strong></li>
-                                <li class="mb-2"><span class="text-muted">Karyawan tercentang (pay):</span> <strong data-thr-disburse-modal-checked>0</strong></li>
-                                <li class="mb-2"><span class="text-muted">Akan diproses ke gateway:</span> <strong class="text-primary" data-thr-disburse-modal-count>0</strong></li>
+                                <li class="mb-2"><span class="text-muted">Mode pencatatan:</span> <strong data-thr-disburse-modal-driver>—</strong></li>
+                                <li class="mb-2"><span class="text-muted">Karyawan tercentang:</span> <strong data-thr-disburse-modal-checked>0</strong></li>
+                                <li class="mb-2"><span class="text-muted">Akan ditandai paid:</span> <strong class="text-primary" data-thr-disburse-modal-count>0</strong></li>
                                 <li class="mb-2"><span class="text-muted">Dilewati (sudah paid):</span> <strong data-thr-disburse-modal-skip-paid>0</strong></li>
                                 <li class="mb-0"><span class="text-muted">Total THR bruto (yang diproses):</span> <strong data-thr-disburse-modal-total>—</strong></li>
                             </ul>
-                            <p class="small text-muted mb-2">Yang sudah <strong>paid</strong> tidak dikirim ulang. Jika gagal (rekening, limit, dll.), status dan alasan tampil di tabel — centang lagi untuk <strong>retry</strong>.</p>
-                            <p class="small text-muted mb-0" data-thr-disburse-modal-stub-note hidden>Mode <strong>stub</strong> hanya simulasi: tidak ada transfer bank sungguhan. Setelah sukses, sistem dapat menghasilkan <strong>slip THR (PDF)</strong> per karyawan.</p>
+                            <p class="small text-muted mb-2">Yang sudah <strong>paid</strong> tidak diproses ulang. Setelah status dicatat, sistem dapat menghasilkan <strong>slip THR (PDF)</strong> per karyawan dan mem-posting ke payroll saat semua pembayaran lunas.</p>
+                            <p class="small text-muted mb-0" data-thr-disburse-modal-stub-note hidden>Pencatatan ini hanya mengubah status internal aplikasi. Settlement dana tetap dilakukan di luar aplikasi.</p>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
-                            <button type="button" class="btn btn-success" data-thr-disburse-confirm>Eksekusi pembayaran</button>
+                            <button type="button" class="btn btn-success" data-thr-disburse-confirm>Simpan pembayaran manual</button>
                         </div>
                     </div>
                 </div>
@@ -263,7 +263,7 @@
                         <div class="modal-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <p class="text-muted small mb-0">
                                 <i class="ti ti-info-circle me-1"></i>
-                                File XLSX akan dibuat dari data di atas. Setelah diunduh, tombol Pay THR akan terbuka.
+                                File XLSX akan dibuat dari data di atas. Setelah diunduh, tombol Tandai THR Dibayar akan terbuka.
                             </p>
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>

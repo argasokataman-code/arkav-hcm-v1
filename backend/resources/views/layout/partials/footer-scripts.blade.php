@@ -346,7 +346,7 @@
 
 @if (Route::is(['holidays', 'leaves', 'leaves-employee', 'leave-report', 'overtime', 'overtime-employee']))
     <script src="{{ URL::asset('build/js/hcm/hcm-extras/module-loaders.js') }}?v={{ file_exists(public_path('build/js/hcm/hcm-extras/module-loaders.js')) ? filemtime(public_path('build/js/hcm/hcm-extras/module-loaders.js')) : time() }}"></script>
-    <script src="{{ URL::asset('build/js/hcm/hcm-extras-data.js') }}?v={{ file_exists(public_path('build/js/hcm/hcm-extras-data.js')) ? filemtime(public_path('build/js/hcm/hcm-extras-data.js')) : time() }}"></script>
+    <script type="module" src="{{ URL::asset('build/js/hcm/hcm-extras-data.js') }}?v={{ file_exists(public_path('build/js/hcm/hcm-extras-data.js')) ? filemtime(public_path('build/js/hcm/hcm-extras-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['tickets', 'tickets-admin', 'tickets-employee', 'tickets-grid', 'ticket-details', 'ticket-master']))
@@ -491,6 +491,10 @@
 
 @if (Route::is(['payslip-report']))
     <script src="{{ URL::asset('build/js/payroll/payslip-admin-data.js') }}?v={{ file_exists(public_path('build/js/payroll/payslip-admin-data.js')) ? filemtime(public_path('build/js/payroll/payslip-admin-data.js')) : time() }}"></script>
+@endif
+
+@if (Route::is(['monthly-report']))
+    <script src="{{ URL::asset('build/js/payroll/monthly-report-data.js') }}?v={{ file_exists(public_path('build/js/payroll/monthly-report-data.js')) ? filemtime(public_path('build/js/payroll/monthly-report-data.js')) : time() }}"></script>
 @endif
 
 @if (Route::is(['overtime-master']))

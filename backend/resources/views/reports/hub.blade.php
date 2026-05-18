@@ -85,7 +85,7 @@
                     </div>
                 </div>
 
-                <!-- Payroll Report -->
+                <!-- Monthly Report -->
                 <div class="col-lg-6 col-xl-4 mb-3">
                     <div class="report-card card">
                         <div class="card-body">
@@ -94,13 +94,13 @@
                                     <i class="ti ti-coin"></i>
                                 </div>
                                 <div class="ms-3">
-                                    <h5 class="mb-0">Payroll Report</h5>
-                                    <small class="text-muted">Salary & compensation</small>
+                                    <h5 class="mb-0">Monthly Report</h5>
+                                    <small class="text-muted">Monthly + THR + PKWT detail</small>
                                 </div>
                             </div>
-                            <p class="text-muted fs-12 mb-3">Analyze payroll runs with component breakdowns and employee salary details.</p>
+                            <p class="text-muted fs-12 mb-3">Laporan payroll bulanan detail per karyawan dengan breakdown monthly, THR, dan kompensasi PKWT plus ekspor Excel.</p>
                             <div class="d-flex gap-2">
-                                <a href="{{ url('payslip-report') }}" class="btn btn-sm btn-light">
+                                <a href="{{ url('monthly-report') }}" class="btn btn-sm btn-light">
                                     <i class="ti ti-eye me-1"></i>View
                                 </a>
                                 <button class="btn btn-sm btn-primary" data-report-generate="payroll">

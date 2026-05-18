@@ -170,7 +170,7 @@
         var body = document.querySelector("[data-payslip-admin-body]");
         if (!body) return;
         if (!slips || !slips.length) {
-            body.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Tidak ada slip untuk filter saat ini.</td></tr>';
+            body.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">Tidak ada slip untuk filter saat ini.</td></tr>';
             return;
         }
         body.innerHTML = slips.map(function (s) {
@@ -199,6 +199,7 @@
                 "<td><div>" + esc(s.designation) + "</div>" +
                 '<div class="text-muted small">' + esc(s.team) + "</div></td>" +
                 '<td class="text-end">' + formatIdr(s.totals.earningsTotal) + "</td>" +
+                '<td class="text-end text-info fw-semibold">' + formatIdr(s.totals.overtimeTotal || (s.overtime && s.overtime.amountTotal) || 0) + "</td>" +
                 '<td class="text-end">' + formatIdr(s.totals.deductionsTotal) + "</td>" +
                 '<td class="text-end fw-semibold text-primary">' + formatIdr(s.totals.netPay) + "</td>" +
                 '<td><div>' + emailDeliveryBadge(delivery) + '</div>' + failedHint + '</td>' +
@@ -218,6 +219,7 @@
         var employeesEl = document.querySelector("[data-payslip-admin-employees]");
         var periodsEl = document.querySelector("[data-payslip-admin-periods]");
         var netEl = document.querySelector("[data-payslip-admin-total-net]");
+        var overtimeEl = document.querySelector("[data-payslip-admin-total-overtime]");
 
         if (summaryEl) summaryEl.style.removeProperty("display");
         if (countEl) countEl.textContent = String(apiSummary && apiSummary.totalRows ? apiSummary.totalRows : slips.length);
@@ -235,6 +237,11 @@
         }
         if (netEl) {
             netEl.textContent = formatIdr(slips.reduce(function (s, r) { return s + (r.totals.netPay || 0); }, 0));
+        }
+        if (overtimeEl) {
+            overtimeEl.textContent = formatIdr(slips.reduce(function (sum, row) {
+                return sum + Number(row && row.totals ? row.totals.overtimeTotal || 0 : 0);
+            }, 0));
         }
     }
 
@@ -270,8 +277,13 @@
                 userId: userId,
                 totals: {
                     earningsTotal: gross,
+                    overtimeTotal: 0,
                     deductionsTotal: deductions,
                     netPay: net,
+                },
+                overtime: {
+                    amountTotal: 0,
+                    lineCount: 0,
                 },
             });
         }
@@ -287,7 +299,7 @@
         var summaryEl = document.querySelector("[data-payslip-admin-summary]");
 
         if (errEl) { errEl.classList.add("d-none"); errEl.textContent = ""; }
-        if (body) body.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Memuat snapshot archive…</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">Memuat snapshot archive…</td></tr>';
         if (summaryEl) summaryEl.style.setProperty("display", "none", "important");
         if (runInfoEl) runInfoEl.textContent = "";
         if (selectAll) selectAll.checked = false;
@@ -340,7 +352,7 @@
                 if (err === null) return;
                 var msg = formatApiError(err && err.data, err && err.status) || "Gagal memuat snapshot payroll.";
                 if (errEl) { errEl.classList.remove("d-none"); errEl.textContent = msg; }
-                if (body) body.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-4">' + esc(msg) + "</td></tr>";
+                if (body) body.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">' + esc(msg) + "</td></tr>";
             });
     }
 
@@ -361,7 +373,7 @@
         if (mode === "archive") {
             if (!snapshotId) {
                 if (errEl) { errEl.classList.remove("d-none"); errEl.textContent = "Snapshot ID wajib diisi untuk mode Archive."; }
-                if (body) body.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Isi Snapshot ID lalu klik Muat.</td></tr>';
+                if (body) body.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">Isi Snapshot ID lalu klik Muat.</td></tr>';
                 return;
             }
             loadArchiveSlips(snapshotId);
@@ -369,7 +381,7 @@
         }
 
         if (errEl) { errEl.classList.add("d-none"); errEl.textContent = ""; }
-        if (body) body.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Memuat…</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4">Memuat…</td></tr>';
         if (summaryEl) summaryEl.style.setProperty("display", "none", "important");
         if (runInfoEl) runInfoEl.textContent = "";
         if (selectAll) selectAll.checked = false;
@@ -399,7 +411,7 @@
             if (err === null) return;
             var msg = formatApiError(err && err.data, err && err.status) || "Gagal memuat data payslip.";
             if (errEl) { errEl.classList.remove("d-none"); errEl.textContent = msg; }
-            if (body) body.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-4">' + esc(msg) + "</td></tr>";
+            if (body) body.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">' + esc(msg) + "</td></tr>";
         });
     }
 
@@ -523,6 +535,7 @@
             '</tr></table>' +
 
             '<div class="total-bar">' +
+            '<p class="mb-1"><span class="muted">Total overtime:</span> <strong class="primary">' + formatIdrPdf(slip.totals.overtimeTotal || 0) + '</strong></p>' +
             '<p class="total-amount mb-0">Take home pay: ' + formatIdrPdf(slip.totals.netPay) + '</p>' +
             '<p class="muted mb-0" style="margin-top:6px;">Dokumen ini dihasilkan otomatis dari run payroll yang sudah difinalisasi.</p>' +
             '</div>' +
@@ -668,7 +681,7 @@
             }
             var body = document.querySelector("[data-payslip-admin-body]");
             if (body) {
-                body.innerHTML = '<tr><td colspan="11" class="text-center text-danger py-4">' + esc(message) + "</td></tr>";
+                body.innerHTML = '<tr><td colspan="12" class="text-center text-danger py-4">' + esc(message) + "</td></tr>";
             }
         }
 

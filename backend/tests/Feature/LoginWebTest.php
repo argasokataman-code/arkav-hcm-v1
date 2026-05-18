@@ -135,7 +135,8 @@ class LoginWebTest extends TestCase
             ->get('/index')
             ->assertOk()
             ->assertSee('Trial')
-            ->assertSee('30 hari lagi');
+            ->assertSee('30 hari lagi')
+            ->assertDontSee('Add Requests');
     }
 
     public function test_inactive_company_is_redirected_to_subscription_checkout_until_reactivated(): void
@@ -496,7 +497,8 @@ class LoginWebTest extends TestCase
         $this->actingAs($user)
             ->get('/index')
             ->assertOk()
-            ->assertDontSee('Akses aplikasi dikunci sampai invoice dibayar.');
+            ->assertDontSee('Akses aplikasi dikunci sampai invoice dibayar.')
+            ->assertDontSee('Add Requests');
     }
 
     public function test_pending_payment_with_zero_amount_invoice_is_auto_healed_and_not_redirected(): void

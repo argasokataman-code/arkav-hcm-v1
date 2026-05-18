@@ -170,7 +170,7 @@ const previewContent = {
             { icon: FileText, title: 'Payroll draft', subtitle: 'Ready to finalize' },
         ],
         nextTitle: 'Mulai onboarding',
-        nextDescription: 'Buat company + owner, pilih trial atau subscribe.',
+        nextDescription: 'Buat company + owner, lalu pilih aktivasi trial atau subscription.',
     },
     employees: {
         heading: 'Kesiapan struktur tim dan role',
@@ -399,7 +399,7 @@ export function PackageCard({ isHighlighted, onOpenOnboarding, packageItem, tria
             <h3>{packageItem.name}</h3>
             <p>{packageItem.description || 'Paket aktif untuk flow onboarding tenant baru.'}</p>
             <div className="mpl-price-value">{trialPackage ? 'Gratis' : formatIdr(packageItem.monthlyPrice)}</div>
-            <div className="mpl-price-meta">{trialPackage ? 'Trial onboarding' : '/bulan'}{!trialPackage ? ` • ${packageItem.billingUnit || 'company'}` : ''}</div>
+            <div className="mpl-price-meta">{trialPackage ? 'Aktivasi trial' : '/bulan'}{!trialPackage ? ` • ${packageItem.billingUnit || 'company'}` : ''}</div>
 
             <ul className="mpl-price-list">
                 {featureItems.length ? featureItems.map((feature) => (
@@ -421,7 +421,7 @@ export function PackageCard({ isHighlighted, onOpenOnboarding, packageItem, tria
                     {trialPackage ? 'Mulai Trial' : 'Mulai Sekarang'} <ArrowRight size={18} weight="bold" />
                 </button>
                 <a className="mpl-btn-outline" href={`${trialUrl}?packageId=${encodeURIComponent(packageItem.uuid)}`} data-package-plan-link>
-                    Pilih plan
+                    Lihat detail paket
                 </a>
             </div>
         </motion.div>

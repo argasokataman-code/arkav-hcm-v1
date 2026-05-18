@@ -94,6 +94,7 @@
                             <div class="col-md-6 text-md-end">
                                 <div class="mb-3">
                                     <p class="mb-1">Total Additions: <strong data-payslip-earnings-total>Rp 0</strong></p>
+                                    <p class="mb-1">Total Overtime: <strong class="text-info" data-payslip-overtime-total>Rp 0</strong></p>
                                     <p class="mb-1">Total Deductions: <strong data-payslip-deductions-total>Rp 0</strong></p>
                                     <p class="mb-0 fs-16">Take Home Pay: <strong class="text-primary" data-payslip-net-pay>Rp 0</strong></p>
                                 </div>

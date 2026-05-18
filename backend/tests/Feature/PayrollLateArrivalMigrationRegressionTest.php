@@ -144,7 +144,10 @@ class PayrollLateArrivalMigrationRegressionTest extends TestCase
         $this->withHeaders($this->authHeaders($admin))
             ->getJson('/v1/hcm/payroll-runs/'.$payload['runId'])
             ->assertOk()
-            ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.run.lateArrivalBuffer.hasLateArrivals', true)
+            ->assertJsonPath('data.run.lateArrivalBuffer.sources.overtimeRequests.totalCount', 1)
+            ->assertJsonPath('data.run.lateArrivalBuffer.sources.overtimeRequests.entries.0.requestId', fn ($value) => (int) $value > 0);
 
         $lateOvertimeLineExists = HcmPayrollLine::query()
             ->where('hcm_payroll_run_id', $payload['runId'])
@@ -152,7 +155,7 @@ class PayrollLateArrivalMigrationRegressionTest extends TestCase
             ->where('component_code', 'upah_lembur')
             ->exists();
 
-        $this->assertIsBool($lateOvertimeLineExists);
+        $this->assertFalse($lateOvertimeLineExists);
     }
 
     public function test_paid_monthly_run_auto_migration_creates_next_period_carryover_with_audit_metadata(): void
@@ -187,6 +190,33 @@ class PayrollLateArrivalMigrationRegressionTest extends TestCase
 
         $sourceRun = HcmPayrollRun::query()->findOrFail($payload['runId']);
         $this->assertNotNull($sourceRun);
+        $sourceMeta = is_array($sourceRun->meta) ? $sourceRun->meta : [];
+        $this->assertSame('migrated', $sourceMeta['lateArrivalBuffer']['migration']['status'] ?? null);
+
+        $aprilPeriod = HcmPayrollPeriod::query()
+            ->where('company_id', $this->company()->id)
+            ->where('period_year', 2026)
+            ->where('period_month', 4)
+            ->first();
+
+        $this->assertNotNull($aprilPeriod);
+
+        $aprilRun = HcmPayrollRun::query()
+            ->where('hcm_payroll_period_id', $aprilPeriod->id)
+            ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
+            ->where('status', HcmPayrollRun::STATUS_DRAFT)
+            ->first();
+
+        $this->assertNotNull($aprilRun);
+
+        $carryoverLine = HcmPayrollLine::query()
+            ->where('hcm_payroll_run_id', $aprilRun->id)
+            ->where('user_id', $employee->id)
+            ->where('component_code', 'upah_lembur')
+            ->first();
+
+        $this->assertNotNull($carryoverLine);
+        $this->assertContains($lateOvertime->id, $carryoverLine->meta['carryoverLateArrivalRequestIds'] ?? []);
 
         $this->withHeaders($this->authHeaders($admin))
             ->getJson('/v1/hcm/payroll-runs/history?periodYear=2026&periodMonth=3&purpose=monthly')

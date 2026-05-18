@@ -1454,6 +1454,10 @@ Route::middleware('hcm.web.admin')->group(function (): void {
         ]);
     })->name('payslip-report');
 
+    Route::get('monthly-report', function () {
+        return view('monthly-report');
+    })->name('monthly-report');
+
     Route::get('attendance-report', function () {
         return view('attendance-report');
     })->name('attendance-report');

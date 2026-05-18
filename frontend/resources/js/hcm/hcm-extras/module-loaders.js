@@ -29,7 +29,7 @@
         }
         try {
             var dynamicImport = new Function("modulePath", "return import(modulePath);");
-            bindHolidaysModulePromise = dynamicImport("./hcm-extras/hcm-extras-holidays.js")
+            bindHolidaysModulePromise = dynamicImport("../../hcm-extras/hcm-extras-holidays.js")
                 .then(function (mod) {
                     if (mod && typeof mod.bindHolidaysModule === "function") {
                         bindHolidaysModuleRef = mod.bindHolidaysModule;
@@ -66,7 +66,7 @@
         }
         try {
             var dynamicImport = new Function("modulePath", "return import(modulePath);");
-            bindOvertimeCalculatorModulePromise = dynamicImport("./hcm-extras/hcm-extras-overtime-calculator.js")
+            bindOvertimeCalculatorModulePromise = dynamicImport("../../hcm-extras/hcm-extras-overtime-calculator.js")
                 .then(function (mod) {
                     if (mod && typeof mod.bindOvertimeCalculatorModule === "function") {
                         bindOvertimeCalculatorModuleRef = mod.bindOvertimeCalculatorModule;
@@ -103,7 +103,7 @@
         }
         try {
             var dynamicImport = new Function("modulePath", "return import(modulePath);");
-            bindOvertimeModulePromise = dynamicImport("./hcm-extras/hcm-extras-overtime.js")
+            bindOvertimeModulePromise = dynamicImport("../../hcm-extras/hcm-extras-overtime.js")
                 .then(function (mod) {
                     if (mod && typeof mod.bindOvertimeModule === "function") {
                         bindOvertimeModuleRef = mod.bindOvertimeModule;

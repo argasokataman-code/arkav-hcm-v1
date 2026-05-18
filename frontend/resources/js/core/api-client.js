@@ -6,6 +6,9 @@
     var baseURL = "/v1";
     var authRedirectScheduled = false;
     var forbiddenModalScheduled = false;
+    var authSessionMonitorTimerId = null;
+    var authSessionMonitorInFlight = false;
+    var authSessionVisibilityHandler = null;
     var lockModalHideHandler = null;
     var lockModalHiddenHandler = null;
     var lockInteractionGuardHandler = null;
@@ -107,7 +110,20 @@
         try {
             window.localStorage.removeItem(TOKEN_KEY);
         } catch (_e) {}
-        window.location.replace("/login");
+        try {
+            window.localStorage.removeItem(TENANT_CTX_KEY);
+        } catch (_e) {}
+        window.__ARCAV_LAST_REDIRECT__ = "/login";
+        if (window.__ARCAV_DISABLE_REDIRECTS__ === true) {
+            return;
+        }
+        try {
+            window.location.replace("/login");
+        } catch (_e2) {
+            try {
+                window.location.href = "/login";
+            } catch (_e3) {}
+        }
     }
 
     function handleUnauthorizedFromApi(status, data) {
@@ -124,6 +140,116 @@
             return wrapper && wrapper.dataset ? wrapper.dataset : {};
         } catch (_e) {
             return {};
+        }
+    }
+
+    function currentPathname() {
+        try {
+            return String(window.location && window.location.pathname ? window.location.pathname : "");
+        } catch (_e) {
+            return "";
+        }
+    }
+
+    function shouldSkipAuthSessionMonitorForPath() {
+        var path = currentPathname();
+        if (!path) {
+            return false;
+        }
+
+        return path === "/login"
+            || path.indexOf("/login-") === 0
+            || path === "/register"
+            || path.indexOf("/register-") === 0
+            || path === "/forgot-password"
+            || path.indexOf("/forgot-password-") === 0
+            || path === "/reset-password"
+            || path.indexOf("/reset-password/") === 0
+            || path.indexOf("/reset-password-") === 0
+            || path === "/lock-screen";
+    }
+
+    function hasAuthenticatedPageContext() {
+        try {
+            if (window.AuthUser && window.AuthUser.id) {
+                return true;
+            }
+        } catch (_e) {}
+
+        return !!getToken();
+    }
+
+    function authSessionMonitorIntervalMs() {
+        var value = Number(window.__ARCAV_AUTH_SESSION_MONITOR_INTERVAL_MS__);
+        if (!Number.isFinite(value) || value <= 0) {
+            return 60000;
+        }
+
+        return Math.max(5000, Math.floor(value));
+    }
+
+    function shouldStartAuthSessionMonitor() {
+        if (!window.fetch || authRedirectScheduled) {
+            return false;
+        }
+
+        if (shouldSkipAuthSessionMonitorForPath()) {
+            return false;
+        }
+
+        return hasAuthenticatedPageContext();
+    }
+
+    function probeAuthSession() {
+        if (!shouldStartAuthSessionMonitor() || authSessionMonitorInFlight) {
+            return Promise.resolve(false);
+        }
+
+        if (typeof document !== "undefined" && document.hidden) {
+            return Promise.resolve(false);
+        }
+
+        authSessionMonitorInFlight = true;
+
+        return window.fetch(baseURL + "/identity/auth/me", {
+            method: "GET",
+            headers: buildHeaders({ Accept: "application/json" }),
+            credentials: "same-origin",
+        }).then(function (response) {
+            return response.json().catch(function () {
+                return {};
+            }).then(function (data) {
+                if (!response.ok) {
+                    handleUnauthorizedFromApi(response.status, data);
+                    return false;
+                }
+
+                return true;
+            });
+        }).catch(function () {
+            return false;
+        }).finally(function () {
+            authSessionMonitorInFlight = false;
+        });
+    }
+
+    function startAuthSessionMonitor() {
+        if (authSessionMonitorTimerId || !shouldStartAuthSessionMonitor()) {
+            return;
+        }
+
+        authSessionMonitorTimerId = window.setInterval(function () {
+            probeAuthSession();
+        }, authSessionMonitorIntervalMs());
+
+        if (!authSessionVisibilityHandler && typeof document !== "undefined") {
+            authSessionVisibilityHandler = function () {
+                if (!document.hidden) {
+                    probeAuthSession();
+                }
+            };
+
+            document.addEventListener("visibilitychange", authSessionVisibilityHandler);
         }
     }
 
@@ -624,7 +750,11 @@
         handleUnauthorizedFromApi: handleUnauthorizedFromApi,
         handleForbiddenFromApi: handleForbiddenFromApi,
         showUpgradeRequiredModal: showUpgradeRequiredModal,
+        probeAuthSession: probeAuthSession,
+        startAuthSessionMonitor: startAuthSessionMonitor,
     };
+
+    startAuthSessionMonitor();
 
     window.ArcavUi = window.ArcavUi || {};
 

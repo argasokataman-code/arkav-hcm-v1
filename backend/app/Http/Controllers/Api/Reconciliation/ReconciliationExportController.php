@@ -4,9 +4,14 @@ namespace App\Http\Controllers\Api\Reconciliation;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
+use App\Models\EmployeeProfile;
 use App\Models\ExportReconciliationEvidence;
 use App\Models\HcmPayrollLine;
+use App\Models\HcmPayrollRun;
 use App\Models\HcmSalaryComponent;
+use App\Models\HcmThrBatch;
+use App\Models\HcmThrBatchLine;
+use App\Services\Hcm\PkwtCompensationService;
 use App\Services\Reconciliation\ReconciliationExportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -261,9 +266,15 @@ class ReconciliationExportController extends Controller
         array $filterPayload,
         string $datasetChecksum,
     ): string {
-        // For payroll_run exports, include actual payroll line data
-        if ($featureKey === 'payroll_run' && $actionKey === 'disburse') {
-            return $this->buildPayrollRunReconciliationCsv($companyId, (int) $scopeRef, $filterPayload, $datasetChecksum);
+        if ($this->shouldUseStructuredPayrollExport($featureKey, $actionKey)) {
+            return $this->buildStructuredPayrollExportCsv(
+                $companyId,
+                $featureKey,
+                $actionKey,
+                $scopeRef,
+                $filterPayload,
+                $datasetChecksum,
+            );
         }
 
         $stream = fopen('php://temp', 'w+');
@@ -311,8 +322,15 @@ class ReconciliationExportController extends Controller
         array $filterPayload,
         string $datasetChecksum,
     ): array {
-        if ($featureKey === 'payroll_run' && $actionKey === 'disburse') {
-            return $this->buildPayrollRunReconciliationRows($companyId, (int) $scopeRef, $filterPayload, $datasetChecksum);
+        if ($this->shouldUseStructuredPayrollExport($featureKey, $actionKey)) {
+            return $this->buildStructuredPayrollExportRows(
+                $companyId,
+                $featureKey,
+                $actionKey,
+                $scopeRef,
+                $filterPayload,
+                $datasetChecksum,
+            );
         }
 
         $headers = ['Field', 'Value'];
@@ -338,6 +356,102 @@ class ReconciliationExportController extends Controller
     }
 
     /**
+     * @param  array<string, mixed>  $filterPayload
+     */
+    private function buildStructuredPayrollExportCsv(
+        ?int $companyId,
+        string $featureKey,
+        string $actionKey,
+        string $scopeRef,
+        array $filterPayload,
+        string $datasetChecksum,
+    ): string {
+        $rows = $this->buildStructuredPayrollExportRows($companyId, $featureKey, $actionKey, $scopeRef, $filterPayload, $datasetChecksum);
+        $stream = fopen('php://temp', 'w+');
+        if (! $stream) {
+            return '';
+        }
+
+        fwrite($stream, "\xEF\xBB\xBF");
+        fputcsv($stream, $rows['headers']);
+        foreach ($rows['data'] as $row) {
+            fputcsv($stream, $row);
+        }
+
+        rewind($stream);
+        $content = (string) stream_get_contents($stream);
+        fclose($stream);
+
+        return $content;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filterPayload
+     * @return array{headers: list<string>, data: list<list<scalar|null>>}
+     */
+    private function buildStructuredPayrollExportRows(
+        ?int $companyId,
+        string $featureKey,
+        string $actionKey,
+        string $scopeRef,
+        array $filterPayload,
+        string $datasetChecksum,
+    ): array {
+        if ($featureKey === ExportReconciliationEvidence::FEATURE_PAYROLL_RUN && $actionKey === ExportReconciliationEvidence::ACTION_DISBURSE) {
+            return $this->buildPayrollRunReconciliationRows($companyId, (int) $scopeRef, $filterPayload, $datasetChecksum);
+        }
+
+        if ($featureKey === ExportReconciliationEvidence::FEATURE_THR_BATCH) {
+            return $this->buildThrBatchPaymentExportRows($companyId, (int) $scopeRef, $filterPayload, $datasetChecksum);
+        }
+
+        if ($featureKey === ExportReconciliationEvidence::FEATURE_PKWT_COMPENSATION && $actionKey === ExportReconciliationEvidence::ACTION_POST_PAYROLL) {
+            return $this->buildPkwtCompensationPaymentExportRows($companyId, $scopeRef, $filterPayload, $datasetChecksum);
+        }
+
+        return ['headers' => $this->structuredPayrollExportHeaders(), 'data' => []];
+    }
+
+    private function shouldUseStructuredPayrollExport(string $featureKey, string $actionKey): bool
+    {
+        if ($featureKey === ExportReconciliationEvidence::FEATURE_PAYROLL_RUN && $actionKey === ExportReconciliationEvidence::ACTION_DISBURSE) {
+            return true;
+        }
+
+        if ($featureKey === ExportReconciliationEvidence::FEATURE_THR_BATCH
+            && in_array($actionKey, [ExportReconciliationEvidence::ACTION_DISBURSE, ExportReconciliationEvidence::ACTION_POST_PAYROLL], true)) {
+            return true;
+        }
+
+        return $featureKey === ExportReconciliationEvidence::FEATURE_PKWT_COMPENSATION
+            && $actionKey === ExportReconciliationEvidence::ACTION_POST_PAYROLL;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function structuredPayrollExportHeaders(): array
+    {
+        return [
+            'payroll_type',
+            'reference_period',
+            'reference_id',
+            'employee_id',
+            'employee_name',
+            'bank_name',
+            'account_number',
+            'account_holder_name',
+            'bank_branch',
+            'gross_total',
+            'overtime_total',
+            'deductions_total',
+            'transfer_amount',
+            'bank_data_status',
+            'dataset_checksum',
+        ];
+    }
+
+    /**
      * Build rows for payroll_run reconciliation (xlsx equivalent of buildPayrollRunReconciliationCsv).
      *
      * @param  array<string, mixed>  $filterPayload
@@ -345,124 +459,7 @@ class ReconciliationExportController extends Controller
      */
     private function buildPayrollRunReconciliationRows(?int $companyId, int $runId, array $filterPayload, string $datasetChecksum): array
     {
-        $userIds = [];
-        if (is_array($filterPayload) && isset($filterPayload['periods']) && is_array($filterPayload['periods'])) {
-            foreach ($filterPayload['periods'] as $period) {
-                if (is_array($period) && isset($period['userId'])) {
-                    $userIds[] = (int) $period['userId'];
-                }
-            }
-        }
-
-        $query = HcmPayrollLine::query()
-            ->where('hcm_payroll_run_id', $runId)
-            ->orderBy('user_id')
-            ->orderBy('sort_order');
-
-        if (! empty($userIds)) {
-            $query->whereIn('user_id', $userIds);
-        }
-
-        if ($companyId) {
-            $query->where('company_id', $companyId);
-        }
-
-        $payrollLines = $query->get();
-
-        $componentAffectsNetPay = [];
-        $componentIds = $payrollLines->pluck('hcm_salary_component_id')
-            ->filter(fn ($id) => $id !== null)
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values();
-        if ($componentIds->isNotEmpty()) {
-            $componentAffectsNetPay = HcmSalaryComponent::query()
-                ->whereIn('id', $componentIds->all())
-                ->pluck('affects_net_pay', 'id')
-                ->map(fn ($value) => (bool) $value)
-                ->all();
-        }
-        $employeeTotals = [];
-        foreach ($payrollLines as $line) {
-            $uid = (int) $line->user_id;
-            if (! isset($employeeTotals[$uid])) {
-                $employeeTotals[$uid] = ['name' => (string) ($line->user_name ?? ''), 'gross' => 0.0, 'deductions' => 0.0];
-            }
-            $componentId = $line->hcm_salary_component_id !== null ? (int) $line->hcm_salary_component_id : null;
-            $affectsNetPay = $componentId !== null
-                ? ($componentAffectsNetPay[$componentId] ?? true)
-                : true;
-            if ($affectsNetPay) {
-                if ($line->kind === 'addition') {
-                    $employeeTotals[$uid]['gross'] += (float) $line->amount;
-                } elseif ($line->kind === 'deduction') {
-                    $employeeTotals[$uid]['deductions'] += (float) $line->amount;
-                }
-            }
-        }
-
-        $headers = [
-            'run_id', 'user_id', 'user_name', 'kind', 'component_code', 'component_name',
-            'amount', 'affects_net_pay', 'gross_total', 'deductions_total', 'net_total',
-            'dataset_checksum',
-        ];
-
-        $data = [];
-
-        // Metadata row
-        $data[] = [
-            (string) $runId, '', '', '', '', 'METADATA', '', '',
-            '', '', '',
-            $datasetChecksum,
-        ];
-
-        $data[] = [];
-
-        foreach ($payrollLines as $line) {
-            $componentId = $line->hcm_salary_component_id !== null ? (int) $line->hcm_salary_component_id : null;
-            $affectsNetPay = $componentId !== null ? ($componentAffectsNetPay[$componentId] ?? true) : true;
-            $data[] = [
-                (string) $runId,
-                (string) $line->user_id,
-                (string) ($line->user_name ?? ''),
-                (string) ($line->kind ?? ''),
-                (string) ($line->component_code ?? ''),
-                (string) ($line->component_name ?? ''),
-                (string) $line->amount,
-                $affectsNetPay ? 'yes' : 'no',
-                '', '', '',
-                '',
-            ];
-        }
-
-        $data[] = [];
-        $grandGross = 0.0;
-        $grandDeductions = 0.0;
-        foreach ($employeeTotals as $uid => $totals) {
-            $net = $totals['gross'] - $totals['deductions'];
-            $grandGross += $totals['gross'];
-            $grandDeductions += $totals['deductions'];
-            $data[] = [
-                (string) $runId, (string) $uid, $totals['name'], 'SUBTOTAL', '', 'Subtotal Karyawan',
-                '', '',
-                (string) round($totals['gross'], 2),
-                (string) round($totals['deductions'], 2),
-                (string) round($net, 2),
-                '',
-            ];
-        }
-
-        $data[] = [];
-        $data[] = [
-            (string) $runId, '', '', 'GRAND_TOTAL', '', 'Total Semua Karyawan',
-            '', '',
-            (string) round($grandGross, 2),
-            (string) round($grandDeductions, 2),
-            (string) round($grandGross - $grandDeductions, 2),
-            $datasetChecksum,
-        ];
-
-        return ['headers' => $headers, 'data' => $data];
+        return $this->buildPayrollRunPaymentExportRows($companyId, $runId, $filterPayload, $datasetChecksum);
     }
 
     /**
@@ -472,23 +469,47 @@ class ReconciliationExportController extends Controller
      * @param  array<string, mixed>  $filterPayload
      */
     private function buildPayrollRunReconciliationCsv(?int $companyId, int $runId, array $filterPayload, string $datasetChecksum): string {
-        // Extract user IDs from filter payload: { periods: [{userId: 1}, ...] }
-        $userIds = [];
-        if (is_array($filterPayload) && isset($filterPayload['periods']) && is_array($filterPayload['periods'])) {
-            foreach ($filterPayload['periods'] as $period) {
-                if (is_array($period) && isset($period['userId'])) {
-                    $userIds[] = (int) $period['userId'];
-                }
-            }
+        $rows = $this->buildPayrollRunPaymentExportRows($companyId, $runId, $filterPayload, $datasetChecksum);
+        $stream = fopen('php://temp', 'w+');
+        if (! $stream) {
+            return '';
         }
 
-        // Fetch payroll lines for the run and selected users
+        fwrite($stream, "\xEF\xBB\xBF");
+        fputcsv($stream, $rows['headers']);
+        foreach ($rows['data'] as $row) {
+            fputcsv($stream, $row);
+        }
+
+        rewind($stream);
+        $content = (string) stream_get_contents($stream);
+        fclose($stream);
+
+        return $content;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filterPayload
+     * @return array{headers: list<string>, data: list<list<scalar|null>>}
+     */
+    private function buildPayrollRunPaymentExportRows(?int $companyId, int $runId, array $filterPayload, string $datasetChecksum): array
+    {
+        $run = HcmPayrollRun::query()
+            ->with(['period:id,period_year,period_month'])
+            ->findOrFail($runId);
+
         $query = HcmPayrollLine::query()
+            ->with([
+                'user:id,name',
+                'user.employeeProfile:id,user_id,bank_name,bank_account_no,bank_branch',
+                'user.employeeProfile.bankAccounts:id,employee_id,bank_name,account_number,account_holder_name,bank_branch,is_primary',
+            ])
             ->where('hcm_payroll_run_id', $runId)
             ->orderBy('user_id')
             ->orderBy('sort_order');
 
-        if (!empty($userIds)) {
+        $userIds = $this->extractPayrollExportUserIds($filterPayload);
+        if ($userIds !== []) {
             $query->whereIn('user_id', $userIds);
         }
 
@@ -511,127 +532,270 @@ class ReconciliationExportController extends Controller
                 ->map(fn ($value) => (bool) $value)
                 ->all();
         }
-        // Pre-compute per-employee totals
-        $employeeTotals = [];
-        foreach ($payrollLines as $line) {
-            $uid = (int) $line->user_id;
-            if (! isset($employeeTotals[$uid])) {
-                $employeeTotals[$uid] = ['name' => (string) ($line->user_name ?? ''), 'gross' => 0.0, 'deductions' => 0.0];
+
+        $periodLabel = $run->period
+            ? sprintf('%04d-%02d', (int) $run->period->period_year, (int) $run->period->period_month)
+            : '';
+
+        $headers = $this->structuredPayrollExportHeaders();
+
+        $data = [];
+        foreach ($payrollLines->groupBy('user_id') as $userId => $userLines) {
+            $gross = 0.0;
+            $overtime = 0.0;
+            $deductions = 0.0;
+
+            foreach ($userLines as $line) {
+                $componentId = $line->hcm_salary_component_id !== null ? (int) $line->hcm_salary_component_id : null;
+                $affectsNetPay = $componentId !== null
+                    ? ($componentAffectsNetPay[$componentId] ?? true)
+                    : true;
+                if (! $affectsNetPay) {
+                    continue;
+                }
+
+                if ((string) $line->kind === 'addition') {
+                    $gross += (float) $line->amount;
+                    if ((string) $line->component_code === HcmSalaryComponent::CODE_OVERTIME_PAY) {
+                        $overtime += (float) $line->amount;
+                    }
+                } elseif ((string) $line->kind === 'deduction') {
+                    $deductions += (float) $line->amount;
+                }
             }
-            $componentId = $line->hcm_salary_component_id !== null ? (int) $line->hcm_salary_component_id : null;
-            $affectsNetPay = $componentId !== null
-                ? ($componentAffectsNetPay[$componentId] ?? true)
-                : true;
-            if ($affectsNetPay) {
-                if ($line->kind === 'addition') {
-                    $employeeTotals[$uid]['gross'] += (float) $line->amount;
-                } elseif ($line->kind === 'deduction') {
-                    $employeeTotals[$uid]['deductions'] += (float) $line->amount;
+
+            $firstLine = $userLines->first();
+            if ($firstLine === null) {
+                continue;
+            }
+
+            $bank = $this->resolvePayrollLineBankSnapshot($firstLine);
+            $net = round($gross - $deductions, 2);
+
+            $data[] = [
+                (string) ($run->purpose ?: HcmPayrollRun::PURPOSE_MONTHLY),
+                $periodLabel,
+                'run:'.$runId,
+                (string) $userId,
+                $this->resolvePayrollLineUserName($firstLine),
+                $bank['bankName'],
+                $bank['accountNumber'],
+                $bank['accountHolderName'],
+                $bank['bankBranch'],
+                (string) round($gross, 2),
+                (string) round($overtime, 2),
+                (string) round($deductions, 2),
+                (string) $net,
+                $bank['status'],
+                $datasetChecksum,
+            ];
+        }
+
+        return ['headers' => $headers, 'data' => $data];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filterPayload
+     * @return array{headers: list<string>, data: list<list<scalar|null>>}
+     */
+    private function buildThrBatchPaymentExportRows(?int $companyId, int $batchId, array $filterPayload, string $datasetChecksum): array
+    {
+        $batchQuery = HcmThrBatch::query()->with(['payrollPeriod:id,period_year,period_month']);
+        if ($companyId !== null) {
+            $batchQuery->where(function ($query) use ($companyId): void {
+                $query->where('company_id', $companyId)->orWhereNull('company_id');
+            });
+        }
+        $batch = $batchQuery->findOrFail($batchId);
+
+        $lineQuery = HcmThrBatchLine::query()
+            ->with([
+                'user:id,name',
+                'user.employeeProfile:id,user_id,bank_name,bank_account_no,bank_branch',
+                'user.employeeProfile.bankAccounts:id,employee_id,bank_name,account_number,account_holder_name,bank_branch,is_primary',
+            ])
+            ->where('hcm_thr_batch_id', $batchId)
+            ->orderBy('user_id')
+            ->orderBy('id');
+
+        $lineIds = $this->extractIdList($filterPayload['lineIds'] ?? null);
+        if ($lineIds !== []) {
+            $lineQuery->whereIn('id', $lineIds);
+        }
+
+        $lines = $lineQuery->get();
+        $referencePeriod = $batch->payrollPeriod
+            ? sprintf('%04d-%02d', (int) $batch->payrollPeriod->period_year, (int) $batch->payrollPeriod->period_month)
+            : (string) $batch->calendar_year;
+
+        $data = [];
+        foreach ($lines as $line) {
+            $bank = $this->resolveUserBankSnapshot($line->user_id, $line->user?->name ?? $line->full_name, $line->user?->employeeProfile);
+            $gross = round((float) $line->thr_gross, 2);
+
+            $data[] = [
+                HcmPayrollRun::PURPOSE_THR,
+                $referencePeriod,
+                'thr_batch:'.$batchId,
+                (string) $line->user_id,
+                (string) ($line->full_name ?: ($line->user?->name ?? '')),
+                $bank['bankName'],
+                $bank['accountNumber'],
+                $bank['accountHolderName'],
+                $bank['bankBranch'],
+                (string) $gross,
+                '0',
+                '0',
+                (string) $gross,
+                $bank['status'],
+                $datasetChecksum,
+            ];
+        }
+
+        return ['headers' => $this->structuredPayrollExportHeaders(), 'data' => $data];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filterPayload
+     * @return array{headers: list<string>, data: list<list<scalar|null>>}
+     */
+    private function buildPkwtCompensationPaymentExportRows(?int $companyId, string $scopeRef, array $filterPayload, string $datasetChecksum): array
+    {
+        [$periodYear, $periodMonth] = array_pad(array_map('intval', explode('-', $scopeRef, 3)), 2, 0);
+        $preview = app(PkwtCompensationService::class)->previewForMonth($periodYear, $periodMonth, $companyId);
+        $lines = collect($preview['lines'] ?? [])
+            ->filter(fn (array $row): bool => (bool) ($row['eligible'] ?? false) && (float) ($row['compensationAmount'] ?? 0) > 0)
+            ->values();
+
+        $userIds = $this->extractIdList($filterPayload['lineIds'] ?? null);
+        if ($userIds !== []) {
+            $lines = $lines->filter(fn (array $row): bool => in_array((int) ($row['userId'] ?? 0), $userIds, true))->values();
+        }
+
+        $profiles = EmployeeProfile::query()
+            ->with(['bankAccounts:id,employee_id,bank_name,account_number,account_holder_name,bank_branch,is_primary'])
+            ->whereIn('user_id', $lines->pluck('userId')->filter()->all())
+            ->get()
+            ->keyBy('user_id');
+
+        $referencePeriod = sprintf('%04d-%02d', $periodYear, $periodMonth);
+        $data = [];
+        foreach ($lines as $line) {
+            $userId = (int) ($line['userId'] ?? 0);
+            $profile = $profiles->get($userId);
+            $bank = $this->resolveUserBankSnapshot($userId, (string) ($line['fullName'] ?? ''), $profile);
+            $gross = round((float) ($line['compensationAmount'] ?? 0), 2);
+
+            $data[] = [
+                HcmPayrollRun::PURPOSE_PKWT_COMPENSATION,
+                $referencePeriod,
+                'period:'.$referencePeriod,
+                (string) $userId,
+                (string) ($line['fullName'] ?? ''),
+                $bank['bankName'],
+                $bank['accountNumber'],
+                $bank['accountHolderName'],
+                $bank['bankBranch'],
+                (string) $gross,
+                '0',
+                '0',
+                (string) $gross,
+                $bank['status'],
+                $datasetChecksum,
+            ];
+        }
+
+        return ['headers' => $this->structuredPayrollExportHeaders(), 'data' => $data];
+    }
+
+    /**
+     * @param mixed $rawIds
+     * @return list<int>
+     */
+    private function extractIdList(mixed $rawIds): array
+    {
+        if (! is_array($rawIds)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map(static fn ($value): int => (int) $value, $rawIds), static fn (int $id): bool => $id > 0)));
+    }
+
+    /**
+     * @return array{bankName:string, accountNumber:string, accountHolderName:string, bankBranch:string, status:string}
+     */
+    private function resolveUserBankSnapshot(int $userId, ?string $fallbackName = null, ?EmployeeProfile $profile = null): array
+    {
+        $profile ??= EmployeeProfile::query()
+            ->with(['bankAccounts:id,employee_id,bank_name,account_number,account_holder_name,bank_branch,is_primary'])
+            ->where('user_id', $userId)
+            ->first();
+
+        $bankAccount = $profile?->relationLoaded('bankAccounts')
+            ? $profile->bankAccounts->sortByDesc('is_primary')->sortByDesc('id')->first()
+            : null;
+
+        $bankName = trim((string) ($bankAccount?->bank_name ?? $profile?->getRawOriginal('bank_name') ?? ''));
+        $accountNumber = trim((string) ($bankAccount?->account_number ?? $profile?->bank_account_no ?? ''));
+        $accountHolderName = trim((string) ($bankAccount?->account_holder_name ?? $fallbackName ?? ''));
+        $bankBranch = trim((string) ($bankAccount?->bank_branch ?? $profile?->bank_branch ?? ''));
+
+        return [
+            'bankName' => $bankName,
+            'accountNumber' => $accountNumber,
+            'accountHolderName' => $accountHolderName,
+            'bankBranch' => $bankBranch,
+            'status' => ($bankName !== '' && $accountNumber !== '') ? 'ready' : 'missing_bank_data',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $filterPayload
+     * @return list<int>
+     */
+    private function extractPayrollExportUserIds(array $filterPayload): array
+    {
+        $userIds = [];
+        if (isset($filterPayload['periods']) && is_array($filterPayload['periods'])) {
+            foreach ($filterPayload['periods'] as $period) {
+                if (is_array($period) && isset($period['userId'])) {
+                    $userIds[] = (int) $period['userId'];
                 }
             }
         }
 
-        $stream = fopen('php://temp', 'w+');
-        if (! $stream) {
-            return '';
-        }
+        return array_values(array_unique(array_filter($userIds, static fn (int $id): bool => $id > 0)));
+    }
 
-        fwrite($stream, "\xEF\xBB\xBF");
-        fputcsv($stream, [
-            'run_id',
-            'user_id',
-            'user_name',
-            'kind',
-            'component_code',
-            'component_name',
-            'amount',
-            'affects_net_pay',
-            'gross_total',
-            'deductions_total',
-            'net_total',
-            'dataset_checksum',
-        ]);
+    /**
+     * @return array{bankName:string, accountNumber:string, accountHolderName:string, bankBranch:string, status:string}
+     */
+    private function resolvePayrollLineBankSnapshot(HcmPayrollLine $line): array
+    {
+        $profile = $line->user?->employeeProfile;
+        $bankAccount = $profile?->relationLoaded('bankAccounts')
+            ? $profile->bankAccounts->sortByDesc('is_primary')->sortByDesc('id')->first()
+            : null;
 
-        fputcsv($stream, [
-            (string) $runId,
-            '',
-            '',
-            '',
-            '',
-            'METADATA',
-            '',
-            '',
-            '',
-            '',
-            '',
-            $datasetChecksum,
-        ]);
+        $bankName = trim((string) ($bankAccount?->bank_name ?? $profile?->getRawOriginal('bank_name') ?? ''));
+        $accountNumber = trim((string) ($bankAccount?->account_number ?? $profile?->bank_account_no ?? ''));
+        $accountHolderName = trim((string) ($bankAccount?->account_holder_name ?? $line->user?->name ?? ''));
+        $bankBranch = trim((string) ($bankAccount?->bank_branch ?? $profile?->bank_branch ?? ''));
 
-        fputcsv($stream, []);
+        return [
+            'bankName' => $bankName,
+            'accountNumber' => $accountNumber,
+            'accountHolderName' => $accountHolderName,
+            'bankBranch' => $bankBranch,
+            'status' => ($bankName !== '' && $accountNumber !== '') ? 'ready' : 'missing_bank_data',
+        ];
+    }
 
-        foreach ($payrollLines as $line) {
-            fputcsv($stream, [
-                (string) $runId,
-                (string) $line->user_id,
-                (string) ($line->user_name ?? ''),
-                (string) ($line->kind ?? ''),
-                (string) ($line->component_code ?? ''),
-                (string) ($line->component_name ?? ''),
-                (string) $line->amount,
-                (($line->hcm_salary_component_id !== null ? ($componentAffectsNetPay[(int) $line->hcm_salary_component_id] ?? true) : true)) ? 'yes' : 'no',
-                '',
-                '',
-                '',
-                '',
-            ]);
-        }
+    private function resolvePayrollLineUserName(HcmPayrollLine $line): string
+    {
+        $meta = is_array($line->meta) ? $line->meta : [];
 
-        // Per-employee subtotal rows
-        fputcsv($stream, []);
-        $grandGross = 0.0;
-        $grandDeductions = 0.0;
-        foreach ($employeeTotals as $uid => $totals) {
-            $net = $totals['gross'] - $totals['deductions'];
-            $grandGross += $totals['gross'];
-            $grandDeductions += $totals['deductions'];
-            fputcsv($stream, [
-                (string) $runId,
-                (string) $uid,
-                $totals['name'],
-                'SUBTOTAL',
-                '',
-                'Subtotal Karyawan',
-                '',
-                '',
-                (string) round($totals['gross'], 2),
-                (string) round($totals['deductions'], 2),
-                (string) round($net, 2),
-                '',
-            ]);
-        }
-
-        // Grand total row
-        fputcsv($stream, []);
-        fputcsv($stream, [
-            (string) $runId,
-            '',
-            '',
-            'GRAND_TOTAL',
-            '',
-            'Total Semua Karyawan',
-            '',
-            '',
-            (string) round($grandGross, 2),
-            (string) round($grandDeductions, 2),
-            (string) round($grandGross - $grandDeductions, 2),
-            $datasetChecksum,
-        ]);
-
-        rewind($stream);
-        $content = (string) stream_get_contents($stream);
-        fclose($stream);
-
-        return $content;
+        return (string) ($line->user?->name ?? $meta['userName'] ?? $meta['user_name'] ?? '');
     }
 
     public function index(Request $request): JsonResponse

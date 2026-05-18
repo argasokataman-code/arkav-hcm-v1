@@ -54,6 +54,37 @@
         }).format(Number(value || 0));
     }
 
+    function lineAffectsNetPay(line) {
+        if (!line || typeof line !== "object") return true;
+        if (line.affectsNetPay === false) return false;
+        if (line.meta && line.meta.affectsNetPay === false) return false;
+        return true;
+    }
+
+    function isOvertimeLine(line) {
+        if (!line || typeof line !== "object") return false;
+        var componentCode = String(line.componentCode || line.component_code || "").toLowerCase();
+        var componentName = String(line.componentName || line.component_name || "").toLowerCase();
+        var category = String(line.category || "").toLowerCase();
+        return category === "overtime" || componentCode === "upah_lembur" || componentName.indexOf("lembur") !== -1;
+    }
+
+    function buildEmployeeOvertimeMap(lines) {
+        return (Array.isArray(lines) ? lines : []).reduce(function (acc, line) {
+            var userId = Number(line && (line.userId || line.user_id));
+            if (!Number.isFinite(userId) || userId <= 0 || !lineAffectsNetPay(line) || !isOvertimeLine(line)) {
+                return acc;
+            }
+
+            acc[userId] = roundCurrency((acc[userId] || 0) + Number(line.amount || 0));
+            return acc;
+        }, {});
+    }
+
+    function roundCurrency(value) {
+        return Math.round(Number(value || 0) * 100) / 100;
+    }
+
     function getFilters() {
         var y = document.querySelector("[data-payroll-history-year]");
         var m = document.querySelector("[data-payroll-history-month]");
@@ -162,11 +193,15 @@
             var totals = summary.totals || {};
             var employeeBreakdown = Array.isArray(summary.employeeBreakdown) ? summary.employeeBreakdown : [];
             var componentBreakdown = Array.isArray(summary.componentBreakdown) ? summary.componentBreakdown : [];
+            var overtimeByUserId = buildEmployeeOvertimeMap(lines);
+            var overtimeSummary = summary.overtime || {};
+            var overtimeTotal = roundCurrency(totals.overtimeTotal != null ? totals.overtimeTotal : overtimeSummary.amountTotal);
 
             var employeeRows = employeeBreakdown.length
-                ? ('<div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Karyawan</th><th class="text-end">Penghasilan</th><th class="text-end">Potongan</th><th class="text-end">Net Pay</th><th class="text-end">Baris</th></tr></thead><tbody>' +
+                ? ('<div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Karyawan</th><th class="text-end">Penghasilan</th><th class="text-end">Overtime</th><th class="text-end">Potongan</th><th class="text-end">Net Pay</th><th class="text-end">Baris</th></tr></thead><tbody>' +
                     employeeBreakdown.map(function (row) {
-                        return '<tr><td>' + esc(row.userName || ("User #" + row.userId)) + '</td><td class="text-end">' + esc(formatIdr(row.earningsTotal)) + '</td><td class="text-end">' + esc(formatIdr(row.deductionsTotal)) + '</td><td class="text-end fw-medium">' + esc(formatIdr(row.netPay)) + '</td><td class="text-end">' + esc(String(row.lineCount || 0)) + '</td></tr>';
+                        var overtimeAmount = row.overtimeTotal != null ? row.overtimeTotal : overtimeByUserId[row.userId];
+                        return '<tr><td>' + esc(row.userName || ("User #" + row.userId)) + '</td><td class="text-end">' + esc(formatIdr(row.earningsTotal)) + '</td><td class="text-end text-info">' + esc(formatIdr(overtimeAmount)) + '</td><td class="text-end">' + esc(formatIdr(row.deductionsTotal)) + '</td><td class="text-end fw-medium">' + esc(formatIdr(row.netPay)) + '</td><td class="text-end">' + esc(String(row.lineCount || 0)) + '</td></tr>';
                     }).join('') +
                     '</tbody></table></div>')
                 : '<p class="text-muted small mb-0">Belum ada breakdown karyawan.</p>';
@@ -185,10 +220,12 @@
                 "Finalized by: " + esc(run.finalizedByUserName || "-") + "</div>" +
                 '<div class="row g-2 mb-3">' +
                 '<div class="col-md-3"><div class="border rounded p-2"><div class="text-muted small">Total Penghasilan</div><div class="fw-semibold">' + esc(formatIdr(totals.earningsTotal)) + '</div></div></div>' +
+                '<div class="col-md-3"><div class="border rounded p-2"><div class="text-muted small">Total Overtime</div><div class="fw-semibold text-info">' + esc(formatIdr(overtimeTotal)) + '</div></div></div>' +
                 '<div class="col-md-3"><div class="border rounded p-2"><div class="text-muted small">Total Potongan</div><div class="fw-semibold">' + esc(formatIdr(totals.deductionsTotal)) + '</div></div></div>' +
                 '<div class="col-md-3"><div class="border rounded p-2"><div class="text-muted small">Total Net Pay</div><div class="fw-semibold">' + esc(formatIdr(totals.netPay)) + '</div></div></div>' +
                 '<div class="col-md-3"><div class="border rounded p-2"><div class="text-muted small">Jumlah Baris</div><div class="fw-semibold">' + esc(String(totals.lineCount || lines.length || 0)) + '</div></div></div>' +
                 '</div>' +
+                '<div class="small text-muted mb-3">Overtime ditampilkan terpisah agar histori run konsisten dengan reconciliation export dan checklist operasional payroll.</div>' +
                 '<div class="small text-muted mb-3">Ringkasan status: ' + esc(String(run.status || '-').toUpperCase()) + ' / ' + esc(paymentStatusText(run.paymentStatus)) + '</div>' +
                 "<div class=\"mb-3\"><strong>Audit Trail</strong><br>" + trail.map(function (t) {
                     return esc(t.event || "-") + (t.at ? " @ " + esc(t.at) : "");

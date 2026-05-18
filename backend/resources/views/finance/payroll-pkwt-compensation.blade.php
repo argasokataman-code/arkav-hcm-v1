@@ -64,9 +64,9 @@
                                 </div>
                                 <div class="col-12 mt-2 d-flex flex-wrap gap-2">
                                     <button type="submit" class="btn btn-primary">Load list</button>
-                                    <button type="button" class="btn btn-outline-secondary" data-pkwt-export-evidence title="Export data reconciliation untuk bukti audit sebelum pay">Export Reconciliation</button>
+                                    <button type="button" class="btn btn-outline-secondary" data-pkwt-export-evidence title="Export data reconciliation untuk bukti audit sebelum pembayaran manual">Export Reconciliation</button>
                                     <button type="button" class="btn btn-outline-primary" data-pkwt-post-payroll>Generate draft payroll</button>
-                                    <button type="button" class="btn btn-success" data-pkwt-pay-run disabled>Pay compensation</button>
+                                    <button type="button" class="btn btn-success" data-pkwt-pay-run disabled>Tandai Dibayar Manual</button>
                                     <a href="{{ url('employee-salary') }}" class="btn btn-outline-secondary">Edit kontrak karyawan</a>
                                 </div>
                             </form>
@@ -209,7 +209,7 @@
                 <div class="modal-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <p class="text-muted small mb-0">
                         <i class="ti ti-info-circle me-1"></i>
-                        File XLSX akan dibuat dari data di atas. Setelah diunduh, tombol Pay Compensation akan terbuka.
+                        File XLSX akan dibuat dari data di atas. Setelah diunduh, tombol Tandai Dibayar Manual akan terbuka.
                     </p>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
@@ -226,16 +226,16 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Confirm PKWT Payment</h5>
+                    <h5 class="modal-title">Konfirmasi Pembayaran Manual PKWT</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="mb-2">Anda akan membayarkan seluruh kompensasi PKWT untuk periode ini.</p>
+                    <p class="mb-2">Anda akan mencatat seluruh kompensasi PKWT untuk periode ini sebagai sudah dibayar di luar aplikasi.</p>
                     <p class="mb-0 text-muted small" data-pkwt-pay-confirm-detail>Silakan konfirmasi untuk melanjutkan.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-success" data-pkwt-pay-confirm-submit>Confirm Payment</button>
+                    <button type="button" class="btn btn-success" data-pkwt-pay-confirm-submit>Simpan pembayaran manual</button>
                 </div>
             </div>
         </div>

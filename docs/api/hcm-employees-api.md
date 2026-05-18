@@ -128,6 +128,7 @@ Error `422`:
 - `DESIGNATION_DEPARTMENT_MISMATCH` — `designationId` tidak termasuk `departmentId` yang dikirim.
 - `TEAM_INACTIVE_NOT_ASSIGNABLE` — `teamId` mengacu ke team inactive.
 - `TEAM_MASTER_SELECTION_REQUIRED` — payload mengirim free-text `team` tanpa `teamId` master.
+- `EMPLOYEE_COUNT_EXCEEDED` — create employee tenant-admin ditolak jika subscription aktif/pending yang berlaku sudah mencapai limit `max_employees`; validasi dilakukan transaction-safe agar race condition antar create/bulk tidak meloloskan over-capacity.
 
 ### GET `/employees/{id}`
 
@@ -270,6 +271,9 @@ RBAC:
 
 Behavior:
 - download `employee-bulk-template.xlsx`
+- diblokir `422 EMPLOYEE_BULK_ORG_SETUP_REQUIRED` jika company aktif belum memiliki minimal 1 `department` dan 1 `designation`
+- workbook sekarang multi-sheet dan menyertakan referensi master `ref_departments`, `ref_designations`, `ref_teams`, `ref_banks`, `ref_enums`
+- sheet utama `employee_bulk_data` menyediakan kolom berpasangan `department_id` + `department` serta `designation_id` + `designation` untuk mempermudah import berbasis ID atau nama master
 
 ### POST `/employees/bulk-upload`
 
@@ -284,17 +288,19 @@ Success `200`:
 
 Error `422`:
 - `BULK_UPLOAD_VALIDATION_FAILED` — file bulk dibatalkan secara **all-or-nothing** jika ada **satu saja** baris tidak valid; tidak ada perubahan yang disimpan.
+- `EMPLOYEE_BULK_ORG_SETUP_REQUIRED` — upload diblokir jika company aktif belum memiliki minimal 1 `department` dan 1 `designation`.
+- `EMPLOYEE_COUNT_EXCEEDED` — create row baru ditolak jika subscription aktif/pending yang berlaku sudah penuh; validasi dilakukan di dalam transaksi dengan row lock company.
 
 Catatan:
 - parsing menerima `employee_uuid` atau `email` untuk match existing
 - create baru butuh `name,email,password,confirm_password`
 - validasi enum sekarang ketat untuk `employment_status`, `contract_type`, `contract_status`, `gender`, `marital_status`, `religion`, `bank_name`, `tax_status`
 - kolom opsional yang sudah dipakai importer mencakup `employee_type`, `start_date`, `contract_type`, `contract_status`, `contract_start_date`, `contract_end_date`, `probation_end_date`, `nik`, `place_of_birth`, `date_of_birth`, `gender`, `marital_status`, `religion`, `nationality`, `bank_account_holder_name`, `npwp`, `tax_status`, `ptkp_status`, `bpjs_kesehatan_no`, `bpjs_ketenagakerjaan_no`
-- `department_id`, `designation_id` (integer, harus ada di master); `designation` teks tetap didukung; kombinasi id divalidasi seperti API POST
+- `department_id`, `department`, `designation_id`, `designation` didukung; importer dapat resolve master dari nama bila ID kosong, dan akan menolak payload jika kolom ID + nama mengacu ke master berbeda
 - Jika `team_id` dikirim, importer memverifikasi team tenant aktif dan status team harus `active`.
 - Jika hanya `team` (nama) dikirim, importer akan resolve ke master team tenant aktif bila nama match; jika match ke team inactive maka baris ditolak.
 - setelah import sukses, snapshot legacy `employee_profiles` dan tabel riwayat relasional akan di-sync bersamaan.
-- template saat ini masih **single-sheet**; final polish berikutnya bisa dinaikkan menjadi template multi-sheet dengan referensi master/dropdown.
+- template runtime saat ini sudah **multi-sheet** dengan dropdown referensi master tenant aktif.
 
 ## Salary bulk aliases (route duplikat)
 

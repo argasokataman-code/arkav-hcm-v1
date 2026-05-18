@@ -20,6 +20,45 @@ class HcmAiChatSubscriptionFeaturesIntentTest extends TestCase
         ], $companyId);
     }
 
+    public function test_ai_chat_requires_ai_assistant_feature_for_tenant_admin(): void
+    {
+        $auth = $this->createHcmAdminWithCompany([
+            'email' => 'ai-feature-gate-'.time().'@example.com',
+        ]);
+
+        $package = Package::factory()->create([
+            'code' => 'starter',
+            'name' => 'Starter',
+        ]);
+
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'employee_management',
+            'feature_name' => 'Employee Directory',
+            'limit' => null,
+        ]);
+
+        Subscription::query()->create([
+            'company_id' => $auth['company_id'],
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'auto_renew' => true,
+            'billing_cycle' => 'monthly',
+            'amount' => 150000,
+        ]);
+
+        $response = $this->postJson('/v1/hcm/ai/chat', [
+            'message' => 'fitur paket saya apa saja?',
+        ], $this->headers($auth['token'], $auth['company_id']));
+
+        $response->assertForbidden()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'FEATURE_DISABLED');
+    }
+
     public function test_current_subscription_features_are_loaded_from_runtime_package_state(): void
     {
         $auth = $this->createHcmAdminWithCompany([
@@ -43,6 +82,13 @@ class HcmAiChatSubscriptionFeaturesIntentTest extends TestCase
             'feature_code' => 'attendance',
             'feature_name' => 'Attendance Dashboard',
             'limit' => 250,
+        ]);
+
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'ai_assistant',
+            'feature_name' => 'AI Assistant',
+            'limit' => null,
         ]);
 
         PackageFeature::query()->create([
@@ -93,9 +139,10 @@ class HcmAiChatSubscriptionFeaturesIntentTest extends TestCase
             ->assertJsonPath('data.sources.0.label', 'Current Subscription Features');
 
         $this->assertStringContainsString('"package_name": "Enterprise"', $capturedContext);
-        $this->assertStringContainsString('"feature_count": 2', $capturedContext);
+        $this->assertStringContainsString('"feature_count": 3', $capturedContext);
         $this->assertStringContainsString('"employee_management"', $capturedContext);
         $this->assertStringContainsString('"attendance"', $capturedContext);
+        $this->assertStringContainsString('"ai_assistant"', $capturedContext);
         $this->assertStringNotContainsString('"legacy_hidden_module"', $capturedContext);
     }
 }

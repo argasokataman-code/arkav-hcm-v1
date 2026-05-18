@@ -29,6 +29,7 @@ Behavior:
 - Source of truth dibentuk dinamis dari runtime repository (feature-gated routes + klasifikasi runtime docs), lalu dinormalisasi server-side agar UI selalu mengikuti fitur nyata yang aktif di codebase.
 - Source of truth dibentuk dinamis dari runtime repository (feature-gated middleware + inferensi route URI aktif + klasifikasi runtime docs), lalu dinormalisasi server-side agar UI selalu mengikuti fitur nyata yang aktif di codebase.
 - Modul governance/lifecycle/collaboration non-MVP yang aktif di route (contoh allowance governance, BPJS governance, overtime, promotion/resignation/termination, data privacy, notes/faq) ikut muncul sebagai feature catalog add-on.
+- Add-on runtime yang hanya aktif lewat package juga tetap ikut muncul bila terdaftar di klasifikasi runtime docs, termasuk `ai_assistant`.
 - Mengembalikan mapping tegas dua tier agar composer package tidak drift:
   - `meta.mvp_feature_codes`: fitur inti paket MVP.
   - `meta.addon_feature_codes`: semua fitur katalog yang berada di luar MVP.
@@ -60,8 +61,8 @@ Success `200` (ringkas):
   ],
   "meta": {
     "mvp_feature_codes": ["max_employees", "employee_management", "attendance", "leave_management", "holiday_calendar", "payroll", "payroll_components", "payroll_thr", "notifications", "trial_billing_dashboard", "tax_governance"],
-    "addon_feature_codes": ["employee_document_center", "employee_lifecycle", "attendance_shift_scheduling", "leave_approval_flow", "performance", "goal_tracking", "performance_goal_tracking", "training", "asset_management", "tickets"],
-    "total_feature_codes": 21
+    "addon_feature_codes": ["employee_document_center", "employee_lifecycle", "attendance_shift_scheduling", "leave_approval_flow", "performance", "goal_tracking", "performance_goal_tracking", "training", "asset_management", "tickets", "ai_assistant"],
+    "total_feature_codes": 22
   }
 }
 ```

@@ -133,5 +133,63 @@ class EmployeeLimitEnforcementTest extends TestCase
         $this->assertFalse($result['canAdd']);
         $this->assertStringContainsString('No active subscription', $result['message']);
     }
+
+    public function test_employee_limit_validator_reads_updated_active_package_limit_automatically(): void
+    {
+        $company = Company::factory()->create(['code' => 'AUTOUPGRADE1']);
+
+        $starter = Package::create([
+            'name' => 'Starter',
+            'code' => 'starter-auto',
+            'monthly_price' => 10.00,
+            'yearly_price' => 100.00,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+        $pro = Package::create([
+            'name' => 'Pro',
+            'code' => 'pro-auto',
+            'monthly_price' => 20.00,
+            'yearly_price' => 200.00,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+
+        PackageFeature::create([
+            'package_uuid' => $starter->uuid,
+            'feature_code' => 'max_employees',
+            'feature_name' => 'Maximum Employees',
+            'limit' => 1,
+        ]);
+        PackageFeature::create([
+            'package_uuid' => $pro->uuid,
+            'feature_code' => 'max_employees',
+            'feature_name' => 'Maximum Employees',
+            'limit' => 5,
+        ]);
+
+        $subscription = Subscription::create([
+            'company_id' => $company->id,
+            'package_uuid' => $starter->uuid,
+            'plan_code' => $starter->code,
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 10.00,
+        ]);
+
+        $validator = app(EmployeeCountValidator::class);
+
+        $this->assertSame(1, $validator->getPlanEmployeeLimit($company));
+
+        $subscription->update([
+            'package_uuid' => $pro->uuid,
+            'plan_code' => $pro->code,
+            'amount' => 20.00,
+        ]);
+
+        $this->assertSame(5, $validator->getPlanEmployeeLimit($company->fresh()));
+    }
 }
 

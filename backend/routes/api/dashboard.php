@@ -35,6 +35,6 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::delete('/activity-manual/{id}', [HcmActivityController::class, 'destroyManual'])->whereNumber('id');
 
     // AI assistant
-    Route::post('/ai/chat', [HcmAiChatController::class, 'chat'])->middleware('throttle:30,1');
-    Route::get('/ai/intents', [HcmAiChatController::class, 'intents']);
+    Route::post('/ai/chat', [HcmAiChatController::class, 'chat'])->middleware(['hcm.api.feature:ai_assistant', 'throttle:30,1']);
+    Route::get('/ai/intents', [HcmAiChatController::class, 'intents'])->middleware('hcm.api.feature:ai_assistant');
 });

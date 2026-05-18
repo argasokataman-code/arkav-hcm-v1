@@ -224,6 +224,7 @@ Contoh utama:
 1. AI Assistant
 - Dokumen: [docs/features/ai-assistant/README.md](docs/features/ai-assistant/README.md)
 - Posisi: add-on cerdas lintas intent.
+- ai_assistant
 
 2. Reporting Advanced
 - Dokumen: [docs/features/reporting/README.md](docs/features/reporting/README.md)

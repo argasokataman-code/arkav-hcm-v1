@@ -187,6 +187,7 @@ class PackageServiceTest extends TestCase
         $this->assertContains('allowance_governance', $allCodes);
         $this->assertContains('bpjs_governance', $allCodes);
         $this->assertContains('overtime', $allCodes);
+        $this->assertContains('ai_assistant', $allCodes);
         $this->assertContains('promotion', $allCodes);
         $this->assertContains('resignation', $allCodes);
         $this->assertContains('termination', $allCodes);
@@ -202,9 +203,13 @@ class PackageServiceTest extends TestCase
         $addonFeature = $groups->flatMap(function (array $group) {
             return collect($group['features'] ?? []);
         })->firstWhere('code', 'tickets');
+        $aiAssistantFeature = $groups->flatMap(function (array $group) {
+            return collect($group['features'] ?? []);
+        })->firstWhere('code', 'ai_assistant');
 
         $this->assertSame('mvp', $mvpFeature['tier'] ?? null);
         $this->assertSame('addon', $addonFeature['tier'] ?? null);
+        $this->assertSame('addon', $aiAssistantFeature['tier'] ?? null);
 
         $customGroup = $groups->firstWhere('module', 'custom');
         $this->assertNull($customGroup);

@@ -11,6 +11,7 @@
         $footerAuthUser = request()->user()
             ?: auth()->user()
             ?: optional(\App\Support\ArcavAccessTokenResolver::validTokenFromRequest(request()))->user;
+        $footerActiveCompany = request()->attributes->get('activeCompany');
         $footerActiveCompanyId = (int) (request()->attributes->get('activeCompanyId') ?? 0);
         $footerIsGlobalHcmAdmin = $footerAuthUser ? $footerAuthUser->isGlobalHcmAdmin() : false;
         $footerIsHcmAdmin = $footerAuthUser
@@ -18,6 +19,11 @@
                 ? $footerAuthUser->isHcmAdminForCompany($footerActiveCompanyId)
                 : $footerAuthUser->isHcmAdmin())
             : false;
+        $footerActiveCompanySubscription = $footerActiveCompany instanceof \App\Models\Company
+            ? $footerActiveCompany->activeSubscription()
+            : null;
+        $footerHasAiAssistantFeature = $footerIsGlobalHcmAdmin
+            || (bool) ($footerActiveCompanySubscription?->package?->hasFeature('ai_assistant') ?? false);
         $footerPermissionCodes = [];
 
         if ($footerAuthUser) {
@@ -307,7 +313,9 @@
 <script src="{{ URL::asset('build/js/core/auth-logout.js') }}"></script>
 <script src="{{ URL::asset('build/js/notifications/notification-inbox-data.js') }}"></script>
 <script src="{{ URL::asset('build/js/notifications/global-search-data.js') }}?v={{ file_exists(public_path('build/js/notifications/global-search-data.js')) ? filemtime(public_path('build/js/notifications/global-search-data.js')) : time() }}"></script>
+@if ($footerHasAiAssistantFeature)
 <script src="{{ URL::asset('build/js/notifications/ai-chat-widget.js') }}?v={{ file_exists(public_path('build/js/notifications/ai-chat-widget.js')) ? filemtime(public_path('build/js/notifications/ai-chat-widget.js')) : time() }}"></script>
+@endif
 <script src="{{ URL::asset('build/js/employees/employees-view-toggle.js') }}"></script>
 <script src="{{ URL::asset('build/js/employees/module-loaders.js') }}?v={{ file_exists(public_path('build/js/employees/module-loaders.js')) ? filemtime(public_path('build/js/employees/module-loaders.js')) : time() }}"></script>
 <script src="{{ URL::asset('build/js/employees/employees-data.js') }}?v={{ file_exists(public_path('build/js/employees/employees-data.js')) ? filemtime(public_path('build/js/employees/employees-data.js')) : time() }}"></script>

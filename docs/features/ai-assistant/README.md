@@ -10,6 +10,8 @@
 AI Assistant membantu user HRMS menjawab pertanyaan operasional sehari-hari **langsung dari data aplikasi** tanpa user harus membuka halaman satu per satu.  
 Contoh: "Berapa sisa cuti saya?" → AI menjawab dari data balance leave aktual user tersebut.
 
+Feature paket runtime untuk modul ini adalah `ai_assistant`. Jika feature ini tidak aktif di paket company, widget chat dan endpoint `/v1/hcm/ai/*` wajib tidak tersedia untuk tenant biasa.
+
 **Perbedaan kunci dari AI umum:**
 - AI **tidak** menjawab dari pengetahuan umum/bebas.
 - AI **hanya** boleh mengakses data yang sudah diizinkan untuk user dan tenant aktif.

@@ -102,6 +102,7 @@ class PackageFeatureCatalogRuntimeService
         'training' => ['name' => 'Training'],
         'asset_management' => ['name' => 'Asset Management'],
         'tickets' => ['name' => 'Tickets'],
+        'ai_assistant' => ['name' => 'AI Assistant'],
         'notifications' => ['name' => 'Notifications'],
         'trial_billing_dashboard' => ['name' => 'Trial Billing Dashboard'],
         'tax_governance' => ['name' => 'Tax Governance'],
@@ -715,6 +716,10 @@ class PackageFeatureCatalogRuntimeService
 
         if ($code === 'asset_management' || Str::startsWith($code, 'asset_')) {
             return 'assets';
+        }
+
+        if ($code === 'ai_assistant') {
+            return 'platform';
         }
 
         if ($code === 'tickets') {

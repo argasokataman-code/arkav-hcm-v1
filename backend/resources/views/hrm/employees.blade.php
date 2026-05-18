@@ -72,7 +72,7 @@
                             </button>
                         </div>
                     <div class="me-2 mb-2">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#employee_bulk_upload" class="btn btn-outline-primary d-flex align-items-center">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#employee_bulk_upload" class="btn btn-outline-primary d-flex align-items-center" data-employee-bulk-upload-open>
                             <i class="ti ti-upload me-2"></i>Bulk Upload Employee
                         </a>
                     </div>
@@ -353,7 +353,7 @@
                             Gunakan template Excel resmi untuk update/create data employee secara massal berdasarkan identifier employee (kolom teknis: employee_uuid) atau email.
                         </p>
                         <div class="d-flex flex-wrap gap-2 mb-3">
-                            <a href="{{ url('/v1/hcm/employees/bulk-template') }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener noreferrer">
+                            <a href="{{ url('/v1/hcm/employees/bulk-template') }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener noreferrer" data-employee-bulk-template-link>
                                 <i class="ti ti-download me-1"></i>Download latest template
                             </a>
                             <span class="badge bg-soft-info text-info align-self-center">Multi-sheet workbook + master references</span>
@@ -364,7 +364,8 @@
                             <small class="text-muted d-block mt-1">Format didukung: `.xlsx`, `.xls`, `.csv`.</small>
                         </div>
                         <div class="alert alert-light border mb-3">
-                            <strong>Kolom penting:</strong> employee_uuid, name, email, department_id, designation_id, team_id, employment_status, contract_type, contract_status, probation_end_date, tax_status, dll.<br>
+                            <strong>Kolom penting:</strong> employee_uuid, name, email, department, designation, department_id, designation_id, team_id, employment_status, contract_type, contract_status, probation_end_date, tax_status, dll.<br>
+                            Kolom <strong>department</strong> dan <strong>designation</strong> sekarang tersedia sebagai dropdown berdasarkan master aktif. Kolom ID lama tetap bisa dipakai untuk kompatibilitas.<br>
                             Untuk create baru wajib `name`, `email`, `password`, `confirm_password`. Jika ada 1 baris invalid, seluruh import dibatalkan agar data tetap konsisten.
                         </div>
                         <div class="alert d-none mb-0" data-employee-bulk-upload-results></div>
@@ -374,6 +375,32 @@
                         <button type="submit" class="btn btn-primary">Upload</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="employee_bulk_org_required" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Lengkapi Master Organisasi</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">
+                        Bulk employee template membutuhkan master organisasi aktif supaya dropdown department dan designation di workbook bisa terisi dengan benar.
+                    </p>
+                    <div class="alert alert-warning mb-3" data-employee-bulk-org-required-message>
+                        Isi minimal 1 department dan 1 designation sebelum download template atau upload bulk employee.
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{{ url('/departments') }}" class="btn btn-outline-primary btn-sm">Buka Departments</a>
+                        <a href="{{ url('/designations') }}" class="btn btn-outline-primary btn-sm">Buka Designations</a>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Tutup</button>
+                </div>
             </div>
         </div>
     </div>

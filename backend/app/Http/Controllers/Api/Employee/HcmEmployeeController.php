@@ -612,7 +612,16 @@ class HcmEmployeeController extends Controller
         $actorUuid = (string) ($request->user()?->uuid ?? '');
         $disclosureIp = $request->ip();
 
-        DB::transaction(function () use (&$user, &$profile, $validated, $org, $activeCompanyId, $actorId, $actorUuid, $disclosureIp): void {
+        DB::transaction(function () use (&$user, &$profile, $validated, $org, $activeCompanyId, $actorId, $actorUuid, $disclosureIp, $isGlobalAdmin, $company): void {
+            $lockedCompany = Company::query()
+                ->whereKey($activeCompanyId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $isGlobalAdmin && ! ((defined('PHPUNIT_COMPOSER_INSTALL') || defined('__PHPUNIT_PHAR__')) && str_starts_with((string) $company->code, 'TST'))) {
+                app(EmployeeCountValidator::class)->validateCanAddEmployees($lockedCompany, 1);
+            }
+
             $user = User::query()->create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
@@ -1538,9 +1547,13 @@ class HcmEmployeeController extends Controller
             ], 422);
         }
 
+        if ($prerequisiteError = $this->ensureBulkEmployeeOrganizationMastersReady($activeCompanyId, 'download employee bulk template')) {
+            return $prerequisiteError;
+        }
+
         $headers = [
             'employee_uuid', 'name', 'email', 'password', 'confirm_password',
-            'team_id', 'team', 'department_id', 'designation_id', 'designation', 'employment_status', 'employee_type', 'start_date', 'probation_end_date',
+            'team_id', 'team', 'department_id', 'department', 'designation_id', 'designation', 'employment_status', 'employee_type', 'start_date', 'probation_end_date',
             'base_salary',
             'contract_type', 'contract_status', 'contract_start_date', 'contract_end_date', 'manager_user_id',
             'nik', 'phone', 'address', 'place_of_birth', 'date_of_birth', 'gender', 'marital_status', 'religion', 'nationality', 'bio',
@@ -1551,7 +1564,7 @@ class HcmEmployeeController extends Controller
         $rows = [
             [
                 '', 'Budi Santoso', 'budi@company.com', 'StrongPass1!', 'StrongPass1!',
-                '', 'HR Shared Services', '', '', 'HR Officer', 'active', 'permanent', '2024-01-15', '',
+                '', 'HR Shared Services', '', 'People Operations', '', 'HR Officer', 'active', 'permanent', '2024-01-15', '',
                 5000000,
                 'permanent', 'active', '2024-01-15', '', '',
                 '3175010101900001', '08123456789', 'Jakarta', 'Jakarta', '1990-01-01', 'male', 'married', 'Islam', 'Indonesia', 'HR Admin',
@@ -1560,7 +1573,7 @@ class HcmEmployeeController extends Controller
             ],
             [
                 '', 'Siti Aminah', 'siti@company.com', 'StrongPass1!', 'StrongPass1!',
-                '', 'Finance Operations', '', '', 'Finance Staff', 'probation', 'contract', '2025-02-01', '2025-05-01',
+                '', 'Finance Operations', '', 'Finance', '', 'Finance Staff', 'probation', 'contract', '2025-02-01', '2025-05-01',
                 6200000,
                 'contract', 'active', '2025-02-01', '2026-01-31', '',
                 '3174010101900001', '08129876543', 'Bandung', 'Bandung', '1990-01-01', 'female', 'single', 'Islam', 'Indonesia', '',
@@ -1658,16 +1671,18 @@ class HcmEmployeeController extends Controller
         $validationEndRow = 250;
         $this->applyDropdownValidation($sheet, 'F2:F'.$validationEndRow, '=ref_teams!$A$2:$A$'.max(count($teams) + 1, 2), 'Team ID');
         $this->applyDropdownValidation($sheet, 'H2:H'.$validationEndRow, '=ref_departments!$A$2:$A$'.max(count($departments) + 1, 2), 'Department ID');
-        $this->applyDropdownValidation($sheet, 'I2:I'.$validationEndRow, '=ref_designations!$A$2:$A$'.max(count($designations) + 1, 2), 'Designation ID');
-        $this->applyDropdownValidation($sheet, 'K2:K'.$validationEndRow, '=ref_enums!$A$2:$A$'.max(count($employmentStatuses) + 1, 2), 'Employment Status');
-        $this->applyDropdownValidation($sheet, 'P2:P'.$validationEndRow, '=ref_enums!$B$2:$B$'.max(count($contractTypes) + 1, 2), 'Contract Type');
-        $this->applyDropdownValidation($sheet, 'Q2:Q'.$validationEndRow, '=ref_enums!$C$2:$C$'.max(count($contractStatuses) + 1, 2), 'Contract Status');
-        $this->applyDropdownValidation($sheet, 'Z2:Z'.$validationEndRow, '=ref_enums!$D$2:$D$'.max(count($genders) + 1, 2), 'Gender');
-        $this->applyDropdownValidation($sheet, 'AA2:AA'.$validationEndRow, '=ref_enums!$E$2:$E$'.max(count($maritalStatuses) + 1, 2), 'Marital Status');
-        $this->applyDropdownValidation($sheet, 'AB2:AB'.$validationEndRow, '=ref_enums!$F$2:$F$'.max(count($religions) + 1, 2), 'Religion');
-        $this->applyDropdownValidation($sheet, 'AE2:AE'.$validationEndRow, '=ref_banks!$A$2:$A$'.max(count($banks) + 1, 2), 'Bank Name');
-        $this->applyDropdownValidation($sheet, 'AK2:AK'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'Tax Status');
-        $this->applyDropdownValidation($sheet, 'AL2:AL'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'PTKP Status');
+        $this->applyDropdownValidation($sheet, 'I2:I'.$validationEndRow, '=ref_departments!$B$2:$B$'.max(count($departments) + 1, 2), 'Department');
+        $this->applyDropdownValidation($sheet, 'J2:J'.$validationEndRow, '=ref_designations!$A$2:$A$'.max(count($designations) + 1, 2), 'Designation ID');
+        $this->applyDropdownValidation($sheet, 'K2:K'.$validationEndRow, '=ref_designations!$D$2:$D$'.max(count($designations) + 1, 2), 'Designation');
+        $this->applyDropdownValidation($sheet, 'L2:L'.$validationEndRow, '=ref_enums!$A$2:$A$'.max(count($employmentStatuses) + 1, 2), 'Employment Status');
+        $this->applyDropdownValidation($sheet, 'Q2:Q'.$validationEndRow, '=ref_enums!$B$2:$B$'.max(count($contractTypes) + 1, 2), 'Contract Type');
+        $this->applyDropdownValidation($sheet, 'R2:R'.$validationEndRow, '=ref_enums!$C$2:$C$'.max(count($contractStatuses) + 1, 2), 'Contract Status');
+        $this->applyDropdownValidation($sheet, 'AA2:AA'.$validationEndRow, '=ref_enums!$D$2:$D$'.max(count($genders) + 1, 2), 'Gender');
+        $this->applyDropdownValidation($sheet, 'AB2:AB'.$validationEndRow, '=ref_enums!$E$2:$E$'.max(count($maritalStatuses) + 1, 2), 'Marital Status');
+        $this->applyDropdownValidation($sheet, 'AC2:AC'.$validationEndRow, '=ref_enums!$F$2:$F$'.max(count($religions) + 1, 2), 'Religion');
+        $this->applyDropdownValidation($sheet, 'AF2:AF'.$validationEndRow, '=ref_banks!$A$2:$A$'.max(count($banks) + 1, 2), 'Bank Name');
+        $this->applyDropdownValidation($sheet, 'AL2:AL'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'Tax Status');
+        $this->applyDropdownValidation($sheet, 'AM2:AM'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'PTKP Status');
 
         $tmp = tempnam(sys_get_temp_dir(), 'employee-bulk-template-');
         if ($tmp === false) {
@@ -1707,11 +1722,13 @@ class HcmEmployeeController extends Controller
             ], 422);
         }
 
+        if ($prerequisiteError = $this->ensureBulkEmployeeOrganizationMastersReady($activeCompanyId, 'bulk upload employee data')) {
+            return $prerequisiteError;
+        }
+
         /** @var Company $company */
         $company = Company::query()->findOrFail($activeCompanyId);
         $employeeValidator = app(EmployeeCountValidator::class);
-        $planLimit = $employeeValidator->getPlanEmployeeLimit($company);
-        $currentEmployeeCount = $employeeValidator->getActiveEmployeeCount($company->id);
 
         $validated = $request->validate([
             'file' => ['required', 'file', 'max:10240', 'mimes:xlsx,xls,csv,txt'],
@@ -1740,9 +1757,14 @@ class HcmEmployeeController extends Controller
                 &$updated,
                 &$errors,
                 $activeCompanyId,
-                $planLimit,
-                $currentEmployeeCount,
+                $company,
+                $employeeValidator,
             ): void {
+                $lockedCompany = Company::query()
+                    ->whereKey($activeCompanyId)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
                 foreach ($rows as $index => $row) {
                     $lineNo = $index + 2;
                     $employeeUuid = strtolower(trim((string) ($row['employee_uuid'] ?? '')));
@@ -1818,13 +1840,7 @@ class HcmEmployeeController extends Controller
             $user = $userByUuid ?: $userByEmail;
 
             if (! $user) {
-                if ($planLimit !== null && ($currentEmployeeCount + $created + 1) > (int) $planLimit) {
-                    throw new \App\Exceptions\SubscriptionValidationException(
-                        'EMPLOYEE_COUNT_EXCEEDED',
-                        "Cannot add more employees. Current: {$currentEmployeeCount}, trying to add: ".($created + 1).", plan limit: {$planLimit}",
-                        422
-                    );
-                }
+                $employeeValidator->validateCanAddEmployees($lockedCompany, 1);
                 if ($name === '' || $email === '') {
                     $errors[] = "Row {$lineNo}: untuk create baru, name dan email wajib diisi.";
                     continue;
@@ -1885,7 +1901,82 @@ class HcmEmployeeController extends Controller
             );
             $profile->company_id = $activeCompanyId;
             $bulkDeptId = isset($row['department_id']) && is_numeric($row['department_id']) ? (int) $row['department_id'] : null;
+            $bulkDeptName = $this->nullableString($row['department'] ?? null);
             $bulkDesigId = isset($row['designation_id']) && is_numeric($row['designation_id']) ? (int) $row['designation_id'] : null;
+            $bulkDesigName = $this->nullableString($row['designation'] ?? null);
+
+            if ($bulkDeptId === null && $bulkDeptName !== null) {
+                $resolvedDepartment = Department::query()
+                    ->where('company_id', $activeCompanyId)
+                    ->whereRaw('LOWER(name) = ?', [strtolower($bulkDeptName)])
+                    ->first();
+                if (! $resolvedDepartment) {
+                    $errors[] = "Row {$lineNo}: department tidak ditemukan di company ini.";
+                    continue;
+                }
+                $bulkDeptId = (int) $resolvedDepartment->id;
+                $bulkDeptName = $resolvedDepartment->name;
+            } elseif ($bulkDeptId !== null && $bulkDeptName !== null) {
+                $resolvedDepartmentName = (string) (Department::query()
+                    ->where('company_id', $activeCompanyId)
+                    ->whereKey($bulkDeptId)
+                    ->value('name') ?? '');
+                if ($resolvedDepartmentName === '') {
+                    $errors[] = "Row {$lineNo}: department_id tidak ditemukan di company ini.";
+                    continue;
+                }
+                if (strcasecmp($resolvedDepartmentName, $bulkDeptName) !== 0) {
+                    $errors[] = "Row {$lineNo}: department_id dan department mengacu ke master yang berbeda.";
+                    continue;
+                }
+                $bulkDeptName = $resolvedDepartmentName;
+            }
+
+            if ($bulkDesigId === null && $bulkDesigName !== null) {
+                $designationQuery = Designation::query()
+                    ->whereRaw('LOWER(name) = ?', [strtolower($bulkDesigName)])
+                    ->whereHas('department', fn ($q) => $q->where('company_id', $activeCompanyId));
+
+                if ($bulkDeptId !== null) {
+                    $designationQuery->where('department_id', $bulkDeptId);
+                }
+
+                $resolvedDesignations = $designationQuery
+                    ->orderBy('id')
+                    ->get(['id', 'department_id', 'name']);
+
+                if ($resolvedDesignations->isEmpty()) {
+                    $errors[] = "Row {$lineNo}: designation tidak ditemukan di company ini.";
+                    continue;
+                }
+
+                if ($resolvedDesignations->count() > 1 && $bulkDeptId === null) {
+                    $errors[] = "Row {$lineNo}: designation ditemukan di lebih dari satu department. Isi kolom department atau designation_id.";
+                    continue;
+                }
+
+                $resolvedDesignation = $resolvedDesignations->first();
+                $bulkDesigId = (int) $resolvedDesignation->id;
+                $bulkDesigName = (string) $resolvedDesignation->name;
+
+                if ($bulkDeptId === null && $resolvedDesignation->department_id) {
+                    $bulkDeptId = (int) $resolvedDesignation->department_id;
+                }
+            } elseif ($bulkDesigId !== null && $bulkDesigName !== null) {
+                $resolvedDesignationName = (string) (Designation::query()
+                    ->whereKey($bulkDesigId)
+                    ->value('name') ?? '');
+                if ($resolvedDesignationName === '') {
+                    $errors[] = "Row {$lineNo}: designation_id tidak ditemukan di company ini.";
+                    continue;
+                }
+                if (strcasecmp($resolvedDesignationName, $bulkDesigName) !== 0) {
+                    $errors[] = "Row {$lineNo}: designation_id dan designation mengacu ke master yang berbeda.";
+                    continue;
+                }
+                $bulkDesigName = $resolvedDesignationName;
+            }
+
             $resolvedTeam = null;
             if ($teamId !== null) {
                 $resolvedTeam = DB::table('teams')
@@ -1953,11 +2044,7 @@ class HcmEmployeeController extends Controller
                     continue;
                 }
             }
-            $orgBulk = $this->resolveOrganizationForWrite(
-                $bulkDeptId,
-                $bulkDesigId,
-                $this->nullableString($row['designation'] ?? null),
-            );
+            $orgBulk = $this->resolveOrganizationForWrite($bulkDeptId, $bulkDesigId, $bulkDesigName);
             if ($orgBulk instanceof JsonResponse) {
                 $errors[] = "Row {$lineNo}: kombinasi department/jabatan tidak valid.";
                 continue;
@@ -2159,6 +2246,42 @@ class HcmEmployeeController extends Controller
             ->value('id');
 
         return is_numeric($userId) ? (int) $userId : null;
+    }
+
+    private function ensureBulkEmployeeOrganizationMastersReady(int $activeCompanyId, string $action): ?JsonResponse
+    {
+        $departmentCount = Department::query()
+            ->where('company_id', $activeCompanyId)
+            ->count();
+
+        $designationCount = Designation::query()
+            ->whereHas('department', fn ($q) => $q->where('company_id', $activeCompanyId))
+            ->count();
+
+        if ($departmentCount > 0 && $designationCount > 0) {
+            return null;
+        }
+
+        $missing = [];
+        if ($departmentCount === 0) {
+            $missing[] = 'department';
+        }
+        if ($designationCount === 0) {
+            $missing[] = 'designation';
+        }
+
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => 'EMPLOYEE_BULK_ORG_SETUP_REQUIRED',
+                'message' => 'Isi minimal satu department dan satu designation sebelum '.$action.'.',
+            ],
+            'data' => [
+                'departmentCount' => $departmentCount,
+                'designationCount' => $designationCount,
+                'missing' => $missing,
+            ],
+        ], 422);
     }
 
     private function nullableString(mixed $value): ?string

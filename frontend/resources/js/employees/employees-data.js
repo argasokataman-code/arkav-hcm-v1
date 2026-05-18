@@ -929,6 +929,12 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
             formatApiError: formatApiError,
             escapeHtml: escapeHtml,
             loadEmployeesData: loadEmployeesData,
+            getOrganizationReferenceSnapshot: function () {
+                return {
+                    departments: orgDepartmentsFlat.slice(),
+                    designations: orgDesignationsFlat.slice(),
+                };
+            },
         };
 
         if (moduleFn) {

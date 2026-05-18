@@ -2148,6 +2148,8 @@ paths:
       summary: Create employee
       description: |
         Requires active tenant context (`activeCompanyId`).
+        Tenant admins are validated transactionally against the active company's subscription employee limit.
+        When the limit is full, runtime returns `422 EMPLOYEE_COUNT_EXCEEDED`.
         Global Super Admin (`users.is_super_admin = 1`) can create employee lintas tenant without being blocked by subscription employee-limit validation (`EMPLOYEE_COUNT_EXCEEDED`).
       security:
         - bearerAuth: []
@@ -2235,6 +2237,10 @@ paths:
     get:
       tags: [HCM]
       summary: Download employee bulk import template
+      description: |
+        Returns the tenant-scoped employee workbook template.
+        The template is only available when the active company already has at least one department and one designation master.
+        The primary sheet includes paired organization columns for both ID and name-based imports: `department_id` + `department`, `designation_id` + `designation`.
       security:
         - bearerAuth: []
       responses:
@@ -2249,11 +2255,29 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+        '422':
+          description: Organization master prerequisite is missing for bulk employee import
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                orgSetupRequired:
+                  value:
+                    success: false
+                    error:
+                      code: EMPLOYEE_BULK_ORG_SETUP_REQUIRED
+                      message: Isi minimal satu department dan satu designation sebelum download employee bulk template.
 
   /v1/hcm/employees/bulk-upload:
     post:
       tags: [HCM]
       summary: Bulk create/update employees from spreadsheet
+      description: |
+        Accepts XLSX/XLS/CSV/TXT employee imports for the active tenant.
+        Existing employees are matched by `employee_uuid` or `email`.
+        Organization fields may be provided by ID or master name using `department_id`/`department` and `designation_id`/`designation`.
+        Import is blocked until the active company has at least one department and one designation.
       security:
         - bearerAuth: []
       requestBody:
@@ -2302,6 +2326,12 @@ paths:
                     error:
                       code: EMPLOYEE_COUNT_EXCEEDED
                       message: "Cannot add more employees. Current: 10, trying to add: 11, plan limit: 10"
+                orgSetupRequired:
+                  value:
+                    success: false
+                    error:
+                      code: EMPLOYEE_BULK_ORG_SETUP_REQUIRED
+                      message: Isi minimal satu department dan satu designation sebelum bulk upload employee data.
 
   /v1/hcm/billing/checkout:
     post:

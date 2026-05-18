@@ -3,6 +3,7 @@ export function bindSalaryBulkUploadModule(deps) {
     var formatApiError = deps.formatApiError;
     var escapeHtml = deps.escapeHtml;
     var loadEmployeesData = deps.loadEmployeesData;
+    var getOrganizationReferenceSnapshot = deps.getOrganizationReferenceSnapshot;
 
     var form = document.querySelector("[data-employee-bulk-upload-form]");
     if (!form || form.getAttribute("data-bulk-upload-bound") === "1") {
@@ -13,6 +14,78 @@ export function bindSalaryBulkUploadModule(deps) {
     var resultBox = form.querySelector("[data-employee-bulk-upload-results]");
     var fileInput = form.querySelector("[data-employee-bulk-upload-file]");
     var modalEl = document.getElementById("employee_bulk_upload");
+    var prerequisiteModalEl = document.getElementById("employee_bulk_org_required");
+    var prerequisiteMessageEl = document.querySelector("[data-employee-bulk-org-required-message]");
+    var templateLinks = Array.prototype.slice.call(document.querySelectorAll("[data-employee-bulk-template-link]"));
+    var uploadOpeners = Array.prototype.slice.call(document.querySelectorAll("[data-employee-bulk-upload-open]"));
+
+    function getOrgSnapshot() {
+        var snapshot = typeof getOrganizationReferenceSnapshot === "function"
+            ? (getOrganizationReferenceSnapshot() || {})
+            : {};
+
+        return {
+            departments: Array.isArray(snapshot.departments) ? snapshot.departments : [],
+            designations: Array.isArray(snapshot.designations) ? snapshot.designations : [],
+        };
+    }
+
+    function buildPrerequisiteMessage() {
+        var snapshot = getOrgSnapshot();
+        var missing = [];
+
+        if (!snapshot.departments.length) {
+            missing.push("department");
+        }
+        if (!snapshot.designations.length) {
+            missing.push("designation");
+        }
+
+        return {
+            ready: missing.length === 0,
+            message: missing.length === 0
+                ? "Master department dan designation sudah siap untuk bulk employee."
+                : "Isi minimal 1 " + missing.join(" dan 1 ") + " sebelum download template atau upload bulk employee.",
+        };
+    }
+
+    function showPrerequisiteModal() {
+        var prerequisite = buildPrerequisiteMessage();
+
+        if (prerequisiteMessageEl) {
+            prerequisiteMessageEl.textContent = prerequisite.message;
+        }
+        if (window.ArcavUi && window.ArcavUi.showToast) {
+            window.ArcavUi.showToast(prerequisite.message, "warning");
+        }
+        if (window.bootstrap && window.bootstrap.Modal && prerequisiteModalEl) {
+            window.bootstrap.Modal.getOrCreateInstance(prerequisiteModalEl).show();
+        }
+    }
+
+    function hasOrgPrerequisites() {
+        return buildPrerequisiteMessage().ready;
+    }
+
+    function syncPrerequisiteUiState() {
+        var blocked = !hasOrgPrerequisites();
+        var tooltip = blocked
+            ? "Lengkapi minimal 1 department dan 1 designation terlebih dahulu."
+            : "";
+
+        templateLinks.concat(uploadOpeners).forEach(function (element) {
+            if (!element) {
+                return;
+            }
+            element.classList.toggle("disabled", blocked);
+            element.setAttribute("aria-disabled", blocked ? "true" : "false");
+            if (tooltip) {
+                element.setAttribute("title", tooltip);
+            } else {
+                element.removeAttribute("title");
+            }
+        });
+    }
 
     function renderBulkResult(kind, title, lines) {
         if (!resultBox) {
@@ -37,15 +110,45 @@ export function bindSalaryBulkUploadModule(deps) {
     }
 
     if (modalEl) {
-        modalEl.addEventListener("show.bs.modal", clearBulkResult);
+        modalEl.addEventListener("show.bs.modal", function (event) {
+            clearBulkResult();
+            syncPrerequisiteUiState();
+            if (hasOrgPrerequisites()) {
+                return;
+            }
+            if (event && typeof event.preventDefault === "function") {
+                event.preventDefault();
+            }
+            showPrerequisiteModal();
+        });
     }
     if (fileInput) {
         fileInput.addEventListener("change", clearBulkResult);
     }
 
+    templateLinks.forEach(function (link) {
+        link.addEventListener("click", function (event) {
+            syncPrerequisiteUiState();
+            if (hasOrgPrerequisites()) {
+                return;
+            }
+            event.preventDefault();
+            showPrerequisiteModal();
+        });
+    });
+
+    syncPrerequisiteUiState();
+
     form.addEventListener("submit", function (event) {
         event.preventDefault();
         clearBulkResult();
+        syncPrerequisiteUiState();
+
+        if (!hasOrgPrerequisites()) {
+            showPrerequisiteModal();
+            return;
+        }
+
         var file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
         if (!file) {
             if (window.ArcavUi && window.ArcavUi.showToast) {
@@ -59,6 +162,9 @@ export function bindSalaryBulkUploadModule(deps) {
         fd.append("file", file);
         requestFormData("post", "/v1/hcm/employees/bulk-upload", fd).then(function (resp) {
             if (!resp || resp.success !== true) {
+                if (resp && resp.error && resp.error.code === "EMPLOYEE_BULK_ORG_SETUP_REQUIRED") {
+                    showPrerequisiteModal();
+                }
                 window.ArcavUi && window.ArcavUi.showToast && window.ArcavUi.showToast(formatApiError(resp, 0), "danger");
                 renderBulkResult("danger", "Bulk upload gagal.", [formatApiError(resp, 0)]);
                 return;
@@ -85,6 +191,9 @@ export function bindSalaryBulkUploadModule(deps) {
         }).catch(function (error) {
             if (error && window.AuthApi && window.AuthApi.handleUnauthorizedFromApi(error.status, error.data)) {
                 return;
+            }
+            if (error && error.data && error.data.error && error.data.error.code === "EMPLOYEE_BULK_ORG_SETUP_REQUIRED") {
+                showPrerequisiteModal();
             }
             var rowErrors = error && error.data && error.data.data && Array.isArray(error.data.data.errors)
                 ? error.data.data.errors

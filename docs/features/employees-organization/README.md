@@ -46,7 +46,8 @@ Fitur ini menjadi directory utama employee, organisasi, departemen, designation,
 
 - Existing: employee CRUD, organization masters, detail histories, salary modal, bulk upload, dan wilayah address flow sudah aktif.
 - Existing: API sudah melayani kebutuhan banyak modul turunan dan expose kompensasi untuk integrasi overtime/payroll.
-- Target: template bulk multi-sheet dengan referensi master dan UX import yang lebih kaya masih backlog.
+- Existing: template bulk employee sudah berbentuk multi-sheet workbook dengan sheet referensi master, dropdown `department` + `designation`, dan guard yang menolak download/upload bila company belum punya minimal 1 department dan 1 designation.
+- Target: dropdown designation yang sepenuhnya terfilter per department di workbook masih bisa diperkaya lagi bila UX import perlu dibuat lebih preskriptif.
 
 ## Scope
 
@@ -98,8 +99,10 @@ Fitur ini menjadi directory utama employee, organisasi, departemen, designation,
 - Aksi edit dari tabel employee dibuka via ikon pensil, data employee diprefill ke modal edit, lalu disimpan via `PUT /employees/{id}`.
 - Admin bisa melakukan bulk upload detail employee via modal `Bulk Upload Employee` di halaman employee.
 - Template Excel bulk tersedia dari endpoint `GET /v1/hcm/employees/bulk-template`, dan upload via `POST /v1/hcm/employees/bulk-upload`.
+- Download template dan submit bulk upload sekarang diblokir bila master `department` atau `designation` belum tersedia; UI menampilkan modal yang mengarahkan admin ke halaman master terkait.
+- Workbook bulk menampilkan dropdown berbasis master aktif pada kolom `department` dan `designation`; kolom `department_id` dan `designation_id` lama tetap dipertahankan untuk kompatibilitas import existing.
+- Bulk upload create row sekarang juga mengikuti `max_employees` dari subscription aktif company secara transaction-safe; jika subscription masih `pending_payment`, penambahan employee tetap ditolak sampai invoice mengaktifkan subscription tersebut.
 - Validasi bulk sekarang **strict + transactional**: controlled fields (`employment_status`, `salary_type`, `contract_type`, `contract_status`, `gender`, `marital_status`, `religion`, `bank_name`, `tax_status`) diverifikasi penuh, dan jika ada satu baris invalid maka seluruh import di-rollback.
-- Template saat ini masih **single-sheet**; peningkatan berikutnya yang disarankan adalah template multi-sheet dengan sheet referensi master dan dropdown.
 
 ## Catatan implementasi
 

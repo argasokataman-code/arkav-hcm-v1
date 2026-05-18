@@ -3,12 +3,16 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\Invoice;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\EmployeeProfile;
 use App\Models\HcmRole;
 use App\Models\HcmUserRole;
+use App\Models\Package;
+use App\Models\PackageFeature;
 use App\Models\Policy;
+use App\Models\Subscription;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\CompanyUser;
@@ -92,6 +96,39 @@ class HcmEmployeeApiTest extends TestCase
         );
 
         return $token;
+    }
+
+    private function createCompanyDepartment(string $name, string $code): Department
+    {
+        return Department::query()->create([
+            'company_id' => $this->company?->id,
+            'name' => $name,
+            'code' => $code,
+            'is_active' => true,
+        ]);
+    }
+
+    private function createDesignationForDepartment(Department $department, string $name, string $code): Designation
+    {
+        return Designation::query()->create([
+            'department_id' => $department->id,
+            'name' => $name,
+            'code' => $code,
+            'is_active' => true,
+        ]);
+    }
+
+    private function createTeamForDepartment(Department $department, string $name): void
+    {
+        DB::table('teams')->insert([
+            'uuid' => (string) Str::uuid(),
+            'company_id' => $this->company?->id,
+            'department_id' => $department->id,
+            'name' => $name,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     /**
@@ -1238,21 +1275,9 @@ class HcmEmployeeApiTest extends TestCase
     public function test_bulk_template_download_contains_reference_sheets(): void
     {
         $token = $this->adminBearerToken();
-        $department = Department::query()->create(['name' => 'People Operations', 'code' => 'POPS', 'is_active' => true]);
-        Designation::query()->create([
-            'department_id' => $department->id,
-            'name' => 'HR Generalist',
-            'code' => 'HRGEN',
-            'is_active' => true,
-        ]);
-        DB::table('teams')->insert([
-            'uuid' => (string) Str::uuid(),
-            'department_id' => $department->id,
-            'name' => 'Talent Acquisition',
-            'is_active' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $department = $this->createCompanyDepartment('People Operations', 'POPS');
+        $this->createDesignationForDepartment($department, 'HR Generalist', 'HRGEN');
+        $this->createTeamForDepartment($department, 'Talent Acquisition');
 
         $response = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->get('/v1/hcm/employees/bulk-template');
@@ -1270,14 +1295,35 @@ class HcmEmployeeApiTest extends TestCase
         $this->assertContains('ref_banks', $sheetNames);
         $this->assertContains('ref_enums', $sheetNames);
 
+        $templateSheet = $spreadsheet->getSheetByName('employee_bulk_data');
+        $this->assertSame('department', $templateSheet->getCell('I1')->getValue());
+        $this->assertSame('designation', $templateSheet->getCell('K1')->getValue());
+        $this->assertSame('=ref_departments!$B$2:$B$2', $templateSheet->getCell('I2')->getDataValidation()->getFormula1());
+        $this->assertSame('=ref_designations!$D$2:$D$2', $templateSheet->getCell('K2')->getDataValidation()->getFormula1());
+
         $spreadsheet->disconnectWorksheets();
         unset($spreadsheet);
         @unlink($tmpPath);
     }
 
+    public function test_bulk_template_requires_department_and_designation_masters(): void
+    {
+        $token = $this->adminBearerToken();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
+            ->getJson('/v1/hcm/employees/bulk-template')
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'EMPLOYEE_BULK_ORG_SETUP_REQUIRED');
+    }
+
     public function test_hcm_admin_can_bulk_upload_full_employee_data_from_csv(): void
     {
         $token = $this->adminBearerToken();
+        $hrDepartment = $this->createCompanyDepartment('Human Resources', 'HR');
+        $financeDepartment = $this->createCompanyDepartment('Finance', 'FIN');
+        $this->createDesignationForDepartment($hrDepartment, 'Lead Staff', 'LEADSTAFF');
+        $this->createDesignationForDepartment($financeDepartment, 'Analyst', 'ANALYST');
         $employee = User::factory()->create(['email' => 'employee1@example.com']);
         EmployeeProfile::query()->create([
             'user_id' => $employee->id,
@@ -1322,9 +1368,234 @@ class HcmEmployeeApiTest extends TestCase
             ->assertHeader('content-disposition');
     }
 
+    public function test_hcm_admin_can_bulk_upload_using_department_and_designation_names(): void
+    {
+        $token = $this->adminBearerToken();
+        $department = $this->createCompanyDepartment('People Operations', 'POPS');
+        $designation = $this->createDesignationForDepartment($department, 'HR Generalist', 'HRGEN');
+
+        $file = UploadedFile::fake()->createWithContent(
+            'employees-named-org.csv',
+            "employee_uuid,name,email,password,confirm_password,department,designation,employment_status,base_salary\n"
+            .",Named Org Employee,named.org@example.com,StrongPass1,StrongPass1,People Operations,HR Generalist,active,5000000\n",
+        );
+
+        $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
+            ->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
+
+        $upload->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.createdRows', 1)
+            ->assertJsonPath('data.failedRows', 0);
+
+        $this->assertDatabaseHas('employee_profiles', [
+            'company_id' => $this->company?->id,
+            'department_id' => $department->id,
+            'designation_id' => $designation->id,
+            'designation' => 'HR Generalist',
+        ]);
+    }
+
+    public function test_bulk_upload_is_blocked_when_package_employee_limit_is_full(): void
+    {
+        $company = Company::query()->create([
+            'code' => 'BULK20',
+            'name' => 'Bulk Limit Company',
+            'legal_name' => 'Bulk Limit Company LLC',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+        $auth = $this->createHcmAdminWithCompany([
+            'name' => 'Bulk Limit Admin',
+            'email' => 'bulk-limit-admin@example.com',
+            'password' => 'StrongPass1',
+        ], $company);
+        $this->company = $company;
+
+        $package = Package::query()->create([
+            'name' => 'Starter 1',
+            'code' => 'starter-1',
+            'monthly_price' => 10000,
+            'yearly_price' => 100000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'employee_management',
+            'feature_name' => 'Employee Management',
+            'limit' => null,
+        ]);
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'max_employees',
+            'feature_name' => 'Maximum Employees',
+            'limit' => 1,
+        ]);
+        Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 10000,
+        ]);
+
+        $department = $this->createCompanyDepartment('Human Resources', 'HR');
+        $this->createDesignationForDepartment($department, 'Staff', 'STAFF');
+
+        $existingUser = User::factory()->create(['email' => 'existing.bulk.limit@example.com']);
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $existingUser->id,
+            'employment_status' => 'active',
+            'base_salary' => 1000000,
+            'fixed_allowance' => 0,
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent(
+            'employees-over-limit.csv',
+            "employee_uuid,name,email,password,confirm_password,department,designation,employment_status,base_salary\n"
+            .",Over Limit Employee,over.limit@example.com,StrongPass1,StrongPass1,Human Resources,Staff,active,5000000\n",
+        );
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+            'X-Company-Id' => (string) $company->id,
+        ])->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'EMPLOYEE_COUNT_EXCEEDED');
+
+        $this->assertDatabaseMissing('users', ['email' => 'over.limit@example.com']);
+    }
+
+    public function test_bulk_upload_respects_subscription_activation_after_pending_payment_is_paid(): void
+    {
+        $company = Company::query()->create([
+            'code' => 'BULKPAY1',
+            'name' => 'Bulk Pending Payment Company',
+            'legal_name' => 'Bulk Pending Payment Company LLC',
+            'status' => 'active',
+            'timezone' => 'Asia/Jakarta',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+        $tenantAuth = $this->createHcmAdminWithCompany([
+            'name' => 'Bulk Pending Admin',
+            'email' => 'bulk-pending-admin@example.com',
+            'password' => 'StrongPass1',
+        ], $company);
+        $this->company = $company;
+
+        $package = Package::query()->create([
+            'name' => 'Starter Pending',
+            'code' => 'starter-pending',
+            'monthly_price' => 10000,
+            'yearly_price' => 100000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'employee_management',
+            'feature_name' => 'Employee Management',
+            'limit' => null,
+        ]);
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'max_employees',
+            'feature_name' => 'Maximum Employees',
+            'limit' => 2,
+        ]);
+
+        $subscription = Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'pending_payment',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 10000,
+        ]);
+        $invoice = Invoice::query()->create([
+            'company_id' => $company->id,
+            'subscription_id' => $subscription->id,
+            'purchase_transaction_id' => null,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'amount_due' => 10000,
+            'notes' => null,
+        ]);
+
+        $department = $this->createCompanyDepartment('Human Resources', 'HR');
+        $this->createDesignationForDepartment($department, 'Staff', 'STAFF');
+
+        $file = UploadedFile::fake()->createWithContent(
+            'employees-after-payment.csv',
+            "employee_uuid,name,email,password,confirm_password,department,designation,employment_status,base_salary\n"
+            .",Payment Activated Employee,payment.activated@example.com,StrongPass1,StrongPass1,Human Resources,Staff,active,5000000\n",
+        );
+
+        $blocked = $this->withHeaders([
+            'Authorization' => 'Bearer '.$tenantAuth['token'],
+            'X-Company-Id' => (string) $company->id,
+        ])->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
+
+        $blocked->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error.code', 'EMPLOYEE_COUNT_EXCEEDED');
+        $this->assertDatabaseMissing('users', ['email' => 'payment.activated@example.com']);
+
+        $this->postJson('/v1/identity/auth/register', [
+            'name' => 'Platform Billing Admin',
+            'email' => 'platform-billing-admin@example.com',
+            'password' => 'StrongPass1',
+            'confirmPassword' => 'StrongPass1',
+        ])->assertStatus(201);
+
+        $platformAdmin = User::query()->where('email', 'platform-billing-admin@example.com')->firstOrFail();
+        $platformAdmin->forceFill(['is_super_admin' => true])->save();
+
+        $platformLogin = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'platform-billing-admin@example.com',
+            'password' => 'StrongPass1',
+        ])->assertOk();
+
+        $platformToken = (string) $platformLogin->json('data.accessToken');
+
+        $this->withHeader('Authorization', 'Bearer '.$platformToken)
+            ->putJson('/v1/saas/invoices/'.$invoice->uuid.'/mark-paid')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $subscription->refresh();
+        $this->assertSame('active', $subscription->status);
+
+        $allowed = $this->withHeaders([
+            'Authorization' => 'Bearer '.$tenantAuth['token'],
+            'X-Company-Id' => (string) $company->id,
+        ])->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
+
+        $allowed->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.createdRows', 1)
+            ->assertJsonPath('data.failedRows', 0);
+
+        $this->assertDatabaseHas('users', ['email' => 'payment.activated@example.com']);
+    }
+
     public function test_bulk_upload_rejects_invalid_enums_and_rolls_back_all_rows(): void
     {
         $token = $this->adminBearerToken();
+        $department = $this->createCompanyDepartment('Human Resources', 'HR');
+        $this->createDesignationForDepartment($department, 'Staff', 'STAFF');
 
         $file = UploadedFile::fake()->createWithContent(
             'employees-invalid.csv',
@@ -1349,6 +1620,8 @@ class HcmEmployeeApiTest extends TestCase
     public function test_bulk_upload_rejects_conflicting_employee_uuid_and_email_mapping(): void
     {
         $token = $this->adminBearerToken();
+        $department = $this->createCompanyDepartment('Human Resources', 'HR');
+        $this->createDesignationForDepartment($department, 'Staff', 'STAFF');
         $first = User::factory()->create(['email' => 'bulk.conflict.first@example.com']);
         $second = User::factory()->create(['email' => 'bulk.conflict.second@example.com']);
 

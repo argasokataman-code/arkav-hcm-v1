@@ -225,18 +225,65 @@
 .mpl-turnstile-shell {
     display: inline-block;
     max-width: 100%;
+    width: min(100%, 320px);
 }
 
 .mpl-turnstile-shell--hide-test-notice {
     position: relative;
-    width: min(100%, 320px);
-    height: 52px;
+    height: 64px;
     overflow: hidden;
 }
 
 .mpl-turnstile-shell--hide-test-notice > div {
-    transform: translateY(-1px);
-    transform-origin: top left;
+    min-height: 83px;
+}
+
+.mpl-turnstile-shell--hide-test-notice::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 16px;
+    background: #fff;
+    pointer-events: none;
+}
+
+.mpl-turnstile-fallback {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    width: 100%;
+    min-height: 65px;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(31, 41, 55, 0.14);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.98));
+    color: #0f172a;
+}
+
+.mpl-turnstile-fallback strong {
+    font-size: 0.94rem;
+    font-weight: 700;
+}
+
+.mpl-turnstile-fallback span {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: #475569;
+}
+
+.mpl-turnstile-fallback--error {
+    border-color: rgba(220, 38, 38, 0.22);
+    background: linear-gradient(180deg, rgba(254, 242, 242, 0.98), rgba(254, 226, 226, 0.98));
+}
+
+.mpl-turnstile-fallback--error strong {
+    color: #991b1b;
+}
+
+.mpl-turnstile-fallback--error span {
+    color: #7f1d1d;
 }
 
 .mpl-toggler {

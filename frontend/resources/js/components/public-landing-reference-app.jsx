@@ -60,6 +60,7 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
     const [tocScrolledToEnd, setTocScrolledToEnd] = useState(false);
     const [pdpRead, setPdpRead] = useState(false);
     const canAgree = pdpScrolledToEnd && tocScrolledToEnd;
+    const [turnstileFallback, setTurnstileFallback] = useState(null);
 
     const handlePdpBodyScroll = (e) => {
         const el = e.currentTarget;
@@ -84,13 +85,42 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
     const emitTurnstileTokenChange = useEffectEvent((token) => {
         onTurnstileTokenChange(String(token || '').trim());
     });
+    const turnstileFallbackMeta = useMemo(() => {
+        if (!turnstileFallback) {
+            return null;
+        }
+
+        if (turnstileFallback.kind === 'error') {
+            if (turnstileFallback.code === '110200') {
+                return {
+                    variant: 'error',
+                    title: 'Cloudflare Turnstile belum bisa dipakai di local',
+                    message: 'Key yang aktif tidak mengizinkan domain ini. Tambahkan localhost/127.0.0.1 ke hostname widget Cloudflare atau pakai test key khusus local.',
+                };
+            }
+
+            return {
+                variant: 'error',
+                title: 'Cloudflare Turnstile gagal dimuat',
+                message: 'Widget verifikasi belum tersedia di halaman ini. Periksa key, hostname yang diizinkan, atau koneksi ke layanan Cloudflare.',
+            };
+        }
+
+        return {
+            variant: 'info',
+            title: 'Cloudflare Turnstile aktif',
+            message: 'Mode test lokal sedang digunakan. Verifikasi keamanan sudah disiapkan untuk submit onboarding.',
+        };
+    }, [turnstileFallback]);
 
     useEffect(() => {
         if (!turnstileEnabled || !turnstileSiteKey || !turnstileContainerRef.current) {
+            setTurnstileFallback(null);
             return undefined;
         }
 
         if (e2eTurnstileToken) {
+            setTurnstileFallback(null);
             emitTurnstileTokenChange(e2eTurnstileToken);
             return () => {
                 emitTurnstileTokenChange('');
@@ -99,6 +129,32 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
 
         let cancelled = false;
         let attempts = 0;
+        let visualCheckTimer = null;
+
+        const scheduleVisualCheck = () => {
+            if (visualCheckTimer) {
+                window.clearTimeout(visualCheckTimer);
+            }
+
+            visualCheckTimer = window.setTimeout(() => {
+                if (cancelled || !turnstileContainerRef.current) {
+                    return;
+                }
+
+                const hasIframe = Boolean(turnstileContainerRef.current.querySelector('iframe'));
+                const hiddenInput = turnstileContainerRef.current.querySelector('input[name="cf-turnstile-response"]');
+                const hasToken = Boolean(hiddenInput && String(hiddenInput.value || '').trim());
+
+                if (hasIframe) {
+                    setTurnstileFallback(null);
+                    return;
+                }
+
+                if (hasToken) {
+                    setTurnstileFallback({ kind: 'test' });
+                }
+            }, 900);
+        };
 
         const mountWidget = () => {
             if (cancelled) {
@@ -119,22 +175,42 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
             turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
                 sitekey: turnstileSiteKey,
                 callback: (token) => {
+                    if (turnstileContainerRef.current?.querySelector('iframe')) {
+                        setTurnstileFallback(null);
+                    } else if (String(token || '').trim()) {
+                        setTurnstileFallback({ kind: 'test' });
+                    }
+
                     emitTurnstileTokenChange(token || '');
                 },
                 'expired-callback': () => {
+                    if (turnstileContainerRef.current?.querySelector('iframe')) {
+                        setTurnstileFallback(null);
+                    }
+
                     emitTurnstileTokenChange('');
                 },
-                'error-callback': () => {
+                'error-callback': (errorCode) => {
+                    setTurnstileFallback({ kind: 'error', code: String(errorCode || '') });
                     emitTurnstileTokenChange('');
+
+                    return true;
                 },
             });
+
+            scheduleVisualCheck();
         };
 
         mountWidget();
 
         return () => {
             cancelled = true;
+            setTurnstileFallback(null);
             emitTurnstileTokenChange('');
+
+            if (visualCheckTimer) {
+                window.clearTimeout(visualCheckTimer);
+            }
 
             if (turnstileWidgetIdRef.current != null && window.turnstile && typeof window.turnstile.remove === 'function') {
                 try {
@@ -329,6 +405,12 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                                                         <label className="form-label">Verifikasi keamanan</label>
                                                         <div className={turnstileHideTestNotice ? 'mpl-turnstile-shell mpl-turnstile-shell--hide-test-notice' : 'mpl-turnstile-shell'}>
                                                             <div ref={turnstileContainerRef}></div>
+                                                            {turnstileFallbackMeta ? (
+                                                                <div className={`mpl-turnstile-fallback mpl-turnstile-fallback--${turnstileFallbackMeta.variant}`} role="status" aria-live="polite">
+                                                                    <strong>{turnstileFallbackMeta.title}</strong>
+                                                                    <span>{turnstileFallbackMeta.message}</span>
+                                                                </div>
+                                                            ) : null}
                                                         </div>
                                                         <div className="form-text">Selesaikan captcha sebelum submit onboarding.</div>
                                                     </div>

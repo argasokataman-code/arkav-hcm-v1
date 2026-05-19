@@ -3,7 +3,7 @@
 $configuredSiteKey = (string) env('TURNSTILE_SITE_KEY', '');
 $configuredSecretKey = (string) env('TURNSTILE_SECRET_KEY', '');
 $appEnv = (string) env('APP_ENV', 'production');
-$hideTestNotice = (bool) env('TURNSTILE_HIDE_TEST_NOTICE', true);
+$hideTestNotice = (bool) env('TURNSTILE_HIDE_TEST_NOTICE', false);
 
 $requestHost = (string) ($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '');
 if ($requestHost === '') {

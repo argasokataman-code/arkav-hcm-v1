@@ -4,38 +4,15 @@ $dpoName = (string) config('pdp.dpo_name', 'Tim Data Protection ARCAV HCM');
 $dpoEmail = (string) config('pdp.dpo_email', 'dpo@arcav.id');
 $privacyContactUrl = (string) config('pdp.privacy_contact_url', url('/privacy-policy'));
 ?>
-@extends('layout.mainlayout')
+@extends('layout.guest-legal')
+@section('title', 'Kebijakan Privasi')
 @section('content')
 
-<!-- Page Wrapper -->
-<div class="page-wrapper">
-    <div class="content">
-
-        <!-- Breadcrumb -->
-        <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
-            <div class="my-auto mb-2">
-                <h2 class="mb-1">Kebijakan Privasi</h2>
-                <nav>
-                    <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item">
-                            <a href="{{url('index')}}"><i class="ti ti-smart-home"></i></a>
-                        </li>
-                        <li class="breadcrumb-item">Halaman</li>
-                        <li class="breadcrumb-item active" aria-current="page">Kebijakan Privasi</li>
-                    </ol>
-                </nav>
-            </div>
-            <div class="head-icons ms-2">
-                <a href="javascript:void(0);" class="" data-bs-toggle="tooltip" data-bs-placement="top"
-                   data-bs-original-title="Collapse" id="collapse-header">
-                    <i class="ti ti-chevrons-up"></i>
-                </a>
-            </div>
-        </div>
-        <!-- /Breadcrumb -->
-
-        <div class="card">
-            <div class="card-body">
+                <div class="mb-4">
+                    <span class="badge badge-soft-primary mb-3">Dokumen Legal</span>
+                    <h1 class="mb-2">Kebijakan Privasi</h1>
+                    <p class="text-muted mb-0">Dokumen ini menjelaskan dasar hukum, tujuan pemrosesan, hak subjek data, dan kontak resmi perlindungan data ARCAV HCM.</p>
+                </div>
 
                 <p class="text-muted small">Berlaku efektif: 1 Mei 2026 &mdash; Terakhir diperbarui: 1 Mei 2026</p>
 
@@ -51,12 +28,7 @@ $privacyContactUrl = (string) config('pdp.privacy_contact_url', url('/privacy-po
                     <li class="d-flex align-items-baseline mb-1">
                         <i class="ti ti-point-filled fs-10 me-1"></i>
                         <span><strong>Nama Pengendali:</strong> ARCAV HCM</span>
-                    </li>
-                    <li class="d-flex align-items-baseline mb-1">
-                        <i class="ti ti-point-filled fs-10 me-1"></i>
-                        <span><strong>Pejabat Perlindungan Data (DPO):</strong> {{ $dpoName }}</span>
-                    </li>
-                    <li class="d-flex align-items-baseline mb-1">
+
                         <i class="ti ti-point-filled fs-10 me-1"></i>
                         <span><strong>Kontak DPO:</strong>
                             <a href="mailto:{{ $dpoEmail }}">{{ $dpoEmail }}</a></span>

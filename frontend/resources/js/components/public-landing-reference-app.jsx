@@ -58,8 +58,9 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
     const [activeConsentTab, setActiveConsentTab] = useState('pdp');
     const [pdpScrolledToEnd, setPdpScrolledToEnd] = useState(false);
     const [tocScrolledToEnd, setTocScrolledToEnd] = useState(false);
+    const [pdpTocScrolledToEnd, setPdpTocScrolledToEnd] = useState(false);
     const [pdpRead, setPdpRead] = useState(false);
-    const canAgree = pdpScrolledToEnd && tocScrolledToEnd;
+    const canAgree = pdpTocScrolledToEnd;
     const [turnstileFallback, setTurnstileFallback] = useState(null);
 
     const handlePdpBodyScroll = (e) => {
@@ -72,6 +73,12 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
         const el = e.currentTarget;
         if (!tocScrolledToEnd && el.scrollTop + el.clientHeight >= el.scrollHeight - 60) {
             setTocScrolledToEnd(true);
+        }
+    };
+    const handlePdpTocBodyScroll = (e) => {
+        const el = e.currentTarget;
+        if (!pdpTocScrolledToEnd && el.scrollTop + el.clientHeight >= el.scrollHeight - 60) {
+            setPdpTocScrolledToEnd(true);
         }
     };
     const handleAgreeAndClose = () => {
@@ -433,10 +440,10 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                                     disabled={!pdpRead}
                                     required
                                 />
-                                <label className="form-check-label small" htmlFor="consentAcceptedReact">
+                                <label className="form-check-label small text-muted" htmlFor="consentAcceptedReact">
                                     {pdpRead
-                                        ? <>Saya telah membaca dan menyetujui <strong>Kebijakan Privasi &amp; Syarat Ketentuan</strong> ARCAV HCM.</>
-                                        : <><button type="button" className="btn btn-link btn-sm p-0 align-baseline fw-semibold" onClick={() => setShowPdpModal(true)}>Baca Kebijakan Privasi &amp; Syarat Ketentuan</button> terlebih dahulu sebelum melanjutkan.</>
+                                        ? <>Saya menyetujui <strong>Kebijakan Privasi</strong> dan <strong>Syarat &amp; Ketentuan</strong> ARCAV HCM.</>
+                                        : <><button type="button" className="btn btn-link btn-sm p-0 align-baseline fw-semibold" onClick={() => setShowPdpModal(true)}>Lihat Kebijakan Privasi &amp; Syarat</button> sebelum menyetujui.</>
                                     }
                                 </label>
                             </div>
@@ -448,7 +455,7 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                                     className="btn btn-primary"
                                     disabled={submitting || !formState.consentAccepted || formState._confirmMismatch}
                                 >
-                                    {submitting ? 'Memproses...' : 'Proses onboarding'}
+                                    {submitting ? 'Memproses...' : 'Lanjutkan pendaftaran'}
                                 </button>
                             </div>
                         </div>
@@ -470,7 +477,7 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                             <div className="modal-content border-0 shadow-lg">
                                 <div className="modal-header pb-0 border-0">
                                     <div>
-                                        <h5 className="modal-title">Kebijakan Privasi &amp; Syarat Ketentuan</h5>
+                                        <h5 className="modal-title">Kebijakan Privasi dan Syarat &amp; Ketentuan</h5>
                                         <div className="d-flex align-items-center gap-2 mt-1">
                                             <span style={{
                                                 display: 'inline-flex', alignItems: 'center', gap: '4px',
@@ -506,143 +513,75 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                                     <button type="button" className="btn-close" aria-label="Tutup" onClick={() => setShowPdpModal(false)}></button>
                                 </div>
                                 <div className="modal-body p-0">
-                                    <ul className="nav nav-tabs px-3 pt-2">
-                                        <li className="nav-item">
-                                            <button
-                                                type="button"
-                                                className={`nav-link d-flex align-items-center gap-2${activeConsentTab === 'pdp' ? ' active' : ''}`}
-                                                onClick={() => setActiveConsentTab('pdp')}
-                                            >
-                                                Kebijakan Privasi
-                                                <span style={{
-                                                    width: 18, height: 18, borderRadius: '50%',
-                                                    background: pdpScrolledToEnd ? '#198754' : '#dee2e6',
-                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                                    fontSize: '0.6rem', color: '#fff', fontWeight: 700,
-                                                    transition: 'background 0.35s, transform 0.35s',
-                                                    transform: pdpScrolledToEnd ? 'scale(1.15)' : 'scale(1)'
-                                                }}>✓</span>
-                                            </button>
-                                        </li>
-                                        <li className="nav-item">
-                                            <button
-                                                type="button"
-                                                className={`nav-link d-flex align-items-center gap-2${activeConsentTab === 'toc' ? ' active' : ''}`}
-                                                onClick={() => setActiveConsentTab('toc')}
-                                            >
-                                                Syarat &amp; Ketentuan
-                                                <span style={{
-                                                    width: 18, height: 18, borderRadius: '50%',
-                                                    background: tocScrolledToEnd ? '#198754' : '#dee2e6',
-                                                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                                    fontSize: '0.6rem', color: '#fff', fontWeight: 700,
-                                                    transition: 'background 0.35s, transform 0.35s',
-                                                    transform: tocScrolledToEnd ? 'scale(1.15)' : 'scale(1)'
-                                                }}>✓</span>
-                                            </button>
-                                        </li>
-                                    </ul>
-
                                     <style>{`@keyframes arcavBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}`}</style>
-                                    {activeConsentTab === 'pdp' ? (
-                                        <div style={{ position: 'relative' }}>
-                                            <div
-                                                className="px-4 py-3"
-                                                style={{ overflowY: 'auto', height: '55vh' }}
-                                                onScroll={handlePdpBodyScroll}
-                                            >
+                                    <div style={{ position: 'relative' }}>
+                                        <div
+                                            className="px-4 py-3"
+                                            style={{ overflowY: 'auto', height: '55vh', whiteSpace: 'pre-wrap' }}
+                                            onScroll={handlePdpTocBodyScroll}
+                                        >
                                             <p className="text-muted small">Berlaku efektif: 1 Mei 2026 &mdash; Terakhir diperbarui: 1 Mei 2026</p>
-                                            <p className="small">ARCAV HCM ("kami") berkomitmen melindungi data pribadi Anda sesuai <strong>UU No. 27 Tahun 2022 tentang Perlindungan Data Pribadi (UU PDP)</strong> Republik Indonesia.</p>
+                                            <p className="lead small">Ringkasan singkat: Kami mengumpulkan data yang diperlukan untuk menjalankan layanan HR, memenuhi kewajiban hukum, dan menjaga keamanan platform. Kami hanya memproses data yang relevan dan meminimalkan akses pihak ketiga.</p>
 
-                                            <h6 className="mt-3 mb-1">1. Identitas Pengendali Data Pribadi</h6>
+                                            <h6 className="mt-3 mb-1">1. Data yang kami kumpulkan</h6>
                                             <ul className="small ps-3">
-                                                <li><strong>Nama Pengendali:</strong> ARCAV HCM</li>
-                                                <li><strong>DPO:</strong> Tim Data Protection ARCAV HCM</li>
-                                                <li><strong>Kontak DPO:</strong> <a href="mailto:dpo@arcav.id">dpo@arcav.id</a></li>
+                                                <li>Informasi kontak dasar: nama, email, nomor telepon</li>
+                                                <li>Data perusahaan dan pekerjaan: jabatan, departemen, tanggal mulai</li>
+                                                <li>Data administratif: NIK/KTP, NPWP, rekening bank (untuk payroll)</li>
+                                                <li>Log akses dan keamanan: IP, user-agent, waktu akses</li>
+                                                <li>Data opsional yang memerlukan persetujuan: foto selfie biometrik, lokasi GPS</li>
                                             </ul>
 
-                                            <h6 className="mt-3 mb-1">2. Data Pribadi yang Kami Kumpulkan</h6>
-                                            <p className="small fw-semibold mb-1">a. Data Umum</p>
+                                            <h6 className="mt-3 mb-1">2. Untuk apa data digunakan</h6>
                                             <ul className="small ps-3">
-                                                <li>Nama lengkap, email, nomor telepon, alamat domisili</li>
-                                                <li>Data ketenagakerjaan: jabatan, departemen, tanggal bergabung, status kontrak</li>
-                                                <li>Log akses: IP, user-agent, waktu akses</li>
-                                                <li>Absensi: waktu masuk/keluar, lokasi GPS (dengan persetujuan)</li>
-                                            </ul>
-                                            <p className="small fw-semibold mb-1">b. Data Spesifik (Pasal 4 ayat 2 UU PDP)</p>
-                                            <ul className="small ps-3">
-                                                <li><strong>NIK/KTP</strong> — verifikasi identitas karyawan</li>
-                                                <li><strong>NPWP, status pajak (PTKP)</strong> — pemotongan PPh 21</li>
-                                                <li><strong>Data rekening bank</strong> — transfer gaji</li>
-                                                <li><strong>Nomor BPJS Kesehatan &amp; Ketenagakerjaan</strong> — administrasi jaminan sosial</li>
-                                                <li><strong>Data biometrik (foto selfie)</strong> — opsional, dengan persetujuan eksplisit</li>
-                                                <li><strong>Lokasi GPS</strong> — opsional, dengan persetujuan eksplisit</li>
-                                                <li><strong>Agama, status perkawinan, kewarganegaraan</strong> — penghitungan tunjangan/pajak</li>
-                                                <li><strong>Data gaji dan kompensasi</strong> — pemrosesan payroll</li>
+                                                <li>Menjalankan layanan HR dan manajemen akun</li>
+                                                <li>Memproses penggajian dan memenuhi kewajiban pajak</li>
+                                                <li>Mengelola BPJS dan kewajiban hukum lainnya</li>
+                                                <li>Meningkatkan keamanan dan mencegah penyalahgunaan</li>
+                                                <li>Menyediakan fitur tambahan seperti asisten AI (tanpa PII) jika diaktifkan</li>
                                             </ul>
 
-                                            <h6 className="mt-3 mb-1">3. Dasar dan Tujuan Pemrosesan (Pasal 20–21 UU PDP)</h6>
+                                            <h6 className="mt-3 mb-1">3. Pihak ketiga yang kami gunakan</h6>
                                             <div className="table-responsive">
-                                                <table className="table table-bordered table-sm small">
-                                                    <thead className="table-light"><tr><th>Tujuan</th><th>Dasar Hukum</th></tr></thead>
+                                                <table className="table table-sm table-borderless small">
+                                                    <thead className="table-light"><tr><th>Penyedia</th><th>Data (kategori)</th><th>Tujuan singkat</th></tr></thead>
                                                     <tbody>
-                                                        <tr><td>Manajemen data karyawan</td><td>Pelaksanaan kontrak kerja (Pasal 20 b)</td></tr>
-                                                        <tr><td>Penggajian &amp; pemotongan PPh 21</td><td>Kewajiban hukum (Pasal 20 c)</td></tr>
-                                                        <tr><td>Administrasi BPJS</td><td>Kewajiban hukum (Pasal 20 c)</td></tr>
-                                                        <tr><td>Absensi foto selfie &amp; GPS</td><td>Persetujuan eksplisit (Pasal 20 a)</td></tr>
-                                                        <tr><td>Keamanan platform</td><td>Kepentingan sah (Pasal 20 f)</td></tr>
-                                                        <tr><td>Onboarding akun perusahaan</td><td>Persetujuan (Pasal 20 a)</td></tr>
+                                                        <tr><td>Xendit / Stripe</td><td>Nama, email, data tagihan</td><td>Pemrosesan pembayaran</td></tr>
+                                                        <tr><td>Penyedia AI</td><td>Teks intent (non-PII)</td><td>Fitur asisten AI (opsional)</td></tr>
+                                                        <tr><td>Cloudflare Turnstile</td><td>Token captcha</td><td>Pencegahan bot &amp; keamanan</td></tr>
                                                     </tbody>
                                                 </table>
                                             </div>
+                                            <p className="small text-muted">Catatan: Kami mengikat penyedia melalui perjanjian perlindungan data (DPA) bila diperlukan dan hanya membagikan data yang relevan untuk tujuan layanan. Untuk detail kebijakan masing-masing penyedia, lihat tautan kebijakan penyedia terkait.</p>
 
-                                            <h6 className="mt-3 mb-1">4. Pihak Ketiga</h6>
-                                            <div className="table-responsive">
-                                                <table className="table table-bordered table-sm small">
-                                                    <thead className="table-light"><tr><th>Pihak</th><th>Data</th><th>Tujuan</th></tr></thead>
-                                                    <tbody>
-                                                        <tr><td>Xendit / Stripe</td><td>Nama, email, tagihan</td><td>Pembayaran langganan</td></tr>
-                                                        <tr><td>Penyedia AI</td><td>Teks intent (tanpa PII)</td><td>Asisten AI HCM</td></tr>
-                                                        <tr><td>Cloudflare Turnstile</td><td>Token captcha</td><td>Pencegahan bot</td></tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-
-                                            <h6 className="mt-3 mb-1">5. Retensi Data</h6>
+                                            <h6 className="mt-3 mb-1">4. Lama penyimpanan</h6>
                                             <ul className="small ps-3">
-                                                <li>Karyawan aktif: selama hubungan kerja</li>
-                                                <li>Karyawan berhenti: maks. <strong>5 tahun</strong></li>
-                                                <li>Payroll &amp; perpajakan: <strong>10 tahun</strong></li>
-                                                <li>Log akses keamanan: maks. <strong>1 tahun</strong></li>
+                                                <li>Data karyawan aktif: selama hubungan kerja</li>
+                                                <li>Data mantan karyawan: hingga 5 tahun sesuai kebutuhan administrasi</li>
+                                                <li>Data payroll &amp; pajak: sesuai kewajiban hukum hingga 10 tahun</li>
+                                                <li>Log keamanan: disimpan sementara (biasanya &lt; 1 tahun)</li>
                                             </ul>
 
-                                            <h6 className="mt-3 mb-1">6. Hak Subjek Data (Pasal 5–13 UU PDP)</h6>
+                                            <h6 className="mt-3 mb-1">5. Hak Anda</h6>
                                             <ul className="small ps-3">
-                                                <li><strong>Hak Akses</strong> — 14 hari kerja</li>
-                                                <li><strong>Hak Perbaikan</strong> — 14 hari kerja</li>
-                                                <li><strong>Hak Penghapusan</strong> — 30 hari kerja</li>
-                                                <li><strong>Hak Portabilitas Data</strong> — 14 hari kerja</li>
-                                                <li><strong>Hak Mencabut Persetujuan</strong> — Segera</li>
+                                                <li>Hak akses, perbaikan, dan portabilitas: ajukan ke DPO (respon dalam 14 hari kerja)</li>
+                                                <li>Hak penghapusan: kami proses sesuai hukum (estimasi 30 hari kerja)</li>
+                                                <li>Hak mencabut persetujuan: dapat dilakukan kapan saja untuk pemrosesan berbasis persetujuan</li>
                                             </ul>
 
-                                            <h6 className="mt-3 mb-1">7. Keamanan Data</h6>
+                                            <h6 className="mt-3 mb-1">6. Keamanan &amp; kontak</h6>
                                             <ul className="small ps-3">
-                                                <li>Enkripsi HTTPS/TLS</li>
-                                                <li>Hashing kata sandi (Bcrypt)</li>
-                                                <li>RBAC per tenant</li>
-                                                <li>Audit log ekspor data massal</li>
+                                                <li>Komunikasi terenkripsi (HTTPS/TLS)</li>
+                                                <li>Kata sandi disimpan aman (hashing modern)</li>
+                                                <li>RBAC dan audit log untuk operasi sensitif</li>
+                                                <li>Laporkan masalah atau permintaan data ke: <a href="mailto:dpo@arcav.id">dpo@arcav.id</a></li>
                                             </ul>
 
-                                            <h6 className="mt-3 mb-1">8. Notifikasi Insiden (Pasal 46 UU PDP)</h6>
-                                            <p className="small">Notifikasi kepada pihak berwenang dan subjek data dalam <strong>3 × 24 jam</strong> setelah insiden terdeteksi.</p>
+                                            <hr />
 
-                                            <h6 className="mt-3 mb-1">9. Hubungi DPO</h6>
-                                            <ul className="small ps-3">
-                                                <li><strong>Email:</strong> <a href="mailto:dpo@arcav.id">dpo@arcav.id</a></li>
-                                                <li>Respons dalam 3 hari kerja</li>
-                                            </ul>
+                                            <p className="small">Dengan menggunakan platform ini atau menyelesaikan pendaftaran, Anda menyetujui Kebijakan Privasi dan Syarat &amp; Ketentuan ARCAV HCM. Jika Anda tidak setuju, mohon jangan lanjutkan pendaftaran.</p>
                                         </div>
-                                        {!pdpScrolledToEnd && (
+                                        {!pdpTocScrolledToEnd && (
                                             <div style={{
                                                 position: 'absolute', bottom: 0, left: 0, right: 0,
                                                 height: 56, pointerEvents: 'none',
@@ -658,97 +597,30 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                                             </div>
                                         )}
                                     </div>
-                                    ) : (
-                                        <div style={{ position: 'relative' }}>
-                                        <div
-                                            className="px-4 py-3"
-                                            style={{ overflowY: 'auto', height: '55vh' }}
-                                            onScroll={handleTocBodyScroll}
-                                        >
-                                            <p className="small">Selamat datang di platform ARCAV HCM. Dengan mengakses atau menggunakan platform ini, Anda menyetujui syarat dan ketentuan berikut.</p>
-
-                                            <h6 className="mt-3 mb-1">Penerimaan Syarat</h6>
-                                            <p className="small">Dengan menggunakan platform ini, Anda terikat oleh Syarat &amp; Ketentuan ini beserta panduan tambahan yang berlaku. Jika tidak setuju, jangan gunakan platform ini.</p>
-
-                                            <h6 className="mt-3 mb-1">Tanggung Jawab Pengguna</h6>
-                                            <p className="small">Sebagai pengguna resmi, Anda setuju untuk:</p>
-                                            <ul className="small ps-3">
-                                                <li>Menjaga kerahasiaan kredensial login Anda</li>
-                                                <li>Menggunakan platform hanya untuk keperluan HR yang sah</li>
-                                                <li>Tidak membagikan informasi karyawan sensitif tanpa otorisasi</li>
-                                                <li>Melaporkan insiden keamanan atau aktivitas mencurigakan segera</li>
-                                            </ul>
-
-                                            <h6 className="mt-3 mb-1">Penggunaan Platform</h6>
-                                            <p className="small">Platform memungkinkan Anda mengelola data karyawan, laporan, payroll, dan fungsi HR lainnya. Anda bertanggung jawab atas keakuratan dan legalitas informasi yang dimasukkan.</p>
-
-                                            <h6 className="mt-3 mb-1">Larangan</h6>
-                                            <p className="small">Anda dilarang:</p>
-                                            <ul className="small ps-3">
-                                                <li>Mengakses platform untuk tujuan melanggar hukum</li>
-                                                <li>Menggunakan platform untuk merugikan individu atau perusahaan</li>
-                                                <li>Melakukan reverse engineering atau ekstraksi kode sumber</li>
-                                                <li>Mengganggu fungsionalitas atau memasukkan perangkat lunak berbahaya</li>
-                                            </ul>
-
-                                            <h6 className="mt-3 mb-1">Kekayaan Intelektual</h6>
-                                            <p className="small">Semua konten, perangkat lunak, dan kekayaan intelektual platform dimiliki oleh ARCAV HCM. Reproduksi atau distribusi tanpa izin tertulis dilarang.</p>
-
-                                            <h6 className="mt-3 mb-1">Penghentian Akses</h6>
-                                            <p className="small">Kami berhak menangguhkan atau mengakhiri akses Anda kapan saja tanpa pemberitahuan jika Anda melanggar syarat ini.</p>
-
-                                            <h6 className="mt-3 mb-1">Pernyataan Penyangkalan</h6>
-                                            <p className="small">Platform disediakan "apa adanya". Kami tidak menjamin platform bebas dari kesalahan atau gangguan. Semua jaminan tersirat dikecualikan sejauh diizinkan hukum.</p>
-
-                                            <h6 className="mt-3 mb-1">Batasan Tanggung Jawab</h6>
-                                            <p className="small">ARCAV HCM tidak bertanggung jawab atas kerugian langsung maupun tidak langsung akibat penggunaan atau ketidakmampuan menggunakan platform.</p>
-
-                                            <h6 className="mt-3 mb-1">Perubahan Syarat</h6>
-                                            <p className="small">Syarat &amp; Ketentuan dapat diubah sewaktu-waktu. Penggunaan berkelanjutan setelah perubahan berarti penerimaan syarat yang diperbarui.</p>
-                                        </div>
-                                        {!tocScrolledToEnd && (
-                                            <div style={{
-                                                position: 'absolute', bottom: 0, left: 0, right: 0,
-                                                height: 56, pointerEvents: 'none',
-                                                background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.95))',
-                                                display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-                                                paddingBottom: 6
-                                            }}>
-                                                <svg style={{ animation: 'arcavBounce 1s ease-in-out infinite' }}
-                                                    width="22" height="22" viewBox="0 0 24 24" fill="none"
-                                                    stroke="#6c757d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <polyline points="6 9 12 15 18 9" />
-                                                </svg>
-                                            </div>
-                                        )}
-                                        </div>
-                                    )}
                                 </div>
                                 <div className="modal-footer flex-column align-items-stretch gap-1">
                                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-                                        {[{ label: 'Kebijakan Privasi', done: pdpScrolledToEnd }, { label: 'Syarat & Ketentuan', done: tocScrolledToEnd }].map(({ label, done }) => (
-                                            <div key={label} style={{
-                                                display: 'flex', alignItems: 'center', gap: 5,
-                                                fontSize: '0.78rem',
-                                                color: done ? '#198754' : '#adb5bd',
-                                                fontWeight: done ? 600 : 400,
-                                                transition: 'color 0.35s'
-                                            }}>
-                                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                                                    <circle cx="8" cy="8" r="7.5" stroke={done ? '#198754' : '#dee2e6'}
-                                                        strokeWidth="1.5"
-                                                        style={{ transition: 'stroke 0.35s' }} />
-                                                    <path d="M4.5 8.3l2.2 2.2 4.5-4.5" stroke={done ? '#198754' : '#dee2e6'}
-                                                        strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
-                                                        style={{
-                                                            transition: 'stroke 0.35s, stroke-dashoffset 0.4s',
-                                                            strokeDasharray: 9,
-                                                            strokeDashoffset: done ? 0 : 9
-                                                        }} />
-                                                </svg>
-                                                {label}
-                                            </div>
-                                        ))}
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: 5,
+                                            fontSize: '0.78rem',
+                                            color: pdpTocScrolledToEnd ? '#198754' : '#adb5bd',
+                                            fontWeight: pdpTocScrolledToEnd ? 600 : 400,
+                                            transition: 'color 0.35s'
+                                        }}>
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                                                <circle cx="8" cy="8" r="7.5" stroke={pdpTocScrolledToEnd ? '#198754' : '#dee2e6'}
+                                                    strokeWidth="1.5"
+                                                    style={{ transition: 'stroke 0.35s' }} />
+                                                <path d="M4.5 8.3l2.2 2.2 4.5-4.5" stroke={pdpTocScrolledToEnd ? '#198754' : '#dee2e6'}
+                                                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
+                                                    style={{
+                                                        transition: 'stroke 0.35s, stroke-dashoffset 0.4s',
+                                                        strokeDasharray: 9,
+                                                        strokeDashoffset: pdpTocScrolledToEnd ? 0 : 9
+                                                    }} />
+                                            </svg>
+                                            Telah membaca Kebijakan Privasi &amp; Syarat
+                                        </div>
                                     </div>
                                     <div className="d-flex justify-content-end gap-2 w-100">
                                         <button type="button" className="btn btn-outline-secondary" onClick={() => setShowPdpModal(false)}>Tutup</button>
@@ -758,7 +630,7 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                                             disabled={!canAgree}
                                             onClick={handleAgreeAndClose}
                                         >
-                                            Saya Mengerti &amp; Setuju
+                                            Setuju dan Lanjutkan
                                         </button>
                                     </div>
                                 </div>

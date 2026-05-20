@@ -1100,7 +1100,10 @@ describe('Payroll run wiring', function () {
       paydayHolidayStrategy: 'previous_working_day',
     };
 
-    var requestMock = vi.fn(async function (method, path) {
+    // Ensure fake timers are cleaned up even on failure to avoid leaking into
+    // global hooks which can cause hook timeouts.
+    try {
+      var requestMock = vi.fn(async function (method, path) {
       var verb = String(method).toLowerCase();
 
       if (verb === 'get' && path === '/hcm/payroll/settings') {
@@ -1123,25 +1126,29 @@ describe('Payroll run wiring', function () {
       downloadV1Binary: vi.fn(),
     };
 
-    await loadPayrollRunModule();
-    await flush();
+      await loadPayrollRunModule();
+      await flush();
 
-    document.querySelector('[data-payroll-settings-cutoff-offset]').dispatchEvent(new Event('input', { bubbles: true }));
-    await flush();
+      document.querySelector('[data-payroll-settings-cutoff-offset]').dispatchEvent(new Event('input', { bubbles: true }));
+      await flush();
 
-    expect(document.querySelector('[data-payroll-settings-stage]').textContent).toContain('Pre-cutoff');
-    expect(document.querySelector('[data-payroll-settings-preview-period]').textContent).toContain('04/2026');
-    expect(document.querySelector('[data-payroll-settings-preview-note]').textContent).toContain('masih bisa direfresh');
+      expect(document.querySelector('[data-payroll-settings-stage]').textContent).toContain('Pre-cutoff');
+      expect(document.querySelector('[data-payroll-settings-preview-period]').textContent).toContain('04/2026');
+      expect(document.querySelector('[data-payroll-settings-preview-note]').textContent).toContain('masih bisa direfresh');
 
-    vi.setSystemTime(new Date('2028-02-28T10:00:00Z'));
-    document.querySelector('[data-payroll-run-year]').value = '2028';
-    document.querySelector('[data-payroll-run-month]').innerHTML = '<option value="2" selected>2</option>';
-    document.querySelector('[data-payroll-settings-cutoff-offset]').dispatchEvent(new Event('change', { bubbles: true }));
-    await flush();
+      vi.setSystemTime(new Date('2028-02-28T10:00:00Z'));
+      document.querySelector('[data-payroll-run-year]').value = '2028';
+      document.querySelector('[data-payroll-run-month]').innerHTML = '<option value="2" selected>2</option>';
+      document.querySelector('[data-payroll-settings-cutoff-offset]').dispatchEvent(new Event('change', { bubbles: true }));
+      await flush();
 
-    expect(document.querySelector('[data-payroll-settings-stage]').textContent).toContain('Post-cutoff');
-    expect(document.querySelector('[data-payroll-settings-preview-period]').textContent).toContain('02/2028');
-    expect(document.querySelector('[data-payroll-settings-preview-note]').textContent).toContain('periode berikutnya');
+      expect(document.querySelector('[data-payroll-settings-stage]').textContent).toContain('Post-cutoff');
+      expect(document.querySelector('[data-payroll-settings-preview-period]').textContent).toContain('02/2028');
+      expect(document.querySelector('[data-payroll-settings-preview-note]').textContent).toContain('periode berikutnya');
+    } finally {
+      try { if (typeof vi.clearAllTimers === 'function') vi.clearAllTimers(); } catch (e) {}
+      try { vi.useRealTimers(); } catch (e) {}
+    }
   });
 
   it('enforces post-cutoff review-only guardrail on export and disburse actions', async function () {

@@ -1152,6 +1152,10 @@ describe('Payroll run wiring', function () {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-26T03:00:00Z'));
 
+    // Ensure fake timers are cleaned up even on failure to avoid leaking into
+    // global hooks which can cause hook timeouts.
+    try {
+
     var requestMock = vi.fn(async function (method, path) {
       var verb = String(method).toLowerCase();
 
@@ -1228,23 +1232,27 @@ describe('Payroll run wiring', function () {
       downloadV1Binary: vi.fn().mockResolvedValue(undefined),
     };
 
-    await loadPayrollRunModule();
-    await flush();
+      await loadPayrollRunModule();
+      await flush();
 
-    expect(document.querySelector('[data-payroll-run-export-evidence]').disabled).toBe(true);
-    expect(document.querySelector('[data-payroll-run-reconciliation-hint]').textContent).toContain('review-only');
+      expect(document.querySelector('[data-payroll-run-export-evidence]').disabled).toBe(true);
+      expect(document.querySelector('[data-payroll-run-reconciliation-hint]').textContent).toContain('review-only');
 
-    document.querySelector('[data-payroll-run-pay-one="7"]').click();
-    await flush();
+      document.querySelector('[data-payroll-run-pay-one="7"]').click();
+      await flush();
 
-    expect(window.ArcavUi.showToast).toHaveBeenCalledWith(
-      expect.stringContaining('review-only'),
-      'danger'
-    );
+      expect(window.ArcavUi.showToast).toHaveBeenCalledWith(
+        expect.stringContaining('review-only'),
+        'danger'
+      );
 
-    expect(requestMock.mock.calls.some(function (call) {
-      return call[0] === 'post' && call[1] === '/hcm/payroll-runs/44/disburse';
-    })).toBe(false);
+      expect(requestMock.mock.calls.some(function (call) {
+        return call[0] === 'post' && call[1] === '/hcm/payroll-runs/44/disburse';
+      })).toBe(false);
+    } finally {
+      try { if (typeof vi.clearAllTimers === 'function') vi.clearAllTimers(); } catch (e) {}
+      try { vi.useRealTimers(); } catch (e) {}
+    }
   });
 
   it('resets helper returns workflow to fresh calculate-draft state', async function () {

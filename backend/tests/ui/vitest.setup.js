@@ -5,6 +5,18 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Ensure timers are cleared and restored to real timers to avoid leaking
+  // fake timers across tests which can cause hook timeouts.
+  try {
+    if (typeof vi.clearAllTimers === 'function') vi.clearAllTimers();
+  } catch (e) {
+    // ignore
+  }
+  try {
+    vi.useRealTimers();
+  } catch (e) {
+    // ignore
+  }
   vi.restoreAllMocks();
   delete window.bootstrap;
   delete window.AuthApi;

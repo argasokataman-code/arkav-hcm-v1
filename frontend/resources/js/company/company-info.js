@@ -123,7 +123,7 @@
             html += '    <div class="row">\n';
             html += '      <div class="col-12">\n';
             html += '        <p class="text-muted small mb-2">Status Langganan</p>\n';
-            var planBadge = data.subscription.status === "trial" ? "warning" : "success";\n';
+                var planBadge = (data.subscription.status === "trial") ? "warning" : "success";
             html += '        <p><span class="badge bg-' + planBadge + '">' + (data.subscription.planCode || "—") + ' (' + data.subscription.status + ')</span></p>\n';
             if (data.subscription.endsAt) {
                 html += '        <p class="text-muted small">Berakhir: ' + formatDate(data.subscription.endsAt) + '</p>\n';

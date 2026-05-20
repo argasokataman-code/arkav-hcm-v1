@@ -1,9 +1,11 @@
-<?php
-$page = 'terms-condition';
-$companyName = \\App\\Support\\WebsiteSettings::businessCompanyName();
-$dpoEmail = (string) config('pdp.dpo_email', 'dpo@arcav.id');
-?>
 @extends('layout.guest-legal')
+
+@php
+	$page = 'terms-condition';
+	$companyName = \App\Support\WebsiteSettings::businessCompanyName();
+	$dpoEmail = (string) config('pdp.dpo_email', 'dpo@arcav.id');
+@endphp
+
 @section('title', 'Syarat dan Ketentuan')
 @section('content')
 

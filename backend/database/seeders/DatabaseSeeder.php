@@ -65,13 +65,19 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        // Ensure a default company exists for seeded records that require company scope.
+        $this->ensureDefaultCompanyMembership();
+        $companyId = Company::query()->value('id');
+
         $today = Carbon::now(config('app.timezone'))->toDateString();
         AttendanceRecord::query()->updateOrCreate(
             [
+                'company_id' => $companyId,
                 'user_id' => $qaUser->id,
                 'work_date' => $today,
             ],
             [
+                'company_id' => $companyId,
                 'status' => 'present',
                 'check_in_at' => Carbon::parse($today.' 08:55:00', config('app.timezone')),
                 'check_out_at' => null,

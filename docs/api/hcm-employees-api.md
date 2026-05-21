@@ -276,7 +276,7 @@ Behavior:
 - sheet utama `employee_bulk_data` menyediakan kolom berpasangan `department_id` + `department` serta `designation_id` + `designation` untuk mempermudah import berbasis ID atau nama master
 
 Note:
-- Jika tenant aktif tidak memiliki `department`/`designation` company-scoped, API sekarang akan mencoba fallback ke masters global (record dengan `company_id IS NULL`) saat menghasilkan template. Server tetap bisa mengembalikan `422 EMPLOYEE_BULK_ORG_SETUP_REQUIRED` hanya jika tidak ada masters sama sekali (baik company-scoped maupun global).
+- Endpoint uses tenant-scoped masters only. The template download will return `422 EMPLOYEE_BULK_ORG_SETUP_REQUIRED` if the active company does not have the required `department` and `designation` masters.
 
 ### POST `/employees/bulk-upload`
 
@@ -294,7 +294,7 @@ Error `422`:
 - `EMPLOYEE_BULK_ORG_SETUP_REQUIRED` — upload diblokir jika company aktif belum memiliki minimal 1 `department` dan 1 `designation`.
 
 Note:
-- Saat melakukan validasi upload, jika tenant aktif tidak memiliki masters company-scoped, server akan mempertimbangkan masters global (record dengan `company_id IS NULL`) sebagai fallback. Upload hanya diblokir jika tidak ada masters sama sekali (baik company-scoped maupun global).
+- Saat melakukan validasi upload, server hanya memverifikasi terhadap masters yang dimiliki tenant aktif. Upload akan diblokir dengan `EMPLOYEE_BULK_ORG_SETUP_REQUIRED` jika tenant tidak memiliki `department` dan `designation` company-scoped.
 - `EMPLOYEE_COUNT_EXCEEDED` — create row baru ditolak jika subscription aktif/pending yang berlaku sudah penuh; validasi dilakukan di dalam transaksi dengan row lock company.
 
 Catatan:

@@ -98,35 +98,21 @@ trait HandlesEmployeeBulkOperations
             $sheet->getColumnDimension($column)->setWidth($width);
         }
 
-        // Prefer company-scoped masters; if none exist, fall back to global masters
+        // Use only tenant-specific masters for template (no global fallback).
         $departmentsCollection = Department::query()
             ->where('company_id', $activeCompanyId)
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
 
-        $usingGlobalDepartments = false;
-        if ($departmentsCollection->isEmpty()) {
-            $departmentsCollection = Department::query()
-                ->whereNull('company_id')
-                ->orderBy('name')
-                ->get(['id', 'name', 'code']);
-            $usingGlobalDepartments = true;
-        }
-
         $departments = $departmentsCollection->map(fn (Department $department) => [$department->id, $department->name, $department->code])->values()->all();
-
         $departmentIds = array_column($departments, 0);
 
-        $designationsQuery = Designation::query()->with('department:id,name');
-        if ($departmentIds !== []) {
-            $designationsQuery->whereIn('department_id', $departmentIds);
-        } elseif ($usingGlobalDepartments) {
-            $designationsQuery->whereHas('department', function ($q) {
-                $q->whereNull('company_id');
-            });
-        }
-
-        $designations = $designationsQuery->orderBy('name')
+        // Load designations only for tenant departments
+        $designations = Designation::query()->with('department:id,name')
+            ->whereHas('department', function ($q) use ($activeCompanyId) {
+                $q->where('company_id', $activeCompanyId);
+            })
+            ->orderBy('name')
             ->get(['id', 'department_id', 'name', 'code'])
             ->map(fn (Designation $designation) => [
                 $designation->id,
@@ -406,9 +392,7 @@ trait HandlesEmployeeBulkOperations
 
                     if ($bulkDeptId === null && $bulkDeptName !== null) {
                         $resolvedDepartment = Department::query()
-                            ->where(function ($q) use ($activeCompanyId) {
-                                $q->where('company_id', $activeCompanyId)->orWhereNull('company_id');
-                            })
+                            ->where('company_id', $activeCompanyId)
                             ->whereRaw('LOWER(name) = ?', [strtolower($bulkDeptName)])
                             ->first();
                         if (! $resolvedDepartment) {
@@ -420,9 +404,7 @@ trait HandlesEmployeeBulkOperations
                     } elseif ($bulkDeptId !== null && $bulkDeptName !== null) {
                         $resolvedDepartmentName = (string) (Department::query()
                             ->whereKey($bulkDeptId)
-                            ->where(function ($q) use ($activeCompanyId) {
-                                $q->where('company_id', $activeCompanyId)->orWhereNull('company_id');
-                            })
+                            ->where('company_id', $activeCompanyId)
                             ->value('name') ?? '');
                         if ($resolvedDepartmentName === '') {
                             $errors[] = "Row {$lineNo}: department_id tidak ditemukan di company ini.";
@@ -439,7 +421,7 @@ trait HandlesEmployeeBulkOperations
                         $designationQuery = Designation::query()
                             ->whereRaw('LOWER(name) = ?', [strtolower($bulkDesigName)])
                             ->whereHas('department', function ($query) use ($activeCompanyId) {
-                                $query->where('company_id', $activeCompanyId)->orWhereNull('company_id');
+                                $query->where('company_id', $activeCompanyId);
                             });
 
                         if ($bulkDeptId !== null) {
@@ -534,9 +516,7 @@ trait HandlesEmployeeBulkOperations
 
                     $profile->team = $teamNameInput;
                     $profile->team_id = $teamId;
-                    if ($bulkDeptId && ! Department::query()->whereKey($bulkDeptId)->where(function ($q) use ($activeCompanyId) {
-                        $q->where('company_id', $activeCompanyId)->orWhereNull('company_id');
-                    })->exists()) {
+                    if ($bulkDeptId && ! Department::query()->whereKey($bulkDeptId)->where('company_id', $activeCompanyId)->exists()) {
                         $errors[] = "Row {$lineNo}: department_id tidak ditemukan di company ini.";
                         continue;
                     }
@@ -544,7 +524,7 @@ trait HandlesEmployeeBulkOperations
                         $desigBelongsToCompanyDept = Designation::query()
                             ->whereKey($bulkDesigId)
                             ->whereHas('department', function ($query) use ($activeCompanyId) {
-                                $query->where('company_id', $activeCompanyId)->orWhereNull('company_id');
+                                $query->where('company_id', $activeCompanyId);
                             })
                             ->exists();
                         if (! $desigBelongsToCompanyDept) {
@@ -806,16 +786,9 @@ trait HandlesEmployeeBulkOperations
             })
             ->count();
 
-        // also consider global (company_id IS NULL) masters as a fallback
-        $departmentCountGlobal = Department::query()->whereNull('company_id')->count();
-        $designationCountGlobal = Designation::query()
-            ->whereHas('department', function ($query) {
-                $query->whereNull('company_id');
-            })
-            ->count();
-
-        $departmentCount = max(0, $departmentCountCompany + $departmentCountGlobal);
-        $designationCount = max(0, $designationCountCompany + $designationCountGlobal);
+        // Require tenant-owned masters only (no global fallback allowed)
+        $departmentCount = max(0, $departmentCountCompany);
+        $designationCount = max(0, $designationCountCompany);
 
         if ($departmentCount > 0 && $designationCount > 0) {
             return null;

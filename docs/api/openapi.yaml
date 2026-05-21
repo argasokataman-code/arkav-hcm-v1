@@ -2240,7 +2240,7 @@ paths:
       description: |
         Returns the tenant-scoped employee workbook template.
         The template is only available when the active company already has at least one department and one designation master.
-        If the active company lacks company-scoped masters, the API will fallback to global masters (records with `company_id: null`) when generating the template. The endpoint will return `422` only if no masters exist at all (neither company-scoped nor global).
+        The endpoint uses tenant-scoped masters only; it will return `422` if the active company does not have the required organization masters.
         The primary sheet includes paired organization columns for both ID and name-based imports: `department_id` + `department`, `designation_id` + `designation`.
       security:
         - bearerAuth: []
@@ -2279,7 +2279,7 @@ paths:
         Existing employees are matched by `employee_uuid` or `email`.
         Organization fields may be provided by ID or master name using `department_id`/`department` and `designation_id`/`designation`.
         Import is blocked until the active company has at least one department and one designation.
-        When tenant-scoped masters are absent, the server will attempt to validate against global masters (records where `company_id` is `null`). The upload will only be rejected with `EMPLOYEE_BULK_ORG_SETUP_REQUIRED` if no masters exist at all (neither company-scoped nor global).
+        The server validates organization fields against tenant-scoped masters only; uploads will be rejected with `EMPLOYEE_BULK_ORG_SETUP_REQUIRED` if the tenant has no masters.
       security:
         - bearerAuth: []
       requestBody:

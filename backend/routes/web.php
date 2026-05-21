@@ -16,6 +16,35 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use App\Models\HcmLeaveTypeSetting;
 use App\Http\Controllers\PublicLandingController;
+// Local dev helper: serve extensionless build JS module requests by appending
+// `.js` (or falling back to `index.js` in a directory). This fixes dynamic
+// import requests like `/build/js/employees/api` that don't include an
+// extension after production build in local/dev servers.
+if (app()->environment('local')) {
+    Route::get('/build/js/{file}', function (Request $request, $file) {
+        $publicBase = public_path('build/js/');
+        $candidate = $publicBase . $file;
+
+        // If the requested path already contains an extension, bail out.
+        if (strpos(basename($file), '.') !== false) {
+            abort(404);
+        }
+
+        // Try <path>.js
+        $js = $candidate . '.js';
+        if (is_file($js)) {
+            return response()->file($js, ['Content-Type' => 'application/javascript']);
+        }
+
+        // Try <path>/index.js
+        $index = rtrim($candidate, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'index.js';
+        if (is_file($index)) {
+            return response()->file($index, ['Content-Type' => 'application/javascript']);
+        }
+
+        abort(404);
+    })->where('file', '.*');
+}
 
 Route::post('custom-login', [CustomAuthController::class, 'customLogin'])->name('login.custom'); 
 Route::post('custom-registration', [CustomAuthController::class, 'customRegistration'])->name('register.custom'); 

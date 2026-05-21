@@ -3,6 +3,7 @@
 namespace App\Models\Concerns;
 
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 trait AssignsUuid
@@ -27,7 +28,12 @@ trait AssignsUuid
             $attempts = 0;
             do {
                 $uuid = (string) Str::uuid();
-                $exists = static::query()->where('uuid', $uuid)->exists();
+                // Use the query builder directly to avoid Eloquent global scopes
+                // (eg. SoftDeletes) interfering when migrations are applied
+                // (some test runtimes create models before `deleted_at` column
+                // migrations are applied). Checking via DB table ensures the
+                // existence check does not inject `deleted_at` conditions.
+                $exists = DB::table($model->getTable())->where('uuid', $uuid)->exists();
                 $attempts++;
             } while ($exists && $attempts < 5);
 

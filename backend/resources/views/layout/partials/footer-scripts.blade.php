@@ -318,6 +318,12 @@
 @endif
 <script src="{{ URL::asset('build/js/employees/employees-view-toggle.js') }}"></script>
 <script src="{{ URL::asset('build/js/employees/module-loaders.js') }}?v={{ file_exists(public_path('build/js/employees/module-loaders.js')) ? filemtime(public_path('build/js/employees/module-loaders.js')) : time() }}"></script>
+<script>
+    // Use the legacy employees bundle by default to initialize all
+    // bindings (modern module migration is partial). Toggle to `false`
+    // when full modular init is available.
+    window.ArcavEmployeesUseLegacy = true;
+</script>
 <script src="{{ URL::asset('build/js/employees/employees-data.js') }}?v={{ file_exists(public_path('build/js/employees/employees-data.js')) ? filemtime(public_path('build/js/employees/employees-data.js')) : time() }}"></script>
 <script src="{{ URL::asset('build/js/hcm/hcm-pages/utils.js') }}?v={{ file_exists(public_path('build/js/hcm/hcm-pages/utils.js')) ? filemtime(public_path('build/js/hcm/hcm-pages/utils.js')) : time() }}"></script>
 <script src="{{ URL::asset('build/js/hcm/hcm-pages-data.js') }}?v={{ file_exists(public_path('build/js/hcm/hcm-pages-data.js')) ? filemtime(public_path('build/js/hcm/hcm-pages-data.js')) : time() }}"></script>

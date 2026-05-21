@@ -4,6 +4,7 @@ export function bindSalaryBulkUploadModule(deps) {
     var escapeHtml = deps.escapeHtml;
     var loadEmployeesData = deps.loadEmployeesData;
     var getOrganizationReferenceSnapshot = deps.getOrganizationReferenceSnapshot;
+    var __orgSnapshotProviderAvailable = typeof getOrganizationReferenceSnapshot === 'function';
 
     var form = document.querySelector("[data-employee-bulk-upload-form]");
     if (!form || form.getAttribute("data-bulk-upload-bound") === "1") {
@@ -20,9 +21,10 @@ export function bindSalaryBulkUploadModule(deps) {
     var uploadOpeners = Array.prototype.slice.call(document.querySelectorAll("[data-employee-bulk-upload-open]"));
 
     function getOrgSnapshot() {
-        var snapshot = typeof getOrganizationReferenceSnapshot === "function"
-            ? (getOrganizationReferenceSnapshot() || {})
-            : {};
+        if (!__orgSnapshotProviderAvailable) {
+            return { departments: [], designations: [] };
+        }
+        var snapshot = getOrganizationReferenceSnapshot() || {};
 
         return {
             departments: Array.isArray(snapshot.departments) ? snapshot.departments : [],
@@ -52,14 +54,20 @@ export function bindSalaryBulkUploadModule(deps) {
     function showPrerequisiteModal() {
         var prerequisite = buildPrerequisiteMessage();
 
-        if (prerequisiteMessageEl) {
-            prerequisiteMessageEl.textContent = prerequisite.message;
+        // Re-query DOM for modal and message elements at invocation time.
+        // This handles cases where the module was loaded before the DOM
+        // (so the initially-captured references may be null).
+        var modalElLocal = document.getElementById("employee_bulk_org_required") || prerequisiteModalEl;
+        var messageElLocal = document.querySelector("[data-employee-bulk-org-required-message]") || prerequisiteMessageEl;
+
+        if (messageElLocal) {
+            messageElLocal.textContent = prerequisite.message;
         }
         if (window.ArcavUi && window.ArcavUi.showToast) {
             window.ArcavUi.showToast(prerequisite.message, "warning");
         }
-        if (window.bootstrap && window.bootstrap.Modal && prerequisiteModalEl) {
-            window.bootstrap.Modal.getOrCreateInstance(prerequisiteModalEl).show();
+        if (window.bootstrap && window.bootstrap.Modal && modalElLocal) {
+            window.bootstrap.Modal.getOrCreateInstance(modalElLocal).show();
         }
     }
 
@@ -68,7 +76,10 @@ export function bindSalaryBulkUploadModule(deps) {
     }
 
     function syncPrerequisiteUiState() {
-        var blocked = !hasOrgPrerequisites();
+        // If there's no organization snapshot provider available on the page
+        // we assume unknown state and avoid proactively blocking the template
+        // link so users can still download; server-side will enforce guards.
+        var blocked = __orgSnapshotProviderAvailable ? !hasOrgPrerequisites() : false;
         var tooltip = blocked
             ? "Lengkapi minimal 1 department dan 1 designation terlebih dahulu."
             : "";
@@ -138,6 +149,25 @@ export function bindSalaryBulkUploadModule(deps) {
     });
 
     syncPrerequisiteUiState();
+
+    // Delegated click handler: ensures clicks on template or upload triggers
+    // are intercepted even if those elements were not present at module bind time.
+    document.addEventListener("click", function (event) {
+        try {
+            var trigger = event && event.target && event.target.closest ? event.target.closest("[data-employee-bulk-upload-open]") : null;
+            if (!trigger) {
+                return;
+            }
+            syncPrerequisiteUiState();
+            if (!hasOrgPrerequisites()) {
+                event.preventDefault();
+                showPrerequisiteModal();
+            }
+        }
+        catch (err) {
+            console.error && console.error('bulk upload delegated click handler error', err);
+        }
+    });
 
     form.addEventListener("submit", function (event) {
         event.preventDefault();

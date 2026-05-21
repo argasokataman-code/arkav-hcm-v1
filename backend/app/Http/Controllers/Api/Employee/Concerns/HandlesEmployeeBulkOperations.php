@@ -98,20 +98,35 @@ trait HandlesEmployeeBulkOperations
             $sheet->getColumnDimension($column)->setWidth($width);
         }
 
-        $departments = Department::query()
+        // Prefer company-scoped masters; if none exist, fall back to global masters
+        $departmentsCollection = Department::query()
             ->where('company_id', $activeCompanyId)
             ->orderBy('name')
-            ->get(['id', 'name', 'code'])
-            ->map(fn (Department $department) => [$department->id, $department->name, $department->code])
-            ->values()
-            ->all();
+            ->get(['id', 'name', 'code']);
+
+        $usingGlobalDepartments = false;
+        if ($departmentsCollection->isEmpty()) {
+            $departmentsCollection = Department::query()
+                ->whereNull('company_id')
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']);
+            $usingGlobalDepartments = true;
+        }
+
+        $departments = $departmentsCollection->map(fn (Department $department) => [$department->id, $department->name, $department->code])->values()->all();
 
         $departmentIds = array_column($departments, 0);
 
-        $designations = Designation::query()
-            ->with('department:id,name')
-            ->when($departmentIds !== [], fn ($query) => $query->whereIn('department_id', $departmentIds))
-            ->orderBy('name')
+        $designationsQuery = Designation::query()->with('department:id,name');
+        if ($departmentIds !== []) {
+            $designationsQuery->whereIn('department_id', $departmentIds);
+        } elseif ($usingGlobalDepartments) {
+            $designationsQuery->whereHas('department', function ($q) {
+                $q->whereNull('company_id');
+            });
+        }
+
+        $designations = $designationsQuery->orderBy('name')
             ->get(['id', 'department_id', 'name', 'code'])
             ->map(fn (Designation $designation) => [
                 $designation->id,
@@ -391,7 +406,9 @@ trait HandlesEmployeeBulkOperations
 
                     if ($bulkDeptId === null && $bulkDeptName !== null) {
                         $resolvedDepartment = Department::query()
-                            ->where('company_id', $activeCompanyId)
+                            ->where(function ($q) use ($activeCompanyId) {
+                                $q->where('company_id', $activeCompanyId)->orWhereNull('company_id');
+                            })
                             ->whereRaw('LOWER(name) = ?', [strtolower($bulkDeptName)])
                             ->first();
                         if (! $resolvedDepartment) {
@@ -402,8 +419,10 @@ trait HandlesEmployeeBulkOperations
                         $bulkDeptName = $resolvedDepartment->name;
                     } elseif ($bulkDeptId !== null && $bulkDeptName !== null) {
                         $resolvedDepartmentName = (string) (Department::query()
-                            ->where('company_id', $activeCompanyId)
                             ->whereKey($bulkDeptId)
+                            ->where(function ($q) use ($activeCompanyId) {
+                                $q->where('company_id', $activeCompanyId)->orWhereNull('company_id');
+                            })
                             ->value('name') ?? '');
                         if ($resolvedDepartmentName === '') {
                             $errors[] = "Row {$lineNo}: department_id tidak ditemukan di company ini.";
@@ -419,7 +438,9 @@ trait HandlesEmployeeBulkOperations
                     if ($bulkDesigId === null && $bulkDesigName !== null) {
                         $designationQuery = Designation::query()
                             ->whereRaw('LOWER(name) = ?', [strtolower($bulkDesigName)])
-                            ->whereHas('department', fn ($query) => $query->where('company_id', $activeCompanyId));
+                            ->whereHas('department', function ($query) use ($activeCompanyId) {
+                                $query->where('company_id', $activeCompanyId)->orWhereNull('company_id');
+                            });
 
                         if ($bulkDeptId !== null) {
                             $designationQuery->where('department_id', $bulkDeptId);
@@ -513,14 +534,18 @@ trait HandlesEmployeeBulkOperations
 
                     $profile->team = $teamNameInput;
                     $profile->team_id = $teamId;
-                    if ($bulkDeptId && ! Department::query()->whereKey($bulkDeptId)->where('company_id', $activeCompanyId)->exists()) {
+                    if ($bulkDeptId && ! Department::query()->whereKey($bulkDeptId)->where(function ($q) use ($activeCompanyId) {
+                        $q->where('company_id', $activeCompanyId)->orWhereNull('company_id');
+                    })->exists()) {
                         $errors[] = "Row {$lineNo}: department_id tidak ditemukan di company ini.";
                         continue;
                     }
                     if ($bulkDesigId) {
                         $desigBelongsToCompanyDept = Designation::query()
                             ->whereKey($bulkDesigId)
-                            ->whereHas('department', fn ($query) => $query->where('company_id', $activeCompanyId))
+                            ->whereHas('department', function ($query) use ($activeCompanyId) {
+                                $query->where('company_id', $activeCompanyId)->orWhereNull('company_id');
+                            })
                             ->exists();
                         if (! $desigBelongsToCompanyDept) {
                             $errors[] = "Row {$lineNo}: designation_id tidak ditemukan di company ini.";
@@ -680,18 +705,53 @@ trait HandlesEmployeeBulkOperations
      */
     private function parseBulkRows(UploadedFile $file): array
     {
-        $spreadsheet = IOFactory::load($file->getRealPath());
+        $filePath = $file->getRealPath();
+        if ($filePath === false) {
+            return [];
+        }
+
+        // Prefer CSV-specific reader when extension indicates CSV/txt to handle
+        // different delimiters (Excel in some locales uses semicolon).
+        $extension = strtolower((string) ($file->getClientOriginalExtension() ?? pathinfo($filePath, PATHINFO_EXTENSION) ?? ''));
+
+        try {
+            if (in_array($extension, ['csv', 'txt'], true)) {
+                $sample = @file_get_contents($filePath, false, null, 0, 4096) ?: '';
+                $firstLine = strtok($sample, "\n\r");
+                $commaCount = $firstLine !== false ? substr_count((string) $firstLine, ',') : 0;
+                $semiCount = $firstLine !== false ? substr_count((string) $firstLine, ';') : 0;
+                $delimiter = $commaCount >= $semiCount ? ',' : ';';
+
+                $reader = IOFactory::createReader('Csv');
+                if (method_exists($reader, 'setDelimiter')) {
+                    $reader->setDelimiter($delimiter);
+                }
+                if (method_exists($reader, 'setEnclosure')) {
+                    $reader->setEnclosure('"');
+                }
+                $spreadsheet = $reader->load($filePath);
+            } else {
+                $spreadsheet = IOFactory::load($filePath);
+            }
+        } catch (\Throwable $e) {
+            // Loading failed (corrupt file / unsupported format)
+            return [];
+        }
+
         $sheet = $spreadsheet->getSheet(0);
         $highestColumn = $sheet->getHighestColumn();
         $highestColumnIndex = Coordinate::columnIndexFromString($highestColumn);
         $highestRow = $sheet->getHighestRow();
         if ($highestRow < 2) {
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
             return [];
         }
 
         $headers = [];
         for ($column = 1; $column <= $highestColumnIndex; $column++) {
             $rawHeader = (string) $sheet->getCell([$column, 1])->getCalculatedValue();
+            $rawHeader = preg_replace('/\x{FEFF}/u', '', $rawHeader); // strip BOM if present
             $headers[$column] = strtolower(trim($rawHeader));
         }
 
@@ -710,6 +770,9 @@ trait HandlesEmployeeBulkOperations
             }
             $rows[] = $item;
         }
+
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
 
         return $rows;
     }
@@ -733,13 +796,26 @@ trait HandlesEmployeeBulkOperations
 
     private function ensureBulkEmployeeOrganizationMastersReady(int $activeCompanyId, string $action): ?JsonResponse
     {
-        $departmentCount = Department::query()
+        $departmentCountCompany = Department::query()
             ->where('company_id', $activeCompanyId)
             ->count();
 
-        $designationCount = Designation::query()
-            ->whereHas('department', fn ($query) => $query->where('company_id', $activeCompanyId))
+        $designationCountCompany = Designation::query()
+            ->whereHas('department', function ($query) use ($activeCompanyId) {
+                $query->where('company_id', $activeCompanyId);
+            })
             ->count();
+
+        // also consider global (company_id IS NULL) masters as a fallback
+        $departmentCountGlobal = Department::query()->whereNull('company_id')->count();
+        $designationCountGlobal = Designation::query()
+            ->whereHas('department', function ($query) {
+                $query->whereNull('company_id');
+            })
+            ->count();
+
+        $departmentCount = max(0, $departmentCountCompany + $departmentCountGlobal);
+        $designationCount = max(0, $designationCountCompany + $designationCountGlobal);
 
         if ($departmentCount > 0 && $designationCount > 0) {
             return null;
@@ -757,7 +833,7 @@ trait HandlesEmployeeBulkOperations
             'success' => false,
             'error' => [
                 'code' => 'EMPLOYEE_BULK_ORG_SETUP_REQUIRED',
-                'message' => 'Isi minimal satu department dan satu designation sebelum '.$action.'.',
+                'message' => 'Isi minimal satu department dan satu designation sebelum ' . $action . '.',
             ],
             'data' => [
                 'departmentCount' => $departmentCount,

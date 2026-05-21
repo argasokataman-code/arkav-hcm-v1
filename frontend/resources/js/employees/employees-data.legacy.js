@@ -7,7 +7,7 @@ import {
     requestJson,
     requestFormData,
     requestEmployeeDetail,
-} from './employees/api';
+} from './api';
 
 import {
     escapeHtml,
@@ -19,13 +19,13 @@ import {
     downloadBlob,
     toCsv,
     normalizeEmployeeScope,
-} from './employees/helpers';
+} from './helpers';
 
-import * as State from './employees/state';
-import * as Org from './employees/org';
-import * as Renderers from './employees/renderers';
-import * as Binders from './employees/binders';
-import * as Bulk from './employees/bulk';
+import * as State from './state';
+import * as Org from './org';
+import * as Renderers from './renderers';
+import * as Binders from './binders';
+import * as Bulk from './bulk';
 
 var employeesModuleLoaders = window.ArcavEmployeesModuleLoaders || {};
 var resolveBindEmployeeCompensationFormsModule = employeesModuleLoaders.resolveBindEmployeeCompensationFormsModule || function () { return null; };
@@ -40,6 +40,7 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
 (function (window, document) {
     "use strict";
     var RETURN_STATE_KEY = "arcav_employees_return_state_v1";
+    try { console.error && console.error('employees legacy module loaded'); } catch (_) {}
     var selectedPreviewEmployeeId = null;
     var employeesTableState = State.employeesTableState;
     var employeesTableMeta = State.employeesTableMeta;
@@ -160,6 +161,45 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
             : 0;
         var userId = meData.id != null ? Number(meData.id) : 0;
         return activeCompanyId === 1 || userId === 1;
+    }
+
+    function saveReturnState(employeeId) {
+        try {
+            window.sessionStorage.setItem(RETURN_STATE_KEY, JSON.stringify({
+                url: getCurrentListUrl(),
+                scrollY: window.scrollY || 0,
+                selectedId: employeeId ? String(employeeId) : "",
+                ts: Date.now()
+            }));
+        } catch (_e) { }
+    }
+
+    function updateActiveRowHighlight() {
+        var rows = document.querySelectorAll("[data-employees-row-preview]");
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var active = selectedPreviewEmployeeId && row.getAttribute("data-employees-row-preview") === String(selectedPreviewEmployeeId);
+            row.classList.toggle("table-primary", !!active);
+        }
+    }
+
+    function restoreReturnStateIfAny() {
+        try {
+            var raw = window.sessionStorage.getItem(RETURN_STATE_KEY);
+            if (!raw) {
+                return;
+            }
+            var state = JSON.parse(raw);
+            if (!state || state.url !== getCurrentListUrl()) {
+                return;
+            }
+            window.setTimeout(function () {
+                window.scrollTo(0, Number(state.scrollY || 0));
+            }, 0);
+            if (state.selectedId) {
+                selectedPreviewEmployeeId = String(state.selectedId);
+            }
+        } catch (_e) { }
     }
 
     function syncEmployeesScopeTabState(activeScope) {
@@ -857,6 +897,7 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
         if (!tbody) {
             return;
         }
+        try { console.error && console.error('renderReportMessage:', message); } catch (_) {}
         tbody.innerHTML =
             '<tr><td class="text-center text-muted py-4">' + escapeHtml(message) + "</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>";
         tbody.removeAttribute("data-hydrated");
@@ -956,6 +997,7 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
     function getEmployeeReportSourceMode() {
         var sourceEl = document.querySelector("[data-employee-report-source]");
         var source = sourceEl ? String(sourceEl.value || "live").toLowerCase() : "live";
+        try { console.error && console.error('getEmployeeReportSourceMode ->', source); } catch (_) {}
         return source === "archive" ? "archive" : "live";
     }
 
@@ -1016,6 +1058,7 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
     }
 
     function loadArchiveEmployeeReport(snapshotId) {
+        try { console.error && console.error('loadArchiveEmployeeReport called with', snapshotId); } catch (_) {}
         if (!snapshotId) {
             renderReportMessage("Snapshot ID wajib diisi untuk mode Archive.");
             updateReportSummary({ summary: {} });
@@ -1125,6 +1168,7 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
     }
 
     function loadEmployeeReportData() {
+        try { console.error && console.error('loadEmployeeReportData called, path=', window.location.pathname); } catch (_) {}
         var path = String(window.location.pathname || "").replace(/\/+$/, "") || "/";
         if (path !== "/employee-report") {
             return;
@@ -1142,6 +1186,7 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
                     return null;
                 }
                 var mode = getEmployeeReportSourceMode();
+                try { console.error && console.error('requestAuthMe resolved, mode=', mode); } catch (_) {}
                 if (mode === "archive") {
                     loadArchiveEmployeeReport(getEmployeeReportSnapshotId());
                     return null;
@@ -1204,8 +1249,21 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
     }
 
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
-    } else {
-        init();
+        document.addEventListener("DOMContentLoaded", function () {
+            try {
+                init();
+            }
+            catch (err) {
+                console.error && console.error('employees legacy init error', err);
+            }
+        });
+    }
+    else {
+        try {
+            init();
+        }
+        catch (err) {
+            console.error && console.error('employees legacy init error', err);
+        }
     }
 })(window, document);

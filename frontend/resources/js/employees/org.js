@@ -99,6 +99,21 @@ export function hydrateEmployeeOrgMasters() {
         orgDesignationsFlat = results[1] && results[1].success && Array.isArray(results[1].data) ? results[1].data : [];
         orgTeamsFlat = results[2] && results[2].success && Array.isArray(results[2].data) ? results[2].data : [];
         rebuildDepartmentSelectOptions();
+        // After masters are hydrated, ensure bulk template/upload links are actionable
+        try {
+            var templateLinks = Array.prototype.slice.call(document.querySelectorAll('[data-employee-bulk-template-link]'));
+            var uploadOpeners = Array.prototype.slice.call(document.querySelectorAll('[data-employee-bulk-upload-open]'));
+            templateLinks.concat(uploadOpeners).forEach(function (el) {
+                if (!el) return;
+                el.classList.remove('disabled');
+                el.setAttribute('aria-disabled', 'false');
+                el.style.pointerEvents = 'auto';
+                el.removeAttribute('title');
+            });
+            if (window.ArcavEmployeesModuleLoaders && typeof window.ArcavEmployeesModuleLoaders.loadBindSalaryBulkUploadModule === 'function') {
+                try { window.ArcavEmployeesModuleLoaders.loadBindSalaryBulkUploadModule(); } catch (_e) { }
+            }
+        } catch (_e) { }
     });
 }
 

@@ -1,1 +1,1 @@
-import "./employees/employees-data";
+import "./employees/employees-data.legacy.js";

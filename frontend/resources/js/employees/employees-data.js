@@ -1,21 +1,26 @@
 // Minimal shim: delegate initialization to the new modular entry or fall back
 // to the legacy bundle. To opt into the modular version, set
 // `window.ArcavEmployeesUseLegacy = false` before this script executes.
-(function () {
+(async function () {
     'use strict';
 
     var preferLegacy = typeof window !== 'undefined' && window.ArcavEmployeesUseLegacy !== false;
+    try { console.error && console.error('employees-data shim preferLegacy=', preferLegacy); } catch (_) {}
 
     if (preferLegacy) {
         // dynamic import of legacy UMD-like module (safe fallback)
-        import('./employees-data.legacy.js').catch(function (err) {
+        try {
+            await import('./employees-data.legacy.js');
+            try { console.error && console.error('employees-data shim: legacy import resolved'); } catch (_) {}
+        } catch (err) {
             console.error('Failed loading legacy employees module', err);
-        });
+        }
         return;
     }
 
     // Try modular index first
-    import('./index.js').then(function (mod) {
+    try {
+        var mod = await import('./index.js');
         try {
             if (mod && typeof mod.initEmployeesModule === 'function') {
                 mod.initEmployeesModule(document);
@@ -24,11 +29,10 @@
             }
         } catch (err) {
             console.error('employees index init error', err);
-            // fallback to legacy
-            import('./employees-data.legacy.js').catch(function () {});
+            try { await import('./employees-data.legacy.js'); } catch (_) {}
         }
-    }).catch(function (err) {
+    } catch (err) {
         console.error('Failed loading employees index', err);
-        import('./employees-data.legacy.js').catch(function () {});
-    });
+        try { await import('./employees-data.legacy.js'); } catch (_) {}
+    }
 })();

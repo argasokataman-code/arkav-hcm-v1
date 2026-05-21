@@ -420,4 +420,6 @@
         </div>
     </div>
 
+    <!-- Inline fetch fallback removed; modern bundles handle template download and modal display. -->
+
 @endsection

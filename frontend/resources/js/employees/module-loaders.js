@@ -1,6 +1,24 @@
 (function (window) {
     "use strict";
 
+    // Compute base URL for employee modules (resolves issues when this file
+    // is included as a non-module script and dynamic import() would resolve
+    // relative to document location). Falls back to the build path.
+    var ___arcav_employees_base = (function () {
+        try {
+            var scripts = document.getElementsByTagName('script');
+            for (var i = scripts.length - 1; i >= 0; i--) {
+                var s = scripts[i];
+                if (!s || !s.src) continue;
+                var m = s.src.match(/(.*\/)(?:module-loaders)(?:\.js)?(?:\?.*)?$/);
+                if (m && m[1]) return m[1];
+            }
+        }
+        catch (e) { }
+        return '/build/js/employees/';
+    })();
+
+
     var bindEmployeeCompensationFormsModuleRef = null;
     var bindEmployeeCompensationFormsModulePromise = null;
     var bindQuickPreviewModuleRef = null;
@@ -30,8 +48,8 @@
             return bindEmployeeCompensationFormsModulePromise;
         }
         try {
-            var dynamicImport = new Function("modulePath", "return import(modulePath);");
-            bindEmployeeCompensationFormsModulePromise = dynamicImport("./employees-compensation-forms.js")
+            var dynamicImport = function (path) { return import(path); };
+            bindEmployeeCompensationFormsModulePromise = dynamicImport(___arcav_employees_base + "employees-compensation-forms.js")
                 .then(function (mod) {
                     if (mod && typeof mod.bindEmployeeCompensationFormsModule === "function") {
                         bindEmployeeCompensationFormsModuleRef = mod.bindEmployeeCompensationFormsModule;
@@ -67,8 +85,8 @@
             return bindQuickPreviewModulePromise;
         }
         try {
-            var dynamicImport = new Function("modulePath", "return import(modulePath);");
-            bindQuickPreviewModulePromise = dynamicImport("./employees-quick-preview.js")
+            var dynamicImport = function (path) { return import(path); };
+            bindQuickPreviewModulePromise = dynamicImport(___arcav_employees_base + "employees-quick-preview.js")
                 .then(function (mod) {
                     if (mod && typeof mod.bindQuickPreviewModule === "function") {
                         bindQuickPreviewModuleRef = mod.bindQuickPreviewModule;
@@ -104,8 +122,8 @@
             return bindEmployeePhotoModalPreviewModulePromise;
         }
         try {
-            var dynamicImport = new Function("modulePath", "return import(modulePath);");
-            bindEmployeePhotoModalPreviewModulePromise = dynamicImport("./employees-photo-modal-preview.js")
+            var dynamicImport = function (path) { return import(path); };
+            bindEmployeePhotoModalPreviewModulePromise = dynamicImport(___arcav_employees_base + "employees-photo-modal-preview.js")
                 .then(function (mod) {
                     if (mod && typeof mod.bindEmployeePhotoModalPreviewModule === "function") {
                         bindEmployeePhotoModalPreviewModuleRef = mod.bindEmployeePhotoModalPreviewModule;
@@ -141,8 +159,8 @@
             return bindSalaryBulkUploadModulePromise;
         }
         try {
-            var dynamicImport = new Function("modulePath", "return import(modulePath);");
-            bindSalaryBulkUploadModulePromise = dynamicImport("./employees-salary-bulk-upload.js")
+            var dynamicImport = function (path) { return import(path); };
+            bindSalaryBulkUploadModulePromise = dynamicImport(___arcav_employees_base + "employees-salary-bulk-upload.js")
                 .then(function (mod) {
                     if (mod && typeof mod.bindSalaryBulkUploadModule === "function") {
                         bindSalaryBulkUploadModuleRef = mod.bindSalaryBulkUploadModule;

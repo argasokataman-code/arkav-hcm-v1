@@ -9,6 +9,7 @@ Route::prefix('v1/hcm/data-privacy')->middleware(['api.token', 'tenant.context']
     // Employee: manage own biometric consent (Pasal 9 UU PDP — persetujuan biometrik)
     Route::post('/me/biometric-consent', [HcmDataPrivacyController::class, 'storeBiometricConsent']);
     Route::delete('/me/biometric-consent', [HcmDataPrivacyController::class, 'withdrawBiometricConsent']);
+    Route::get('/me/biometric-consent-status', [HcmDataPrivacyController::class, 'checkBiometricConsentStatus']);
     Route::post('/me/withdraw-consent', [HcmDataPrivacyController::class, 'withdrawConsent']);
 
     // Employee: manage own AI Chat consent (UU PDP H3 — persetujuan AI)

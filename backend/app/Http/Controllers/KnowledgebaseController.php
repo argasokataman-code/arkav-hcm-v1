@@ -17,10 +17,7 @@ class KnowledgebaseController extends Controller
         return view('knowledgebase', [
             'categories' => HcmKnowledgebase::filterForQuery($query !== '' ? $query : null, $user),
             'query' => $query,
-            'guidedTutorials' => array_values(array_filter(
-                HcmKnowledgebase::guidedTutorials(6),
-                fn (array $tutorial): bool => HcmKnowledgebase::resolveArticle((string) ($tutorial['slug'] ?? ''), $user) !== null
-            )),
+            'guidedTutorials' => HcmKnowledgebase::guidedTutorials($user, 6),
             'popularArticles' => HcmKnowledgebase::popularArticles(5),
             'latestArticles' => HcmKnowledgebase::latestArticles(5),
         ]);

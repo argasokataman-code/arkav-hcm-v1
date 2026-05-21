@@ -173,20 +173,20 @@ final class HcmKnowledgebase
     /**
      * @return list<array{slug: string, title: string, excerpt: string, category_slug: string, category_title: string, reading_minutes: int}>
      */
-    public static function guidedTutorials(int $limit = 6): array
+    public static function guidedTutorials(?object $user = null, int $limit = 6): array
     {
         $slugs = [
-            'panduan-admin-harian-hcm',
-            'panduan-karyawan-harian-self-service',
-            'checklist-onboarding-admin-hcm',
-            'absensi-dan-gps',
-            'cuti-karyawan-scope-me',
-            'payroll-run-bulanan',
+            'panduan-admin-harian',
+            'panduan-karyawan-harian',
+            'checklist-admin-baru',
+            'absen-dan-gps',
+            'pengajuan-cuti-karyawan',
+            'proses-penggajian-bulanan',
         ];
 
         $rows = [];
         foreach ($slugs as $slug) {
-            $resolved = self::resolveArticle($slug);
+            $resolved = self::resolveArticle($slug, $user);
             if ($resolved === null) {
                 continue;
             }

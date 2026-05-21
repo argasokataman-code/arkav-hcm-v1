@@ -54,21 +54,23 @@ URL lama **`/knowledgebase-view?category=...`** dan **`/knowledgebase-details?ar
 
 ## Peta kategori (cakupan menu)
 
-| Slug kategori | Isi utama |
-|---------------|-----------|
-| `memulai` | Login, RBAC, troubleshooting API, `/pages`, checklist onboarding admin |
-| `dashboard` | `/index`, `/employee-dashboard` |
-| `organisasi` | `/employees`, `/employees-grid`, `/employee-details`, departemen, jabatan, policies |
-| `cuti-absensi` | Cuti karyawan/admin, pengaturan, libur |
-| `absensi` | Punch GPS, jadwal, timesheet |
-| `payroll` | Run bulanan, items, kompensasi, slip, THR, rekonsiliasi, payroll lembur & PKWT |
-| `pengaturan-sistem` | `/cronjob`, `/users`, `/roles-permissions`, lokalisasi, prefix |
-| `pelaporan-detail` | Tutorial langkah demi langkah laporan employee/absensi/slip/cuti |
-| `kinerja-goals-training` | Performance, goals, training (SOP bernomor) |
-| `wilayah-indonesia` | `/countries`, `/states`, `/cities` |
-| `lembur-tiket` | Lembur, payroll overtime, tiket, master kategori, SOP admin |
-| `admin-saas` | Paket, langganan, perusahaan, domain, pembelian, invoice & pembayaran |
-| `dukungan` | Pointer laporan, promosi/mutasi, export rekonsiliasi API |
+| Slug kategori | Isi utama | Visible |
+|---------------|-----------|---------|
+| `memulai` | Login, akun, perbedaan admin/karyawan, troubleshooting, checklist admin, panduan harian, profil, reset password | all, admin, employee |
+| `dashboard` | Beranda admin, dashboard karyawan | all |
+| `organisasi` | Karyawan, departemen, jabatan, kebijakan, grid | admin |
+| `cuti-dan-libur` | Pengajuan cuti karyawan, persetujuan admin, pengaturan cuti, hari libur | all, admin |
+| `absensi` | Absen GPS, jadwal shift, timesheet | all, admin |
+| `payroll` | Proses payroll, komponen gaji, kompensasi, slip, THR, rekonsiliasi, lembur/PKWT | admin, employee (slip) |
+| `pengaturan-sistem` | Cronjob, pengguna & wewenang, lokalisasi & prefix | admin |
+| `laporan` | Laporan karyawan, absensi, slip gaji, cuti | admin |
+| `kinerja-goals-pelatihan` | Penilaian kinerja, sasaran, pelatihan | admin |
+| `master-wilayah` | Negara, provinsi, kota | admin |
+| `lembur` | Lembur admin & karyawan | all |
+| `tiket` | Tiket bantuan, master kategori, SOP admin | all, admin |
+| `super-admin-saas` | Paket, langganan, perusahaan, domain, invoice | global_admin |
+| `referensi-dukungan` | Laporan ringkas, mutasi karyawan, ekspor rekonsiliasi | admin |
+| `faq` | Pertanyaan yang sering diajukan — absensi, cuti, gaji, login | all |
 
 ## Status
 

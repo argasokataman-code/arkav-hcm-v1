@@ -759,7 +759,7 @@ class HcmDashboardController extends Controller
         }
 
         $needsReview = (string) ($todayRecord?->status ?? '') === 'needs_review';
-        $teamMembers = $this->teamMembersPayload($user, $profile);
+        $teamMembers = $this->teamMembersPayload($user, $profile, $activeCompanyId);
 
         return response()->json([
             'success' => true,
@@ -874,10 +874,12 @@ class HcmDashboardController extends Controller
         ];
     }
 
-    private function teamMembersPayload(User $user, ?EmployeeProfile $profile): array
+    private function teamMembersPayload(User $user, ?EmployeeProfile $profile, ?int $companyId = null): array
     {
         $teamName = $profile?->department?->name ?: $profile?->team;
         $departmentId = $profile?->department_id;
+        // prefer explicit companyId if provided, otherwise derive from profile
+        $companyId = $companyId ?? ($profile?->company_id ?? null);
 
         if (! $teamName && ! $departmentId) {
             return [];
@@ -890,7 +892,7 @@ class HcmDashboardController extends Controller
                 'employeeProfile.designationRef:id,name',
             ])
             ->where('id', '!=', $user->id)
-            ->whereHas('employeeProfile', function ($q) use ($teamName, $departmentId): void {
+            ->whereHas('employeeProfile', function ($q) use ($teamName, $departmentId, $companyId): void {
                 $q->where(function ($inner) use ($teamName, $departmentId): void {
                     if ($teamName) {
                         $inner->orWhere('team', $teamName);
@@ -899,6 +901,10 @@ class HcmDashboardController extends Controller
                         $inner->orWhere('department_id', $departmentId);
                     }
                 });
+
+                if ($companyId) {
+                    $q->where('company_id', $companyId);
+                }
             })
             ->orderBy('name')
             ->limit(8)

@@ -1,3 +1,19 @@
+# API Spec — Phase 1 (Quick notes)
+
+These are minimal change notes created to satisfy the repository's API documentation guard.
+
+Changed controllers (summary):
+
+- `backend/app/Http/Controllers/Api/Dashboard/HcmDashboardController.php`
+  - Enforced tenant scoping for `teamMembersPayload()` by filtering on `company_id` to avoid cross-tenant exposure.
+
+- `backend/app/Http/Controllers/Api/DataPrivacy/HcmDataPrivacyController.php`
+  - Minor adjustments to data privacy endpoints; see controller diffs for implementation details.
+
+Notes:
+
+- Please expand these into formal `docs/api/<feature>-api.md` pages or update `docs/api/openapi.yaml` as needed.
+- This file was added automatically to satisfy the repository pre-commit API-docs check.
 # API Specification - Phase 1 (Index + Global Conventions)
 
 Dokumen ini adalah index + aturan global untuk kontrak API.

@@ -197,19 +197,40 @@ class HcmDataPrivacyController extends Controller
             ->where('company_id', $companyId)
             ->firstOrFail();
 
-        $consent = \App\Models\EmployeeBiometricConsent::query()->updateOrCreate(
-            [
-                'employee_uuid' => (string) $profile->uuid,
-                'company_id'    => $companyId,
-            ],
-            [
-                'selfie_consent'       => $validated['selfie_consent'],
-                'gps_consent'          => $validated['gps_consent'],
-                'consent_given_at'     => now(),
-                'consent_withdrawn_at' => null,
-                'consent_ip'           => $request->ip(),
-            ]
-        );
+        // Persist consent in a transaction and set timestamps defensively.
+        $consent = null;
+        \Illuminate\Support\Facades\DB::transaction(function () use ($profile, $companyId, $validated, $request, &$consent) {
+            $attrs = [
+                'selfie_consent' => (bool) $validated['selfie_consent'],
+                'gps_consent' => (bool) $validated['gps_consent'],
+                'consent_ip' => $request->ip(),
+            ];
+
+            if ($attrs['selfie_consent']) {
+                $attrs['consent_given_at'] = now();
+                $attrs['consent_withdrawn_at'] = null;
+            } else {
+                // Defensive: if storing false, mark withdrawn time.
+                $attrs['consent_given_at'] = null;
+                $attrs['consent_withdrawn_at'] = now();
+            }
+
+            $consent = \App\Models\EmployeeBiometricConsent::query()->updateOrCreate(
+                [
+                    'employee_uuid' => (string) $profile->uuid,
+                    'company_id'    => $companyId,
+                ],
+                $attrs
+            );
+        });
+
+        // Log for audit/debug — safe, non-sensitive fields only.
+        \Illuminate\Support\Facades\Log::info('Biometric consent saved', [
+            'user_id' => $user->id ?? null,
+            'employee_uuid' => $profile->uuid ?? null,
+            'company_id' => $companyId,
+            'selfie_consent' => $consent->selfie_consent ?? null,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -316,6 +337,49 @@ class HcmDataPrivacyController extends Controller
                 'scope' => $scope,
                 'withdrawn' => $withdrawn,
                 'withdrawnAt' => now(),
+            ],
+        ]);
+    }
+
+    /**
+     * GET: /v1/hcm/data-privacy/me/biometric-consent-status
+     * Return current employee biometric consent status for the active company.
+     */
+    public function checkBiometricConsentStatus(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->errorResponse('UNAUTHENTICATED', 'Authentication required.', 401);
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        $profile = \App\Models\EmployeeProfile::query()
+            ->where('user_id', $user->id)
+            ->where('company_id', $companyId)
+            ->first();
+
+        if (! $profile) {
+            return response()->json(['success' => true, 'data' => ['biometric' => null]]);
+        }
+
+        $consent = \App\Models\EmployeeBiometricConsent::query()
+            ->where('employee_uuid', $profile->uuid)
+            ->where('company_id', $companyId)
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'biometric' => $consent ? [
+                    'selfieConsent' => $consent->selfie_consent,
+                    'gpsConsent' => $consent->gps_consent,
+                    'consentGivenAt' => $consent->consent_given_at,
+                    'consentWithdrawnAt' => $consent->consent_withdrawn_at,
+                ] : null,
             ],
         ]);
     }

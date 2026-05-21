@@ -65,10 +65,23 @@
                     </div>
                     <div class="col-lg-4">
                         <label class="form-label">Akses cepat</label>
+                        @php
+                            $user = auth()->user();
+                            $quickLinks = [
+                                ['slug' => 'checklist-admin-baru', 'label' => 'Onboarding'],
+                                ['slug' => 'proses-penggajian-bulanan', 'label' => 'Payroll'],
+                                ['slug' => 'absen-dan-gps', 'label' => 'Absensi'],
+                            ];
+                        @endphp
                         <div class="d-flex gap-2 flex-wrap">
-                            <a href="{{ route('knowledgebase.article', ['slug' => 'checklist-onboarding-admin-hcm']) }}" class="btn btn-light border btn-sm">Onboarding</a>
-                            <a href="{{ route('knowledgebase.article', ['slug' => 'payroll-run-bulanan']) }}" class="btn btn-light border btn-sm">Payroll</a>
-                            <a href="{{ route('knowledgebase.article', ['slug' => 'absensi-dan-gps']) }}" class="btn btn-light border btn-sm">Absensi</a>
+                            @foreach($quickLinks as $ql)
+                                @php $resolved = \App\Support\HcmKnowledgebase::resolveArticle($ql['slug'], $user); @endphp
+                                @if($resolved !== null)
+                                    <a href="{{ route('knowledgebase.article', ['slug' => $ql['slug']]) }}" class="btn btn-light border btn-sm">{{ $ql['label'] }}</a>
+                                @else
+                                    <a href="{{ route('knowledgebase') }}" class="btn btn-light border btn-sm disabled" aria-disabled="true" title="Artikel tidak tersedia untuk akun Anda">{{ $ql['label'] }}</a>
+                                @endif
+                            @endforeach
                         </div>
                     </div>
                 </form>

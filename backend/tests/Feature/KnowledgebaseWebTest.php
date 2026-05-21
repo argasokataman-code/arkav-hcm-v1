@@ -27,21 +27,21 @@ class KnowledgebaseWebTest extends TestCase
             ->get('/knowledgebase')
             ->assertOk()
             ->assertSee('Knowledge Base', false)
-            ->assertSee('Memulai dan akun', false)
-            ->assertDontSee('Super Admin (tenant SaaS)', false)
-            ->assertDontSee('Tutorial lengkap: admin memakai aplikasi dari login sampai operasional harian', false);
+            ->assertSee('Memulai dan Akun', false)
+            ->assertDontSee('Super Admin (Operator Platform)', false)
+            ->assertDontSee('Panduan lengkap: admin dari login sampai operasional harian', false);
 
         $this->actingAs($user)
-            ->get('/knowledgebase/article/login-perusahaan-dan-token')
+            ->get('/knowledgebase/article/cara-login')
             ->assertOk()
-            ->assertSee('Cara login', false);
+            ->assertSee('Cara masuk ke Arcav HCM', false);
 
         $this->actingAs($user)
-            ->get('/knowledgebase/article/hub-super-admin-menu')
+            ->get('/knowledgebase/article/menu-super-admin')
             ->assertNotFound();
 
         $this->actingAs($user)
-            ->get('/knowledgebase/article/panduan-admin-harian-hcm')
+            ->get('/knowledgebase/article/panduan-admin-harian')
             ->assertNotFound();
 
         $this->actingAs($user)
@@ -61,17 +61,17 @@ class KnowledgebaseWebTest extends TestCase
         $this->actingAs($user)
             ->get('/knowledgebase')
             ->assertOk()
-            ->assertSee('Super Admin (tenant SaaS)', false);
+            ->assertSee('Super Admin (Operator Platform)', false);
 
         $this->actingAs($user)
-            ->get('/knowledgebase/article/hub-super-admin-menu')
+            ->get('/knowledgebase/article/menu-super-admin')
             ->assertOk()
             ->assertSee('operator platform', false);
 
         $this->actingAs($user)
-            ->get('/knowledgebase/article/panduan-admin-harian-hcm')
+            ->get('/knowledgebase/article/panduan-admin-harian')
             ->assertOk()
-            ->assertSee('Login dan pastikan konteks perusahaan benar', false);
+            ->assertSee('Login dan pastikan perusahaan yang aktif sudah benar', false);
     }
 
     public function test_legacy_knowledgebase_details_redirects_when_article_known(): void
@@ -83,8 +83,8 @@ class KnowledgebaseWebTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/knowledgebase-details?article=slip-gaji-mandiri')
-            ->assertRedirect(route('knowledgebase.article', ['slug' => 'slip-gaji-mandiri']));
+            ->get('/knowledgebase-details?article=slip-gaji-karyawan')
+            ->assertRedirect(route('knowledgebase.article', ['slug' => 'slip-gaji-karyawan']));
     }
 
     public function test_legacy_knowledgebase_view_redirects_when_category_known(): void
@@ -125,9 +125,9 @@ class KnowledgebaseWebTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/knowledgebase/category/memulai') // This category exists but let's test the view
+            ->get('/knowledgebase/category/memulai')
             ->assertOk()
-            ->assertSee('Memulai dan akun', false);
+            ->assertSee('Memulai dan Akun', false);
     }
 
     public function test_invalid_category_returns_404(): void

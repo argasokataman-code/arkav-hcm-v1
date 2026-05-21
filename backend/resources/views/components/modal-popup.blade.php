@@ -18,6 +18,7 @@
 @include('components.modals.crm-companies')
 @include('components.modals.crm-deals')
 @include('components.modals.attendance')
+@include('components.modals.biometric')
 @include('components.modals.performance')
 @include('components.modals.training')
 @include('components.modals.recruitment')

@@ -350,7 +350,8 @@ class PackageFeatureCatalogRuntimeService
                 'Data Privacy',
                 'missing',
                 'error',
-                'Data karyawan/sensitif terdeteksi, tetapi fitur data privacy belum dipilih.'
+                'Data karyawan/sensitif terdeteksi, tetapi fitur data privacy belum dipilih.',
+                'data_privacy'
             );
         } else {
             $pdpItems[] = $this->buildIssue(
@@ -368,7 +369,8 @@ class PackageFeatureCatalogRuntimeService
                 'Payroll + THR',
                 'warning',
                 'warning',
-                'Payroll aktif tanpa THR. Di Indonesia umumnya THR menjadi komponen penting.'
+                'Payroll aktif tanpa THR. Di Indonesia umumnya THR menjadi komponen penting.',
+                'payroll_thr'
             );
         }
 
@@ -378,7 +380,8 @@ class PackageFeatureCatalogRuntimeService
                 'Attendance + Shift Scheduling',
                 'warning',
                 'warning',
-                'Attendance aktif tanpa shift scheduling. Pastikan memang tidak butuh penjadwalan shift.'
+                'Attendance aktif tanpa shift scheduling. Pastikan memang tidak butuh penjadwalan shift.',
+                'attendance_shift_scheduling'
             );
         }
 
@@ -390,8 +393,58 @@ class PackageFeatureCatalogRuntimeService
                 'Performance + Goal Tracking',
                 'warning',
                 'warning',
-                'Performance aktif tanpa goal tracking. Paket menjadi kurang lengkap untuk appraisal berbasis target.'
+                'Performance aktif tanpa goal tracking. Paket menjadi kurang lengkap untuk appraisal berbasis target.',
+                'goal_tracking'
             );
+        }
+
+        // Orphan checks: sub-features selected without their required parent feature
+        $orphanChecks = [
+            ['child' => 'attendance_shift_scheduling', 'parent' => 'attendance'],
+            ['child' => 'overtime',                    'parent' => 'attendance'],
+            ['child' => 'leave_approval_flow',         'parent' => 'leave_management'],
+            ['child' => 'holiday_calendar',            'parent' => 'leave_management'],
+            ['child' => 'payroll_thr',                 'parent' => 'payroll'],
+            ['child' => 'payroll_components',          'parent' => 'payroll'],
+            ['child' => 'salary_components',           'parent' => 'payroll'],
+            ['child' => 'spt_masa_pph21',              'parent' => 'payroll'],
+            ['child' => 'goal_tracking',               'parent' => 'performance'],
+            ['child' => 'performance_goal_tracking',   'parent' => 'performance'],
+            ['child' => 'employee_document_center',    'parent' => 'employee_management'],
+            ['child' => 'employee_lifecycle',          'parent' => 'employee_management'],
+            ['child' => 'promotion',                   'parent' => 'employee_management'],
+            ['child' => 'resignation',                 'parent' => 'employee_management'],
+            ['child' => 'termination',                 'parent' => 'employee_management'],
+        ];
+
+        foreach ($orphanChecks as $check) {
+            if (isset($selectedLookup[$check['child']]) && ! isset($selectedLookup[$check['parent']])) {
+                $parentLabel = $this->resolveFeatureLabel($check['parent']);
+                $childLabel  = $this->resolveFeatureLabel($check['child']);
+                $dependencyItems[] = $this->buildIssue(
+                    'ORPHAN_' . Str::upper($check['child']),
+                    $childLabel . ' (butuh ' . $parentLabel . ')',
+                    'missing',
+                    'error',
+                    sprintf('%s dipilih tanpa %s aktif. Aktifkan %s terlebih dahulu.', $childLabel, $parentLabel, $parentLabel),
+                    $check['parent']
+                );
+            }
+        }
+
+        // Governance features require payroll
+        foreach (['bpjs_governance', 'tax_governance', 'allowance_governance', 'spt_masa_pph21'] as $govCode) {
+            if (isset($selectedLookup[$govCode]) && ! isset($selectedLookup['payroll'])) {
+                $govLabel = $this->resolveFeatureLabel($govCode);
+                $dependencyItems[] = $this->buildIssue(
+                    'ORPHAN_GOV_' . Str::upper($govCode),
+                    $govLabel . ' (butuh Payroll)',
+                    'missing',
+                    'error',
+                    sprintf('%s dipilih tanpa Payroll aktif. Payroll wajib ada agar fitur ini berjalan.', $govLabel),
+                    'payroll'
+                );
+            }
         }
 
         $sections = [
@@ -503,7 +556,8 @@ class PackageFeatureCatalogRuntimeService
                     $label,
                     'missing',
                     'error',
-                    sprintf('%s aktif, tetapi %s belum dipilih.', $this->resolveFeatureLabel($sourceCode), $label)
+                    sprintf('%s aktif, tetapi %s belum dipilih.', $this->resolveFeatureLabel($sourceCode), $label),
+                    $requiredCode
                 );
             } else {
                 $target[] = $this->buildIssue(
@@ -525,15 +579,21 @@ class PackageFeatureCatalogRuntimeService
         string $label,
         string $status,
         string $severity,
-        string $message
+        string $message,
+        ?string $featureCode = null
     ): array {
-        return [
+        $result = [
             'code' => $code,
             'label' => $label,
             'status' => $status,
             'severity' => $severity,
             'message' => $message,
         ];
+        if ($featureCode !== null) {
+            $result['feature_code'] = $featureCode;
+        }
+
+        return $result;
     }
 
     /**

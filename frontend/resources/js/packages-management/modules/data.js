@@ -222,6 +222,7 @@ const dataMethods = {
       Array.from(container.querySelectorAll('[data-edit-package]')).forEach((btn) => {
         btn.addEventListener('click', function (e) {
           e.preventDefault();
+          e.stopPropagation();
           const id = btn.getAttribute('data-edit-package');
           try {
             this.editPackage(id);
@@ -234,6 +235,7 @@ const dataMethods = {
       Array.from(container.querySelectorAll('[data-delete-package]')).forEach((btn) => {
         btn.addEventListener('click', function (e) {
           e.preventDefault();
+          e.stopPropagation();
           const id = btn.getAttribute('data-delete-package');
           try {
             this.deletePackage(id);
@@ -246,6 +248,7 @@ const dataMethods = {
       Array.from(container.querySelectorAll('[data-view-features]')).forEach((btn) => {
         btn.addEventListener('click', function (e) {
           e.preventDefault();
+          e.stopPropagation();
           const id = btn.getAttribute('data-view-features');
           try {
             this.showFeaturesModal(id);

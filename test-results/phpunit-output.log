@@ -1,0 +1,1470 @@
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_exact_leave_balance(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_procedural_cara_mengajukan_cuti(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_procedural_how_to_apply_leave(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_noisy_leave_balance_with_typo(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_exact_attendance_today(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_procedural_cara_absen(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_procedural_cara_checkin_typo(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_noisy_attendance_question(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_exact_payslip(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_procedural_cara_lihat_gaji(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_procedural_cara_akses_payslip(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_noisy_gaji_question(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_exact_ticket_list(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_procedural_cara_buat_tiket(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_procedural_how_to_create_ticket(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_cara_komplain(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_current_subscription_features_question(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_english_current_package_features_question(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_exact_leave_history_other(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_typo_karywan_pernah_cuti(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_classifies_colloquial_pegawai_ajukan_cuti(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_returns_unknown_for_unrelated_question(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::it_returns_unknown_for_empty_noise(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::duplicate_key_regression_procedural_leave_not_unknown(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::duplicate_key_regression_procedural_attendance_not_unknown(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::duplicate_key_regression_procedural_payslip_not_unknown(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\HcmAiClassifierNoiseTest::duplicate_key_regression_procedural_ticket_not_unknown(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\PayrollSettingsGovernanceTest::can_update_payroll_settings_and_create_audit_trail(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\PayrollSettingsGovernanceTest::creates_snapshot_when_settings_updated(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\PayrollSettingsGovernanceTest::can_retrieve_settings_history(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\PayrollSettingsGovernanceTest::audit_log_only_creates_entries_for_actual_changes(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\PayrollSettingsGovernanceTest::snapshot_version_increments_on_updates(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\PayrollSettingsGovernanceTest::history_is_tenant_scoped(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   PASS  Tests\Unit\AiLlmServiceTest
+  ✓ uses ui settings with env fallback                                  29.05s  
+
+   PASS  Tests\Unit\ApplyLocalizationSettingsTest
+  ✓ middleware applies timezone and locale from settings                 0.06s  
+  ✓ middleware falls back when stored timezone is invalid                0.04s  
+
+   PASS  Tests\Unit\BpjsContributionCalculatorTest
+  ✓ bpjs kes employee no cap
+  ✓ bpjs kes applies default cap
+  ✓ bpjs kes applies tenant override cap
+  ✓ jp no cap below default
+  ✓ jp applies default cap
+  ✓ jp applies tenant cap
+  ✓ jkk risk category 1
+  ✓ jkk risk category 5
+  ✓ jkk all risk rates match constants
+  ✓ jkk invalid risk category throws
+  ✓ jkk invalid risk category zero throws
+  ✓ jkk override rate clamped to max
+  ✓ jkk override rate negative clamped to zero
+  ✓ jht no cap
+  ✓ jkm employer flat rate
+  ✓ generic calculate dispatches bpjs kes
+  ✓ generic calculate dispatches jp
+  ✓ generic calculate dispatches jkk
+  ✓ generic calculate unknown program throws
+
+   PASS  Tests\Unit\EmailSettingsServiceTest
+  ✓ update profile encrypts secrets at rest and masks response           0.06s  
+  ✓ get profile supports legacy plaintext secrets for backward compatib… 0.04s  
+  ✓ persist test connection snapshot stores last probe metadata          0.05s  
+  ✓ persist test connection snapshot strips sensitive detail keys        0.04s  
+  ✓ update profile keeps existing secrets when secret fields are omitte… 0.05s  
+  ✓ resolve runtime smtp transport uses explicit smtp profile            0.04s  
+  ✓ resolve runtime smtp transport uses mailtrap token defaults when pr… 0.03s  
+
+   PASS  Tests\Unit\ExampleTest
+  ✓ that true is true
+
+   PASS  Tests\Unit\LocationServiceTest
+  ✓ reverse geocode returns location name                                0.04s  
+  ✓ reverse geocode uses cache                                           0.03s  
+  ✓ reverse geocode fallback on api error                                0.03s  
+  ✓ create manual location                                               0.03s  
+  ✓ location name hierarchy                                              0.03s  
+
+   PASS  Tests\Unit\MailtrapAccountApiServiceTest
+  ✓ it lists api tokens with bearer auth                                 0.04s  
+  ✓ it throws when mailtrap token missing                                0.03s  
+  ✓ test connection returns connected summary                            0.03s  
+  ✓ test connection normalizes auth failure                              0.03s  
+
+   PASS  Tests\Unit\NotificationEventCatalogIntegrationTest
+  ✓ catalog contains cross domain phase three events                     0.03s  
+
+   PASS  Tests\Unit\NotificationEventCatalogTest
+  ✓ catalog contains core phase zero events                              0.03s  
+  ✓ payload factory merges canonical and legacy fields                   0.03s  
+
+   PASS  Tests\Unit\ReconciliationGateServiceTest
+  ✓ it throws required when evidence is missing                          0.04s  
+  ✓ it throws expired when latest evidence is expired                    0.17s  
+  ✓ it throws scope mismatch when filter payload does not match          0.05s  
+  ✓ it returns evidence when gate is valid                               0.04s  
+
+   PASS  Tests\Unit\SmtpConnectionProbeServiceTest
+  ✓ probe returns connected for successful smtp handshake                0.03s  
+  ✓ probe normalizes auth failure                                        0.04s  
+  ✓ probe normalizes timeout failure                                     0.04s  
+  ✓ probe normalizes tls failure                                         0.03s  
+
+   PASS  Tests\Unit\UserGlobalAdminEmailTest
+  ✓ is super admin flag is the primary signal                            0.04s  
+  ✓ primary admin email is recognized as global hcm admin                0.04s  
+  ✓ secondary admin email is not promoted to global hcm admin            0.04s  
+  ✓ unrelated email without flag is not global hcm admin                 0.05s  
+
+   PASS  Tests\Feature\AiChatConsentTest
+  ✓ employee ai consent can be created                                   0.06s  
+  ✓ active consent is recognized                                         0.05s  
+  ✓ withdrawn consent is not active                                      0.04s  
+  ✓ get active for employee returns latest                               0.04s  
+  ✓ ai llm service checks user consent                                   0.05s  
+  ✓ ai llm service rejects withdrawn consent                             0.05s  
+  ✓ ai llm service rejects user without profile                          0.04s  
+
+   PASS  Tests\Feature\ApiTokenControllerTest
+  ✓ api token endpoint accepts valid api token cookie                    0.29s  
+  ✓ api token endpoint rejects missing token                             0.04s  
+
+   PASS  Tests\Feature\AssetLifecycleNotificationTest
+  ✓ assign asset sends assigned notification to employee                 0.10s  
+  ✓ return asset sends returned notification to employee                 0.08s  
+
+   PASS  Tests\Feature\AssetManagementWebPermissionsTest
+  ✓ non admin with asset view permission cannot access asset admin page… 0.19s  
+
+   PASS  Tests\Feature\AttendanceAdminTenantScopeTest
+  ✓ attendance admin index joins records for scoped users even when rec… 0.27s  
+
+   PASS  Tests\Feature\AttendanceApiTest
+  ✓ attendance admin requires auth                                       0.04s  
+  ✓ attendance admin forbidden for non admin user                        0.08s  
+  ✓ attendance admin forbidden when switching to unowned company         0.15s  
+  ✓ attendance admin returns rows and summary                            0.14s  
+  ✓ attendance admin export supports xlsx and csv                        0.15s  
+  ✓ attendance admin export archive requires valid completed attendance… 0.24s  
+  ✓ attendance punch flow                                                0.23s  
+  ✓ attendance punch requires latitude and longitude                     0.16s  
+  ✓ attendance break start and end updates break minutes                 1.78s  
+  ✓ attendance punch out too early marked needs review                   0.31s  
+  ✓ attendance zero minutes is not treated as normal present             0.16s  
+  ✓ attendance me today returns profile photo url from employee profile  0.13s  
+  ✓ attendance daily target and progress are aligned                     0.15s  
+  ✓ attendance can request correction after checkout                     0.15s  
+  ✓ attendance admin upsert record                                       0.14s  
+  ✓ attendance admin selfie download returns not found when selfie miss… 0.13s  
+  ✓ attendance admin upsert rejects checkout before checkin              0.13s  
+  ✓ attendance admin upsert rejects late without checkin                 0.12s  
+  ✓ attendance admin allows hr manager designation                       0.14s  
+  ✓ attendance admin allows qa login super admin email                   0.05s  
+  ✓ timesheets endpoint returns rows for admin                           0.12s  
+  ✓ timesheets rejects reversed date range                               0.13s  
+  ✓ schedule timing endpoint returns rows for admin                      0.12s  
+  ✓ schedule timing export supports xlsx and csv                         0.13s  
+  ✓ timesheets and schedule timing endpoints are forbidden for non admi… 0.10s  
+  ✓ schedule timing admin can upsert manual override                     0.13s  
+  ✓ schedule timing admin can destroy override                           0.14s  
+  ✓ schedule timing admin can apply shift id                             0.13s  
+  ✓ attendance admin upsert record forbidden when switching to unowned…  0.12s  
+  ✓ attendance admin upsert record rejects target user outside active c… 0.14s  
+  ✓ timesheets forbidden when switching to unowned company               0.29s  
+  ✓ schedule timing write rejects target user outside active company     0.14s  
+  ✓ schedule timing upsert is scoped per company for same user           0.15s  
+  ✓ schedule timing start sort applies before pagination                 0.16s  
+  ✓ schedule timing admin can apply overnight shift id                   0.13s  
+
+   PASS  Tests\Feature\AttendanceSelfieTest
+  ✓ authenticated employee can access selfie endpoints                   0.06s  
+  ✓ selfie upload succeeds for valid image after checkin                 0.07s  
+  ✓ selfie upload rejects when attendance not started                    0.06s  
+  ✓ selfie endpoint validates base64 data                                0.06s  
+  ✓ selfie endpoint rejects non image payload                            0.05s  
+  ✓ selfie endpoint rejects oversized payload                            0.12s  
+  ✓ selfie status returns uploaded data after successful upload          0.09s  
+
+   PASS  Tests\Feature\AuthApiTest
+  ✓ user can register login me and logout                                0.10s  
+  ✓ login returns validation error for bad payload                       0.04s  
+  ✓ trial owner is treated as tenant admin on me                         0.08s  
+  ✓ company owner me returns subscription summary without employee role… 0.09s  
+  ✓ company owner me uses nearest unpaid invoice for next payment summa… 0.08s  
+  ✓ remember me login has longer expiry than regular login               0.05s  
+  ✓ login is throttled after multiple failed attempts                    0.05s  
+  ✓ me returns active company context                                    0.08s  
+  ✓ user can update profile via identity endpoint                        0.09s  
+  ✓ profile update rejects invalid phone and address detail format       0.05s  
+  ✓ profile update rejects phone with too many digits                    0.05s  
+  ✓ owner profile update uses company settings without creating employe… 0.12s  
+  ✓ owner profile update with existing employee profile still updates c… 0.12s  
+  ✓ owner profile update rejects invalid company npwp                    0.05s  
+  ✓ profile password update requires valid current password              0.09s  
+  ✓ hcm route forbidden when requesting unowned company                  0.05s  
+  ✓ login backfills default company membership for legacy user           0.07s  
+  ✓ login as company succeeds for member company code                    0.05s  
+  ✓ login as company fails for unowned company code                      0.04s  
+  ✓ company owner cannot login without company code                      0.05s  
+  ✓ company active endpoint returns details                              0.05s  
+  ✓ company list endpoint returns paginated companies                    0.05s  
+  ✓ company list endpoint filters by status                              0.05s  
+  ✓ company create endpoint requires admin                               0.07s  
+  ✓ company create endpoint creates company for admin                    0.05s  
+  ✓ company update endpoint updates company                              0.06s  
+  ✓ company delete endpoint requires admin                               0.05s  
+  ✓ company delete endpoint deletes company for admin                    0.10s  
+
+   PASS  Tests\Feature\CalendarEventApiTest
+  ✓ user can create list update and delete calendar event                0.16s  
+  ✓ user cannot access other user calendar event                         0.18s  
+
+   PASS  Tests\Feature\CleanupOwnerEmployeeProfilesCommandTest
+  ✓ cleanup command backfills owner settings and deletes orphan owner e… 0.08s  
+  ✓ cleanup command skips owner profiles with hr dependencies            0.05s  
+  ✓ cleanup command skips protected global admin owners                  0.05s  
+
+   PASS  Tests\Feature\ConsoleScheduleRegistrationTest
+  ✓ all expected scheduled events are registered                         0.03s  
+  ✓ saas jobs exist as resolvable job classes                            0.03s  
+
+   PASS  Tests\Feature\ConvertExpiredTrialsJobTest
+  ✓ job creates invoice and moves trial to pending payment               0.05s  
+  ✓ job is idempotent for existing unpaid invoice                        0.03s  
+  ✓ job applies tax snapshot to trial conversion invoice amount          0.04s  
+
+   PASS  Tests\Feature\CronjobSettingsWebTest
+  ✓ hcm admin can update cronjob configuration via web form              0.05s  
+  ✓ non hcm admin cannot update cronjob configuration                    0.03s  
+  ✓ hcm admin receives validation errors for invalid cronjob payload     0.03s  
+
+   PASS  Tests\Feature\CustomDomainServiceTest
+  ✓ can list domains with pagination                                     0.08s  
+  ✓ can show domain details                                              0.07s  
+  ✓ admin can create domain                                              0.08s  
+  ✓ non admin cannot create domain                                       0.07s  
+  ✓ admin can update domain                                              0.07s  
+  ✓ admin can delete domain                                              0.07s  
+  ✓ verify domain endpoint                                               0.07s  
+  ✓ non admin cannot verify domain                                       0.07s  
+  ✓ cannot create duplicate domain                                       0.07s  
+  ✓ can filter domains by status                                         0.07s  
+  ✓ can search domains by name                                           0.07s  
+  ✓ can filter domains by company id                                     0.06s  
+
+   PASS  Tests\Feature\DataEncryptionTest
+  ✓ employee profile sensitive fields are encrypted                      0.04s  
+  ✓ employee profile encrypted fields decrypted on read                  0.04s  
+  ✓ encrypted fields can be queried via model                            0.04s  
+
+   PASS  Tests\Feature\DevelopmentSuperUserSeederTest
+  ✓ development super user account is seeded                             0.07s  
+  ✓ seeded development super user can login without company code         0.07s  
+
+   PASS  Tests\Feature\DocumentCenterApiTest
+  ✓ categories require tenant context                                    0.09s  
+  ✓ admin can crud categories                                            0.22s  
+  ✓ employee cannot mutate categories                                    0.18s  
+  ✓ category delete orphans documents                                    0.18s  
+  ✓ admin can upload and list documents                                  0.17s  
+  ✓ admin can update document metadata                                   0.18s  
+  ✓ admin can delete document                                            0.18s  
+  ✓ employee sees only own employee visible documents                    0.19s  
+  ✓ employee cannot upload documents                                     0.16s  
+  ✓ employee cannot delete documents                                     0.17s  
+  ✓ employee cannot download hr only document                            0.19s  
+  ✓ tenant isolation documents                                           0.27s  
+  ✓ documents filter by visibility                                       0.20s  
+
+   PASS  Tests\Feature\DomainControllerTest
+  ✓ list domains requires admin                                          0.05s  
+  ✓ list domains as admin                                                0.05s  
+  ✓ create domain requires admin                                         0.05s  
+  ✓ create domain as admin                                               0.04s  
+  ✓ update domain as admin                                               0.04s  
+  ✓ delete domain as admin                                               0.05s  
+  ✓ verify domain                                                        0.04s  
+  ✓ get verification details                                             0.05s  
+  ✓ create domain normalizes host and rejects invalid domain format      0.05s  
+
+   PASS  Tests\Feature\EmailComposeWebTest
+  ✓ email page can send runtime mail from web form                       0.05s  
+  ✓ email page validates required compose fields                         0.04s  
+  ✓ email page renders sent items from runtime logs                      0.13s  
+
+   PASS  Tests\Feature\EmailDeliveryStatusWebhookRuntimeTest
+  ✓ delivery status webhook rejects invalid token                        0.05s  
+  ✓ delivery status webhook updates delivery to delivered                0.05s  
+  ✓ delivery status webhook marks bounce as dropped                      0.04s  
+
+   PASS  Tests\Feature\EmailInboundWebhookRuntimeTest
+  ✓ inbound webhook rejects invalid token                                0.04s  
+  ✓ inbound webhook persists message and is idempotent                   0.04s  
+
+   PASS  Tests\Feature\EmployeeLimitEnforcementTest
+  ✓ create employee is blocked when plan employee limit exceeded         0.11s  
+  ✓ pending payment subscription does not grant employee slots           0.04s  
+  ✓ employee limit validator reads updated active package limit automat… 0.04s  
+
+   PASS  Tests\Feature\EmployeeScopedWebRoutesTest
+  ✓ owner is redirected from employee scoped web routes                  0.07s  
+  ✓ employee can access employee scoped web routes                       0.52s  
+
+   PASS  Tests\Feature\EmployeesTenantScopeTest
+  ✓ employee list is scoped to active company                            0.09s  
+  ✓ global admin employee directory remains tenant scoped even with glo… 0.09s  
+
+   PASS  Tests\Feature\ExampleTest
+  ✓ the application returns a successful response                        0.03s  
+
+   PASS  Tests\Feature\FaqApiTest
+  ✓ hcm admin can crud faq and bulk delete                               0.20s  
+  ✓ non admin user is forbidden to manage faq                            0.07s  
+  ✓ admin cannot delete other tenant faq                                 0.21s  
+
+   PASS  Tests\Feature\GlobalSuperAdminBypassTest
+  ✓ tenant resolver synthesizes membership for global admin on foreign…  0.03s  
+  ✓ global admin without explicit tenant uses prioritized default compa… 0.04s  
+  ✓ global admin with stale tenant header falls back to default company  0.03s  
+  ✓ employee list stays scoped to active tenant for global admin         0.07s  
+  ✓ ticket feature gate does not block global admin                      0.05s  
+  ✓ global admin can create employee without active subscription         0.24s  
+
+   PASS  Tests\Feature\GoalTrackingApiTest
+  ✓ goal types admin crud and employee forbidden mutation                0.11s  
+  ✓ employee can crud own goals manager can update team admin can view…  0.22s  
+
+   PASS  Tests\Feature\Hcm\DashboardSummaryTenantScopeTest
+  ✓ dashboard summary is company scoped                                  0.10s  
+  ✓ dashboard department breakdown uses department assignment            0.12s  
+
+   PASS  Tests\Feature\HcmActivityFeedApiTest
+  ✓ hcm admin can fetch activity feed from real records                  0.07s  
+  ✓ non admin cannot access activity feed                                0.06s  
+  ✓ hcm admin can crud manual activity while feed marks it editable      0.07s  
+  ✓ global admin can view cross tenant activity and company filter opti… 0.05s  
+  ✓ tenant owner can crud manual activity for active company context     0.11s  
+  ✓ company owner membership can crud manual activity without explicit…  0.08s  
+
+   PASS  Tests\Feature\HcmAddonCheckoutFlowTest
+  ✓ tenant can checkout addon with separate invoice and transaction      0.14s  
+  ✓ addon checkout reuses existing unpaid invoice                        0.13s  
+  ✓ addon checkout does not reuse unpaid subscription invoice            0.13s  
+  ✓ paying addon invoice updates subscription amount for future renewal  0.16s  
+
+   PASS  Tests\Feature\HcmAiChatLeaveHistoryIntentTest
+  ✓ typo question is classified as leave history other                   0.13s  
+  ✓ leave history other contains previous period applicants with names   0.12s  
+
+   PASS  Tests\Feature\HcmAiChatSubscriptionFeaturesIntentTest
+  ✓ ai chat requires ai assistant feature for tenant admin               0.12s  
+  ✓ current subscription features are loaded from runtime package state  0.12s  
+
+   PASS  Tests\Feature\HcmAiChatTaxIntentTest
+  ✓ global admin can ask monthly government tax summary                  0.13s  
+  ✓ non global admin cannot access monthly government tax summary        0.11s  
+
+   PASS  Tests\Feature\HcmAiClassifierNoiseTest
+  ✓ it classifies exact leave balance                                    0.03s  
+  ✓ it classifies procedural cara mengajukan cuti                        0.03s  
+  ✓ it classifies procedural how to apply leave                          0.03s  
+  ✓ it classifies noisy leave balance with typo                          0.03s  
+  ✓ it classifies exact attendance today                                 0.03s  
+  ✓ it classifies procedural cara absen                                  0.03s  
+  ✓ it classifies procedural cara checkin typo                           0.03s  
+  ✓ it classifies noisy attendance question                              0.03s  
+  ✓ it classifies exact payslip                                          0.03s  
+  ✓ it classifies procedural cara lihat gaji                             0.03s  
+  ✓ it classifies procedural cara akses payslip                          0.03s  
+  ✓ it classifies noisy gaji question                                    0.03s  
+  ✓ it classifies exact ticket list                                      0.03s  
+  ✓ it classifies procedural cara buat tiket                             0.03s  
+  ✓ it classifies procedural how to create ticket                        0.03s  
+  ✓ it classifies cara komplain                                          0.03s  
+  ✓ it classifies current subscription features question                 0.03s  
+  ✓ it classifies english current package features question              0.03s  
+  ✓ it classifies exact leave history other                              0.03s  
+  ✓ it classifies typo karywan pernah cuti                               0.03s  
+  ✓ it classifies colloquial pegawai ajukan cuti                         0.03s  
+  ✓ it returns unknown for unrelated question                            0.04s  
+  ✓ it returns unknown for empty noise                                   0.03s  
+  ✓ duplicate key regression procedural leave not unknown                0.03s  
+  ✓ duplicate key regression procedural attendance not unknown           0.04s  
+  ✓ duplicate key regression procedural payslip not unknown              0.03s  
+  ✓ duplicate key regression procedural ticket not unknown               0.03s  
+
+   PASS  Tests\Feature\HcmAssetApiTest
+  ✓ asset lifecycle happy path                                           0.12s  
+  ✓ asset endpoints are feature gated                                    0.10s  
+  ✓ asset endpoints treat zero limit feature as disabled                 0.09s  
+  ✓ reporting asset issue creates ticket in same company                 0.08s  
+  ✓ asset detail returns uploaded attachments                            0.09s  
+  ✓ view only permission can list assets but cannot mutate assets or ca… 0.16s  
+  ✓ asset create rejects category from other company                     0.07s  
+  ✓ return rejects date before assignment date                           0.09s  
+  ✓ retired assets remain visible in asset list                          0.08s  
+
+   PASS  Tests\Feature\HcmAuditLogTest
+  ✓ creating employee logs activity                                      0.34s  
+  ✓ log record has correct company isolation                             0.45s  
+
+   PASS  Tests\Feature\HcmBackfillLegacyTeamAssignmentsCommandTest
+  ✓ backfill dry run does not mutate employee profile                    0.05s  
+  ✓ backfill can create missing team and assign employee                 0.05s  
+
+   PASS  Tests\Feature\HcmBpjsGovernanceApiTest
+  ✓ policy update flow and reports endpoint                              0.17s  
+  ✓ policy update rejects mutating immutable fields and non regulatory…  0.13s  
+  ✓ policy create is enabled for tenant runtime                          0.13s  
+  ✓ policy delete flow for tenant runtime                                0.12s  
+  ✓ policy history endpoint returns logged actions                       0.15s  
+  ✓ membership list and update flow                                      0.14s  
+  ✓ membership update always creates new history record                  0.17s  
+  ✓ reports export returns json attachment                               0.13s  
+  ✓ rate baselines list returns system defaults when no tenant config    0.12s  
+  ✓ rate baseline update overrides system default                        0.15s  
+  ✓ policy create forbidden without payroll manage permission            0.06s  
+
+   PASS  Tests\Feature\HcmCompanyInvoiceHostedCheckoutTest
+  ✓ hosted checkout for existing invoice returns gateway url and can be… 0.14s  
+  ✓ hosted checkout can use xendit provider and returns real hosted url  0.13s  
+  ✓ legacy unpaid subscription invoice is healed with tax before displa… 0.14s  
+  ✓ company invoice download returns pdf binary for existing generated…  0.27s  
+  ✓ company invoice detail exposes package cycle and next billing metad… 0.12s  
+  ✓ non admin user cannot access company invoice endpoints               0.08s  
+
+   PASS  Tests\Feature\HcmDashboardApiTest
+  ✓ admin dashboard summary endpoint returns expected structure          0.07s  
+  ✓ employee dashboard summary endpoint returns expected structure       0.11s  
+  ✓ admin dashboard summary export defaults to xlsx with csv fallback    0.08s  
+  ✓ package compliance employees endpoint requires global hcm admin      0.05s  
+  ✓ package compliance employees endpoint returns masked payload         0.08s  
+
+   PASS  Tests\Feature\HcmDataPrivacyWithdrawConsentTest
+  ✓ withdraw consent updates scopes and sends confirmation email         0.05s  
+
+   PASS  Tests\Feature\HcmEmailComposeApiTest
+  ✓ global admin can send runtime compose email via api                  0.06s  
+  ✓ compose api validates required fields                                0.06s  
+  ✓ non global admin cannot access compose notification endpoint         0.07s  
+
+   PASS  Tests\Feature\HcmEmailSettingsApiTest
+  ✓ mailtrap status reports settings as credential source when settings… 0.15s  
+  ✓ test connection endpoint is rate limited after five requests per mi… 0.17s  
+  ✓ mailtrap status sanitizes runtime exception message                  0.12s  
+
+   PASS  Tests\Feature\HcmEmployeeAllowanceGovernanceApiTest
+  ✓ policies endpoint returns created policies without runtime seed      0.15s  
+  ✓ policy create update and activate flow                               0.15s  
+  ✓ assignment flow and compliance report structure                      0.18s  
+  ✓ assignments and compliance ignore legacy compensation fixed allowan… 0.14s  
+  ✓ assignment overlap is rejected for active periods                    0.14s  
+  ✓ policies endpoint auto provisions starter drafts for new company     0.15s  
+
+   PASS  Tests\Feature\HcmEmployeeApiTest
+  ✓ employees list requires auth                                         0.03s  
+  ✓ employees list returns summary and rows                              0.15s  
+  ✓ employees list includes phone on rows                                0.17s  
+  ✓ employee create with department and designation                      0.37s  
+  ✓ employee create rejects designation department mismatch              0.14s  
+  ✓ employee create and update profile                                   0.45s  
+  ✓ employee create accepts plus62 phone and normalizes to canonical va… 0.35s  
+  ✓ tenant admin cannot update employee outside active company           0.14s  
+  ✓ employee profile can store pkwt contract fields                      0.38s  
+  ✓ employee profile can store personal identity fields                  0.39s  
+  ✓ employee create rejects invalid formats and missing required fields  0.14s  
+  ✓ employee create rejects duplicate nik in same company                0.33s  
+  ✓ employee contract rules require end date only for pkwt               0.16s  
+  ✓ employee create rejects invalid background step data                 0.25s  
+  ✓ employee create rejects oversized personal text fields               0.14s  
+  ✓ employee create rejects invalid bank account number and holder name… 0.15s  
+  ✓ employee create rejects invalid name place of birth and bpjs number… 0.14s  
+  ✓ employee create can compose address from wilayah hierarchy           0.36s  
+  ✓ employees filter by status                                           0.15s  
+  ✓ employees filter by team id returns matching rows                    0.17s  
+  ✓ employee create rejects inactive team assignment                     0.14s  
+  ✓ employee update rejects inactive team assignment                     0.34s  
+  ✓ employee create rejects free text team without team id               0.15s  
+  ✓ employee update rejects free text team without team id               0.34s  
+  ✓ employee update persists normalized history tables                   0.40s  
+  ✓ departments returns designation count key                            0.13s  
+  ✓ departments forbidden when switching to unowned company              0.12s  
+  ✓ employees export supports xlsx csv and pdf                           0.47s  
+  ✓ departments designations and policies export supports xlsx and pdf   0.17s  
+  ✓ policies list returns data with tenant context                       0.13s  
+  ✓ bulk template and upload requires hcm admin                          0.07s  
+  ✓ bulk template download contains reference sheets                     0.31s  
+  ✓ bulk template requires department and designation masters            0.17s  
+  ✓ hcm admin can bulk upload full employee data from csv                0.26s  
+  ✓ hcm admin can bulk upload using department and designation names     0.15s  
+  ✓ bulk upload is blocked when package employee limit is full           0.15s  
+  ✓ bulk upload respects subscription activation after pending payment…  0.19s  
+  ✓ bulk upload rejects invalid enums and rolls back all rows            0.16s  
+  ✓ bulk upload rejects conflicting employee uuid and email mapping      0.14s  
+  ✓ contract transition to pkwtt keeps history                           0.42s  
+  ✓ employee detail returns history collections                          0.42s  
+  ✓ non hcm admin cannot list employees                                  0.06s  
+  ✓ non hcm admin cannot view other employee                             0.08s  
+  ✓ non hcm admin can view self                                          0.13s  
+  ✓ non hcm admin can update self profile subset only                    0.14s  
+  ✓ hcm admin can upload employee profile photo                          0.17s  
+  ✓ hcm admin cannot upload profile photo for other employee             0.13s  
+  ✓ company owner cannot upload profile photo for other employee         0.14s  
+  ✓ employee profile photo upload rejects non image file                 0.12s  
+  ✓ employee profile photo upload rejects oversized image file           0.13s  
+  ✓ hcm admin can delete employee profile photo                          0.14s  
+  ✓ hcm admin cannot delete profile photo for other employee             0.14s  
+  ✓ company owner cannot delete profile photo for other employee         0.14s  
+  ✓ employee show returns 404 when not found                             0.13s  
+  ✓ non admin cannot access export endpoints                             0.09s  
+
+   PASS  Tests\Feature\HcmExtrasApiTest
+  ✓ holidays crud smoke                                                  0.10s  
+  ✓ holidays forbidden for non hcm admin                                 0.08s  
+  ✓ holidays sync indonesia upserts api rows                             0.07s  
+  ✓ holidays sync uses fallback provider when primary fails              0.06s  
+  ✓ holiday sync reconciles api rows without removing manual rows        0.08s  
+  ✓ holidays sync skips cuti bersama rows from primary calendar          0.06s  
+  ✓ leave request create and me scope                                    0.14s  
+  ✓ overtime request create                                              0.09s  
+
+   PASS  Tests\Feature\HcmGlobalSearchApiTest
+  ✓ non global user cannot see global only catalog entries               0.08s  
+  ✓ global admin can see global only catalog entries                     0.08s  
+
+   PASS  Tests\Feature\HcmPayrollApiTest
+  ✓ payroll periods require hcm admin                                    0.06s  
+  ✓ draft finalize and employee slip lines                               0.28s  
+  ✓ finalize rejects empty payroll run                                   0.14s  
+  ✓ active period endpoint and history listing                           0.19s  
+  ✓ admin slips returns cross period rows without server error           0.24s  
+  ✓ monthly draft rebuild and disburse are idempotent                    0.23s  
+  ✓ approved resigned employee is excluded from monthly payroll draft    0.17s  
+  ✓ payroll uses latest effective compensation history                   0.16s  
+  ✓ pph21 ter uses monthly rate table                                    0.16s  
+  ✓ pph21 ter matrix matches category rate tables                        0.20s  
+  ✓ pph21 uses published tax governance schedule when effective for per… 0.16s  
+  ✓ pph21 ignores future dated published tax governance policy for curr… 0.17s  
+  ✓ pph21 ter boundaries are inclusive per table thresholds              0.23s  
+  ✓ monthly payslip summary includes overtime and deductions             0.24s  
+  ✓ finalized monthly payslip pdf can be downloaded                      0.29s  
+  ✓ hcm admin can send finalized monthly slips via email                 0.29s  
+  ✓ admin slips includes email delivery status helper after send slips   0.30s  
+  ✓ monthly report aggregates monthly thr and pkwt runs and can export   0.25s  
+  ✓ hcm admin can send finalized monthly slips with uuid identifier      0.29s  
+
+   PASS  Tests\Feature\HcmPayrollItemApiTest
+  ✓ index requires hcm admin                                             0.13s  
+  ✓ payroll items forbidden when switching to unowned company            0.06s  
+  ✓ index returns payroll items only                                     0.06s  
+  ✓ admin crud custom and link                                           0.12s  
+  ✓ unlink payroll item                                                  0.07s  
+  ✓ index filters by kind and meta lists linked components               0.08s  
+  ✓ export supports csv and xlsx                                         0.09s  
+  ✓ export is forbidden for non admin                                    0.06s  
+  ✓ cannot link inactive salary component                                0.07s  
+
+   PASS  Tests\Feature\HcmPayrollItemAssignmentApiTest
+  ✓ assignment endpoints require hcm admin                               0.23s  
+  ✓ admin assignment is included in monthly draft lines                  0.20s  
+  ✓ overlapping active assignments are rejected                          0.16s  
+  ✓ adjacent non overlapping assignments are accepted                    0.17s  
+  ✓ open ended existing blocks future assignment                         0.16s  
+
+   PASS  Tests\Feature\HcmPayrollPeriodApiTest
+  ✓ non admin cannot list payroll periods                                0.07s  
+  ✓ payroll periods forbidden when switching to unowned company          0.05s  
+  ✓ admin can list payroll periods                                       0.08s  
+  ✓ admin can create new payroll period                                  0.05s  
+  ✓ admin cannot create duplicate period                                 0.06s  
+  ✓ non admin cannot create payroll period                               0.07s  
+  ✓ admin can view period details with latest run                        0.11s  
+  ✓ admin can calculate draft for period                                 0.11s  
+  ✓ calculate draft persists policy snapshot from company settings       0.14s  
+  ✓ calculate draft clamps payday to last day of short month             0.14s  
+  ✓ calculate draft resolves leap year february payday and cutoff        0.13s  
+  ✓ calculate draft moves weekend payday to previous working day by def… 0.14s  
+  ✓ calculate draft moves payday forward when next working day strategy… 0.14s  
+  ✓ calculate draft captures late arrival buffer in run meta             0.15s  
+  ✓ admin can recalculate draft rebuilds lines                           0.14s  
+  ✓ admin calculate draft for empty period                               0.10s  
+  ✓ non admin cannot calculate draft                                     0.10s  
+  ✓ active period endpoint resolves current or creates default           0.10s  
+  ✓ non admin cannot get active period                                   0.07s  
+  ✓ active period reuses existing current month period even if posted    0.07s  
+  ✓ create period validates year and month                               0.10s  
+  ✓ calculate draft handles finalized run in dev mode                    0.20s  
+  ✓ period status transitions                                            0.19s  
+  ✓ payroll period show returns 404 when not found                       0.05s  
+
+   PASS  Tests\Feature\HcmPayrollPkwtApiTest
+  ✓ pkwt compensation preview forbidden for non admin                    0.09s  
+  ✓ pkwt compensation forbidden when switching to unowned company        0.06s  
+  ✓ pkwt compensation preview lists employees ending this month          0.09s  
+  ✓ pkwt compensation can post to standalone payroll and appear in slip… 0.12s  
+  ✓ pkwt post payroll requires reconciliation when enforced              0.11s  
+  ✓ non admin pkwt post payroll is blocked before reconciliation gate    0.07s  
+
+   PASS  Tests\Feature\HcmPayrollRunApiTest
+  ✓ non admin cannot show payroll run                                    0.21s  
+  ✓ payroll run show returns policy snapshots for active run             0.15s  
+  ✓ admin can view payroll run history                                   0.18s  
+  ✓ payroll runs forbidden when switching to unowned company             0.11s  
+  ✓ payroll run disburse forbidden when switching to unowned company     0.18s  
+  ✓ admin can finalize draft run                                         0.17s  
+  ✓ shared global period latest run and draft reuse are scoped by activ… 0.30s  
+  ✓ admin cannot finalize already finalized run                          0.18s  
+  ✓ admin can void finalized unpaid run and reopen period                0.21s  
+  ✓ admin cannot void run after payment has been disbursed               0.19s  
+  ✓ admin disburse without user filter marks all as paid                 0.18s  
+  ✓ admin disburse selective employees                                   0.23s  
+  ✓ admin disburse accepts uuid identifier fallback                      0.22s  
+  ✓ repeat disburse is idempotent when all paid                          0.20s  
+  ✓ admin can reset payments                                             0.18s  
+  ✓ employee can view their payslip                                      0.20s  
+  ✓ employee can resolve latest finalized payslip period                 0.22s  
+  ✓ non admin cannot finalize                                            0.19s  
+  ✓ non admin cannot disburse                                            0.18s  
+  ✓ non admin cannot reset payments                                      0.19s  
+  ✓ repeat disburse returns existing gateway reference                   0.19s  
+  ✓ payment metadata consistency after disburse                          0.19s  
+  ✓ payroll run show returns 404 when not found                          0.12s  
+  ✓ admin disburse requires explicit selection or apply all flag         0.19s  
+  ✓ payroll run show returns thr and compensation recipients for same p… 0.23s  
+  ✓ admin disburse apply all skips ineligible net zero employees         0.22s  
+  ✓ finalize monthly blocked by unsettled approved termination           0.17s  
+  ✓ finalize monthly allowed when termination has settlement period      0.18s  
+  ✓ finalize monthly not blocked by future termination                   0.17s  
+  ✓ global super admin cannot see other company payroll runs             0.13s  
+  ✓ global super admin cannot disburse other company payroll run         0.12s  
+  ✓ global super admin can view own company payroll run                  0.17s  
+
+   PASS  Tests\Feature\HcmPayrollSettingsApiTest
+  ✓ payroll settings forbidden for non admin                             0.07s  
+  ✓ payroll settings forbidden when switching to unowned company         0.06s  
+  ✓ payroll settings defaults and update                                 0.08s  
+  ✓ payroll settings validate ranges                                     0.05s  
+
+   PASS  Tests\Feature\HcmPayrollThrApiTest
+  ✓ thr calculate forbidden for non admin                                0.07s  
+  ✓ thr calculate validation                                             0.05s  
+  ✓ thr invalid cutoff before join                                       0.06s  
+  ✓ thr not eligible under one full month                                0.05s  
+  ✓ thr pro rata five months                                             0.06s  
+  ✓ thr full twelve months includes fixed allowance in base              0.07s  
+  ✓ thr settings forbidden for non admin                                 0.07s  
+  ✓ thr settings forbidden when switching to unowned company             0.06s  
+  ✓ thr settings list and upsert                                         0.08s  
+  ✓ thr batch generate requires cutoff in settings                       0.07s  
+  ✓ thr batch generate assign and my slip includes thr                   0.37s  
+  ✓ thr batch forbidden for non admin                                    0.08s  
+  ✓ resigned employee excluded from thr batch                            0.10s  
+  ✓ terminated employee excluded from thr batch                          0.11s  
+  ✓ pending resignation does not block thr                               0.10s  
+  ✓ thr disburse and post payroll require reconciliation when enforced   0.32s  
+  ✓ non admin thr actions are blocked before reconciliation gate         0.13s  
+
+   PASS  Tests\Feature\HcmPayrollWorkArrangementApiTest
+  ✓ non admin user cannot access payroll work arrangement endpoints      0.13s  
+  ✓ admin can create profile and employee arrangement                    0.16s  
+
+   PASS  Tests\Feature\HcmRbacIsolationTest
+  ✓ user from company a cannot access company b data                     0.05s  
+  ✓ role without permission cannot access endpoint                       0.05s  
+  ✓ tenant admin with company admin role can create roles                0.06s  
+  ✓ global admin can manage tenant role setup with active context        0.06s  
+
+   PASS  Tests\Feature\HcmSalaryComponentApiTest
+  ✓ show returns one component                                           0.06s  
+  ✓ index requires hcm admin                                             0.07s  
+  ✓ admin crud and locked rules                                          0.11s  
+  ✓ prevent duplicate name in same kind and category                     0.06s  
+  ✓ admin category endpoints are read only                               0.09s  
+  ✓ patch tax flags supports explicit tax treatment code                 0.08s  
+  ✓ employee profiles endpoint returns identity and assignment summary   0.13s  
+
+   PASS  Tests\Feature\HcmSecurityIncidentApiTest
+  ✓ admin can manage security incident lifecycle                         0.14s  
+  ✓ show returns not found for unknown incident uuid                     0.06s  
+
+   PASS  Tests\Feature\HcmSmartAttendanceApiTest
+  ✓ generate smart attendance shifting plan returns structured payload   0.24s  
+  ✓ generate smart attendance shifting plan requires admin               0.06s  
+  ✓ non admin cannot access smart attendance settings publish and roste… 0.09s  
+  ✓ generate shifting mode distributes multiple shift types              0.28s  
+  ✓ generate respects afternoon to morning forbidden transition matrix   0.22s  
+  ✓ smart planner settings can be saved and loaded per tenant            0.13s  
+  ✓ publish daily roster upserts per user per date                       0.23s  
+
+   PASS  Tests\Feature\HcmSptMasaTest
+  ✓ unauthenticated request returns 401                                  0.03s  
+  ✓ request without company context returns 403                          0.13s  
+  ✓ list returns empty when no headers                                   0.13s  
+  ✓ generate rejected when no finalized run                              0.13s  
+  ✓ generate creates header when finalized run exists                    0.15s  
+  ✓ generate duplicate rejected                                          0.16s  
+  ✓ idempotent generate via generation key                               0.16s  
+  ✓ show returns header with details                                     0.19s  
+  ✓ happy path generate mark ready submit                                0.18s  
+  ✓ version conflict returns 409                                         0.16s  
+  ✓ submit from draft rejected                                           0.16s  
+  ✓ regenerate on submitted rejected                                     0.19s  
+  ✓ tenant a cannot see tenant b headers                                 0.25s  
+
+   PASS  Tests\Feature\HcmSubscriptionChangeApiTest
+  ✓ preview change returns price delta without persisting                0.07s  
+  ✓ change plan creates pending request and blocks duplicate             0.08s  
+  ✓ cancel change transitions pending to cancelled                       0.08s  
+  ✓ super admin approve upgrade marks request approved without auto app… 0.08s  
+  ✓ inactive target package is rejected for preview and change plan      0.07s  
+  ✓ non admin tenant user cannot submit change request                   0.07s  
+  ✓ non primary super admin cannot access global change request queue    0.07s  
+  ✓ trial package is rejected as change target                           0.09s  
+  ✓ downgrade to cheaper package creates downgrade action with deferred… 0.06s  
+  ✓ action auto detected by price regardless of requested action label   0.07s  
+  ✓ downgrade remains allowed when latest subscription is not active     0.08s  
+  ✓ approved downgrade generates new invoice and requires paying new in… 0.09s  
+  ✓ preview includes partial and overdue billing anomaly flags           0.13s  
+
+   PASS  Tests\Feature\HcmSyncTeamRoleDefaultsCommandTest
+  ✓ command backfills team lead and manager default permissions for exi… 0.05s  
+
+   PASS  Tests\Feature\HcmTaxGovernanceApiTest
+  ✓ employee cannot access platform tax compliance endpoints             0.19s  
+  ✓ tenant admin without global scope cannot access platform tax compli… 0.13s  
+  ✓ employee cannot access platform billing endpoints                    0.19s  
+  ✓ tenant admin without global scope cannot access platform billing en… 0.13s  
+  ✓ global admin can create platform billing policy and read reports fo… 0.15s  
+  ✓ global admin can create and list platform tax compliance policies    0.12s  
+  ✓ platform tax compliance policy requires complete global payload      0.14s  
+  ✓ platform tax compliance policy upserts existing month cycle without… 0.13s  
+  ✓ platform tax compliance report returns zero tax due without policy   0.12s  
+  ✓ platform tax compliance report ignores draft policy for configurati… 0.14s  
+  ✓ platform tax compliance policy list includes full global history be… 0.27s  
+
+   PASS  Tests\Feature\HcmTaxGovernancePhase7Test
+  ✓ tenant self audit export supports pdf download                       0.21s  
+  ✓ resolve anomaly persists resolution audit trail                      0.14s  
+  ✓ tenant compliance status returns expected sections                   0.13s  
+  ✓ tenant compliance status counts only unpaid invoices in billing sna… 0.14s  
+  ✓ tenant compliance status returns clearing aware revenue metrics      0.13s  
+  ✓ tenant compliance status includes employee pph21 profile quality sn… 0.15s  
+
+   PASS  Tests\Feature\HcmTaxGovernancePhase8Phase9Test
+  ✓ platform tax compliance endpoints require global admin               0.14s  
+  ✓ global admin can manage platform tax compliance policy and reports   0.13s  
+  ✓ platform tax compliance report requires policy for tax due           0.14s  
+  ✓ platform tax compliance report uses cleared revenue as primary taxa… 0.13s  
+  ✓ platform tax compliance report respects yearly cycle metadata        0.12s  
+  ✓ platform tax compliance report uses invoice fallback for gross when… 0.13s  
+  ✓ platform tax compliance policy list marks single current active rul… 0.12s  
+
+   PASS  Tests\Feature\HcmTaxGovernanceWorkflowApiTest
+  ✓ policy workflow endpoints transition statuses and reject route is a… 0.16s  
+  ✓ global dashboard route is active                                     0.11s  
+  ✓ break glass request and approval endpoints are active                0.13s  
+  ✓ tenant compliance status auto derives ptkp from marital status when… 0.14s  
+
+   PASS  Tests\Feature\HcmTeamApiTest
+  ✓ list teams empty                                                     0.12s  
+  ✓ create team                                                          0.13s  
+  ✓ show team                                                            0.12s  
+  ✓ update team                                                          0.13s  
+  ✓ delete team                                                          0.13s  
+  ✓ create team validation error                                         0.12s  
+  ✓ team not found                                                       0.13s  
+  ✓ non admin blocked                                                    0.14s  
+  ✓ list teams pagination                                                0.13s  
+  ✓ admin can list team members                                          0.15s  
+  ✓ team lead can list own team members                                  0.18s  
+  ✓ team lead without team lead permission cannot list team members      0.17s  
+  ✓ non lead non admin cannot list team members                          0.20s  
+  ✓ admin can bulk reassign team members                                 0.38s  
+  ✓ bulk reassign rejects employee outside source filter                 0.16s  
+  ✓ bulk reassign rejects inactive target team                           0.15s  
+  ✓ non admin cannot bulk reassign members                               0.15s  
+
+   PASS  Tests\Feature\HcmUserManagementApiTest
+  ✓ user management list supports filter and pagination                  0.09s  
+  ✓ admin can crud roles and sync permissions                            0.11s  
+  ✓ admin can create user assign role and revoke assignment              0.10s  
+  ✓ admin can delete user from active company                            0.09s  
+  ✓ admin can export user management csv                                 0.07s  
+  ✓ non admin cannot access user management endpoints                    0.08s  
+  ✓ admin cannot access different company user management                0.11s  
+  ✓ tenant admin can configure role setup with tenant permissions        0.06s  
+  ✓ global super admin can modify tenant role setup with active context  0.06s  
+  ✓ tenant admin permissions catalog hides system module                 0.07s  
+
+   PASS  Tests\Feature\HcmUserManagementUsersPageTest
+  ✓ guest cannot access users page                                       0.04s  
+  ✓ non admin is redirected from users and roles permissions pages       0.09s  
+
+   PASS  Tests\Feature\InvoiceEmailLoggingTest
+  ✓ send email endpoint logs success                                     0.18s  
+  ✓ send email endpoint blocks pending payment and requires reminder fl… 0.08s  
+  ✓ show invoice returns full email history for admin detail page        0.09s  
+
+   PASS  Tests\Feature\InvoiceMailRenderTest
+  ✓ invoice mailable renders without mail hint errors                    0.06s  
+  ✓ payment reminder mailable renders without mail hint errors           0.06s  
+
+   PASS  Tests\Feature\InvoicePaidActivatesSubscriptionTest
+  ✓ mark paid activates pending payment subscription                     0.09s  
+
+   PASS  Tests\Feature\InvoiceRenderContextIntegrationTest
+  ✓ invoice render context merges business company profile and invoice…  0.07s  
+
+   PASS  Tests\Feature\KnowledgebaseWebTest
+  ✓ guest is redirected from knowledgebase                               0.05s  
+  ✓ authenticated user can open index and article                        0.81s  
+  ✓ global super admin can view global knowledgebase content             0.10s  
+  ✓ legacy knowledgebase details redirects when article known            0.05s  
+  ✓ legacy knowledgebase view redirects when category known              0.03s  
+  ✓ search with no results shows empty state                             0.56s  
+  ✓ category with no articles shows empty state                          0.16s  
+  ✓ invalid category returns 404                                         0.08s  
+
+   PASS  Tests\Feature\LandingPackageFeatureCatalogConsistencyTest
+  ✓ landing packages seed required feature codes for menu gates          0.11s  
+
+   PASS  Tests\Feature\LeaveFoundationBackfillCommandTest
+  ✓ backfill creates custom policy assignments from legacy settings      0.06s  
+  ✓ backfill is idempotent for repeated runs                             0.06s  
+
+   PASS  Tests\Feature\LeaveIndonesiaCatalogCommandTest
+  ✓ seed indonesia catalog creates deduct and non deduct types           0.07s  
+  ✓ leave type options exposes deduct metadata                           0.09s  
+
+   PASS  Tests\Feature\LeaveMaintenanceCommandTest
+  ✓ monthly accrual is idempotent for same period                        0.06s  
+
+   PASS  Tests\Feature\LeaveRequestsApiTest
+  ✓ authenticated user can list enabled leave type options               0.06s  
+  ✓ non admin cannot create leave for other user                         0.08s  
+  ✓ admin can create leave for other user                                0.14s  
+  ✓ employee leave submission notifies tenant admin owner                0.17s  
+  ✓ non admin cannot update another users leave status                   0.07s  
+  ✓ admin can update another users leave status                          0.14s  
+  ✓ admin cannot override employee notes when not declining              0.16s  
+  ✓ admin decline requires reason and preserves employee note context    0.15s  
+  ✓ admin approval posts leave ledger and balance                        0.15s  
+  ✓ approve decline reapprove keeps net usage consistent                 0.19s  
+  ✓ approved leave only updates attendance within same company           0.15s  
+  ✓ scope me returns balance summary meta for ui cards                   0.13s  
+  ✓ index filter leave type accepts name and legacy code variants        0.18s  
+  ✓ index returns leave type label for legacy value                      0.13s  
+  ✓ store auto calculates working days excluding weekend and holiday     0.08s  
+  ✓ store persists leave request breakdowns with holiday calendar link   0.09s  
+  ✓ employee update resyncs leave request breakdowns                     0.06s  
+  ✓ scope me includes holiday meta for leave menu                        0.13s  
+  ✓ leave requests support status and date filters                       0.07s  
+  ✓ leave holiday meta includes holiday id linkage                       0.13s  
+  ✓ leave requests export csv uses active filters                        0.06s  
+  ✓ leave request update forbidden when switching to unowned company     0.07s  
+  ✓ store rejects leave request when balance insufficient                0.07s  
+  ✓ admin cannot create leave for user outside active company            0.13s  
+  ✓ admin cannot view leave balance for user outside active company      0.13s  
+
+   PASS  Tests\Feature\LeaveSettingsApiTest
+  ✓ leave settings index returns seeded types                            0.14s  
+  ✓ update type and custom policy flow                                   0.15s  
+  ✓ non hcm admin cannot access leave settings                           0.11s  
+  ✓ can create custom policy with new leave type name                    0.13s  
+  ✓ custom policy accepts numeric assignee ids for active company membe… 0.14s  
+  ✓ custom policy rejects assignee ids outside active company            0.14s  
+
+   PASS  Tests\Feature\LeaveTestingDataCommandTest
+  ✓ seed testing data creates cross schema leave fixtures                0.17s  
+
+   PASS  Tests\Feature\LeaveTypeCatalogApiTest
+  ✓ admin can list leave types                                           0.05s  
+  ✓ admin can create update and disable leave type                       0.05s  
+  ✓ non admin cannot manage leave types                                  0.08s  
+
+   PASS  Tests\Feature\LoginWebTest
+  ✓ login page uses landing aligned auth shell and preserves auth form…  0.04s  
+  ✓ pending payment company is redirected to subscription checkout unti… 0.10s  
+  ✓ trial company can enter app and sees trial remaining badge           0.13s  
+  ✓ inactive company is redirected to subscription checkout until react… 0.12s  
+  ✓ inactive company with unpaid invoice hides checkout forms on first…  0.13s  
+  ✓ legacy suspended company is normalized to inactive and redirected t… 0.05s  
+  ✓ active subscription page shows paid addons dynamically               0.17s  
+  ✓ authenticated user sees notifications entry in mobile user menu      0.13s  
+  ✓ global super admin is not redirected to subscription when active co… 0.08s  
+  ✓ pending payment with zero amount invoice is auto healed and not red… 0.15s  
+
+   PASS  Tests\Feature\MockPaymentControllerTest
+  ✓ create payment accepts invoice uuid and returns uuid payloads        0.06s  
+  ✓ simulate charge succeeded accepts payment uuid and marks invoice pa… 0.05s  
+  ✓ create invoice and pay supports hosted flow and requires callback t… 0.05s  
+
+   PASS  Tests\Feature\MySlipLinesCoexistenceTest
+  ✓ monthly and thr runs coexist on my slip lines                        0.10s  
+  ✓ monthly and pkwt runs coexist on my slip lines                       0.08s  
+  ✓ three run purposes coexist in same period                            0.09s  
+
+   PASS  Tests\Feature\NoteApiTest
+  ✓ user can create and list notes                                       0.13s  
+  ✓ user can update note                                                 0.12s  
+  ✓ user can delete note                                                 0.13s  
+  ✓ unauthenticated request is rejected                                  0.03s  
+  ✓ user cannot access another users note                                0.19s  
+
+   PASS  Tests\Feature\NotificationDeliverySummaryApiTest
+  ✓ global admin can read notification delivery summary scoped to activ… 0.06s  
+  ✓ global admin retry is scoped to active tenant                        0.06s  
+  ✓ non global admin cannot read delivery summary                        0.06s  
+  ✓ non global admin cannot access delivery details export retry and te… 0.10s  
+
+   PASS  Tests\Feature\NotificationInboxApiTest
+  ✓ inbox list returns tenant scoped notifications for regular user      0.07s  
+  ✓ mark notification as read updates single notification                0.07s  
+  ✓ mark all as read and unread count endpoints work                     0.08s  
+
+   PASS  Tests\Feature\NotificationPreferenceApiTest
+  ✓ put preferences creates and updates rows                             0.08s  
+  ✓ get preferences returns only authenticated user rows                 0.12s  
+
+   PASS  Tests\Feature\NotificationPreferenceEnforcementTest
+  ✓ disabled preference blocks database notification delivery            0.03s  
+  ✓ enabled preference allows database notification delivery             0.04s  
+
+   PASS  Tests\Feature\NotifySubscriptionChangeApproverJobTest
+  ✓ notify job sends only to primary super admin code one                0.04s  
+
+   PASS  Tests\Feature\OvertimeRequestApiTest
+  ✓ me includes hcm admin flag                                           0.21s  
+  ✓ non admin index only own rows                                        0.26s  
+  ✓ non admin cannot create for other user                               0.11s  
+  ✓ non admin cannot approve other users request                         0.19s  
+  ✓ calculate includes salary component link                             0.06s  
+  ✓ create overtime links salary component row                           0.15s  
+  ✓ create overtime persists day type and weekly work days               0.16s  
+  ✓ admin can filter index by work date                                  0.17s  
+  ✓ approved leave blocks overtime request in same company               0.17s  
+  ✓ create overtime rejects daily legal limit exceeded                   0.14s  
+  ✓ create overtime rejects weekly legal limit exceeded                  0.21s  
+  ✓ calculator supports public holiday and shortest rest day matrix      0.07s  
+
+   PASS  Tests\Feature\OvertimeTenantScopeTest
+  ✓ overtime list is scoped to active company for admin                  0.08s  
+
+   PASS  Tests\Feature\OvertimeTypeApiTest
+  ✓ migration seeds default types                                        0.04s  
+  ✓ non admin sees only active types                                     0.08s  
+  ✓ admin crud overtime type                                             0.08s  
+  ✓ mutations forbidden for non admin                                    0.09s  
+
+   PASS  Tests\Feature\OwnerSettingsAccessTest
+  ✓ owner is redirected from profile settings to company profile         0.05s  
+  ✓ owner company profile becomes single settings entrypoint             0.11s  
+  ✓ member still can access profile settings                             0.13s  
+
+   PASS  Tests\Feature\PackageServiceTest
+  ✓ list packages returns active packages                                0.07s  
+  ✓ non admin cannot see global admin only package in list or detail     0.08s  
+  ✓ global admin can see global admin only package                       0.06s  
+  ✓ feature catalog returns only backend defined features                0.10s  
+  ✓ feature catalog healthcheck returns runtime diagnostics for admin    0.08s  
+  ✓ feature catalog healthcheck requires admin                           0.10s  
+  ✓ package compliance check returns snapshot for admin                  0.06s  
+  ✓ package compliance check requires admin                              0.09s  
+  ✓ list package addons returns active addons                            0.07s  
+  ✓ show package with features                                           0.08s  
+  ✓ package index includes subscription counts                           0.07s  
+  ✓ create package requires admin                                        0.08s  
+  ✓ create package addon requires admin                                  0.07s  
+  ✓ create package as admin                                              0.05s  
+  ✓ create package addon as admin                                        0.08s  
+  ✓ create package addon rejects feature code namespace collision        0.08s  
+  ✓ list package addons excludes rows that collide with feature codes    0.09s  
+  ✓ update package as admin                                              0.06s  
+  ✓ update package addon as admin                                        0.08s  
+  ✓ delete package as admin                                              0.07s  
+  ✓ delete package is blocked when subscription history exists           0.08s  
+  ✓ delete package addon as admin                                        0.06s  
+  ✓ add feature to package                                               0.06s  
+  ✓ update feature limit                                                 0.08s  
+  ✓ delete feature from package                                          0.06s  
+
+   PASS  Tests\Feature\PasswordResetWebFlowTest
+  ✓ user can request password reset link from web flow                   0.29s  
+  ✓ user can reset password from web flow                                0.09s  
+  ✓ reset password rejects weak password                                 0.06s  
+  ✓ forgot password returns error when email not found                   0.04s  
+
+   PASS  Tests\Feature\PayrollLateArrivalMigrationRegressionTest
+  ✓ post cutoff overtime is buffered and not in source period lines      0.27s  
+  ✓ paid monthly run auto migration creates next period carryover with…  0.27s  
+
+   PASS  Tests\Feature\PayrollLeaveHolidayIntegrationTest
+  ✓ flag off by default produces no leave holiday lines                  0.07s  
+  ✓ flag on globally emits unpaid leave deduction and holiday work addi… 0.08s  
+  ✓ flag can be enabled per tenant via company settings                  0.09s  
+
+   PASS  Tests\Feature\PayrollOvertimeRuleIntegrationTest
+  ✓ payroll uses overtime request day type and weekly work days          0.06s  
+  ✓ payroll overtime query is scoped by company id                       0.06s  
+  ✓ payroll overtime excludes entries after cutoff snapshot              0.08s  
+  ✓ payroll overtime rounding sums raw values then rounds once           0.06s  
+
+   PASS  Tests\Feature\PayrollSettingsGovernanceTest
+  ✓ can update payroll settings and create audit trail                   0.06s  
+  ✓ creates snapshot when settings updated                               0.08s  
+  ✓ can retrieve settings history                                        0.08s  
+  ✓ audit log only creates entries for actual changes                    0.09s  
+  ✓ snapshot version increments on updates                               0.08s  
+  ✓ history is tenant scoped                                             0.08s  
+
+   PASS  Tests\Feature\PdpRetentionCommandsTest
+  ✓ purge ai chat logs removes expired rows                              0.05s  
+  ✓ purge attendance records removes expired rows                        0.04s  
+
+   PASS  Tests\Feature\PerformanceApiTest
+  ✓ end to end employee manager admin workflow                           0.36s  
+  ✓ manager is forbidden for admin only endpoints                        0.11s  
+  ✓ performance review show returns 404 when not found                   0.12s  
+  ✓ review leave frequency counts only same company approved leaves      0.18s  
+
+   PASS  Tests\Feature\PerformanceGoalsTenantScopeTest
+  ✓ goals scope all is tenant scoped for admin                           0.07s  
+
+   PASS  Tests\Feature\PlatformTaxSummaryApiTest
+  ✓ pph badan export returns xlsx by default for global admin            0.13s  
+  ✓ pph badan export rejects csv format                                  0.11s  
+  ✓ dashboard export returns xlsx for global admin                       0.14s  
+  ✓ spt ppn export returns xlsx for global admin                         0.12s  
+  ✓ spt pph23 export returns xlsx for global admin                       0.13s  
+  ✓ dashboard requires global admin                                      0.11s  
+  ✓ active ppn rate returns default when no active compliance policy ex… 0.13s  
+  ✓ active ppn rate prefers active compliance policy setting             0.11s  
+  ✓ spt ppn uses tax inclusive amount due when snapshot exists           0.13s  
+  ✓ spt ppn excludes zero value invoices from detail and summary         0.12s  
+  ✓ dashboard pph23 uses completed payments instead of unpaid invoice r… 0.13s  
+  ✓ pph badan uses dpp basis and exposes annual deadlines                0.12s  
+
+   PASS  Tests\Feature\ProcessRecurringSubscriptionBillingJobTest
+  ✓ job creates tax inclusive renewal invoice with valid invoice schema  0.04s  
+  ✓ job is idempotent per subscription and period                        0.06s  
+  ✓ failed renewal attempt schedules retry in one hour and writes event  0.04s  
+  ✓ parallel worker runs do not double increment attempt or events       0.04s  
+  ✓ retry exhausted moves subscription to grace period                   0.06s  
+  ✓ retry exhausted emits failure spike alert when threshold is reached  0.05s  
+  ✓ expired grace period escalates to inactive                           0.04s  
+  ✓ grace period sends notif to billing contact on retry exhausted       0.06s  
+  ✓ suspension warning is sent one day before grace expires              0.04s  
+  ✓ suspended notification sent after grace expires                      0.05s  
+
+   PASS  Tests\Feature\PromotionApiTest
+  ✓ promotions admin crud and employee forbidden                         0.10s  
+  ✓ promotion show and per user list self only                           0.25s  
+  ✓ promotion show returns 404 when not found                            0.05s  
+  ✓ promotion create rejects user uuid outside active company            0.06s  
+
+   PASS  Tests\Feature\PublicOnboardingApiTest
+  ✓ turnstile required when enabled                                      0.22s  
+  ✓ inactive package is rejected                                         0.03s  
+  ✓ duplicate owner email is rejected                                    0.05s  
+  ✓ invalid start mode is rejected                                       0.03s  
+  ✓ company name too short is rejected                                   0.03s  
+  ✓ guest can onboard company owner and trial subscription               0.25s  
+  ✓ guest can onboard and start pending payment with invoice             0.21s  
+  ✓ duplicate company code is rejected                                   0.04s  
+
+   PASS  Tests\Feature\PurchaseTransactionServiceTest
+  ✓ list transactions with status filter                                 0.07s  
+  ✓ create transaction as admin                                          0.06s  
+  ✓ create transaction forbidden for non admin                           0.07s  
+  ✓ create transaction rejects subscription from another company         0.06s  
+  ✓ list transactions accepts company uuid filter                        0.07s  
+  ✓ update transaction status to paid                                    0.06s  
+  ✓ show transaction detail returns formatted payload                    0.07s  
+  ✓ generate code has expected prefix                                    0.08s  
+
+   PASS  Tests\Feature\ReconcilePendingRenewalPaymentsJobTest
+  ✓ reconcile marks payment as paid when gateway reports settled         0.05s  
+  ✓ reconcile flags stale invoice when gateway reference missing         0.06s  
+  ✓ reconcile emits gateway down alert when xendit is unavailable        0.05s  
+
+✅ Payroll export CSV content:
+---
+﻿payroll_type,reference_period,reference_id,employee_id,employee_name,bank_name,account_number,account_holder_name,bank_branch,gross_total,overtime_total,deductions_total,transfer_amount,bank_data_status,dataset_checksum
+monthly,2026-05,run:108,1004,"Recon Admin",BCA,1234567890,"Recon Admin","Jakarta Pusat",1150000,150000,0,1150000,ready,70a8c29eefa307d7987d13e83df2aaf77a7a72d427d9d97e575a9768aa928ef3
+monthly,2026-05,run:108,1005,"Recon Employee","Bank Mandiri",9876543210,"Recon Employee","Jak
+---
+
+   PASS  Tests\Feature\ReconciliationExportApiTest
+  ✓ admin can store list and download reconciliation evidence            0.08s  
+  ✓ admin can create csv evidence using format alias and auto file path  0.10s  
+  ✓ finalize requires reconciliation when enforced                       0.14s  
+  ✓ invoice and payment actions require reconciliation when enforced     0.10s  
+  ✓ non admin actions return auth error before reconciliation gate       0.16s  
+  ✓ payroll run export generates csv with actual data                    0.17s  
+  ✓ thr batch export generates structured payroll rows                   0.13s  
+  ✓ pkwt compensation export generates structured payroll rows           0.12s  
+
+   PASS  Tests\Feature\RefreshOpenPayrollDraftsServiceTest
+  ✓ refresh rebuilds open periods for multiple tenants before cutoff     0.07s  
+  ✓ refresh skips open period after cutoff                               0.05s  
+  ✓ refresh skips period with finalized monthly run                      0.04s  
+
+   PASS  Tests\Feature\RegisterGateWebTest
+  ✓ register route redirects guest to unified landing onboarding         0.05s  
+  ✓ legacy register variants redirect to unified landing onboarding      0.04s  
+  ✓ trial route without params redirects to unified landing onboarding   0.05s  
+  ✓ trial route preserves package and start mode as unified landing par… 0.04s  
+  ✓ landing pricing guides guest to select plan before company onboardi… 0.04s  
+  ✓ landing pricing hides internal global admin packages                 0.06s  
+
+   PASS  Tests\Feature\RenewalMonitoringApiTest
+  ✓ non admin cannot access renewal monitoring                           0.07s  
+  ✓ admin can fetch summary records detail and anomalies                 0.10s  
+
+   PASS  Tests\Feature\ReportControllerTest
+  ✓ revenue report requires admin                                        0.08s  
+  ✓ admin can access revenue report                                      0.07s  
+  ✓ aging report requires admin                                          0.07s  
+  ✓ admin can access aging report                                        0.07s  
+  ✓ churn report requires admin                                          0.07s  
+  ✓ admin can access churn report                                        0.07s  
+  ✓ unauthenticated cannot access reports                                0.04s  
+  ✓ revenue report scopes to active tenant header when present           0.06s  
+  ✓ revenue report rejects company override that mismatches active tena… 0.07s  
+
+   PASS  Tests\Feature\ReportSnapshotApiTest
+  ✓ hcm admin can generate and list employee snapshots                   0.08s  
+  ✓ non admin is forbidden from generating snapshots                     0.09s  
+  ✓ hcm admin can show snapshot detail                                   0.07s  
+  ✓ hcm admin can show snapshot detail by uuid                           0.08s  
+  ✓ hcm admin can export completed snapshot to real file for all format… 0.17s  
+  ✓ export returns not ready when snapshot status is not completed       0.08s  
+  ✓ export returns not found for unknown snapshot                        0.08s  
+  ✓ snapshot detail and export do not leak across companies              0.07s  
+  ✓ employee snapshot data blocks match live aggregation                 0.08s  
+  ✓ snapshot blocks are invariant after source mutation                  0.10s  
+
+   PASS  Tests\Feature\ResignationApiTest
+  ✓ resignations admin crud and employee forbidden                       0.10s  
+  ✓ resignation show and per user list self only                         0.14s  
+  ✓ resignation show returns 404 when not found                          0.05s  
+  ✓ resignation create rejects user uuid outside active company          0.08s  
+
+   PASS  Tests\Feature\RevenueSourceReferenceValidatorTest
+  ✓ validator accepts valid subscription reference                       0.04s  
+  ✓ validator rejects mismatched uuid reference                          0.05s  
+  ✓ validator rejects unknown source entity type                         0.03s  
+  ✓ validator rejects missing reference fields                           0.03s  
+  ✓ validator accepts valid payroll and addon source reference           0.06s  
+
+   PASS  Tests\Feature\RuntimeRelationGapClosureTest
+  ✓ company uuid is synced for runtime rows created after gap closure    0.06s  
+  ✓ invalid settlement payroll period id is rejected by database constr… 0.06s  
+
+   PASS  Tests\Feature\SaasCompanyBillingOverviewApiTest
+  ✓ non admin cannot access billing overview                             0.08s  
+  ✓ admin can list trial and subscribed tabs with invoice email status   0.09s  
+  ✓ dashboard uses latest subscription once per company                  0.14s  
+  ✓ dashboard returns state badges and detail url for pending payment m… 0.08s  
+  ✓ dashboard falls back to company latest invoice when subscription in… 0.09s  
+  ✓ subscribed tab includes company with invoice even without subscript… 0.07s  
+  ✓ trial company with invoice stays in trial tab                        0.10s  
+  ✓ overview exposes cancellation metadata and extended state badges     0.09s  
+  ✓ admin can preview invoice pdf inline                                 0.20s  
+  ✓ cancelled subscription without reason uses unknown reason            0.10s  
+  ✓ cancelled seeded demo subscription uses seeded demo reason           0.08s  
+
+   PASS  Tests\Feature\SaasSubscriptionsAdminOnlyTest
+  ✓ non admin cannot list or view saas subscriptions                     0.10s  
+
+   PASS  Tests\Feature\SecuritySettingsChangePasswordTest
+  ✓ authenticated user can change password                               0.07s  
+  ✓ change password fails with wrong current password                    0.06s  
+  ✓ change password fails when confirm does not match                    0.07s  
+  ✓ change password fails with weak new password                         0.06s  
+  ✓ change password requires authentication                              0.04s  
+
+   PASS  Tests\Feature\SendPaymentReminderJobTest
+  ✓ job sends reminder to owner email and logs canonical event key       0.07s  
+  ✓ job uses active company member fallback when owner email missing     0.06s  
+
+   PASS  Tests\Feature\SettingsApiTest
+  ✓ prefix group is rejected after feature removal                       0.08s  
+  ✓ can upload business branding file                                    0.06s  
+  ✓ settings index returns centralized full payloads                     0.07s  
+  ✓ localization timezone must be valid timezone identifier              0.07s  
+  ✓ general settings reject invalid profile field formats                0.05s  
+  ✓ ai settings masks secret on load                                     0.08s  
+  ✓ ai settings keeps existing secret when mask placeholder is submitte… 0.07s  
+
+   PASS  Tests\Feature\ShiftMasterApiTest
+  ✓ shifts forbidden for non admin                                       0.10s  
+  ✓ shifts crud flow                                                     0.11s  
+  ✓ update shift returns 404 when not found                              0.07s  
+  ✓ shifts forbidden when switching to unowned company                   0.09s  
+  ✓ tenant admin cannot mutate global shift template                     0.08s  
+  ✓ shift crud supports overnight window                                 0.09s  
+
+   PASS  Tests\Feature\SidebarAssetMenuVisibilityTest
+  ✓ non qa hcm admin does not see asset menu when feature disabled       0.25s  
+  ✓ qa super admin does not see asset menu when feature disabled in ten… 0.21s  
+  ✓ secondary hcm admin sees hcm menus without global super admin hub    0.17s  
+  ✓ regular employee does not see payroll menu even when payroll featur… 0.19s  
+  ✓ sidebar hides holiday attendance and lifecycle when package feature… 0.19s  
+
+   PASS  Tests\Feature\SubscriptionManagementTest
+  ✓ terminate expired subscription                                       0.04s  
+  ✓ get expired subscriptions                                            0.05s  
+  ✓ suspend due to overdue invoice                                       0.04s  
+  ✓ get subscriptions with overdue invoices                              0.04s  
+  ✓ employee count validator allows within limit                         0.08s  
+  ✓ employee count validator rejects exceeding limit                     0.08s  
+  ✓ employee violation detection                                         0.09s  
+  ✓ suspend due to employee count violation                              0.06s  
+  ✓ reactivate suspended subscription                                    0.04s  
+  ✓ cannot reactivate non suspended subscription                         0.04s  
+  ✓ employee count validator allows unlimited                            0.90s  
+  ✓ company active subscription ignores active when ends at passed       0.04s  
+  ✓ get expired includes pending payment past due window                 0.06s  
+
+   PASS  Tests\Feature\SubscriptionServiceTest
+  ✓ create subscription as admin                                         0.10s  
+  ✓ list subscriptions with filters                                      0.09s  
+  ✓ list subscriptions respects per page                                 0.07s  
+  ✓ list subscriptions filter suspended                                  0.08s  
+  ✓ non admin cannot list or view subscription even with bearer token    0.07s  
+  ✓ update subscription                                                  0.07s  
+  ✓ update subscription to suspended                                     0.09s  
+  ✓ update reactivates suspended subscription and clears suspension fie… 0.08s  
+  ✓ create trial subscription success                                    0.09s  
+  ✓ create trial missing trial ends at returns 422                       0.07s  
+  ✓ create trial trial end after subscription end returns 422            0.07s  
+  ✓ update subscription to trial requires trial ends at                  0.09s  
+  ✓ update subscription to trial with dates succeeds                     0.08s  
+  ✓ delete subscription                                                  0.10s  
+  ✓ renew subscription                                                   0.09s  
+  ✓ renew inactive subscription after get by id                          0.08s  
+  ✓ renew suspended subscription clears suspension fields and records e… 0.11s  
+  ✓ non admin cannot create subscription                                 0.07s  
+  ✓ non admin cannot update delete or renew subscription                 0.10s  
+  ✓ update subscription changes package recalculates amount              0.09s  
+  ✓ create subscription rejects non active package                       0.09s  
+  ✓ create subscription rejects if company already has active or trial…  0.07s  
+  ✓ update subscription to active rejects if another active exists       0.09s  
+  ✓ invoice mark paid activates pending payment subscription             0.08s  
+  ✓ checkout returns 422 without company context                         0.08s  
+  ✓ checkout returns existing unpaid invoice for active subscription     0.10s  
+
+   PASS  Tests\Feature\SuperAdminCompanyUserIsolationTest
+  ✓ company owner membership does not grant super admin dashboard acces… 0.11s  
+
+   PASS  Tests\Feature\SuperAdminDashboardTest
+  ✓ admin can get kpi                                                    0.10s  
+  ✓ non admin cannot get kpi                                             0.06s  
+  ✓ admin can list companies                                             0.08s  
+  ✓ admin can get top companies                                          0.07s  
+  ✓ admin can get company details                                        0.08s  
+  ✓ admin can get user stats                                             0.07s  
+  ✓ admin can get user retention summary                                 0.10s  
+  ✓ admin can get monthly revenue                                        0.07s  
+  ✓ admin can get revenue by plan                                        0.07s  
+  ✓ admin can get revenue forecast                                       0.09s  
+  ✓ admin can get subscription status                                    0.07s  
+  ✓ admin can get subscription health                                    0.09s  
+  ✓ admin can view audit logs                                            0.07s  
+  ✓ kpi request creates runtime audit log                                0.10s  
+  ✓ audit logs request creates runtime audit log                         0.07s  
+  ✓ admin can filter audit logs                                          0.08s  
+  ✓ admin can get audit log detail                                       0.08s  
+  ✓ admin can get custom report summary                                  0.10s  
+  ✓ non admin cannot access company details                              0.07s  
+  ✓ admin can get metric trend                                           0.09s  
+  ✓ dashboard kpi returns expected fields                                0.09s  
+  ✓ dashboard kpi prefers cached metric when available                   0.10s  
+  ✓ company list pagination                                              0.09s  
+  ✓ company list honors requested per page                               0.08s  
+
+   PASS  Tests\Feature\TaxGovernanceCaptureAtomicityTest
+  ✓ capture wraps write in transaction and commits on success            0.07s  
+  ✓ capture transaction rolls back on exception after write              0.04s  
+  ✓ backpressure guard logs warning when threshold exceeded              0.03s  
+  ✓ backpressure guard does not log below threshold                      0.04s  
+  ✓ listeners have backpressure guard injected                           0.03s  
+
+   PASS  Tests\Feature\TaxGovernancePhase3Phase4AnomalyFixTest
+  ✓ payroll run records published tax policy id at creation              0.07s  
+  ✓ payroll run has null policy id when no published policy exists       0.05s  
+  ✓ policy snapshot remains consistent across publish window between pe… 0.07s  
+  ✓ payroll coverage stats returns real db counts                        0.05s  
+  ✓ payroll coverage returns 100 when no runs in period                  0.03s  
+  ✓ invoices table has billing tax rate snapshot column                  0.03s  
+  ✓ close job defers when within 24h grace period                        0.03s  
+  ✓ close job idempotent when period already locked                      0.05s  
+  ✓ close job locks period with correct aggregates                       0.04s  
+  ✓ close job warns when no active tax codes but still locks             0.04s  
+  ✓ billing tax service throws on invalid company id                     0.05s  
+  ✓ billing tax service throws on negative company id                    0.03s  
+  ✓ tax reporting service throws on empty company id                     0.04s  
+
+   PASS  Tests\Feature\TaxGovernanceRevenueCaptureQueuePolicyTest
+  ✓ capture listeners are queued with retry policy                       0.07s  
+  ✓ subscription listener throws when source entity is missing for retr… 0.04s  
+  ✓ addon listener throws when source entity is not addon type for retr… 0.04s  
+  ✓ failed listener logs capture failure observability                   0.06s  
+
+   PASS  Tests\Feature\TaxGovernanceRevenueCaptureTest
+  ✓ subscription created event captures revenue once                     0.05s  
+  ✓ subscription duplicate dispatch emits observability log              0.07s  
+  ✓ addon purchased event captures revenue once                          0.06s  
+
+   PASS  Tests\Feature\TaxGovernanceRevenueClearingJobTest
+  ✓ job clears posted uncleared transactions past grace window           0.04s  
+  ✓ job is idempotent and keeps non uncleared rows unchanged             0.05s  
+
+   PASS  Tests\Feature\TerminationApiTest
+  ✓ terminations admin crud and employee forbidden                       0.12s  
+  ✓ termination show and per user list self only                         0.24s  
+  ✓ termination show returns 404 when not found                          0.05s  
+  ✓ termination accepts uuid user identifier and rejects user outside a… 0.09s  
+  ✓ termination rejects invalid legal taxonomy codes                     0.07s  
+  ✓ termination workflow stage tracks audit trail and derives status     0.10s  
+  ✓ termination rejects invalid workflow stage transition                0.07s  
+  ✓ termination finalization requires mandatory non asset checklist com… 0.10s  
+  ✓ termination finalized requires settlement snapshot and returns comp… 0.10s  
+  ✓ termination settlement preview returns compensation and clearance a… 0.14s  
+  ✓ termination clearance item can be returned from termination context  0.13s  
+
+   PASS  Tests\Feature\TicketApiTest
+  ✓ employee can crud own ticket and comment attachment                  0.36s  
+  ✓ employee forbidden accessing other employee ticket                   0.17s  
+  ✓ admin can assign and change status and close ticket                  0.22s  
+  ✓ employee cannot update closed ticket                                 0.19s  
+  ✓ attachment validation rejects large file                             0.09s  
+  ✓ ticket show returns 404 when not found                               0.15s  
+  ✓ admin can create ticket with numeric assignee id in active company   0.15s  
+  ✓ admin cannot assign ticket to user outside active company            0.16s  
+  ✓ ticket endpoints are subscription feature gated                      0.16s  
+  ✓ ticket endpoints pass when subscription includes tickets feature     0.16s  
+  ✓ non admin cannot access ticket admin only endpoints                  0.16s  
+
+   PASS  Tests\Feature\TicketTenantScopeTest
+  ✓ ticket list is scoped to active company for admin                    0.10s  
+  ✓ ticket created in one active company does not leak to other members… 0.15s  
+  ✓ assignable users are scoped to active company                        0.07s  
+
+   PASS  Tests\Feature\TrainersApiTest
+  ✓ trainers admin only crud                                             0.12s  
+  ✓ trainers list is tenant scoped                                       0.23s  
+
+   PASS  Tests\Feature\TrainingApiTest
+  ✓ training type admin crud and employee forbidden mutation             0.13s  
+  ✓ trainings admin only crud                                            0.14s  
+  ✓ trainings for user allows admin any and employee self only           0.12s  
+  ✓ training types and trainings are tenant scoped for admins            0.32s  
+  ✓ training mutation requires manage permission not view only           0.10s  
+
+   PASS  Tests\Feature\TransactionControllerTest
+  ✓ list transactions requires admin                                     0.06s  
+  ✓ list transactions as admin                                           0.05s  
+  ✓ filter transactions by status                                        0.06s  
+  ✓ create transaction requires admin                                    0.04s  
+  ✓ create transaction as admin                                          0.05s  
+  ✓ update transaction status                                            0.06s  
+  ✓ export transactions                                                  0.06s  
+
+   PASS  Tests\Feature\TrialInvoiceBackfillCommandTest
+  ✓ command creates invoice for trial subscription without invoice       0.06s  
+  ✓ command dry run does not persist invoice                             0.04s  
+
+   PASS  Tests\Feature\TrialUpgradeToPaidFlowTest
+  ✓ trial company can upgrade checkout then pay invoice until subscript… 0.34s  
+  ✓ zero amount checkout auto activates without pending payment          0.17s  
+
+   PASS  Tests\Feature\UserHcmAdminGateTest
+  ✓ uuid relation columns exist for company user and hcm user roles      0.03s  
+  ✓ user with active admin role is treated as hcm admin                  0.07s  
+  ✓ user without admin assignment is not treated as hcm admin            0.05s  
+  ✓ user admin gate accepts company uuid identifier                      0.05s  
+  ✓ primary hcm admin email is treated as global admin signal            0.05s  
+  ✓ legacy app primary admin email is treated as global admin signal     0.03s  
+
+   PASS  Tests\Feature\WebFeatureGateTest
+  ✓ tickets web page blocked when subscription lacks tickets feature     0.13s  
+  ✓ payroll web pages blocked when subscription lacks payroll feature    0.12s  
+  ✓ training web pages blocked when subscription lacks training feature  0.14s  
+  ✓ tickets web page accessible when subscription includes feature       0.16s  
+  ✓ upgrade page shows dynamic current plan details for active tenant    0.38s  
+
+   PASS  Tests\Feature\WebHcmRouteGuardTest
+  ✓ all web guarded get routes public or guest redirect lock screen      0.37s  
+  ✓ head on protected path redirects lock screen without auth            0.04s  
+  ✓ head on public root succeeds                                         0.05s  
+  ✓ up health check reachable without auth                               0.04s  
+  ✓ api docs swagger uses same origin spec path                          0.04s  
+  ✓ hcm admin api cookie can open promotion resignation termination      0.17s  
+  ✓ hcm admin api cookie can open payslip report                         0.39s  
+  ✓ non hcm admin api cookie redirected from promotion resignation term… 0.19s  
+  ✓ security headers present on web response                             0.06s  
+  ✓ hcm admin web session can open promotion resignation termination     0.15s  
+  ✓ hcm admin web session can open team members page                     0.13s  
+  ✓ non hcm admin web session redirected from promotion resignation ter… 0.15s  
+  ✓ admin only redirect sets error flash message                         0.04s  
+  ✓ legacy employee shortcuts redirect to employee pages for non admin…  0.04s  
+  ✓ legacy employee shortcuts redirect to admin pages for hcm admin      0.09s  
+  ✓ tenant hcm admin without global signal is redirected from super adm… 0.15s  
+  ✓ primary global admin can open renewal monitoring page                0.08s  
+  ✓ authenticated api cookie can open sample hcm pages                   0.83s  
+  ✓ pages blogs testimonials and activity only primary super admin code… 0.22s  
+
+   PASS  Tests\Feature\WilayahLookupApiTest
+  ✓ wilayah lookup endpoints accept id based relations                   0.18s  
+
+   PASS  Tests\Feature\WilayahSyncCommandTest
+  ✓ sync command upserts and prunes wilayah rows                         0.05s  
+  ✓ sync command is idempotent                                           0.05s  
+  ✓ locations pages render synced data after sync                        0.17s  
+  ✓ locations manual sync endpoint runs and sets flash message           0.05s  
+  ✓ locations manual sync endpoint is blocked for non global admin       0.05s  
+  ✓ locations pages support search and pagination controls               0.07s  
+
+   PASS  Tests\Feature\WilayahSyncStatusTest
+  ✓ sync status returns idle default when cache empty                    0.06s  
+  ✓ sync status returns cached progress payload                          0.06s  
+
+   PASS  Tests\Feature\XenditWebhookControllerTest
+  ✓ invoice paid webhook marks payment and activates pending subscripti… 0.06s  
+  ✓ recurring invoice is extended once and duplicate webhook is ignored  0.05s  
+  ✓ missing xendit webhook id uses fallback and is idempotent            0.06s  
+  ✓ missing callback token is rejected                                   0.04s  
+  ✓ invalid callback token is rejected                                   0.05s  
+
+  Tests:    1065 passed (8646 assertions)
+  Duration: 146.94s
+

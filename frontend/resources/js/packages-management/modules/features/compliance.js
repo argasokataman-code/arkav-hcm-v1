@@ -65,6 +65,7 @@ const featureComplianceMethods = {
     if (!root) {
       return;
     }
+    const self = this;
 
     const overallBadge = root.querySelector("[data-package-compliance-overall]");
     if (overallBadge) {
@@ -130,11 +131,15 @@ const featureComplianceMethods = {
                       ? '<span class="badge text-bg-warning">Warning</span>'
                       : '<span class="badge text-bg-success">OK</span>';
 
+                  const addBtn = (item.status === "missing" && item.feature_code)
+                    ? '<button type="button" class="btn btn-sm btn-outline-primary py-0 px-1 ms-1" style="font-size:0.7rem;line-height:1.5" data-add-missing-feature="' + esc(item.feature_code) + '" title="Klik untuk menambahkan fitur ini ke paket">+ Tambah</button>'
+                    : '';
+
                   return (
                     '<div class="package-compliance-item">' +
-                      '<div class="d-flex justify-content-between gap-2">' +
+                      '<div class="d-flex justify-content-between gap-2 align-items-start">' +
                         '<div class="package-compliance-item-label">' + esc(item.label || item.code || "Rule") + '</div>' +
-                        statusPill +
+                        '<div class="d-flex align-items-center gap-1 flex-shrink-0">' + statusPill + addBtn + '</div>' +
                       '</div>' +
                       '<div class="package-compliance-item-note">' + esc(item.message || "") + '</div>' +
                     '</div>'
@@ -150,6 +155,37 @@ const featureComplianceMethods = {
         esc(String(summary.warnings || 0)) + ' warning, ' +
         esc(String(summary.passes || 0)) + ' pass.' +
       '</div>';
+
+    // Attach click handlers for "Tambah" buttons (auto-add missing feature to package)
+    root.querySelectorAll('[data-add-missing-feature]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        const featureCode = btn.getAttribute('data-add-missing-feature');
+        const checkbox = document.querySelector(
+          'input[type="checkbox"][name="package_feature_codes"][value="' + featureCode + '"]'
+        );
+        if (!checkbox) {
+          self.showError('Fitur "' + featureCode + '" tidak tersedia dalam katalog saat ini.');
+          return;
+        }
+        if (!checkbox.checked) {
+          checkbox.checked = true;
+          const featureItem = checkbox.closest('[data-feature-item]');
+          if (featureItem) {
+            featureItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            featureItem.style.outline = '2px solid #0d6efd';
+            featureItem.style.borderRadius = '4px';
+            window.setTimeout(function () {
+              featureItem.style.outline = '';
+              featureItem.style.borderRadius = '';
+            }, 2000);
+          }
+          self.handleFeatureCheckboxChange(checkbox);
+          self.updateFeatureSelectionSummary();
+          self.queueComplianceSnapshotRefresh();
+        }
+      });
+    });
   },
 };
 

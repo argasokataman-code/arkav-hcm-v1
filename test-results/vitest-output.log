@@ -1,0 +1,181 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.5 [39m[90m/Users/vanviakingali/arcav_new_v2/backend[39m
+
+[90mstderr[2m | tests/ui/report-snapshot-selector.wiring.test.js[2m > [22m[2mManual snapshot selector reporting[2m > [22m[2mrejects employee archive snapshots that are not completed
+[22m[39memployees legacy module loaded
+getEmployeeReportSourceMode -> archive
+getEmployeeReportSourceMode -> archive
+loadEmployeeReportData called, path= /employee-report
+
+[90mstderr[2m | tests/ui/report-snapshot-selector.wiring.test.js[2m > [22m[2mManual snapshot selector reporting[2m > [22m[2mrejects employee archive snapshots that are not completed
+[22m[39mgetEmployeeReportSourceMode -> archive
+requestAuthMe resolved, mode= archive
+loadArchiveEmployeeReport called with [33m51[39m
+
+[90mstderr[2m | tests/ui/report-snapshot-selector.wiring.test.js[2m > [22m[2mManual snapshot selector reporting[2m > [22m[2mrejects employee archive snapshots that are not completed
+[22m[39mrenderReportMessage: Snapshot employee belum siap digunakan.
+
+ [32m✓[39m tests/ui/company-invoices.wiring.test.js [2m([22m[2m11 tests[22m[2m)[22m[33m 418[2mms[22m[39m
+ [32m✓[39m tests/ui/report-snapshot-selector.wiring.test.js [2m([22m[2m5 tests[22m[2m)[22m[33m 441[2mms[22m[39m
+ [32m✓[39m tests/ui/hcm-extras-overtime.wiring.test.js [2m([22m[2m4 tests[22m[2m)[22m[33m 472[2mms[22m[39m
+ [32m✓[39m tests/ui/tax-governance-phase5.wiring.test.js [2m([22m[2m17 tests[22m[2m)[22m[33m 492[2mms[22m[39m
+[90mstderr[2m | tests/ui/packages-management.wiring.test.js[2m > [22m[2mPackages management wiring[2m > [22m[2mshows info popup when package delete is blocked with PACKAGE_IN_USE
+[22m[39mAPI request failed: {
+  status: [33m422[39m,
+  data: {
+    success: [33mfalse[39m,
+    error: {
+      code: [32m'PACKAGE_IN_USE'[39m,
+      message: [32m'Package cannot be deleted while subscription history still references it.'[39m
+    }
+  }
+}
+
+[90mstderr[2m | tests/ui/packages-management.wiring.test.js[2m > [22m[2mPackages management wiring[2m > [22m[2mshows info popup when package delete is blocked with PACKAGE_IN_USE
+[22m[39m{
+  status: [33m422[39m,
+  data: {
+    success: [33mfalse[39m,
+    error: {
+      code: [32m'PACKAGE_IN_USE'[39m,
+      message: [32m'Package cannot be deleted while subscription history still references it.'[39m
+    }
+  }
+}
+
+ [32m✓[39m tests/ui/packages-management.wiring.test.js [2m([22m[2m13 tests[22m[2m)[22m[33m 821[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps existing yearly price when editing package details without changing price [33m 400[2mms[22m[39m
+ [32m✓[39m tests/ui/attendance.wiring.test.js [2m([22m[2m12 tests[22m[2m)[22m[33m 1053[2mms[22m[39m
+     [33m[2m✓[22m[39m submits attendance admin edits with numeric userId [33m 713[2mms[22m[39m
+ [32m✓[39m tests/ui/platform-tax.wiring.test.js [2m([22m[2m6 tests[22m[2m)[22m[32m 276[2mms[22m[39m
+ [32m✓[39m tests/ui/tax-governance-platform-compliance.wiring.test.js [2m([22m[2m6 tests[22m[2m)[22m[32m 236[2mms[22m[39m
+ [32m✓[39m tests/ui/faq.wiring.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 259[2mms[22m[39m
+ [32m✓[39m tests/ui/saas-billing-overview.wiring.test.js [2m([22m[2m4 tests[22m[2m)[22m[33m 306[2mms[22m[39m
+ [32m✓[39m tests/ui/payroll-run.wiring.test.js [2m([22m[2m12 tests[22m[2m)[22m[33m 1472[2mms[22m[39m
+     [33m[2m✓[22m[39m posts selected numeric user ids after reconciliation export is downloaded [33m 600[2mms[22m[39m
+ [32m✓[39m tests/ui/payroll-run-late-arrival.wiring.test.js [2m([22m[2m1 test[22m[2m)[22m[33m 329[2mms[22m[39m
+     [33m[2m✓[22m[39m posts manual payment completion when disburse is confirmed from the payment modal [33m 328[2mms[22m[39m
+ [32m✓[39m tests/ui/termination.wiring.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 224[2mms[22m[39m
+ [32m✓[39m tests/ui/subscription-checkout.wiring.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 214[2mms[22m[39m
+ [32m✓[39m tests/ui/saas-renewal-monitoring.wiring.test.js [2m([22m[2m1 test[22m[2m)[22m[32m 181[2mms[22m[39m
+ [32m✓[39m tests/ui/subscriptions-management.wiring.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 274[2mms[22m[39m
+ [32m✓[39m tests/ui/invoice-settings.wiring.test.js [2m([22m[2m3 tests[22m[2m)[22m[32m 154[2mms[22m[39m
+ [32m✓[39m tests/ui/saas-pricing.wiring.test.js [2m([22m[2m3 tests[22m[2m)[22m[32m 220[2mms[22m[39m
+ [32m✓[39m tests/ui/profile-settings.wiring.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 157[2mms[22m[39m
+ [32m✓[39m tests/ui/employee-details-training.wiring.test.js [2m([22m[2m3 tests[22m[2m)[22m[32m 220[2mms[22m[39m
+[90mstderr[2m | tests/ui/purchase-transactions.wiring.test.js[2m > [22m[2mPurchase transactions wiring[2m > [22m[2mloads transactions with the active filter inputs and renders the active template ids
+[22m[39mTransactions init error: Error: Failed to get API token
+    at /Users/vanviakingali/arcav_new_v2/frontend/resources/js/saas/purchase-transactions-data.js:38:20
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+
+ [32m✓[39m tests/ui/resignation.wiring.test.js [2m([22m[2m7 tests[22m[2m)[22m[32m 128[2mms[22m[39m
+ [32m✓[39m tests/ui/notification-settings.wiring.test.js [2m([22m[2m3 tests[22m[2m)[22m[32m 131[2mms[22m[39m
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/Users/vanviakingali/arcav_new_v2/backend/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/Users/vanviakingali/arcav_new_v2/backend/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/Users/vanviakingali/arcav_new_v2/backend/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at LocationImpl._locationObjectNavigate (/Users/vanviakingali/arcav_new_v2/backend/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:31:5)
+    at LocationImpl._locationObjectSetterNavigate (/Users/vanviakingali/arcav_new_v2/backend/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:25:17)
+    at LocationImpl.set href [as href] (/Users/vanviakingali/arcav_new_v2/backend/node_modules/jsdom/lib/jsdom/living/window/Location-impl.js:47:10)
+    at Location.set href [as href] (/Users/vanviakingali/arcav_new_v2/backend/node_modules/jsdom/lib/jsdom/living/generated/Location.js:125:37)
+    at /Users/vanviakingali/arcav_new_v2/frontend/resources/js/saas/purchase-transactions-data.js:27:34
+    at processTicksAndRejections (node:internal/process/task_queues:95:5) undefined
+[90mstderr[2m | tests/ui/purchase-transactions.wiring.test.js[2m > [22m[2mPurchase transactions wiring[2m > [22m[2mrenders backend error messages for failed transaction loads
+[22m[39mTransactions init error: Error: Admin access required.
+    at /Users/vanviakingali/arcav_new_v2/frontend/resources/js/saas/purchase-transactions-data.js:28:20
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+
+ [32m✓[39m tests/ui/purchase-transactions.wiring.test.js [2m([22m[2m3 tests[22m[2m)[22m[32m 179[2mms[22m[39m
+ [32m✓[39m tests/ui/notification-observability.wiring.test.js [2m([22m[2m2 tests[22m[2m)[22m[32m 137[2mms[22m[39m
+ [32m✓[39m tests/ui/employees-compensation-forms.wiring.test.js [2m([22m[2m9 tests[22m[2m)[22m[32m 103[2mms[22m[39m
+[90mstdout[2m | tests/ui/super-admin-dashboard-api-contract.test.js[2m > [22m[2mSuper Admin Dashboard API wiring[2m > [22m[2mrequests api-token then calls dashboard endpoints with bearer token
+[22m[39mDashboard rendered with all data
+
+[90mstderr[2m | tests/ui/super-admin-dashboard-api-contract.test.js[2m > [22m[2mSuper Admin Dashboard API wiring[2m > [22m[2mredirects non-admin responses to employee dashboard
+[22m[39mAPI request failed: GET /v1/saas/dashboard/kpi {
+  status: [33m403[39m,
+  message: [32m'Admin access required.'[39m,
+  data: {
+    success: [33mfalse[39m,
+    error: { code: [32m'ADMIN_REQUIRED'[39m, message: [32m'Admin access required.'[39m }
+  }
+}
+
+[90mstderr[2m | tests/ui/super-admin-dashboard-api-contract.test.js[2m > [22m[2mSuper Admin Dashboard API wiring[2m > [22m[2mredirects non-admin responses to employee dashboard
+[22m[39mError loading dashboard: {
+  status: [33m403[39m,
+  message: [32m'Admin access required.'[39m,
+  data: {
+    success: [33mfalse[39m,
+    error: { code: [32m'ADMIN_REQUIRED'[39m, message: [32m'Admin access required.'[39m }
+  }
+}
+
+[90mstdout[2m | tests/ui/super-admin-dashboard-api-contract.test.js[2m > [22m[2mSuper Admin Dashboard API wiring[2m > [22m[2mrenders company revenue from backend company list data
+[22m[39mDashboard rendered with all data
+
+ [32m✓[39m tests/ui/super-admin-dashboard-api-contract.test.js [2m([22m[2m3 tests[22m[2m)[22m[32m 122[2mms[22m[39m
+ [32m✓[39m tests/ui/performance.wiring.test.js [2m([22m[2m2 tests[22m[2m)[22m[32m 121[2mms[22m[39m
+ [32m✓[39m tests/ui/notification-inbox.wiring.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 77[2mms[22m[39m
+ [32m✓[39m tests/ui/users-management.wiring.test.js [2m([22m[2m3 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+ [32m✓[39m tests/ui/payroll-run-history.wiring.test.js [2m([22m[2m1 test[22m[2m)[22m[32m 80[2mms[22m[39m
+ [32m✓[39m tests/ui/security-settings.wiring.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+ [32m✓[39m tests/ui/leave.wiring.test.js [2m([22m[2m2 tests[22m[2m)[22m[32m 100[2mms[22m[39m
+ [32m✓[39m tests/ui/subscriptions-api-contract.test.js [2m([22m[2m6 tests[22m[2m)[22m[32m 97[2mms[22m[39m
+ [32m✓[39m tests/ui/domain-management.wiring.test.js [2m([22m[2m3 tests[22m[2m)[22m[32m 81[2mms[22m[39m
+ [32m✓[39m tests/ui/auth-login.wiring.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+ [32m✓[39m tests/ui/email-compose.wiring.test.js [2m([22m[2m2 tests[22m[2m)[22m[32m 60[2mms[22m[39m
+ [32m✓[39m tests/ui/promotion.wiring.test.js [2m([22m[2m2 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m tests/ui/companies-management.wiring.test.js [2m([22m[2m1 test[22m[2m)[22m[32m 70[2mms[22m[39m
+ [32m✓[39m tests/ui/bpjs-governance.wiring.test.js [2m([22m[2m1 test[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m tests/ui/shift-master-data.wiring.test.js [2m([22m[2m2 tests[22m[2m)[22m[32m 77[2mms[22m[39m
+ [32m✓[39m tests/ui/reports-api-sync.wiring.test.js [2m([22m[2m1 test[22m[2m)[22m[32m 73[2mms[22m[39m
+ [32m✓[39m tests/ui/policy.wiring.test.js [2m([22m[2m1 test[22m[2m)[22m[32m 61[2mms[22m[39m
+[90mstdout[2m | tests/ui/business-settings.wiring.test.js[2m > [22m[2mbusiness settings wiring[2m > [22m[2mloads business settings and submits normalized payload to settings endpoint
+[22m[39m✓ Loaded business settings: {
+  business_company_name: [32m'Arkav - Human Capital Management'[39m,
+  business_email: [1mnull[22m,
+  business_phone: [32m'08123456789'[39m,
+  business_fax: [1mnull[22m,
+  business_website: [1mnull[22m,
+  business_address: [32m'Jl. Sentosa Abadi, Jakarta Selatan'[39m,
+  business_country: [32m'Indonesia'[39m,
+  business_state: [32m'DKI Jakarta'[39m,
+  business_city: [32m'Jakarta Selatan'[39m,
+  business_postal_code: [32m'123876'[39m,
+  business_white_logo_path: [1mnull[22m,
+  business_dark_logo_path: [1mnull[22m,
+  business_white_mini_logo_path: [1mnull[22m,
+  business_dark_mini_logo_path: [1mnull[22m,
+  business_favicon_path: [1mnull[22m,
+  business_apple_icon_path: [1mnull[22m
+}
+→ Sending business settings: {
+  company_name: [32m'Arkav Updated'[39m,
+  email: [32m'admin@arkav.test'[39m,
+  phone: [1mnull[22m,
+  fax: [1mnull[22m,
+  website: [1mnull[22m,
+  address: [32m'Jl. Sentosa Abadi, Jakarta Selatan'[39m,
+  country: [32m'Indonesia'[39m,
+  state: [32m'DKI Jakarta'[39m,
+  city: [32m'Jakarta Selatan'[39m,
+  postal_code: [32m'123876'[39m
+}
+
+ [32m✓[39m tests/ui/business-settings.wiring.test.js [2m([22m[2m1 test[22m[2m)[22m[32m 57[2mms[22m[39m
+ [32m✓[39m tests/ui/reports-hub.wiring.test.js [2m([22m[2m2 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m tests/ui/employees-bulk-upload.wiring.test.js [2m([22m[2m3 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m tests/ui/termination-api-contract.test.js [2m([22m[2m7 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m tests/ui/training-api-contract.test.js [2m([22m[2m6 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m tests/ui/tickets-api-contract.test.js [2m([22m[2m6 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m tests/ui/document-center-api-contract.test.js [2m([22m[2m12 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m tests/ui/auth-api.wiring.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m tests/ui/asset-management.wiring.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m tests/ui/public-landing-react.wiring.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m52 passed[39m[22m[90m (52)[39m
+[2m      Tests [22m [1m[32m241 passed[39m[22m[90m (241)[39m
+[2m   Start at [22m 23:53:37
+[2m   Duration [22m 7.34s[2m (transform 2.93s, setup 712ms, import 2.92s, tests 10.59s, environment 22.02s)[22m
+

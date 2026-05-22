@@ -104,23 +104,6 @@ trait HandlesPayrollRunRuntimeUtilities
             || (is_string($identifier) && $identifier !== '' && ctype_digit($identifier));
     }
 
-    private function shouldUseXenditCheckout(string $gatewayMode, Request $request): bool
-    {
-        if ($this->shouldForceLocalMockCheckout($request)) {
-            return false;
-        }
-
-        if ($gatewayMode === 'mock') {
-            return false;
-        }
-
-        if ($gatewayMode === 'xendit') {
-            return (bool) config('services.xendit.api_key');
-        }
-
-        return (bool) config('services.xendit.api_key');
-    }
-
     private function exportOnlyPayrollGatewayDisabledResponse(): JsonResponse
     {
         return response()->json([

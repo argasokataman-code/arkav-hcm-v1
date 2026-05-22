@@ -9,7 +9,7 @@ use App\Models\Package;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\SubscriptionEvent;
-use App\Services\XenditService;
+use App\Services\MidtransService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -44,19 +44,23 @@ class ReconcilePendingRenewalPaymentsJobTest extends TestCase
             'currency' => 'IDR',
             'status' => 'pending',
             'payment_method' => 'bank_transfer',
-            'gateway' => 'xendit',
-            'gateway_reference' => 'xnd-inv-reconcile-1',
+            'gateway' => 'midtrans',
+            'gateway_reference' => 'order-reconcile-1',
             'metadata' => [
                 'source' => 'recurring_subscription_renewal',
-                'xendit_invoice_id' => 'xnd-inv-reconcile-1',
+                'midtrans_order_id' => 'order-reconcile-1',
             ],
         ]);
 
-        $this->mock(XenditService::class, function ($mock): void {
-            $mock->shouldReceive('getInvoice')
+        $this->mock(MidtransService::class, function ($mock): void {
+            $mock->shouldReceive('getTransaction')
                 ->once()
-                ->with('xnd-inv-reconcile-1')
-                ->andReturn(['status' => 'SETTLED']);
+                ->with('order-reconcile-1')
+                ->andReturn(['transaction_status' => 'settlement', 'fraud_status' => 'accept']);
+            $mock->shouldReceive('resolvePaymentState')
+                ->once()
+                ->with('settlement', 'accept')
+                ->andReturn('paid');
         });
 
         dispatch_sync(new ReconcilePendingRenewalPayments());
@@ -102,7 +106,7 @@ class ReconcilePendingRenewalPaymentsJobTest extends TestCase
             'currency' => 'IDR',
             'status' => 'pending',
             'payment_method' => 'bank_transfer',
-            'gateway' => 'xendit',
+            'gateway' => 'midtrans',
             'gateway_reference' => null,
             'metadata' => [
                 'source' => 'recurring_subscription_renewal',
@@ -121,7 +125,7 @@ class ReconcilePendingRenewalPaymentsJobTest extends TestCase
         ]);
     }
 
-    public function test_reconcile_emits_gateway_down_alert_when_xendit_is_unavailable(): void
+    public function test_reconcile_emits_gateway_down_alert_when_midtrans_is_unavailable(): void
     {
         Log::spy();
 
@@ -149,30 +153,30 @@ class ReconcilePendingRenewalPaymentsJobTest extends TestCase
             'currency' => 'IDR',
             'status' => 'pending',
             'payment_method' => 'bank_transfer',
-            'gateway' => 'xendit',
-            'gateway_reference' => 'xnd-inv-alert-1',
+            'gateway' => 'midtrans',
+            'gateway_reference' => 'order-alert-1',
             'metadata' => [
                 'source' => 'recurring_subscription_renewal',
-                'xendit_invoice_id' => 'xnd-inv-alert-1',
+                'midtrans_order_id' => 'order-alert-1',
             ],
         ]);
 
-        $this->mock(XenditService::class, function ($mock): void {
-            $mock->shouldReceive('getInvoice')
+        $this->mock(MidtransService::class, function ($mock): void {
+            $mock->shouldReceive('getTransaction')
                 ->once()
-                ->with('xnd-inv-alert-1')
+                ->with('order-alert-1')
                 ->andThrow(new \RuntimeException('gateway timeout'));
         });
 
         dispatch_sync(new ReconcilePendingRenewalPayments());
 
         $invoice->refresh();
-        $this->assertSame('XENDIT_DOWN', $invoice->renewal_reason_code);
+        $this->assertSame('MIDTRANS_DOWN', $invoice->renewal_reason_code);
 
         Log::shouldHaveReceived('warning')->withArgs(function (string $message, array $context): bool {
             return $message === 'renewal_monitoring.alert'
                 && ($context['alert_type'] ?? null) === 'gateway_down'
-                && ($context['reason_code'] ?? null) === 'XENDIT_DOWN';
+                && ($context['reason_code'] ?? null) === 'MIDTRANS_DOWN';
         })->once();
     }
 
@@ -213,7 +217,7 @@ class ReconcilePendingRenewalPaymentsJobTest extends TestCase
             'billing_cycle' => 'monthly',
             'amount' => 130000,
             'metadata' => [
-                'gateway' => 'xendit',
+                'gateway' => 'midtrans',
             ],
         ]);
 

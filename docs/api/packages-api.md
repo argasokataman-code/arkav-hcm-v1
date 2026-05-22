@@ -657,3 +657,23 @@ Admin user ditentukan oleh:
 2. Designation atau team mengandung: `admin`, `hr`, `lead`, `supervisor`, `owner`.
 
 Implementasi aktif tetap mengembalikan `ADMIN_REQUIRED` pada operasi mutasi, sehingga dokumentasi packages mengikuti kontrak runtime itu.
+
+---
+
+## Feature Classification endpoints
+
+### GET `/v1/hcm/saas/feature-classifications`
+
+List semua classification entries. Hanya global admin.
+
+### POST `/v1/hcm/saas/feature-classifications`
+
+Buat classification baru. Body: `{ "feature_code": "string", "classification": "string", "notes": "string?" }`.
+
+### PUT `/v1/hcm/saas/feature-classifications/{id}`
+
+Update classification. Body sama dengan POST.
+
+### DELETE `/v1/hcm/saas/feature-classifications/{id}`
+
+Hapus classification entry.

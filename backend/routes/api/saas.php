@@ -28,10 +28,11 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
 
     // Package Add-ons
     Route::get('/package-addons', [PackageController::class, 'addons']);
-    Route::get('/package-addons/{addon}', [PackageController::class, 'showAddon'])->whereNumber('addon');
+    // Allow addon identifier to be numeric id, uuid, or friendly `code` string.
+    Route::get('/package-addons/{addon}', [PackageController::class, 'showAddon']);
     Route::post('/package-addons', [PackageController::class, 'storeAddon']);
-    Route::put('/package-addons/{addon}', [PackageController::class, 'updateAddon'])->whereNumber('addon');
-    Route::delete('/package-addons/{addon}', [PackageController::class, 'destroyAddon'])->whereNumber('addon');
+    Route::put('/package-addons/{addon}', [PackageController::class, 'updateAddon']);
+    Route::delete('/package-addons/{addon}', [PackageController::class, 'destroyAddon']);
 
     // Package Features
     Route::get('/packages/{package}/features', [PackageController::class, 'getFeatures']);
@@ -136,6 +137,12 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
             Route::get('/reports/custom', [SuperAdminDashboardController::class, 'getCustomReport']);
             Route::get('/audit-logs', [SuperAdminDashboardController::class, 'getAuditLogs']);
             Route::get('/audit-logs/{auditLog}', [SuperAdminDashboardController::class, 'getAuditLogDetail']);
+            });
+
+            // Feature classification management (DB overrides)
+            Route::get('/feature-classifications', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'index']);
+            Route::post('/feature-classifications', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'store']);
+            Route::put('/feature-classifications/{featureClassification}', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'update']);
+            Route::delete('/feature-classifications/{featureClassification}', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'destroy']);
         });
     });
-});

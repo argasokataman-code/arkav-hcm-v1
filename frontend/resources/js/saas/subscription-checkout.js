@@ -559,7 +559,8 @@
 
     async function handleHostedReturn() {
         var params = searchParams();
-        var status = String(params.get("mock_payment_status") || "").trim().toLowerCase();
+        // Support both mock_payment_status (legacy mock) and payment_status (Midtrans)
+        var status = String(params.get("mock_payment_status") || params.get("payment_status") || "").trim().toLowerCase();
         var invoiceId = String(params.get("invoice_id") || "").trim();
         if (!status || !invoiceId) {
             return false;
@@ -592,18 +593,41 @@
         try {
             setPaying(true);
             var payload = await api("post", "/hcm/billing/invoices/" + encodeURIComponent(currentInvoice.id) + "/mock-hosted-checkout", {});
+            var snapToken = payload && payload.flow ? String(payload.flow.snapToken || "").trim() : "";
             var hostedCheckoutUrl = payload && payload.flow ? String(payload.flow.hostedCheckoutUrl || "").trim() : "";
-            if (!payload || payload.success !== true || !hostedCheckoutUrl) {
+            if (!payload || payload.success !== true || (!snapToken && !hostedCheckoutUrl)) {
                 throw new Error("Gagal membuka hosted payment gateway.");
             }
             clearFeedback();
-            redirectTo(hostedCheckoutUrl);
+            // Prefer Snap popup (better UX), fallback to redirect URL
+            if (snapToken && window.snap && typeof window.snap.pay === "function") {
+                setPaying(false);
+                window.snap.pay(snapToken, {
+                    onSuccess: function (result) {
+                        var invoiceId = String(currentInvoice.id || "");
+                        loadInvoiceById(invoiceId, "Pembayaran berhasil!", "success");
+                    },
+                    onPending: function (result) {
+                        var invoiceId = String(currentInvoice.id || "");
+                        loadInvoiceById(invoiceId, "Pembayaran sedang diproses.", "info");
+                    },
+                    onError: function (result) {
+                        showFeedback("danger", "Pembayaran gagal. Silakan coba lagi.");
+                    },
+                    onClose: function () {
+                        // user closed snap without paying - no feedback needed
+                    }
+                });
+            } else if (hostedCheckoutUrl) {
+                redirectTo(hostedCheckoutUrl);
+            } else {
+                throw new Error("Gagal membuka halaman pembayaran.");
+            }
         } catch (err) {
             var msg = err && err.data && err.data.error && err.data.error.message
                 ? err.data.error.message
                 : (err && err.message ? err.message : "Gagal membuka hosted payment gateway.");
             showFeedback("danger", msg);
-        } finally {
             setPaying(false);
         }
     }

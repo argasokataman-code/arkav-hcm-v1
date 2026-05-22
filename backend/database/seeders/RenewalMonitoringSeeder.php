@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Hash;
  *   C) Grace Period        — max retries exceeded, grace period active
  *   D) Suspended           — grace period expired, account locked
  *      -> login triggers the "Akun dinonaktifkan" popup modal
- *   E) Anomaly             — Xendit gateway down during renewal cycle
+ *   E) Anomaly             — Midtrans gateway down during renewal cycle
  *
  * Login credentials (password: StrongPass1 for all):
  *   renewal.paid@example.com       — Scenario A
@@ -193,7 +193,7 @@ class RenewalMonitoringSeeder extends Seeder
                 ]
             );
 
-            // Scenario E: Anomaly (XENDIT_DOWN)
+            // Scenario E: Anomaly (GATEWAY_DOWN)
             $userE = $this->upsertUser('renewal.anomaly@example.com', 'Renewal Demo - Anomaly');
             $companyE = $this->upsertCompany('RNWL-E', 'Renewal Anomaly Co');
             $this->upsertMembership($userE, $companyE);
@@ -210,8 +210,8 @@ class RenewalMonitoringSeeder extends Seeder
                     'subscription_id'         => $subE->id,
                     'purchase_transaction_id' => $txE->id,
                     'renewal_period_key'      => sprintf($periodKey, $subE->id),
-                    'renewal_reason_code'     => 'XENDIT_DOWN',
-                    'renewal_reason_message'  => 'Xendit payment gateway unavailable during renewal processing. Manual intervention required.',
+                    'renewal_reason_code'     => 'GATEWAY_DOWN',
+                    'renewal_reason_message'  => 'Payment gateway unavailable during renewal processing. Manual intervention required.',
                     'issue_date'              => now()->subDays(1),
                     'due_date'                => now()->addDays(2),
                     'amount_due'              => $package->monthly_price ?? 199000,
@@ -228,7 +228,7 @@ class RenewalMonitoringSeeder extends Seeder
             '  B) renewal.retry@example.com     — Retrying (payment failed)',
             '  C) renewal.grace@example.com     — Grace period active',
             '  D) renewal.suspended@example.com — SUSPENDED -> popup on login',
-            '  E) renewal.anomaly@example.com   — Anomaly (XENDIT_DOWN)',
+            '  E) renewal.anomaly@example.com   — Anomaly (GATEWAY_DOWN)',
             '  Password for all: StrongPass1',
         ]));
     }

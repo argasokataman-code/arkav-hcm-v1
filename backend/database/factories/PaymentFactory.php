@@ -24,7 +24,7 @@ class PaymentFactory extends Factory
             'currency' => 'IDR',
             'status' => $this->faker->randomElement(['pending', 'completed', 'failed', 'disputed']),
             'payment_method' => $this->faker->randomElement(['bank_transfer', 'credit_card', 'e_wallet', 'cash', 'check']),
-            'gateway' => $this->faker->optional()->randomElement(['stripe', 'xendit', 'midtrans']),
+            'gateway' => $this->faker->optional()->randomElement(['stripe', 'midtrans']),
             'gateway_reference' => $this->faker->optional()->bothify('GW-####-####'),
             'paid_at' => $this->faker->optional()->dateTime(),
             'verified_at' => $this->faker->optional()->dateTime(),

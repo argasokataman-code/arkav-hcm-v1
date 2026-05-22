@@ -1,4 +1,4 @@
-import { API_BASE, API_ADDONS_BASE, PAGE_SIZE, FEATURE_LIMIT_INPUT_CODE, apiRequest, esc, formatCurrency, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures, isPackageFeatureIncluded } from "../shared.js";
+import { API_BASE, API_ADDONS_BASE, PAGE_SIZE, FEATURE_LIMIT_INPUT_CODE, apiRequest, esc, formatCurrency, getDefaultFeatureCatalog, getFeatureLibrary, getRuntimeFeatureDisplayName, getIncludedPackageFeatures, isPackageFeatureIncluded, getAddonClassificationMode, setAddonClassificationMode, getServerAddonClassificationMode, getFeatureClassificationOverrides } from "../shared.js";
 
 const dataMethods = {
     loadPackages: function () {
@@ -218,6 +218,43 @@ const dataMethods = {
       }
 
       container.innerHTML = html;
+      // Directly bind action buttons to ensure clicks work even if global delegation is interrupted
+      Array.from(container.querySelectorAll('[data-edit-package]')).forEach((btn) => {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          const id = btn.getAttribute('data-edit-package');
+          try {
+            this.editPackage(id);
+          } catch (err) {
+            console.error(err);
+          }
+        }.bind(this));
+      });
+
+      Array.from(container.querySelectorAll('[data-delete-package]')).forEach((btn) => {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          const id = btn.getAttribute('data-delete-package');
+          try {
+            this.deletePackage(id);
+          } catch (err) {
+            console.error(err);
+          }
+        }.bind(this));
+      });
+
+      Array.from(container.querySelectorAll('[data-view-features]')).forEach((btn) => {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          const id = btn.getAttribute('data-view-features');
+          try {
+            this.showFeaturesModal(id);
+          } catch (err) {
+            console.error(err);
+          }
+        }.bind(this));
+      });
+
       this.renderPagination();
       this.syncCompareSelectAllState();
     },
@@ -309,6 +346,8 @@ const dataMethods = {
     renderAddons: function () {
       const container = document.querySelector("[data-package-addons-list-container]");
       if (!container) return;
+      const serverMode = getServerAddonClassificationMode();
+      const addonMode = serverMode !== null ? serverMode : getAddonClassificationMode();
 
       let html = `
         <div class="card">
@@ -318,9 +357,13 @@ const dataMethods = {
                 <h5 class="mb-0">Package Add-ons</h5>
                 <small class="text-muted">Global add-on catalog for pricing extras</small>
               </div>
-              <button class="btn btn-sm btn-primary" id="btn_add_addon">
-                <i class="ti ti-circle-plus me-1"></i>Add Add-on
-              </button>
+              <div class="d-flex align-items-center gap-2">
+                ${serverMode === null ? (`<div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="addon_mode_auto_toggle" ${addonMode === 'auto' ? 'checked' : ''}>
+                  <label class="form-check-label small text-muted" for="addon_mode_auto_toggle">Auto classify (runtime)</label>
+                </div>
+                ${addonMode === "manual" ? '<button class="btn btn-sm btn-primary" id="btn_add_addon"><i class="ti ti-circle-plus me-1"></i>Add Add-on</button>' : ''}`) : (`<div class="small text-muted">Addon mode: <strong>${serverMode === 'auto' ? 'Auto (central)' : 'Manual (central)'}</strong></div>`)}
+              </div>
             </div>
             <div class="row g-2">
               <div class="col-md-6">
@@ -328,52 +371,115 @@ const dataMethods = {
               </div>
             </div>
           </div>
-          ${this.addons.length === 0
-            ? '<div class="card-body text-center text-muted py-4">No package add-ons found</div>'
-            : `
-            <div class="table-responsive">
-              <table class="table table-hover mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th>Price / Unit</th>
-                    <th>Unit</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${this.addons.map((addon) => `
-                    <tr>
-                      <td>
-                        <div class="fw-medium">${esc(addon.code)}</div>
-                        <small class="text-muted">${esc(addon.description || "-")}</small>
-                      </td>
-                      <td>${esc(addon.name)}</td>
-                      <td>${formatCurrency(addon.pricePerUnit)}</td>
-                      <td>${esc(addon.unitName || "-")}</td>
-                      <td>
-                        <span class="badge ${addon.status === "active" ? "text-bg-success" : "text-bg-warning"} d-inline-flex align-items-center badge-xs">
-                          <i class="ti ti-point-filled me-1"></i>${esc(addon.status)}
-                        </span>
-                      </td>
-                      <td>
-                        <div class="action-icon d-inline-flex">
-                          <button class="btn btn-icon btn-sm me-2" data-edit-addon="${addon.id}" title="Edit">
-                            <i class="ti ti-edit"></i>
-                          </button>
-                          <button class="btn btn-icon btn-sm" data-delete-addon="${addon.id}" title="Delete">
-                            <i class="ti ti-trash"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-          `}
+              ${/* Build effective addons list: merge server-provided addons with runtime-classified features when in auto mode */''}
+              ${(() => {
+                const serverAddons = Array.isArray(this.addons) ? this.addons : [];
+                let addonsForRender = serverAddons.slice();
+
+                // Include features classified as 'addon' either when in auto mode (runtime)
+                // or when server is authoritative manual (DB overrides). Mark source accordingly.
+                if (addonMode === 'auto' || serverMode === 'manual') {
+                  try {
+                    const runtimeLib = typeof getDefaultFeatureCatalog === 'function' ? getDefaultFeatureCatalog() : getFeatureLibrary();
+                    const featureLib = getFeatureLibrary() || [];
+                    const overrides = typeof getFeatureClassificationOverrides === 'function' ? getFeatureClassificationOverrides() : {};
+
+                    const runtimeAddons = [];
+                    if (Array.isArray(featureLib) && featureLib.length) {
+                      (featureLib || []).forEach(function (group) {
+                        (Array.isArray(group.features) ? group.features : []).forEach(function (f) {
+                          const code = f && f.code ? String(f.code).trim() : null;
+                          if (!code) return;
+                          if (overrides && overrides[code] === 'addon') {
+                            runtimeAddons.push({
+                              id: null,
+                              code: code,
+                              name: f.name || code,
+                              description: f.description || '',
+                              pricePerUnit: 0,
+                              unitName: '-',
+                              status: 'active',
+                              __runtime: addonMode === 'auto',
+                              __override: serverMode === 'manual',
+                            });
+                          }
+                        });
+                      });
+                    } else {
+                      // fallback to default catalog codes when runtime groups aren't available
+                      const fallbackCodes = typeof getDefaultFeatureCatalog === 'function' ? getDefaultFeatureCatalog() : [];
+                      (Array.isArray(fallbackCodes) ? fallbackCodes : []).forEach(function (codeRaw) {
+                        const code = String(codeRaw || '').trim();
+                        if (!code) return;
+                        if (overrides && overrides[code] === 'addon') {
+                          runtimeAddons.push({
+                            id: null,
+                            code: code,
+                            name: typeof getRuntimeFeatureDisplayName === 'function' ? getRuntimeFeatureDisplayName(code, code) : code,
+                            description: '',
+                            pricePerUnit: 0,
+                            unitName: '-',
+                            status: 'active',
+                            __runtime: addonMode === 'auto',
+                            __override: serverMode === 'manual',
+                          });
+                        }
+                      });
+                    }
+
+                    // merge, avoiding duplicates by code
+                    runtimeAddons.forEach(function (r) {
+                      const exists = addonsForRender.some(function (s) { return String(s.code) === String(r.code); });
+                      if (!exists) addonsForRender.push(r);
+                    });
+                  } catch (e) {
+                    // ignore runtime merge errors
+                    console.warn('Failed to merge runtime addons', e);
+                  }
+                }
+
+                if (!addonsForRender.length) {
+                  return '<div class="card-body text-center text-muted py-4">No package add-ons found</div>';
+                }
+
+                return `
+                <div class="table-responsive">
+                  <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${addonsForRender.map((addon) => `
+                        <tr data-addon-code="${esc(addon.code)}" ${addon.__runtime ? 'data-runtime-addon="1"' : ''}>
+                          <td>
+                            <div class="fw-medium">${esc(addon.code)}</div>
+                            <small class="text-muted">${esc(addon.description || "-")}</small>
+                          </td>
+                          <td>${esc(addon.name)} ${addon.__runtime ? '<span class="badge bg-info text-dark ms-2">Auto</span>' : (addon.__override ? '<span class="badge bg-secondary text-dark ms-2">DB</span>' : '')}</td>
+                          <td>${formatCurrency(addon.pricePerUnit)}</td>
+                          <td>
+                            <span class="badge ${addon.status === "active" ? "text-bg-success" : "text-bg-warning"} d-inline-flex align-items-center badge-xs">
+                              <i class="ti ti-point-filled me-1"></i>${esc(addon.status)}
+                            </span>
+                          </td>
+                          <td>
+                            <div class="action-icon d-inline-flex">
+                              ${addonMode === "manual" && !addon.__runtime ? (`<button class="btn btn-icon btn-sm me-2" data-edit-addon="${esc(String(addon.id || addon.code))}" title="Edit"><i class="ti ti-edit"></i></button>`) : ''}
+                            </div>
+                          </td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              `;
+              })()}
           <div class="card-footer d-flex justify-content-between align-items-center">
             <small class="text-muted">Showing ${Math.min((this.currentAddonPage - 1) * PAGE_SIZE + 1, this.totalAddonItems || this.addons.length)}–${Math.min(this.currentAddonPage * PAGE_SIZE, this.totalAddonItems || this.addons.length)} of ${this.totalAddonItems || this.addons.length} add-ons</small>
             <nav aria-label="Add-on page navigation">
@@ -384,7 +490,43 @@ const dataMethods = {
       `;
 
       container.innerHTML = html;
+      // Bind addon action buttons directly to avoid reliance on global delegation
+      Array.from(container.querySelectorAll('[data-edit-addon]')).forEach((btn) => {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          const id = btn.getAttribute('data-edit-addon');
+          try {
+            if (!id || id === 'null' || id === 'undefined') {
+              console.warn('Ignored invalid addon edit trigger, missing id');
+            } else {
+              this.editAddon(id);
+            }
+          } catch (err) {
+            console.error(err);
+          }
+        }.bind(this));
+      });
+
+      // Delete action removed for add-ons (add-ons are derived/fetched; deletion not allowed from UI)
+
       this.renderAddonPagination();
+      // Bind addon mode toggle
+      const toggle = container.querySelector('#addon_mode_auto_toggle');
+      if (toggle) {
+        toggle.addEventListener('change', function (e) {
+          const nextMode = e.target.checked ? 'auto' : 'manual';
+          setAddonClassificationMode(nextMode);
+          // re-render addons and the feature catalog so badges/actions update
+          try {
+            this.renderAddons();
+            if (typeof this.renderFeatureCatalog === 'function') {
+              this.renderFeatureCatalog(getDefaultFeatureCatalog());
+            }
+          } catch (err) {
+            // ignore
+          }
+        }.bind(this));
+      }
     },
 
     /**

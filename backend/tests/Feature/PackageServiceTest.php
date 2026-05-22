@@ -584,8 +584,11 @@ class PackageServiceTest extends TestCase
             ->assertJsonPath('error.code', 'FEATURE_CODE_NAMESPACE_CONFLICT');
     }
 
-    public function test_list_package_addons_excludes_rows_that_collide_with_feature_codes(): void
+    public function test_list_package_addons_returns_all_active_addons_regardless_of_feature_code_overlap(): void
     {
+        // Add-ons whose code happens to match a package feature code (e.g. seeded by SaasUiFlowSeeder)
+        // MUST still appear in the catalog listing. The reservedFeatureCodes() guard applies only
+        // to write operations (storeAddon / updateAddon), not to the read listing.
         $package = Package::create([
             'code' => 'starter',
             'name' => 'Starter',
@@ -602,10 +605,11 @@ class PackageServiceTest extends TestCase
             'limit' => 50,
         ]);
 
+        // This add-on has a code that overlaps with a feature code — it must still be listed.
         PackageAddon::create([
             'code' => 'employee_management',
-            'name' => 'Colliding Add-on',
-            'description' => 'Must be hidden from add-on catalog list.',
+            'name' => 'Employee Management Add-on',
+            'description' => 'Optional module purchasable as add-on.',
             'price_per_unit' => 10000,
             'unit_name' => 'tenant / month',
             'status' => 'active',
@@ -625,7 +629,9 @@ class PackageServiceTest extends TestCase
 
         $codes = collect($response->json('data'))->pluck('code')->all();
         $this->assertContains('custom_ai_workflows', $codes);
-        $this->assertNotContains('employee_management', $codes);
+        // After removing the whereNotIn filter from the listing endpoint, add-ons with
+        // feature-code-like codes (created via seeder) must be visible in the catalog.
+        $this->assertContains('employee_management', $codes);
     }
 
     /**

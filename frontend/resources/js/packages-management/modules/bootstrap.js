@@ -1,4 +1,4 @@
-import { API_FEATURE_CATALOG, FEATURE_LIMIT_INPUT_CODE, apiRequest, getDefaultFeatureCatalog, getFeatureLibrary, getRuntimeFeatureDisplayName, isRecognizedRuntimeFeatureCode, setFeatureLibrary } from "../shared.js";
+import { API_FEATURE_CATALOG, FEATURE_LIMIT_INPUT_CODE, apiRequest, getDefaultFeatureCatalog, getFeatureLibrary, getRuntimeFeatureDisplayName, isRecognizedRuntimeFeatureCode, setFeatureLibrary, setFeatureClassificationOverrides, setServerAddonClassificationMode } from "../shared.js";
 
 function blurFocusedElementWithin(container) {
   const activeElement = document.activeElement;
@@ -80,6 +80,21 @@ const bootstrapMethods = {
 
       return apiRequest("GET", API_FEATURE_CATALOG, null)
         .then(function (response) {
+          try {
+            const serverMode = response?.meta?.addon_source || null;
+            // map backend source to client mode: 'runtime' -> 'auto', anything else -> 'manual'
+            if (serverMode) {
+              setServerAddonClassificationMode(serverMode === 'runtime' ? 'auto' : 'manual');
+            }
+
+            // store any server-provided classification overrides for UI consumption
+            if (response?.meta?.feature_classification_overrides) {
+              setFeatureClassificationOverrides(response.meta.feature_classification_overrides || {});
+            }
+          } catch (e) {
+            // ignore
+          }
+
           if (response.success && Array.isArray(response.data) && response.data.length) {
             setFeatureLibrary(response.data);
             self.renderFeatureCatalog(getDefaultFeatureCatalog(response.data));
@@ -271,6 +286,15 @@ const bootstrapMethods = {
             return;
           }
 
+          const manageClassBtn = e.target.closest("[data-open-feature-classifications]");
+          if (manageClassBtn) {
+            e.preventDefault();
+            if (typeof self.showFeatureClassificationsModal === 'function') {
+              self.showFeatureClassificationsModal();
+            }
+            return;
+          }
+
           const compareBtn = e.target.closest("[data-compare-packages-trigger]");
           if (compareBtn) {
             e.preventDefault();
@@ -382,14 +406,22 @@ const bootstrapMethods = {
         if (editAddonBtn) {
           e.preventDefault();
           const id = editAddonBtn.getAttribute("data-edit-addon");
-          self.editAddon(id);
+          if (!id || id === "null" || id === "undefined") {
+            console.warn('Ignored invalid addon edit trigger, missing id');
+          } else {
+            self.editAddon(id);
+          }
         }
 
         const deleteAddonBtn = e.target.closest("[data-delete-addon]");
         if (deleteAddonBtn) {
           e.preventDefault();
           const id = deleteAddonBtn.getAttribute("data-delete-addon");
-          self.deleteAddon(id);
+          if (!id || id === "null" || id === "undefined") {
+            console.warn('Ignored invalid addon delete trigger, missing id');
+          } else {
+            self.deleteAddon(id);
+          }
         }
 
         const featureCheckbox = e.target.closest("input[type='checkbox'][name='package_feature_codes']");

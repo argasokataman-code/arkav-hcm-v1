@@ -56,20 +56,20 @@ Mengembalikan detail satu invoice tenant untuk company aktif. Struktur `data` sa
 
 ## POST `/v1/hcm/billing/invoices/{id}/mock-hosted-checkout`
 
-Memulai hosted checkout untuk invoice tenant. Nama path tetap `mock-hosted-checkout` demi kompatibilitas frontend lama, tetapi runtime sekarang **Xendit-first**:
+Memulai hosted checkout untuk invoice tenant. Nama path tetap `mock-hosted-checkout` demi kompatibilitas frontend lama, tetapi runtime sekarang **Midtrans Snap**:
 
-- Jika konfigurasi Xendit aktif, endpoint membuat hosted invoice Xendit dan mengembalikan `flow.hostedCheckoutUrl` dari `invoice_url` Xendit.
+- Jika konfigurasi Midtrans aktif (`MIDTRANS_SERVER_KEY` set), endpoint membuat transaksi Snap Midtrans dan mengembalikan `flow.snapToken` (untuk popup) dan `flow.hostedCheckoutUrl` (redirect fallback).
 - Runtime policy checkout:
-  - **Local murni (tanpa ngrok/public host):** selalu fallback ke hosted simulator lokal (mock) untuk menghindari ketergantungan gateway eksternal saat development.
-  - **Ngrok/public host aktif:** mock otomatis dinonaktifkan; checkout diarahkan ke Xendit jika API key tersedia.
-  - **Production/public runtime:** gunakan Xendit; mock tidak dipakai sebagai default runtime.
+  - **Local/ngrok:** Midtrans Snap dipakai jika `MIDTRANS_SERVER_KEY` tersedia. Mock hanya aktif jika `APP_MOCK_PAYMENTS_ENABLED=true`.
+  - **Production:** Midtrans Snap; `is_production=true` di config.
+- Jika ada pending payment Midtrans yang belum expired, endpoint mengembalikan token yang sama (idempoten).
 
 Request body opsional:
 
-- `gatewayMode`: `auto` (default), `xendit`, atau `mock`.
-- `paymentMethod`: `bank_transfer`, `e_wallet`, `paylater`, `qr_code`, `card` (dipakai sebagai channel hint metadata).
+- `gatewayMode`: `auto` (default), `midtrans`, atau `mock`.
+- `paymentMethod`: `bank_transfer`, `credit_card`, `gopay`, `qris` (dipakai sebagai metadata hint).
 
-Contoh respons sukses (Xendit):
+Contoh respons sukses (Midtrans Snap):
 
 ```json
 {
@@ -80,17 +80,23 @@ Contoh respons sukses (Xendit):
   },
   "payment": {
     "id": 998,
-    "gateway": "xendit",
-    "gatewayReference": "64f2d8b1-bf1a-4c56-acde-123456789abc",
+    "gateway": "midtrans",
+    "gatewayReference": "invoice-123-abc123xyz",
     "status": "pending"
   },
   "flow": {
     "mode": "hosted",
-    "provider": "xendit",
-    "hostedCheckoutUrl": "https://checkout.xendit.co/web/..."
+    "provider": "midtrans",
+    "snapToken": "3e1555ce-4ffc-4ccb-872b-1a373278992d",
+    "hostedCheckoutUrl": "https://app.sandbox.midtrans.com/snap/v4/redirection/3e1555ce-...",
+    "finishRedirectUrl": "...",
+    "unfinishRedirectUrl": "...",
+    "errorRedirectUrl": "..."
   }
 }
 ```
+
+Error codes: `MIDTRANS_INIT_FAILED` (502) jika service tidak bisa diinisialisasi, `MIDTRANS_CREATE_FAILED` (502) jika API Midtrans gagal, `GATEWAY_NOT_CONFIGURED` (422) jika tidak ada gateway aktif.
 
 ## Catatan bisnis
 

@@ -27,6 +27,13 @@
                         <i class="ti ti-list-search me-2"></i>List All Features
                     </button>
                 </div>
+                    @if ($isHcmAdmin = (bool) ((request()->user() ?: auth()->user())?->isHcmAdmin()))
+                    <div class="mb-2 me-2">
+                        <button class="btn btn-outline-warning d-flex align-items-center" data-open-feature-classifications>
+                            <i class="ti ti-adjustments me-2"></i>Manage Classifications
+                        </button>
+                    </div>
+                    @endif
                 <div class="mb-2 me-2">
                     <button class="btn btn-outline-dark d-flex align-items-center" data-compare-packages-trigger>
                         <i class="ti ti-table-options me-2"></i>Compare Selected
@@ -245,6 +252,22 @@
     </div>
 </div>
 
+    <!-- Manage Feature Classifications Modal -->
+    <div class="modal fade" id="featureClassificationModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Manage Feature Classifications</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="feature_classifications_container"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 <!-- Module Preview Modal -->
 <div class="modal fade" id="modulePreviewModal" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
@@ -282,9 +305,12 @@
             <form id="addonForm">
                 <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md-6" id="addon_code_field">
                             <label class="form-label">Code *</label>
                             <input type="text" class="form-control" id="input_addon_code" required>
+                            <div id="addon_code_locked_note" class="form-text text-muted d-none">
+                                <i class="ti ti-lock me-1"></i>Code terkunci — sudah ada transaksi paid.
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Name *</label>
@@ -297,10 +323,6 @@
                         <div class="col-md-6">
                             <label class="form-label">Price per Unit *</label>
                             <input type="number" class="form-control" id="input_addon_price" min="0" step="0.01" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Unit Name *</label>
-                            <input type="text" class="form-control" id="input_addon_unit" placeholder="users, GB, API calls" required>
                         </div>
                     </div>
                     <div class="mt-3">

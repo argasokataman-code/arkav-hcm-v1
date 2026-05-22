@@ -473,7 +473,6 @@
                 var addonId = Number(addon && addon.id || 0);
                 var addonName = String(addon && addon.name || "Add-on");
                 var addonCode = String(addon && addon.code || "").toUpperCase();
-                var addonUnit = String(addon && addon.unitName || "unit").toUpperCase();
                 var addonDescription = String(addon && addon.description || "Add-on untuk memperluas kemampuan operasional tim.");
                 var addonPrice = money(Number(addon && addon.pricePerUnit || 0));
                 var isCheckedOut = ctx.checkedOutAddonIds.has(addonId);
@@ -484,9 +483,8 @@
 
                 return '<div class="col-12 col-md-6 col-xl-3">'
                     + '<div class="upgrade-addon-card p-3">'
-                    + '<div class="d-flex align-items-start justify-content-between gap-2 mb-2">'
+                    + '<div class="mb-2">'
                     + '<span class="upgrade-addon-icon"><i class="ti ti-puzzle"></i></span>'
-                    + '<span class="badge bg-light text-dark">' + esc(addonUnit) + '</span>'
                     + '</div>'
                     + '<div class="upgrade-addon-title mb-1">' + esc(addonName) + '</div>'
                     + '<div class="text-muted small mb-2">' + esc(addonCode) + '</div>'

@@ -28,7 +28,7 @@ return [
     | THR disbursement (payment gateway)
     |--------------------------------------------------------------------------
     |
-    | driver: "stub" simulates Xendit/Midtrans; swap to "xendit" / "midtrans" when wired.
+    | driver: "stub" simulates payment gateway; swap to "midtrans" when wired.
     | fail_user_ids: user IDs that always fail in stub (for QA).
     |
     */

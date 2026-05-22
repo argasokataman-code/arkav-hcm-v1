@@ -437,8 +437,8 @@
             || str_contains($appUrlHost, 'ngrok');
 
         $checkoutHostedEnabled = $isNgrokRuntime
-            ? (bool) config('services.xendit.api_key')
-            : (app()->isLocal() || (bool) config('services.xendit.api_key') || (bool) config('app.mock_payments_enabled'));
+            ? (bool) config('services.midtrans.server_key')
+            : (app()->isLocal() || (bool) config('services.midtrans.server_key') || (bool) config('app.mock_payments_enabled'));
     @endphp
     <div
         class="content"
@@ -1030,6 +1030,10 @@
     </div>
 </div>
 
+@if(config('services.midtrans.client_key'))
+@php $midtransSnapUrl = config('services.midtrans.is_production') ? 'https://app.midtrans.com/snap/snap.js' : 'https://app.sandbox.midtrans.com/snap/snap.js'; @endphp
+<script src="{{ $midtransSnapUrl }}" data-client-key="{{ config('services.midtrans.client_key') }}"></script>
+@endif
 <script src="{{ asset('build/js/saas/subscription-checkout.js') }}?v={{ file_exists(public_path('build/js/saas/subscription-checkout.js')) ? filemtime(public_path('build/js/saas/subscription-checkout.js')) : time() }}"></script>
 
 @endsection

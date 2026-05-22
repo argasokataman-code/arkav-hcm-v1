@@ -160,15 +160,6 @@
             ->values();
     }
 
-    $activeAddons = \App\Models\PackageAddon::query()
-        ->active()
-        ->when($checkedOutAddonIds->isNotEmpty(), function ($query) use ($checkedOutAddonIds): void {
-            $query->whereNotIn('id', $checkedOutAddonIds->all());
-        })
-        ->orderByRaw('COALESCE(price_per_unit, 0) asc')
-        ->limit(8)
-        ->get(['id', 'uuid', 'code', 'name', 'description', 'price_per_unit', 'unit_name'])
-        ->values();
 @endphp
 
 <style>

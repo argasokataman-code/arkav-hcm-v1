@@ -9,8 +9,8 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\BillingTaxCalculationService;
 use App\Services\InvoiceService;
+use App\Services\MidtransService;
 use App\Services\MockPaymentGatewayService;
-use App\Services\XenditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -196,7 +196,7 @@ class HcmCompanyInvoiceController
 
         $mockGateway = new MockPaymentGatewayService();
         $paymentMethod = (string) ($validated['paymentMethod'] ?? 'mock_card');
-        $gateway = (string) ($validated['gateway'] ?? 'xendit_mock');
+        $gateway = (string) ($validated['gateway'] ?? 'mock');
         $mappedPaymentMethod = match ($paymentMethod) {
             'mock_bank' => 'bank_transfer',
             'mock_ewallet' => 'e_wallet',
@@ -280,16 +280,16 @@ class HcmCompanyInvoiceController
 
         $validated = $request->validate([
             'paymentMethod' => ['nullable', 'string', 'in:bank_transfer,e_wallet,paylater,qr_code,card'],
-            'gatewayMode' => ['nullable', 'string', 'in:auto,xendit,mock'],
+            'gatewayMode' => ['nullable', 'string', 'in:auto,midtrans,mock'],
         ]);
 
         $gatewayMode = (string) ($validated['gatewayMode'] ?? 'auto');
         $allowMock = $this->canUseMockCheckout($request);
-        $useXendit = $this->shouldUseXenditCheckout($gatewayMode, $request);
+        $useMidtrans = $this->shouldUseMidtransCheckout($gatewayMode);
         $paymentMethod = (string) ($validated['paymentMethod'] ?? 'bank_transfer');
 
-        if ($useXendit) {
-            $result = $this->startXenditHostedCheckout($invoice, $paymentMethod);
+        if ($useMidtrans) {
+            $result = $this->startMidtransHostedCheckout($invoice, $paymentMethod);
             if ($result instanceof JsonResponse) {
                 return $result;
             }
@@ -299,8 +299,8 @@ class HcmCompanyInvoiceController
             return response()->json([
                 'success' => false,
                 'error' => [
-                    'code' => 'XENDIT_NOT_CONFIGURED',
-                    'message' => 'Xendit checkout is not configured and mock checkout is disabled.',
+                    'code' => 'GATEWAY_NOT_CONFIGURED',
+                    'message' => 'No payment gateway is configured and mock checkout is disabled.',
                 ],
             ], 502);
         }
@@ -427,119 +427,95 @@ class HcmCompanyInvoiceController
         ]);
     }
 
-    private function startXenditHostedCheckout(Invoice $invoice, string $paymentMethod): JsonResponse|false
+    private function startMidtransHostedCheckout(Invoice $invoice, string $paymentMethod): JsonResponse|false
     {
         $companyId = (int) $invoice->company_id;
-        $successUrl = url('/subscription').'?'.http_build_query([
-            'mock_payment_status' => 'completed',
+        $finishUrl = url('/subscription').'?'.http_build_query([
+            'payment_status' => 'completed',
             'invoice_id' => $invoice->id,
         ]);
-        $failureUrl = url('/subscription').'?'.http_build_query([
-            'mock_payment_status' => 'failed',
+        $unfinishUrl = url('/subscription').'?'.http_build_query([
+            'payment_status' => 'unfinished',
+            'invoice_id' => $invoice->id,
+        ]);
+        $errorUrl = url('/subscription').'?'.http_build_query([
+            'payment_status' => 'error',
             'invoice_id' => $invoice->id,
         ]);
 
-        try {
-            /** @var XenditService $xenditService */
-            $xenditService = app(XenditService::class);
-        } catch (\Throwable $exception) {
-            return false;
-        }
-
+        // Re-use existing pending Midtrans payment if redirect_url still valid
         $existingPendingPayment = Payment::query()
             ->where('invoice_id', $invoice->id)
-            ->where('gateway', 'xendit')
+            ->where('gateway', 'midtrans')
             ->where('status', 'pending')
             ->latest('id')
             ->first();
 
-        if ($existingPendingPayment && data_get($existingPendingPayment->metadata, 'xendit_invoice_id')) {
-            $xenditInvoiceId = (string) data_get($existingPendingPayment->metadata, 'xendit_invoice_id');
-            $invoiceDetails = $xenditService->getInvoice($xenditInvoiceId);
-            $status = strtoupper((string) ($invoiceDetails['status'] ?? ''));
+        if ($existingPendingPayment && data_get($existingPendingPayment->metadata, 'midtrans_redirect_url')) {
+            return response()->json([
+                'success' => true,
+                'data' => $this->invoiceService->formatInvoice($invoice),
+                'payment' => [
+                    'id' => $existingPendingPayment->id,
+                    'uuid' => $existingPendingPayment->uuid,
+                    'gateway' => $existingPendingPayment->gateway,
+                    'gatewayReference' => $existingPendingPayment->gateway_reference,
+                    'paymentMethod' => $existingPendingPayment->payment_method,
+                    'status' => $existingPendingPayment->status,
+                    'amount' => (float) $existingPendingPayment->amount,
+                ],
+                'flow' => [
+                    'mode' => 'hosted',
+                    'provider' => 'midtrans',
+                    'hostedCheckoutUrl' => (string) data_get($existingPendingPayment->metadata, 'midtrans_redirect_url', ''),
+                    'snapToken' => (string) data_get($existingPendingPayment->metadata, 'midtrans_snap_token', ''),
+                    'finishRedirectUrl' => $finishUrl,
+                    'unfinishRedirectUrl' => $unfinishUrl,
+                    'errorRedirectUrl' => $errorUrl,
+                ],
+            ]);
+        }
 
-            if (in_array($status, ['SETTLED', 'PAID'], true)) {
-                $existingPendingPayment->update([
-                    'status' => 'completed',
-                    'paid_at' => now(),
-                    'verified_at' => now(),
-                ]);
-                if (! $invoice->is_paid) {
-                    $invoice->markAsPaid();
-                    $invoice->refresh();
-                }
-
-                return response()->json([
-                    'success' => true,
-                    'data' => $this->invoiceService->formatInvoice($invoice),
-                    'payment' => [
-                        'id' => $existingPendingPayment->id,
-                        'uuid' => $existingPendingPayment->uuid,
-                        'gateway' => $existingPendingPayment->gateway,
-                        'gatewayReference' => $existingPendingPayment->gateway_reference,
-                        'paymentMethod' => $existingPendingPayment->payment_method,
-                        'status' => 'completed',
-                        'amount' => (float) $existingPendingPayment->amount,
-                    ],
-                    'flow' => [
-                        'mode' => 'hosted',
-                        'provider' => 'xendit',
-                        'hostedCheckoutUrl' => (string) data_get($existingPendingPayment->metadata, 'invoice_url', ''),
-                        'successRedirectUrl' => $successUrl,
-                        'failureRedirectUrl' => $failureUrl,
-                    ],
-                ]);
-            }
-
-            if (! in_array($status, ['EXPIRED', 'FAILED'], true)) {
-                return response()->json([
-                    'success' => true,
-                    'data' => $this->invoiceService->formatInvoice($invoice),
-                    'payment' => [
-                        'id' => $existingPendingPayment->id,
-                        'uuid' => $existingPendingPayment->uuid,
-                        'gateway' => $existingPendingPayment->gateway,
-                        'gatewayReference' => $existingPendingPayment->gateway_reference,
-                        'paymentMethod' => $existingPendingPayment->payment_method,
-                        'status' => $existingPendingPayment->status,
-                        'amount' => (float) $existingPendingPayment->amount,
-                    ],
-                    'flow' => [
-                        'mode' => 'hosted',
-                        'provider' => 'xendit',
-                        'hostedCheckoutUrl' => (string) data_get($existingPendingPayment->metadata, 'invoice_url', ''),
-                        'successRedirectUrl' => $successUrl,
-                        'failureRedirectUrl' => $failureUrl,
-                    ],
-                ]);
-            }
+        try {
+            /** @var MidtransService $midtransService */
+            $midtransService = app(MidtransService::class);
+        } catch (\Throwable $e) {
+            \Log::error('Midtrans: Failed to resolve MidtransService', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'MIDTRANS_INIT_FAILED', 'message' => 'Midtrans service unavailable: ' . $e->getMessage()],
+            ], 502);
         }
 
         $company = $invoice->company;
         $companyName = (string) ($company->name ?? 'Customer');
-        // Use user email as fallback if company email doesn't exist (company doesn't have email column)
         $companyEmail = (string) (auth()->user()?->email ?? 'noreply@arcav.com');
-        $externalId = sprintf('invoice-%d-%s', $invoice->id, Str::lower(Str::random(10)));
-        
-        $result = $xenditService->createInvoice([
-            'external_id' => $externalId,
-            'amount' => (int) round((float) $invoice->amount_due),
-            'description' => 'Invoice '.$invoice->invoice_number,
-            'customer_name' => $companyName,
-            'customer_email' => $companyEmail,
-            'currency' => 'IDR',
-            'items' => $this->buildXenditInvoiceItems($invoice),
-            'success_url' => $successUrl,
-            'failure_url' => $failureUrl,
-            'metadata' => [
-                'invoice_id' => $invoice->id,
-                'company_id' => $companyId,
-                'source' => 'company_invoice_hosted_checkout',
-            ],
-        ]);
+        $orderId = sprintf('invoice-%d-%s', $invoice->id, Str::lower(Str::random(10)));
 
-        if (! $result || empty($result['id']) || empty($result['invoice_url'])) {
-            return false;
+        try {
+            $result = $midtransService->createTransaction([
+                'order_id' => $orderId,
+                'amount' => (int) round((float) $invoice->amount_due),
+                'description' => 'Invoice ' . $invoice->invoice_number,
+                'customer' => [
+                    'name' => $companyName,
+                    'email' => $companyEmail,
+                ],
+                'items' => $this->buildMidtransInvoiceItems($invoice),
+                'finish_url' => $finishUrl,
+                'unfinish_url' => $unfinishUrl,
+                'error_url' => $errorUrl,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Midtrans: createTransaction failed', [
+                'invoice_id' => $invoice->id,
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'MIDTRANS_CREATE_FAILED', 'message' => 'Gagal membuat transaksi Midtrans: ' . $e->getMessage()],
+            ], 502);
         }
 
         $payment = Payment::query()->create([
@@ -549,15 +525,15 @@ class HcmCompanyInvoiceController
             'amount' => (float) $invoice->amount_due,
             'currency' => 'IDR',
             'status' => 'pending',
-            'payment_method' => $this->mapXenditChannelToPaymentMethod($paymentMethod),
-            'gateway' => 'xendit',
-            'gateway_reference' => (string) $result['id'],
+            'payment_method' => $this->mapPaymentMethod($paymentMethod),
+            'gateway' => 'midtrans',
+            'gateway_reference' => $orderId,
             'metadata' => [
-                'xendit_invoice_id' => (string) $result['id'],
-                'xendit_external_id' => $externalId,
-                'xendit_channel_hint' => $paymentMethod,
-                'invoice_url' => (string) $result['invoice_url'],
-                'checkout_mode' => 'xendit_hosted',
+                'midtrans_order_id' => $orderId,
+                'midtrans_snap_token' => $result['token'],
+                'midtrans_redirect_url' => $result['redirect_url'],
+                'checkout_mode' => 'midtrans_hosted',
+                // midtrans_transaction_id filled after webhook notification
             ],
         ]);
 
@@ -575,131 +551,35 @@ class HcmCompanyInvoiceController
             ],
             'flow' => [
                 'mode' => 'hosted',
-                'provider' => 'xendit',
-                'hostedCheckoutUrl' => (string) $result['invoice_url'],
-                'successRedirectUrl' => $successUrl,
-                'failureRedirectUrl' => $failureUrl,
+                'provider' => 'midtrans',
+                'hostedCheckoutUrl' => $result['redirect_url'],
+                'snapToken' => $result['token'],
+                'finishRedirectUrl' => $finishUrl,
+                'unfinishRedirectUrl' => $unfinishUrl,
+                'errorRedirectUrl' => $errorUrl,
             ],
         ]);
     }
 
-    private function shouldUseXenditCheckout(string $gatewayMode, Request $request): bool
-    {
-        if ($this->shouldForceLocalMockCheckout($request)) {
-            return false;
-        }
 
+
+    private function canUseMockCheckout(Request $request): bool
+    {
+        return (bool) config('app.mock_payments_enabled');
+    }
+
+    private function shouldUseMidtransCheckout(string $gatewayMode): bool
+    {
         if ($gatewayMode === 'mock') {
             return false;
         }
 
-        if ($gatewayMode === 'xendit') {
-            return (bool) config('services.xendit.api_key');
+        if ($gatewayMode === 'midtrans') {
+            return (bool) config('services.midtrans.server_key');
         }
 
-        return (bool) config('services.xendit.api_key');
-    }
-
-    private function canUseMockCheckout(Request $request): bool
-    {
-        if ($this->isNgrokRuntime($request)) {
-            return false;
-        }
-
-        if ($this->shouldForceLocalMockCheckout($request)) {
-            return true;
-        }
-
-        return (bool) config('app.mock_payments_enabled');
-    }
-
-    private function shouldForceLocalMockCheckout(Request $request): bool
-    {
-        return app()->isLocal() && ! $this->isNgrokRuntime($request);
-    }
-
-    private function isNgrokRuntime(Request $request): bool
-    {
-        $hosts = [];
-
-        $requestHost = strtolower((string) $request->getHost());
-        if ($requestHost !== '') {
-            $hosts[] = $requestHost;
-        }
-
-        $forwardedHost = strtolower(trim((string) $request->header('X-Forwarded-Host', '')));
-        if ($forwardedHost !== '') {
-            foreach (explode(',', $forwardedHost) as $host) {
-                $host = trim($host);
-                if ($host !== '') {
-                    $hosts[] = $host;
-                }
-            }
-        }
-
-        $appUrlHost = strtolower((string) parse_url((string) config('app.url'), PHP_URL_HOST));
-        if ($appUrlHost !== '') {
-            $hosts[] = $appUrlHost;
-        }
-
-        foreach ($hosts as $host) {
-            if (str_contains($host, 'ngrok')) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function mapXenditChannelToPaymentMethod(string $paymentMethod): string
-    {
-        return match ($paymentMethod) {
-            'e_wallet', 'paylater', 'qr_code' => 'e_wallet',
-            'card' => 'credit_card',
-            default => 'bank_transfer',
-        };
-    }
-
-    /**
-     * Build Xendit items array from invoice with tax breakdown
-     * 
-     * @param Invoice $invoice
-     * @return array Items array for Xendit API
-     */
-    private function buildXenditInvoiceItems(Invoice $invoice): array
-    {
-        $items = [];
-
-        // Base subscription/invoice item
-        $baseAmount = (float) $invoice->amount_due;
-        $taxRate = (float) ($invoice->billing_tax_rate_snapshot ?? 0);
-
-        if ($taxRate > 0) {
-            // `amount_due` is tax-inclusive, so split the tax portion back out for gateway itemization.
-            $baseWithoutTax = round($baseAmount / (1 + ($taxRate / 100)), 0);
-            $taxAmount = round($baseAmount - $baseWithoutTax, 0);
-
-            $items[] = [
-                'name' => 'Subscription / Invoice',
-                'quantity' => 1,
-                'price' => (int) $baseWithoutTax,
-            ];
-
-            $items[] = [
-                'name' => "Tax ({$taxRate}%)",
-                'quantity' => 1,
-                'price' => (int) $taxAmount,
-            ];
-        } else {
-            // No tax, just one line item
-            $items[] = [
-                'name' => 'Subscription / Invoice',
-                'quantity' => 1,
-                'price' => (int) $baseAmount,
-            ];
-        }
-
-        return $items;
+        // auto: use midtrans when configured
+        return (bool) config('services.midtrans.server_key');
     }
 
     private function healLegacyUnpaidSubscriptionInvoiceTax(Invoice $invoice): Invoice
@@ -740,6 +620,36 @@ class HcmCompanyInvoiceController
         ])->save();
 
         return $invoice->fresh();
+    }
+
+    /**
+     * Build item_details array for Midtrans from an invoice.
+     */
+    private function buildMidtransInvoiceItems($invoice): array
+    {
+        return [
+            [
+                'id'       => 'invoice-' . $invoice->id,
+                'name'     => 'Invoice ' . $invoice->invoice_number,
+                'price'    => (int) round((float) $invoice->amount_due),
+                'quantity' => 1,
+            ],
+        ];
+    }
+
+    /**
+     * Map internal payment method string to a normalised string for storage.
+     */
+    private function mapPaymentMethod(string $paymentMethod): string
+    {
+        $map = [
+            'bank_transfer' => 'bank_transfer',
+            'credit_card'   => 'credit_card',
+            'gopay'         => 'gopay',
+            'qris'          => 'qris',
+        ];
+
+        return $map[$paymentMethod] ?? 'bank_transfer';
     }
 }
 

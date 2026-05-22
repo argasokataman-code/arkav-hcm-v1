@@ -97,8 +97,8 @@ describe('SaaS renewal monitoring wiring', () => {
             {
               renewalPeriodKey: 'sub_99_2026_05',
               company: { name: 'ACME Corp' },
-              reasonCode: 'XENDIT_DOWN',
-              reasonMessage: 'Xendit reconciliation unavailable.',
+              reasonCode: 'MIDTRANS_DOWN',
+              reasonMessage: 'Midtrans reconciliation unavailable.',
               issueDate: '2026-05-14',
               dueDate: '2026-05-21',
               isPaid: false,
@@ -149,7 +149,7 @@ describe('SaaS renewal monitoring wiring', () => {
       expect(document.querySelector('[data-renewal-summary-total]').textContent).toContain('12');
       expect(document.querySelector('[data-renewal-records-body]').innerHTML).toContain('sub_99_2026_05');
       expect(document.querySelector('[data-renewal-records-body]').innerHTML).toContain('INV-000501');
-      expect(document.querySelector('[data-renewal-anomalies-list]').innerHTML).toContain('XENDIT_DOWN');
+      expect(document.querySelector('[data-renewal-anomalies-list]').innerHTML).toContain('MIDTRANS_DOWN');
     });
 
     document.querySelector('[data-renewal-detail-trigger="sub_99_2026_05"]').click();

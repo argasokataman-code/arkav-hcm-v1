@@ -9,9 +9,9 @@ use App\Models\Subscription;
 use App\Models\SubscriptionEvent;
 use App\Services\BillingTaxCalculationService;
 use App\Services\CompanyStatusSynchronizer;
+use App\Services\MidtransService;
 use App\Services\NotificationService;
 use App\Services\StripeService;
-use App\Services\XenditService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -376,9 +376,9 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
             try {
                 // Attempt payment based on gateway
                 $result = match ($gateway) {
-                    'xendit' => $this->chargeViaXendit($lockedInvoice, $subscription, $payment),
-                    'stripe' => $this->chargeViaStripe($lockedInvoice, $subscription, $payment),
-                    default => throw new \RuntimeException("Unsupported gateway: $gateway"),
+                    'stripe'   => $this->chargeViaStripe($lockedInvoice, $subscription, $payment),
+                    'midtrans' => $this->chargeViaMidtrans($lockedInvoice, $subscription, $payment),
+                    default    => throw new \RuntimeException("Unsupported gateway: $gateway"),
                 };
 
                 $resultState = $result['state'] ?? 'failed';
@@ -693,91 +693,89 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
         }
     }
 
+    private function buildRecurringExternalId(Invoice $invoice): string
+    {
+        return "renewal-inv-{$invoice->id}";
+    }
+
     /**
-     * Attempt charge via Xendit
+     * Attempt charge via Midtrans (Snap hosted invoice).
+     * Midtrans does not support server-side auto-charge; this creates a hosted
+     * payment link that the customer must open manually. State is always 'pending'
+     * until the webhook or reconciliation confirms settlement.
      */
-    private function chargeViaXendit(Invoice $invoice, Subscription $subscription, Payment $payment): array
+    private function chargeViaMidtrans(Invoice $invoice, Subscription $subscription, Payment $payment): array
     {
         try {
-            $xenditService = app(XenditService::class);
-            $metadata = is_array($payment->metadata) ? $payment->metadata : [];
+            $midtransService = app(MidtransService::class);
+            $metadata        = is_array($payment->metadata) ? $payment->metadata : [];
 
             $company = $invoice->company;
-            if (! $company || empty($company->email)) {
-                Log::warning('Xendit payment skipped because company billing email is missing', [
-                    'invoice_id' => $invoice->id,
-                    'company_id' => $invoice->company_id,
-                ]);
+            if (! $company) {
+                Log::warning('Midtrans payment skipped: company missing', ['invoice_id' => $invoice->id]);
                 return ['state' => 'failed'];
             }
 
-            $existingInvoiceId = isset($metadata['xendit_invoice_id']) ? (string) $metadata['xendit_invoice_id'] : '';
-            if ($existingInvoiceId !== '') {
-                $existing = $xenditService->getInvoice($existingInvoiceId);
-                $existingStatus = strtoupper((string) ($existing['status'] ?? ''));
+            // Re-use existing Midtrans order if pending (avoid duplicate Snap tokens)
+            $existingOrderId = isset($metadata['midtrans_order_id']) ? (string) $metadata['midtrans_order_id'] : '';
+            if ($existingOrderId !== '') {
+                $existing       = $midtransService->getTransaction($existingOrderId);
+                $existingStatus = strtolower((string) ($existing['transaction_status'] ?? ''));
+                $existingFraud  = strtolower((string) ($existing['fraud_status'] ?? ''));
+                $existingState  = $midtransService->resolvePaymentState($existingStatus, $existingFraud);
 
-                if (in_array($existingStatus, ['SETTLED', 'PAID'], true)) {
+                if ($existingState === 'paid') {
                     return ['state' => 'paid'];
                 }
 
-                if ($existingStatus !== '' && ! in_array($existingStatus, ['EXPIRED', 'FAILED'], true)) {
-                    Log::info('Xendit renewal invoice still pending settlement', [
+                if ($existingState === 'pending') {
+                    Log::info('Midtrans renewal order still pending', [
                         'invoice_id' => $invoice->id,
-                        'xendit_invoice_id' => $existingInvoiceId,
-                        'status' => $existingStatus,
+                        'order_id'   => $existingOrderId,
+                        'status'     => $existingStatus,
                     ]);
-
                     return ['state' => 'pending'];
                 }
             }
 
-            $externalId = $this->buildRecurringExternalId($invoice);
-            $result = $xenditService->createInvoice([
-                'external_id' => $externalId,
-                'amount' => (int) round((float) $invoice->amount_due),
-                'description' => 'Recurring renewal invoice '.$invoice->invoice_number,
-                'customer_name' => $company->name,
-                'customer_email' => $company->email,
-                'currency' => 'IDR',
-                'success_url' => config('app.url') . '/billing/success',
-                'failure_url' => config('app.url') . '/billing/failed',
+            $orderId = sprintf('renewal-inv-%d-%s', $invoice->id, \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(8)));
+            $result  = $midtransService->createTransaction([
+                'order_id'    => $orderId,
+                'amount'      => (int) round((float) $invoice->amount_due),
+                'description' => 'Recurring renewal invoice ' . $invoice->invoice_number,
+                'customer'    => [
+                    'name'  => (string) ($company->name ?? 'Customer'),
+                    'email' => (string) ($company->email ?? ''),
+                ],
             ]);
 
-            if ($result && !empty($result['id'])) {
-                $payment->update([
-                    'gateway_reference' => (string) $result['id'],
-                    'metadata' => array_merge($metadata, [
-                        'xendit_invoice_id' => $result['id'],
-                        'xendit_external_id' => $externalId,
-                        'invoice_url' => $result['invoice_url'] ?? null,
-                    ]),
-                ]);
+            $payment->update([
+                'gateway_reference' => $orderId,
+                'metadata'          => array_merge($metadata, [
+                    'midtrans_order_id'     => $orderId,
+                    'midtrans_redirect_url' => $result['redirect_url'],
+                    'midtrans_snap_token'   => $result['token'],
+                ]),
+            ]);
 
-                Log::info('Xendit renewal invoice created', [
-                    'invoice_id' => $invoice->id,
-                    'xendit_invoice_id' => $result['id'],
-                ]);
+            Log::info('Midtrans renewal Snap transaction created', [
+                'invoice_id'   => $invoice->id,
+                'order_id'     => $orderId,
+                'redirect_url' => $result['redirect_url'],
+            ]);
 
-                return ['state' => 'pending'];
-            }
-
-            return ['state' => 'failed'];
+            return ['state' => 'pending'];
         } catch (\Exception $e) {
-            Log::error('Xendit payment attempt failed', [
+            Log::error('Midtrans payment attempt failed', [
                 'invoice_id' => $invoice->id,
-                'error' => $e->getMessage(),
+                'error'      => $e->getMessage(),
             ]);
             return [
-                'state' => 'failed',
-                'reason_code' => 'XENDIT_DOWN',
-                'reason_message' => 'Xendit gateway unavailable, next retry has been scheduled.',
+                'state'          => 'failed',
+                'reason_code'    => 'MIDTRANS_DOWN',
+                'reason_message' => 'Midtrans gateway unavailable, next retry has been scheduled.',
             ];
         }
-    }
-
-    private function buildRecurringExternalId(Invoice $invoice): string
-    {
-        return "renewal-inv-{$invoice->id}";
     }
 
     private function emitRenewalMetric(string $metricKey, string $reasonCode, ?Invoice $invoice = null, array $context = []): void
@@ -817,11 +815,11 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
     private function emitFailureSpikeAlert(?Invoice $invoice, string $reasonCode): void
     {
         $failureCodes = [
-            'XENDIT_DOWN',
+            'MIDTRANS_DOWN',
             'RENEWAL_PROCESS_EXCEPTION',
             'RENEWAL_MAX_RETRY_EXCEEDED',
-            'XENDIT_PAYMENT_FAILED',
-            'XENDIT_INVOICE_EXPIRED',
+            'MIDTRANS_PAYMENT_FAILED',
+            'MIDTRANS_INVOICE_EXPIRED',
         ];
 
         if (! in_array($reasonCode, $failureCodes, true)) {

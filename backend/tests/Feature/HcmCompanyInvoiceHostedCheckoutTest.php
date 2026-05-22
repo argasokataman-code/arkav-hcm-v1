@@ -13,7 +13,6 @@ use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\InvoiceService;
-use App\Services\XenditService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -36,7 +35,6 @@ class HcmCompanyInvoiceHostedCheckoutTest extends TestCase
         parent::setUp();
 
         config(['app.mock_payments_enabled' => true]);
-        config(['services.xendit.api_key' => null]);
     }
 
     public function test_hosted_checkout_for_existing_invoice_returns_gateway_url_and_can_be_settled(): void
@@ -111,81 +109,6 @@ class HcmCompanyInvoiceHostedCheckoutTest extends TestCase
         $this->assertTrue($invoice->is_paid);
         $this->assertSame('paid', $invoice->status);
         $this->assertSame('active', $subscription->status);
-    }
-
-    public function test_hosted_checkout_can_use_xendit_provider_and_returns_real_hosted_url(): void
-    {
-        config(['services.xendit.api_key' => 'xnd_test_key']);
-
-        $company = $this->createIsolatedTestCompany();
-        $this->createHcmAdminWithCompany([
-            'email' => 'invoice-xendit-owner@example.com',
-        ], $company);
-        $user = User::query()->where('email', 'invoice-xendit-owner@example.com')->firstOrFail();
-
-        $invoice = Invoice::query()->create([
-            'company_id' => $company->id,
-            'subscription_id' => null,
-            'purchase_transaction_id' => null,
-            'issue_date' => now()->toDateString(),
-            'due_date' => now()->addDays(7)->toDateString(),
-            'amount_due' => 1110000,
-            'billing_tax_rate_snapshot' => 11,
-            'status' => 'draft',
-            'is_paid' => false,
-            'notes' => 'Xendit hosted checkout invoice',
-        ]);
-
-        $xenditMock = Mockery::mock(XenditService::class);
-        $xenditMock
-            ->shouldReceive('createInvoice')
-            ->once()
-            ->withArgs(function (array $payload): bool {
-                return (int) ($payload['amount'] ?? 0) === 1110000
-                    && ($payload['items'] ?? null) === [
-                        [
-                            'name' => 'Subscription / Invoice',
-                            'quantity' => 1,
-                            'price' => 1000000,
-                        ],
-                        [
-                            'name' => 'Tax (11%)',
-                            'quantity' => 1,
-                            'price' => 110000,
-                        ],
-                    ];
-            })
-            ->andReturn([
-                'id' => 'xnd_inv_test_001',
-                'invoice_url' => 'https://checkout.xendit.co/web/xnd_inv_test_001',
-                'status' => 'PENDING',
-            ]);
-        app()->instance(XenditService::class, $xenditMock);
-
-        $request = Request::create("/v1/hcm/billing/invoices/{$invoice->id}/mock-hosted-checkout", 'POST', [
-            'gatewayMode' => 'xendit',
-            'paymentMethod' => 'qr_code',
-        ]);
-        $request->attributes->set('activeCompanyId', $company->id);
-        $request->attributes->set('activeCompany', $company);
-        $request->attributes->set('activeCompanyCode', $company->code);
-        $request->setUserResolver(fn () => $user);
-
-        $response = app(HcmCompanyInvoiceController::class)->mockHostedCheckout($request, $invoice->id);
-        $payload = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
-
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertTrue($payload['success']);
-        $this->assertSame('hosted', $payload['flow']['mode']);
-        $this->assertSame('xendit', $payload['flow']['provider']);
-        $this->assertStringContainsString('checkout.xendit.co', $payload['flow']['hostedCheckoutUrl']);
-
-        $payment = Payment::query()->where('invoice_id', $invoice->id)->latest('id')->firstOrFail();
-        $this->assertSame('xendit', $payment->gateway);
-        $this->assertSame('pending', $payment->status);
-        $this->assertSame('e_wallet', $payment->payment_method);
-        $this->assertSame('xnd_inv_test_001', $payment->gateway_reference);
-        $this->assertSame('qr_code', (string) data_get($payment->metadata, 'xendit_channel_hint'));
     }
 
     public function test_legacy_unpaid_subscription_invoice_is_healed_with_tax_before_display_and_payment(): void

@@ -3,7 +3,7 @@
 use App\Http\Controllers\Api\Payment\MockPaymentController;
 use Illuminate\Support\Facades\Route;
 
-// Mock Payments (Development only - for testing without Stripe/Xendit subscription)
+// Mock Payments (Development only - for testing without real payment gateway subscription)
 if (app()->environment(['local', 'testing']) || config('app.mock_payments_enabled')) {
     Route::prefix('v1/mock')->middleware(['api.token', 'tenant.context'])->group(function () {
         Route::post('/payments/create', [MockPaymentController::class, 'createPayment']);

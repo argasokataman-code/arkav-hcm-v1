@@ -385,7 +385,7 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             'currency' => 'IDR',
             'status' => 'failed',
             'payment_method' => 'credit_card',
-            'gateway' => 'xendit',
+            'gateway' => 'midtrans',
             'metadata' => ['attempt_count' => 3],
         ]);
 

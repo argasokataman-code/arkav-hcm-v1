@@ -94,8 +94,8 @@ class RenewalMonitoringApiTest extends TestCase
             'amount_due' => 120000,
             'status' => 'sent',
             'is_paid' => false,
-            'renewal_reason_code' => 'XENDIT_DOWN',
-            'renewal_reason_message' => 'xendit down during renewal polling',
+            'renewal_reason_code' => 'MIDTRANS_DOWN',
+            'renewal_reason_message' => 'midtrans down during renewal polling',
             'notes' => json_encode(['source' => 'recurring_subscription_renewal'], JSON_UNESCAPED_SLASHES),
         ]);
 
@@ -148,7 +148,7 @@ class RenewalMonitoringApiTest extends TestCase
 
         $this->assertCount(1, $anomalies->json('data'));
         $this->assertSame($anomalyInvoice->renewal_period_key, $anomalies->json('data.0.renewalPeriodKey'));
-        $this->assertSame('XENDIT_DOWN', $anomalies->json('data.0.reasonCode'));
+        $this->assertSame('MIDTRANS_DOWN', $anomalies->json('data.0.reasonCode'));
     }
 
     /**
@@ -188,7 +188,7 @@ class RenewalMonitoringApiTest extends TestCase
             'billing_cycle' => 'monthly',
             'amount' => 120000,
             'metadata' => [
-                'gateway' => 'xendit',
+                'gateway' => 'midtrans',
             ],
         ]);
 

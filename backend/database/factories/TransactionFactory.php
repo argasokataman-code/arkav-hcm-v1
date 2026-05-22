@@ -18,7 +18,7 @@ class TransactionFactory extends Factory
             'amount' => $this->faker->numberBetween(50000, 5000000),
             'status' => $this->faker->randomElement(['pending', 'completed', 'failed', 'refunded']),
             'payment_method' => $this->faker->randomElement(['credit_card', 'bank_transfer', 'e_wallet', 'other']),
-            'payment_gateway' => $this->faker->optional()->randomElement(['midtrans', 'xendit', 'stripe']),
+            'payment_gateway' => $this->faker->optional()->randomElement(['midtrans', 'stripe']),
             'transaction_id' => $this->faker->optional()->sha256(),
             'notes' => $this->faker->optional()->sentence(),
             'created_at' => now(),

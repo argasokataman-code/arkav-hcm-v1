@@ -1,4 +1,4 @@
-import { FEATURE_LIMIT_INPUT_CODE, esc, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures } from "../../shared.js";
+import { FEATURE_LIMIT_INPUT_CODE, esc, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures, getAddonClassificationMode } from "../../shared.js";
 
 const featureCatalogUiMethods = {
   buildFeatureGroups: function (featureCodes, selectedCodesSet) {
@@ -97,76 +97,83 @@ const featureCatalogUiMethods = {
               '">' +
               '<div class="accordion-body pt-2">' +
               group.features
-                .map(function (feature, featureIndex) {
-                  const itemId =
-                    "pkg_feature_checkbox_" +
-                    String(groupIndex) +
-                    "_" +
-                    String(featureIndex) +
-                    "_" +
-                    String(feature.code).replace(/[^a-zA-Z0-9_\-]/g, "_");
-                  const limitValue = limitDrafts[feature.code] ?? "";
-                  const limitLabel = feature.limitLabel || "Limit";
-                  const limitPlaceholder = feature.limitPlaceholder || "Masukkan limit";
-                  const limitSuffix = feature.limitSuffix || "";
+                          .map(function (feature, featureIndex) {
+                            const itemId =
+                              "pkg_feature_checkbox_" +
+                              String(groupIndex) +
+                              "_" +
+                              String(featureIndex) +
+                              "_" +
+                              String(feature.code).replace(/[^a-zA-Z0-9_\-]/g, "_");
+                            const limitValue = limitDrafts[feature.code] ?? "";
+                            const limitLabel = feature.limitLabel || "Limit";
+                            const limitPlaceholder = feature.limitPlaceholder || "Masukkan limit";
+                            const limitSuffix = feature.limitSuffix || "";
 
-                  return (
-                    '<div class="package-feature-item" data-feature-item data-feature-filter="' +
-                    esc((feature.name + " " + feature.code + " " + (feature.description || "")).toLowerCase()) +
-                    '">' +
-                    '<div class="form-check">' +
-                    '<input class="form-check-input" type="checkbox" name="package_feature_codes" id="' +
-                    esc(itemId) +
-                    '" value="' +
-                    esc(feature.code) +
-                    '" data-feature-name="' +
-                    esc(feature.name) +
-                    '"' +
-                    (selectedCodes.has(feature.code) ? " checked" : "") +
-                    ">" +
-                    '<label class="form-check-label" for="' +
-                    esc(itemId) +
-                    '">' +
-                    '<span class="package-feature-item-title">' +
-                    esc(feature.name) +
-                    "</span>" +
-                    '<span class="package-feature-item-desc">' +
-                    esc(feature.description || "") +
-                    "</span>" +
-                    '<span class="text-muted small">Code: ' +
-                    esc(feature.code) +
-                    "</span>" +
-                    "</label>" +
-                    "</div>" +
-                    (feature.requiresLimit
-                      ? '<div class="mt-2 ps-4">' +
-                        '<label class="form-label small text-muted mb-1" for="' +
-                        esc(itemId + "_limit") +
-                        '">' +
-                        esc(limitLabel) +
-                        '</label>' +
-                        '<div class="input-group input-group-sm">' +
-                        '<input class="form-control" type="number" min="1" step="1" id="' +
-                        esc(itemId + "_limit") +
-                        '" data-feature-limit-input data-feature-limit-code="' +
-                        esc(feature.code) +
-                        '" placeholder="' +
-                        esc(limitPlaceholder) +
-                        '" value="' +
-                        esc(limitValue) +
-                        '"' +
-                        (selectedCodes.has(feature.code) ? "" : " disabled") +
-                        ">" +
-                        (limitSuffix
-                          ? '<span class="input-group-text">' + esc(limitSuffix) + '</span>'
-                          : "") +
-                        "</div>" +
-                      "</div>"
-                      : "") +
-                    "</div>" +
-                    "</div>"
-                  );
-                })
+                            const addonMode = getAddonClassificationMode();
+                            const showTier = addonMode === 'auto';
+                            const tierLabel = showTier && feature.tier === "mvp" ? "Core" : (showTier && feature.tier === "addon" ? "Add-on" : "");
+                            const tierClass = feature.tier === "mvp" ? "badge bg-primary text-white ms-2" : "badge bg-light text-dark ms-2";
+                            const tierBadge = tierLabel ? ('<span class="' + tierClass + '">' + esc(tierLabel) + '</span>') : '';
+
+                            return (
+                              '<div class="package-feature-item" data-feature-item data-feature-filter="' +
+                              esc((feature.name + " " + feature.code + " " + (feature.description || "")).toLowerCase()) +
+                              '">' +
+                              '<div class="form-check">' +
+                              '<input class="form-check-input" type="checkbox" name="package_feature_codes" id="' +
+                              esc(itemId) +
+                              '" value="' +
+                              esc(feature.code) +
+                              '" data-feature-name="' +
+                              esc(feature.name) +
+                              '"' +
+                              (selectedCodes.has(feature.code) ? " checked" : "") +
+                              ">" +
+                              '<label class="form-check-label" for="' +
+                              esc(itemId) +
+                              '">' +
+                              '<span class="package-feature-item-title">' +
+                              esc(feature.name) +
+                              tierBadge +
+                              "</span>" +
+                              '<span class="package-feature-item-desc">' +
+                              esc(feature.description || "") +
+                              "</span>" +
+                              '<span class="text-muted small">Code: ' +
+                              esc(feature.code) +
+                              "</span>" +
+                              "</label>" +
+                              "</div>" +
+                              (feature.requiresLimit
+                                ? '<div class="mt-2 ps-4">' +
+                                  '<label class="form-label small text-muted mb-1" for="' +
+                                  esc(itemId + "_limit") +
+                                  '">' +
+                                  esc(limitLabel) +
+                                  '</label>' +
+                                  '<div class="input-group input-group-sm">' +
+                                  '<input class="form-control" type="number" min="1" step="1" id="' +
+                                  esc(itemId + "_limit") +
+                                  '" data-feature-limit-input data-feature-limit-code="' +
+                                  esc(feature.code) +
+                                  '" placeholder="' +
+                                  esc(limitPlaceholder) +
+                                  '" value="' +
+                                  esc(limitValue) +
+                                  '"' +
+                                  (selectedCodes.has(feature.code) ? "" : " disabled") +
+                                  ">" +
+                                  (limitSuffix
+                                    ? '<span class="input-group-text">' + esc(limitSuffix) + '</span>'
+                                    : "") +
+                                  "</div>" +
+                                "</div>"
+                                : "") +
+                              "</div>" +
+                              "</div>"
+                            );
+                          })
                 .join("") +
               "</div>" +
               "</div>" +

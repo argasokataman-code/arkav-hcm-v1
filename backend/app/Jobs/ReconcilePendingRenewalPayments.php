@@ -6,7 +6,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\SubscriptionEvent;
-use App\Services\XenditService;
+use App\Services\MidtransService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -24,7 +24,7 @@ class ReconcilePendingRenewalPayments implements ShouldQueue
         Payment::query()
             ->where('status', 'pending')
             ->where('metadata->source', 'recurring_subscription_renewal')
-            ->where('gateway', 'xendit')
+            ->where('gateway', 'midtrans')
             ->whereNotNull('invoice_id')
             ->with(['invoice.subscription'])
             ->orderBy('id')
@@ -42,57 +42,72 @@ class ReconcilePendingRenewalPayments implements ShouldQueue
             return;
         }
 
-        $xenditInvoiceId = (string) (($payment->metadata['xendit_invoice_id'] ?? '') ?: $payment->gateway_reference);
-        if ($xenditInvoiceId === '') {
-            $this->updateInvoiceReason($invoice, 'STALE_INVOICE_DETECTED', 'Pending renewal payment has no gateway reference for reconciliation.');
-            $this->recordEvent($invoice->subscription, $invoice, $payment, 'renewal_anomaly', 'STALE_INVOICE_DETECTED', 'Pending renewal payment has no gateway reference for reconciliation.');
+        $this->reconcileMidtransPayment($payment, $invoice);
+    }
+
+    private function reconcileMidtransPayment(Payment $payment, Invoice $invoice): void
+    {
+        $orderId = (string) (($payment->metadata['midtrans_order_id'] ?? '') ?: $payment->gateway_reference);
+        if ($orderId === '') {
+            $this->updateInvoiceReason($invoice, 'STALE_INVOICE_DETECTED', 'Pending Midtrans renewal payment has no order_id for reconciliation.');
+            $this->recordEvent($invoice->subscription, $invoice, $payment, 'renewal_anomaly', 'STALE_INVOICE_DETECTED', 'Pending Midtrans renewal payment has no order_id.');
             $this->emitRenewalMetric('renewal_reconciliation_anomaly', 'STALE_INVOICE_DETECTED', $invoice);
             $this->emitFailureSpikeAlert($invoice, 'STALE_INVOICE_DETECTED');
             return;
         }
 
         try {
-            $remoteInvoice = app(XenditService::class)->getInvoice($xenditInvoiceId);
+            $midtrans = app(MidtransService::class);
+            $tx       = $midtrans->getTransaction($orderId);
         } catch (\Throwable $exception) {
-            $this->updateInvoiceReason($invoice, 'XENDIT_DOWN', 'Xendit reconciliation unavailable: '.$exception->getMessage());
-            $this->recordEvent($invoice->subscription, $invoice, $payment, 'renewal_anomaly', 'XENDIT_DOWN', 'Xendit reconciliation unavailable.');
-            $this->emitRenewalMetric('renewal_reconciliation_anomaly', 'XENDIT_DOWN', $invoice);
-            $this->emitRenewalAlert('gateway_down', 'XENDIT_DOWN', 'Xendit reconciliation unavailable.', $invoice, [
-                'error' => $exception->getMessage(),
+            $this->updateInvoiceReason($invoice, 'MIDTRANS_DOWN', 'Midtrans reconciliation unavailable: ' . $exception->getMessage());
+            $this->recordEvent($invoice->subscription, $invoice, $payment, 'renewal_anomaly', 'MIDTRANS_DOWN', 'Midtrans reconciliation unavailable.');
+            $this->emitRenewalMetric('renewal_reconciliation_anomaly', 'MIDTRANS_DOWN', $invoice);
+            $this->emitRenewalAlert('gateway_down', 'MIDTRANS_DOWN', 'Midtrans reconciliation unavailable.', $invoice, ['error' => $exception->getMessage()]);
+            $this->emitFailureSpikeAlert($invoice, 'MIDTRANS_DOWN');
+            return;
+        }
+
+        if (! is_array($tx)) {
+            $this->updateInvoiceReason($invoice, 'MIDTRANS_DOWN', 'Midtrans reconciliation returned no transaction payload.');
+            $this->recordEvent($invoice->subscription, $invoice, $payment, 'renewal_anomaly', 'MIDTRANS_DOWN', 'Midtrans reconciliation returned no transaction payload.');
+            $this->emitRenewalMetric('renewal_reconciliation_anomaly', 'MIDTRANS_DOWN', $invoice);
+            $this->emitRenewalAlert('gateway_down', 'MIDTRANS_DOWN', 'Midtrans reconciliation returned no transaction payload.', $invoice);
+            $this->emitFailureSpikeAlert($invoice, 'MIDTRANS_DOWN');
+            return;
+        }
+
+        $txStatus    = strtolower((string) ($tx['transaction_status'] ?? ''));
+        $fraudStatus = strtolower((string) ($tx['fraud_status'] ?? ''));
+        $state       = $midtrans->resolvePaymentState($txStatus, $fraudStatus);
+
+        if ($state === 'paid') {
+            $payment->update([
+                'metadata' => array_merge($payment->metadata ?? [], [
+                    'midtrans_transaction_id' => (string) ($tx['transaction_id'] ?? ''),
+                    'midtrans_payment_type'   => (string) ($tx['payment_type'] ?? ''),
+                    'midtrans_fraud_status'   => $fraudStatus,
+                ]),
             ]);
-            $this->emitFailureSpikeAlert($invoice, 'XENDIT_DOWN');
-            return;
-        }
-
-        if (! is_array($remoteInvoice)) {
-            $this->updateInvoiceReason($invoice, 'XENDIT_DOWN', 'Xendit reconciliation returned no invoice payload.');
-            $this->recordEvent($invoice->subscription, $invoice, $payment, 'renewal_anomaly', 'XENDIT_DOWN', 'Xendit reconciliation returned no invoice payload.');
-            $this->emitRenewalMetric('renewal_reconciliation_anomaly', 'XENDIT_DOWN', $invoice);
-            $this->emitRenewalAlert('gateway_down', 'XENDIT_DOWN', 'Xendit reconciliation returned no invoice payload.', $invoice);
-            $this->emitFailureSpikeAlert($invoice, 'XENDIT_DOWN');
-            return;
-        }
-
-        $status = strtoupper((string) ($remoteInvoice['status'] ?? ''));
-        if (in_array($status, ['SETTLED', 'PAID'], true)) {
             $this->markPaymentAsPaid($payment, $invoice);
             return;
         }
 
-        if (in_array($status, ['EXPIRED', 'FAILED'], true)) {
+        if ($state === 'failed') {
             $payment->update([
                 'status' => 'failed',
                 'metadata' => array_merge($payment->metadata ?? [], [
-                    'reconciled_at' => now()->toIso8601String(),
-                    'reconciled_status' => $status,
+                    'reconciled_at'     => now()->toIso8601String(),
+                    'reconciled_status' => $txStatus,
                 ]),
             ]);
 
-            $this->updateInvoiceReason($invoice, 'XENDIT_INVOICE_EXPIRED', 'Reconciliation marked renewal invoice as expired/failed on gateway.');
-            $this->recordEvent($invoice->subscription, $invoice, $payment, 'renewal_failed', 'XENDIT_INVOICE_EXPIRED', 'Reconciliation marked renewal invoice as expired/failed on gateway.');
-            $this->emitRenewalMetric('renewal_reconciliation_failed', 'XENDIT_INVOICE_EXPIRED', $invoice);
-            $this->emitFailureSpikeAlert($invoice, 'XENDIT_INVOICE_EXPIRED');
+            $this->updateInvoiceReason($invoice, 'MIDTRANS_INVOICE_EXPIRED', 'Reconciliation: Midtrans transaction is cancelled/expired/denied.');
+            $this->recordEvent($invoice->subscription, $invoice, $payment, 'renewal_failed', 'MIDTRANS_INVOICE_EXPIRED', 'Reconciliation: Midtrans transaction is cancelled/expired/denied.');
+            $this->emitRenewalMetric('renewal_reconciliation_failed', 'MIDTRANS_INVOICE_EXPIRED', $invoice);
+            $this->emitFailureSpikeAlert($invoice, 'MIDTRANS_INVOICE_EXPIRED');
         }
+        // state === 'pending': no action, customer may still pay
     }
 
     private function markPaymentAsPaid(Payment $payment, Invoice $invoice): void
@@ -192,9 +207,9 @@ class ReconcilePendingRenewalPayments implements ShouldQueue
     private function emitFailureSpikeAlert(?Invoice $invoice, string $reasonCode): void
     {
         $failureCodes = [
-            'XENDIT_DOWN',
+            'MIDTRANS_DOWN',
             'STALE_INVOICE_DETECTED',
-            'XENDIT_INVOICE_EXPIRED',
+            'MIDTRANS_INVOICE_EXPIRED',
         ];
 
         if (! in_array($reasonCode, $failureCodes, true)) {

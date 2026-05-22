@@ -103,7 +103,7 @@
             <div class="alert alert-secondary" role="alert">
                 <small>
                     <i class="fas fa-lock me-2"></i>
-                    <strong>Keamanan:</strong> Transaksi Anda dienkripsi dan diproses oleh Xendit.
+                    <strong>Keamanan:</strong> Transaksi Anda dienkripsi dan diproses oleh Midtrans.
                     Kami tidak menyimpan data kartu kredit Anda.
                 </small>
             </div>
@@ -138,6 +138,10 @@
     }
 </style>
 
+@if(config('services.midtrans.client_key'))
+@php $midtransSnapUrl = config('services.midtrans.is_production') ? 'https://app.midtrans.com/snap/snap.js' : 'https://app.sandbox.midtrans.com/snap/snap.js'; @endphp
+<script src="{{ $midtransSnapUrl }}" data-client-key="{{ config('services.midtrans.client_key') }}"></script>
+@endif
 <script>
 document.getElementById('proceedBtn').addEventListener('click', async function() {
     const invoiceId = this.getAttribute('data-invoice-id');
@@ -148,16 +152,14 @@ document.getElementById('proceedBtn').addEventListener('click', async function()
     loadingState.style.display = 'block';
     
     try {
-        // Call checkout API to get Xendit hosted URL
+        // Call checkout API to get Midtrans Snap token / redirect URL
         const response = await fetch(`/api/v1/hcm/billing/invoices/${invoiceId}/mock-hosted-checkout`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
             },
-            body: JSON.stringify({
-                paymentMethod: 'bank_transfer',
-            })
+            body: JSON.stringify({})
         });
         
         if (!response.ok) {
@@ -166,11 +168,39 @@ document.getElementById('proceedBtn').addEventListener('click', async function()
         
         const data = await response.json();
         
-        if (data.success && data.flow?.hostedCheckoutUrl) {
-            // Redirect to Xendit hosted checkout
-            window.location.href = data.flow.hostedCheckoutUrl;
-        } else {
+        if (!data.success) {
             throw new Error(data.error?.message || 'Gagal memproses pembayaran');
+        }
+
+        const snapToken = data.flow?.snapToken || '';
+        const hostedCheckoutUrl = data.flow?.hostedCheckoutUrl || '';
+
+        if (snapToken && window.snap && typeof window.snap.pay === 'function') {
+            // Use Midtrans Snap popup
+            loadingState.style.display = 'none';
+            proceedBtn.disabled = false;
+            window.snap.pay(snapToken, {
+                onSuccess: function(result) {
+                    window.location.href = '{{ route("subscription") }}?payment_status=completed&invoice_id=' + invoiceId;
+                },
+                onPending: function(result) {
+                    window.location.href = '{{ route("subscription") }}?payment_status=unfinished&invoice_id=' + invoiceId;
+                },
+                onError: function(result) {
+                    loadingState.style.display = 'none';
+                    proceedBtn.disabled = false;
+                    alert('Pembayaran gagal. Silakan coba lagi.');
+                },
+                onClose: function() {
+                    loadingState.style.display = 'none';
+                    proceedBtn.disabled = false;
+                }
+            });
+        } else if (hostedCheckoutUrl) {
+            // Fallback: redirect to Midtrans hosted page
+            window.location.href = hostedCheckoutUrl;
+        } else {
+            throw new Error('Gagal membuka halaman pembayaran');
         }
     } catch (error) {
         loadingState.style.display = 'none';

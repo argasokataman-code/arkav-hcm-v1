@@ -547,10 +547,10 @@ EOT;
 
     /**
      * Send operational alert email to all super-admins.
-     * Used for: Xendit gateway down, worker crash, failure spike.
+     * Used for: payment gateway down, worker crash, failure spike.
      *
      * @param string $alertType  gateway_down | worker_crash | failure_spike
-     * @param string $reasonCode XENDIT_DOWN | RENEWAL_WORKER_CRASHED | RENEWAL_FAILURE_SPIKE | ...
+     * @param string $reasonCode MIDTRANS_DOWN | RENEWAL_WORKER_CRASHED | RENEWAL_FAILURE_SPIKE | ...
      * @param string $message    Human-readable detail
      * @param array  $context    Extra key-value pairs
      */

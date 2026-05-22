@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
  * Mock Payment Gateway Service
  * 
  * Simulates payment processing for development/testing WITHOUT actual gateway integration.
- * Use this when Stripe/Xendit subscriptions are not yet active.
+ * Use this when payment gateway subscriptions are not yet active.
  * 
  * This is development-only and should NOT be used in production.
  */

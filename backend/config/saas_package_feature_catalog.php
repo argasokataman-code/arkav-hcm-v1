@@ -1,6 +1,10 @@
 <?php
 
 return [
+    // Source for add-on classification: 'db' uses `package_addons` table; 'runtime' uses
+    // the runtime feature catalog (mvp list vs others). Defaults to 'db'.
+    'addon_source' => env('SAAS_ADDON_SOURCE', 'db'),
+
     'mvp_feature_codes' => [
         'max_employees',
         'employee_management',

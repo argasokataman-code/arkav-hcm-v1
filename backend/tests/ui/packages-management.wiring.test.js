@@ -89,6 +89,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -190,6 +191,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -312,6 +314,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -341,6 +344,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -398,6 +402,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -460,6 +465,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -493,6 +499,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -537,6 +544,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -593,6 +601,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -675,6 +684,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -739,6 +749,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -820,6 +831,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }
@@ -893,6 +905,7 @@ describe('Packages management wiring', () => {
         return {
           ok: true,
           status: 200,
+          headers: { get: () => 'application/json' },
           json: async () => ({ success: true, data: { token: 'packages-token' } }),
         };
       }

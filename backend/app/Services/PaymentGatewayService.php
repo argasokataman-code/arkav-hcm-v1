@@ -21,7 +21,7 @@ class PaymentGatewayService
     {
         return match ($this->gateway) {
             'stripe' => $this->chargeWithStripe($data),
-            'xendit' => $this->chargeWithXendit($data),
+            'midtrans' => $this->chargeWithMidtrans($data),
             default => ['success' => false, 'error' => 'Unsupported gateway'],
         };
     }
@@ -33,7 +33,7 @@ class PaymentGatewayService
     {
         return match ($this->gateway) {
             'stripe' => $this->verifyWithStripe($reference),
-            'xendit' => $this->verifyWithXendit($reference),
+            'midtrans' => $this->verifyWithMidtrans($reference),
             default => ['success' => false, 'error' => 'Unsupported gateway'],
         };
     }
@@ -45,7 +45,7 @@ class PaymentGatewayService
     {
         return match ($this->gateway) {
             'stripe' => $this->handleStripeWebhook($payload),
-            'xendit' => $this->handleXenditWebhook($payload),
+            'midtrans' => $this->handleMidtransWebhook($payload),
             default => ['success' => false, 'error' => 'Unsupported gateway'],
         };
     }
@@ -124,89 +124,95 @@ class PaymentGatewayService
         return ['success' => true]; // Always return success for webhook
     }
 
-    // ========== XENDIT ==========
 
-    private function chargeWithXendit(array $data): array
+        // ========== MIDTRANS (skeleton) ==========
+
+    private function chargeWithMidtrans(array $data): array
     {
         try {
-            $xenditService = app(XenditService::class);
-            $externalId = (string) ($data['reference_id'] ?? $data['external_id'] ?? ('payment-'.uniqid()));
-            $invoice = $xenditService->createInvoice([
-                'external_id' => $externalId,
-                'amount' => (int) round((float) ($data['amount'] ?? 0)),
-                'currency' => strtoupper((string) ($data['currency'] ?? 'IDR')),
-                'description' => (string) ($data['description'] ?? 'Payment charge'),
-                'customer_name' => (string) ($data['customer_name'] ?? 'Customer'),
-                'customer_email' => (string) ($data['customer_email'] ?? ''),
-                'success_url' => $data['success_url'] ?? null,
-                'failure_url' => $data['failure_url'] ?? null,
+            $midtrans  = app(\App\Services\MidtransService::class);
+            $orderId   = (string) ($data['reference_id'] ?? $data['external_id'] ?? ('payment-' . uniqid()));
+            $resp = $midtrans->createTransaction([
+                'order_id'     => $orderId,
+                'amount'       => (int) round((float) ($data['amount'] ?? 0)),
+                'customer'     => [
+                    'name'  => (string) ($data['customer_name'] ?? 'Customer'),
+                    'email' => (string) ($data['customer_email'] ?? ''),
+                ],
+                'description'  => (string) ($data['description'] ?? 'Payment'),
+                'items'        => $data['items'] ?? [],
+                'finish_url'   => $data['finish_url'] ?? $data['success_url'] ?? null,
+                'unfinish_url' => $data['unfinish_url'] ?? $data['failure_url'] ?? null,
+                'error_url'    => $data['error_url'] ?? $data['failure_url'] ?? null,
             ]);
 
-            if ($invoice && ! empty($invoice['id'])) {
-                return [
-                    'success' => true,
-                    'gateway_reference' => (string) $invoice['id'],
-                    'external_id' => $externalId,
-                    'status' => (string) ($invoice['status'] ?? 'PENDING'),
-                ];
-            }
-
-            return ['success' => false, 'error' => 'Invoice creation failed'];
+            return [
+                'success'           => true,
+                'gateway_reference' => $orderId,
+                'order_id'         => $orderId,
+                'status'            => 'PENDING',
+                'redirect_url'      => $resp['redirect_url'],
+                'snap_token'        => $resp['token'],
+            ];
         } catch (\Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
-    private function verifyWithXendit(string $reference): array
+    private function verifyWithMidtrans(string $reference): array
     {
         try {
-            $xenditService = app(XenditService::class);
-            $invoice = $xenditService->getInvoice($reference);
-
-            if ($invoice) {
-                $status = strtoupper((string) ($invoice['status'] ?? ''));
-                return [
-                    'success' => true,
-                    'status' => $status,
-                    'paid' => in_array($status, ['SETTLED', 'PAID'], true),
-                ];
+            $midtrans = app(\App\Services\MidtransService::class);
+            $tx = $midtrans->getTransaction($reference);
+            if (! $tx) {
+                return ['success' => false, 'error' => 'Transaction not found'];
             }
 
-            return ['success' => false, 'error' => 'Invoice not found'];
+            $txStatus   = strtolower((string) ($tx['transaction_status'] ?? ''));
+            $fraudStatus = strtolower((string) ($tx['fraud_status'] ?? ''));
+            $state      = $midtrans->resolvePaymentState($txStatus, $fraudStatus);
+
+            return [
+                'success' => true,
+                'status'  => $txStatus,
+                'paid'    => $state === 'paid',
+                'state'   => $state,
+            ];
         } catch (\Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
-    private function handleXenditWebhook(array $payload): array
+    private function handleMidtransWebhook(array $payload): array
     {
-        $eventType = $payload['event'] ?? $payload['type'] ?? null;
-        $invoiceId = $payload['id'] ?? null;
-        $externalId = $payload['external_id'] ?? null;
-        $status = strtoupper((string) ($payload['status'] ?? ''));
+        $midtrans    = app(\App\Services\MidtransService::class);
+        $txStatus    = strtolower((string) ($payload['transaction_status'] ?? ''));
+        $fraudStatus = strtolower((string) ($payload['fraud_status'] ?? ''));
+        $orderId     = (string) ($payload['order_id'] ?? '');
 
-        if (in_array($eventType, ['invoice.paid', 'payment.successful'], true) || in_array($status, ['SETTLED', 'PAID', 'SUCCEEDED'], true)) {
+        $state = $midtrans->resolvePaymentState($txStatus, $fraudStatus);
+
+        if ($state === 'paid') {
             $payment = Payment::query()
-                ->where(function ($query) use ($invoiceId, $externalId): void {
-                    if ($invoiceId) {
-                        $query->where('gateway_reference', $invoiceId)
-                            ->orWhere('metadata->xendit_invoice_id', $invoiceId);
-                    }
-                    if ($externalId) {
-                        $query->orWhere('gateway_reference', $externalId)
-                            ->orWhere('metadata->xendit_external_id', $externalId);
-                    }
+                ->where('gateway', 'midtrans')
+                ->where(function ($q) use ($orderId): void {
+                    $q->where('gateway_reference', $orderId)
+                      ->orWhere('metadata->midtrans_order_id', $orderId);
                 })
                 ->latest('id')
                 ->first();
 
             if ($payment) {
                 $payment->update([
-                    'status' => 'completed',
-                    'paid_at' => now(),
+                    'status'      => 'completed',
+                    'paid_at'     => now(),
                     'verified_at' => now(),
+                    'metadata'    => array_merge($payment->metadata ?? [], [
+                        'midtrans_transaction_id' => (string) ($payload['transaction_id'] ?? ''),
+                        'midtrans_payment_type'   => (string) ($payload['payment_type'] ?? ''),
+                        'midtrans_fraud_status'   => $fraudStatus,
+                    ]),
                 ]);
-                return ['success' => true];
             }
         }
 

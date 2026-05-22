@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use App\Models\FeatureClassification;
 
 class PackageFeatureCatalogRuntimeService
 {
@@ -144,7 +145,28 @@ class PackageFeatureCatalogRuntimeService
 
         $allFeatureLookup = array_fill_keys($allFeatureCodes, true);
 
-        $mvpFeatureCodes = collect($docsMvpFeatureCodes)
+        // Read DB overrides (if present) and apply precedence: DB override > docs
+        $dbOverrides = [];
+        try {
+            $dbOverrides = FeatureClassification::whereIn('feature_code', $allFeatureCodes)
+                ->pluck('tier', 'feature_code')
+                ->toArray();
+        } catch (\Throwable $e) {
+            // ignore DB errors (migrations may not be run in some contexts)
+            $dbOverrides = [];
+        }
+
+        $dbMvp = collect($dbOverrides)->filter(fn ($v) => $v === 'mvp')->keys()->all();
+        $dbAddon = collect($dbOverrides)->filter(fn ($v) => $v === 'addon')->keys()->all();
+
+        $mvpFromDocs = collect($docsMvpFeatureCodes)
+            ->map(fn (string $code): string => trim($code))
+            ->filter(fn (string $code): bool => $code !== '' && isset($allFeatureLookup[$code]))
+            ->unique()
+            ->values();
+
+        // combine docs MVP with DB overrides that mark items as MVP
+        $mvpFeatureCodes = $mvpFromDocs->merge($dbMvp)
             ->map(fn (string $code): string => trim($code))
             ->filter(fn (string $code): bool => $code !== '' && isset($allFeatureLookup[$code]))
             ->unique()
@@ -152,6 +174,17 @@ class PackageFeatureCatalogRuntimeService
             ->all();
 
         $mvpLookup = array_fill_keys($mvpFeatureCodes, true);
+
+        // ensure DB explicit addon overrides are not treated as MVP
+        foreach ($dbAddon as $code) {
+            if (isset($mvpLookup[$code])) {
+                unset($mvpLookup[$code]);
+            }
+        }
+
+        // normalize final mvp feature codes from lookup
+        $mvpFeatureCodes = array_values(array_keys($mvpLookup));
+
         $addonFeatureCodes = collect($allFeatureCodes)
             ->filter(fn (string $code): bool => ! isset($mvpLookup[$code]))
             ->values()

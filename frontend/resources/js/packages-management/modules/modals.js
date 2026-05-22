@@ -49,11 +49,22 @@ const modalMethods = {
       this.currentAddonEditId = null;
       const form = document.getElementById("addonForm");
       if (form) form.reset();
+      this._setAddonCodeLock(false);
       const title = document.getElementById("addonModalTitle");
       const submitBtn = document.querySelector("#addonForm button[type='submit']");
       if (title) title.textContent = "Add Add-on";
       if (submitBtn) submitBtn.textContent = "Save Add-on";
       if (this.addonModalInstance) this.addonModalInstance.show();
+    },
+
+    _setAddonCodeLock: function (locked) {
+      const codeInput = document.getElementById("input_addon_code");
+      const lockNote = document.getElementById("addon_code_locked_note");
+      if (codeInput) {
+        codeInput.readOnly = locked;
+        codeInput.classList.toggle("bg-light", locked);
+      }
+      if (lockNote) lockNote.classList.toggle("d-none", !locked);
     },
 
     handleSaveAddon: function (form) {
@@ -62,11 +73,10 @@ const modalMethods = {
       const name = (document.getElementById("input_addon_name")?.value || "").trim();
       const description = (document.getElementById("input_addon_description")?.value || "").trim();
       const pricePerUnit = parseFloat(document.getElementById("input_addon_price")?.value || "0");
-      const unitName = (document.getElementById("input_addon_unit")?.value || "").trim();
       const isActive = !!document.getElementById("input_addon_active")?.checked;
 
-      if (!code || !name || !unitName) {
-        self.showError("Addon code, name, and unit are required");
+      if (!code || !name) {
+        self.showError("Addon code and name are required");
         return;
       }
 
@@ -80,12 +90,13 @@ const modalMethods = {
         name: name,
         description: description || null,
         price_per_unit: pricePerUnit,
-        unit_name: unitName,
         status: isActive ? "active" : "inactive",
       };
 
       const method = this.currentAddonEditId ? "PUT" : "POST";
-      const url = this.currentAddonEditId ? API_ADDONS_BASE + "/" + this.currentAddonEditId : API_ADDONS_BASE;
+      const url = this.currentAddonEditId
+        ? API_ADDONS_BASE + "/" + encodeURIComponent(String(this.currentAddonEditId).trim())
+        : API_ADDONS_BASE;
 
       apiRequest(method, url, payload)
         .then(function (response) {
@@ -240,7 +251,99 @@ const modalMethods = {
 
     editAddon: function (id) {
       const self = this;
-      apiRequest("GET", API_ADDONS_BASE + "/" + id, null)
+      if (!id) {
+        self.showError("Invalid add-on identifier");
+        return;
+      }
+
+      // Normalize identifier and defensively encode it for URL usage
+      const normalized = String(id).trim();
+      if (!normalized || normalized === 'null' || normalized === 'undefined') {
+        self.showError("Invalid add-on identifier");
+        return;
+      }
+
+      // Try to resolve add-on from already-loaded data or rendered DOM to avoid unnecessary API calls
+      try {
+        const localList = Array.isArray(self.addons) ? self.addons : [];
+        const foundLocal = localList.find(function (a) {
+          return String(a.id) === normalized || String(a.code) === normalized;
+        });
+
+        if (foundLocal) {
+          const addon = foundLocal;
+          const title = document.getElementById("addonModalTitle");
+          const submitBtn = document.querySelector("#addonForm button[type='submit']");
+          if (title) title.textContent = "Edit Add-on";
+          if (submitBtn) submitBtn.textContent = "Update Add-on";
+
+          document.getElementById("input_addon_code").value = addon.code || "";
+          document.getElementById("input_addon_name").value = addon.name || "";
+          document.getElementById("input_addon_description").value = addon.description || "";
+          document.getElementById("input_addon_price").value = Number(addon.pricePerUnit || 0);
+          document.getElementById("input_addon_active").checked = addon.status === "active";
+          self._setAddonCodeLock(true);
+
+          self.currentAddonEditId = normalized;
+          if (self.addonModalInstance) self.addonModalInstance.show();
+          return;
+        }
+
+        // Fallback: locate the rendered table row for this addon and extract values
+        const rows = Array.from(document.querySelectorAll('[data-package-addons-list-container] table tbody tr'));
+        const tr = rows.find(function (r) {
+          return String(r.getAttribute('data-addon-code') || '') === normalized ||
+                 Array.from(r.querySelectorAll('[data-edit-addon]')).some(function (b) { return String(b.getAttribute('data-edit-addon') || '') === normalized; });
+        });
+
+        if (tr) {
+          const cols = tr.querySelectorAll('td');
+          const code = tr.getAttribute('data-addon-code') || normalized;
+          const descEl = cols[0] ? cols[0].querySelector('small') : null;
+          const description = descEl ? (descEl.textContent || '').trim() : '';
+          const nameCell = cols[1] ? cols[1].childNodes[0] : null;
+          const name = nameCell ? (nameCell.textContent || '').trim() : '';
+          const priceText = cols[2] ? (cols[2].textContent || '') : '';
+          const priceNum = parseFloat((priceText || '').replace(/[^0-9\-\.]/g, '')) || 0;
+          const unit = cols[3] ? (cols[3].textContent || '').trim() : '-';
+          const statusBadge = cols[4] ? (cols[4].textContent || '').trim() : 'active';
+
+          const addon = {
+            id: null,
+            code: code,
+            name: name || code,
+            description: description,
+            pricePerUnit: priceNum,
+            unitName: unit || '-',
+            status: statusBadge || 'active'
+          };
+
+          const title = document.getElementById("addonModalTitle");
+          const submitBtn = document.querySelector("#addonForm button[type='submit']");
+          if (title) title.textContent = "Edit Add-on";
+          if (submitBtn) submitBtn.textContent = "Update Add-on";
+
+          document.getElementById("input_addon_code").value = addon.code || "";
+          document.getElementById("input_addon_name").value = addon.name || "";
+          document.getElementById("input_addon_description").value = addon.description || "";
+          document.getElementById("input_addon_price").value = Number(addon.pricePerUnit || 0);
+          document.getElementById("input_addon_active").checked = addon.status === "active";
+          self._setAddonCodeLock(true);
+
+          self.currentAddonEditId = normalized;
+          if (self.addonModalInstance) self.addonModalInstance.show();
+          return;
+        }
+      } catch (e) {
+        // ignore local lookup errors and fallback to API
+        console.warn('Local addon lookup failed', e);
+      }
+
+      // If not found locally, attempt API fetch (normal behavior)
+      const encodedId = encodeURIComponent(normalized);
+      console.info('Fetching add-on', encodedId);
+
+      apiRequest("GET", API_ADDONS_BASE + "/" + encodedId, null)
         .then(function (response) {
           if (response.success && response.data) {
             const addon = response.data;
@@ -253,10 +356,10 @@ const modalMethods = {
             document.getElementById("input_addon_name").value = addon.name || "";
             document.getElementById("input_addon_description").value = addon.description || "";
             document.getElementById("input_addon_price").value = Number(addon.pricePerUnit || 0);
-            document.getElementById("input_addon_unit").value = addon.unitName || "";
             document.getElementById("input_addon_active").checked = addon.status === "active";
+            self._setAddonCodeLock(true);
 
-            self.currentAddonEditId = id;
+            self.currentAddonEditId = normalized;
             if (self.addonModalInstance) self.addonModalInstance.show();
           } else {
             self.showError("Failed to load add-on");
@@ -281,8 +384,20 @@ const modalMethods = {
 
       if (!confirmed) return;
 
+      if (!id) {
+        this.showError("Invalid add-on identifier");
+        return;
+      }
+
+      const normalized = String(id).trim();
+      if (!normalized || normalized === 'null' || normalized === 'undefined') {
+        this.showError("Invalid add-on identifier");
+        return;
+      }
+
+      const encodedId = encodeURIComponent(normalized);
       const self = this;
-      apiRequest("DELETE", API_ADDONS_BASE + "/" + id, null)
+      apiRequest("DELETE", API_ADDONS_BASE + "/" + encodedId, null)
         .then(function (response) {
           if (response.success) {
             self.showSuccess("Add-on deleted successfully");

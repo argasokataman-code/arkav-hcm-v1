@@ -13,6 +13,7 @@
         "laravel/tinker": "^2.10.1",
         "league/csv": "^9.28",
         "maennchen/zipstream-php": "^2.1",
+        "midtrans/midtrans-php": "^2.6",
         "nesbot/carbon": "^3.10",
         "phpoffice/phpspreadsheet": "^5.5",
         "symfony/clock": "^7.4",

@@ -3,6 +3,7 @@ export const API_FEATURE_CATALOG = "/v1/saas/packages/feature-catalog";
 export const API_FEATURE_CATALOG_HEALTHCHECK = "/v1/saas/packages/feature-catalog/healthcheck";
 export const API_PACKAGE_COMPLIANCE_CHECK = "/v1/saas/packages/check-compliance";
 export const API_ADDONS_BASE = "/v1/saas/package-addons";
+export const API_FEATURE_CLASSIFICATIONS = "/v1/saas/feature-classifications";
 export const PAGE_SIZE = 10;
 export const FEATURE_LIMIT_INPUT_CODE = "max_employees";
 
@@ -10,6 +11,7 @@ const FALLBACK_FEATURE_LIBRARY = [];
 const sharedState = {
   apiToken: null,
   featureLibrary: [],
+  featureClassificationOverrides: {},
 };
 
 export function setFeatureLibrary(nextLibrary) {
@@ -126,6 +128,34 @@ export function getApiToken() {
   if (sharedState.apiToken) {
     return Promise.resolve(sharedState.apiToken);
   }
+  // First try localStorage-based token (useful for local tests and Playwright)
+  try {
+    if (typeof window !== "undefined") {
+      const key = window.AuthApi && window.AuthApi.tokenKey ? window.AuthApi.tokenKey : "arcav_access_token";
+      const stored = window.localStorage.getItem(key);
+      if (stored) {
+        sharedState.apiToken = stored;
+        return Promise.resolve(sharedState.apiToken);
+      }
+    }
+  } catch (e) {
+    // ignore localStorage access errors
+  }
+
+  // Fallback to fetching server-provided API token
+  const tryLocalStorageFallback = function () {
+    try {
+      if (typeof window !== "undefined") {
+        const key = window.AuthApi && window.AuthApi.tokenKey ? window.AuthApi.tokenKey : "arcav_access_token";
+        const stored = window.localStorage.getItem(key);
+        if (stored) {
+          sharedState.apiToken = stored;
+          return sharedState.apiToken;
+        }
+      }
+    } catch (e) {}
+    return null;
+  };
 
   return fetch("/api-token", {
     method: "GET",
@@ -136,6 +166,14 @@ export function getApiToken() {
     credentials: "same-origin",
   })
     .then(function (res) {
+      const contentType = (res.headers && res.headers.get ? res.headers.get("content-type") : "") || "";
+      if (!contentType.includes("application/json")) {
+        // server returned HTML (likely a redirect to lock-screen). Try localStorage fallback
+        const fallback = tryLocalStorageFallback();
+        if (fallback) return Promise.resolve(fallback);
+        return Promise.reject({ status: res.status, data: null });
+      }
+
       return res.json().then(function (data) {
         if (!res.ok || !data.success) {
           return Promise.reject({
@@ -149,8 +187,18 @@ export function getApiToken() {
     })
     .catch(function (err) {
       console.error("Failed to fetch API token:", err);
+      const fallback = tryLocalStorageFallback();
+      if (fallback) return Promise.resolve(fallback);
       throw err;
     });
+}
+
+export function setFeatureClassificationOverrides(map) {
+  sharedState.featureClassificationOverrides = map && typeof map === 'object' ? map : {};
+}
+
+export function getFeatureClassificationOverrides() {
+  return sharedState.featureClassificationOverrides || {};
 }
 
 export function apiRequest(method, url, body) {
@@ -212,4 +260,48 @@ export function esc(v) {
 export function formatCurrency(amount) {
   if (!amount) return "Rp 0";
   return "Rp " + parseInt(amount).toLocaleString("id-ID");
+}
+
+// Add-on classification UI helpers (server-provided mode takes precedence)
+sharedState.serverAddonMode = null;
+
+export function getAddonClassificationMode() {
+  // If server provided an authoritative mode, use it
+  if (sharedState.serverAddonMode) {
+    return sharedState.serverAddonMode;
+  }
+
+  try {
+    const v = localStorage.getItem("packages_addon_mode");
+    return v === "manual" ? "manual" : "auto"; // default to auto
+  } catch (e) {
+    return "auto";
+  }
+}
+
+export function setAddonClassificationMode(mode) {
+  try {
+    if (mode === "manual") {
+      localStorage.setItem("packages_addon_mode", "manual");
+    } else {
+      localStorage.setItem("packages_addon_mode", "auto");
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+// Server-side authoritative mode (set by bootstrap when loading feature catalog)
+export function setServerAddonClassificationMode(mode) {
+  if (mode === 'auto') {
+    sharedState.serverAddonMode = 'auto';
+  } else if (mode === 'manual') {
+    sharedState.serverAddonMode = 'manual';
+  } else {
+    sharedState.serverAddonMode = null;
+  }
+}
+
+export function getServerAddonClassificationMode() {
+  return sharedState.serverAddonMode;
 }

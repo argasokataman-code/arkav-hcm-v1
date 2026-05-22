@@ -2579,15 +2579,29 @@ paths:
   /v1/hcm/billing/invoices/{id}/mock-hosted-checkout:
     post:
       tags: [SaaS, HCM]
-      summary: Create or reuse a hosted mock checkout URL for a tenant invoice
-      description: Development-only hosted payment helper for pending tenant invoices. Reuses the latest pending mock payment when available.
+      summary: Start Midtrans Snap hosted checkout for a tenant invoice
+      description: Creates a Midtrans Snap transaction and returns a snapToken (for popup) and hostedCheckoutUrl (redirect fallback). Reuses existing pending Midtrans payment when available (idempotent).
       security:
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/InvoiceNumericIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                gatewayMode:
+                  type: string
+                  enum: [auto, midtrans, mock]
+                  default: auto
+                paymentMethod:
+                  type: string
+                  enum: [bank_transfer, credit_card, gopay, qris]
       responses:
         '200':
-          description: Hosted mock checkout payload
+          description: Midtrans Snap checkout payload
           content:
             application/json:
               schema:
@@ -2610,7 +2624,7 @@ paths:
                     properties:
                       id: { type: integer }
                       uuid: { type: string, format: uuid }
-                      gateway: { type: string }
+                      gateway: { type: string, enum: [midtrans, mock] }
                       gatewayReference: { type: string, nullable: true }
                       paymentMethod: { type: string }
                       status: { type: string, enum: [pending, completed, failed] }
@@ -2619,14 +2633,135 @@ paths:
                     type: object
                     properties:
                       mode: { type: string, enum: [hosted] }
+                      provider: { type: string, enum: [midtrans, mock] }
+                      snapToken: { type: string, nullable: true, description: "Midtrans Snap token for window.snap.pay()" }
                       hostedCheckoutUrl: { type: string, format: uri }
-                      callbackToken: { type: string }
-                      successRedirectUrl: { type: string, format: uri }
-                      failureRedirectUrl: { type: string, format: uri }
+                      finishRedirectUrl: { type: string, format: uri }
+                      unfinishRedirectUrl: { type: string, format: uri }
+                      errorRedirectUrl: { type: string, format: uri }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+        '502':
+          description: Midtrans service error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  error:
+                    type: object
+                    properties:
+                      code: { type: string, enum: [MIDTRANS_INIT_FAILED, MIDTRANS_CREATE_FAILED, GATEWAY_NOT_CONFIGURED] }
+                      message: { type: string }
         '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /webhooks/midtrans:
+    post:
+      tags: [Webhooks, Billing]
+      summary: Receive Midtrans payment notification
+      description: |
+        Public endpoint for Midtrans server-to-server payment notifications.
+        Secured by signature key validation (SHA-512). Updates payment and invoice status on success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                order_id: { type: string }
+                transaction_status: { type: string }
+                fraud_status: { type: string }
+                gross_amount: { type: string }
+                transaction_id: { type: string }
+                signature_key: { type: string }
+      responses:
+        '200':
+          description: Notification processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '400':
+          description: Invalid signature or malformed payload
+
+  /v1/hcm/saas/feature-classifications:
+    get:
+      tags: [SaaS, Packages]
+      summary: List all feature classification entries
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of feature classifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { type: object } }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [SaaS, Packages]
+      summary: Create a feature classification entry
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [feature_code, classification]
+              properties:
+                feature_code: { type: string }
+                classification: { type: string }
+                notes: { type: string, nullable: true }
+      responses:
+        '201':
+          description: Created
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
+  /v1/hcm/saas/feature-classifications/{id}:
+    put:
+      tags: [SaaS, Packages]
+      summary: Update a feature classification entry
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                feature_code: { type: string }
+                classification: { type: string }
+                notes: { type: string, nullable: true }
+      responses:
+        '200': { description: Updated }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    delete:
+      tags: [SaaS, Packages]
+      summary: Delete a feature classification entry
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
 
   /v1/mock/payments/create:
     post:

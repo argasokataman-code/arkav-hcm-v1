@@ -67,9 +67,10 @@ return [
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
-    'xendit' => [
-        'api_key' => env('XENDIT_API_KEY'),
-        'callback_token' => env('XENDIT_CALLBACK_TOKEN'),
+    'midtrans' => [
+        'server_key' => env('MIDTRANS_SERVER_KEY'),
+        'client_key' => env('MIDTRANS_CLIENT_KEY'),
+        'is_production' => filter_var(env('MIDTRANS_IS_PRODUCTION', false), FILTER_VALIDATE_BOOL),
     ],
 
 ];

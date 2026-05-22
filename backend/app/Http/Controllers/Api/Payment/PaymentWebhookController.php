@@ -323,234 +323,6 @@ class PaymentWebhookController extends Controller
         }
     }
 
-    /**
-     * Handle Xendit webhook (for invoice.paid, invoice.expired, payment.successful, etc.)
-     * POST /api/webhooks/xendit
-     * 
-     * CRITICAL: Validate Xendit signature via callback token (stored in config)
-     */
-    public function handleXendit(Request $request): JsonResponse
-    {
-        // Xendit uses X-Callback-Token header for authentication
-        $callbackToken = $request->header('X-Callback-Token');
-        $expectedToken = config('services.xendit.callback_token');
-
-        if (!$callbackToken || $callbackToken !== $expectedToken) {
-            Log::warning('Xendit webhook: Invalid callback token');
-            return response()->json(['success' => false, 'error' => 'Invalid token'], 401);
-        }
-
-        $eventType = $request->get('event') ?? $request->get('type');
-        $data = $request->all();
-
-        // Xendit webhook id is preferred for idempotency and replay protection.
-        // Some dashboard test deliveries may not include xendit-webhook-id,
-        // so we derive a deterministic fallback id from event payload.
-        $webhookId = trim((string) $request->header('xendit-webhook-id', ''));
-        if ($webhookId === '') {
-            $webhookId = $this->buildXenditFallbackWebhookId($eventType, $data);
-            Log::warning('Xendit webhook: Missing webhook id header, using fallback id', [
-                'fallback_webhook_id' => $webhookId,
-                'type' => $eventType,
-            ]);
-        }
-
-        $cacheKey = "xendit_webhook:$webhookId";
-        if (cache()->get($cacheKey)) {
-            Log::info('Xendit webhook: Already processed', ['webhook_id' => $webhookId]);
-            return response()->json(['success' => true, 'message' => 'Already processed']);
-        }
-
-        Log::info('Xendit webhook received', ['type' => $eventType, 'webhook_id' => $webhookId]);
-
-        try {
-            match ($eventType) {
-                'invoice.paid' => $this->handleXenditInvoicePaid($data),
-                'invoice.expired' => $this->handleXenditInvoiceExpired($data),
-                'payment.successful' => $this->handleXenditPaymentSuccessful($data),
-                'payment.failed' => $this->handleXenditPaymentFailed($data),
-                default => Log::info('Xendit webhook: Unhandled event type', ['type' => $eventType]),
-            };
-
-            cache()->put($cacheKey, true, now()->addHours(24));
-
-            return response()->json(['success' => true]);
-        } catch (\Exception $e) {
-            Log::error('Xendit webhook: Processing error', [
-                'type' => $eventType,
-                'webhook_id' => $webhookId,
-                'error' => $e->getMessage(),
-            ]);
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
-        }
-    }
-
-    private function buildXenditFallbackWebhookId(?string $eventType, array $data): string
-    {
-        $event = (string) ($eventType ?? 'unknown');
-        $payloadId = (string) (
-            $data['id']
-            ?? ($data['data']['id'] ?? '')
-            ?? ($data['external_id'] ?? '')
-            ?? ($data['data']['external_id'] ?? '')
-            ?? ($data['data']['reference_id'] ?? '')
-        );
-
-        if ($payloadId === '') {
-            $payloadHash = hash('sha256', json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: 'xendit-webhook');
-            $payloadId = substr($payloadHash, 0, 24);
-        }
-
-        return 'fallback:'.$event.':'.$payloadId;
-    }
-
-    private function handleXenditInvoicePaid(array $data): void
-    {
-        $xenditInvoiceId = isset($data['id']) ? (string) $data['id'] : null;
-        $externalId = isset($data['external_id']) ? (string) $data['external_id'] : null;
-        $amount = $data['amount'] ?? 0;
-
-        Log::info('Xendit invoice paid', [
-            'invoice_id' => $xenditInvoiceId,
-            'external_id' => $externalId,
-            'amount' => $amount,
-        ]);
-
-        $payment = $this->findPaymentByXenditIdentifiers($xenditInvoiceId, $externalId);
-        if (! $payment) {
-            Log::warning('Xendit invoice paid: No payment matched', [
-                'invoice_id' => $xenditInvoiceId,
-                'external_id' => $externalId,
-            ]);
-            return;
-        }
-
-        $payment->update([
-            'status' => 'completed',
-            'paid_at' => now(),
-            'verified_at' => now(),
-            'metadata' => array_merge($payment->metadata ?? [], [
-                'xendit_invoice_id' => $xenditInvoiceId,
-                'xendit_external_id' => $externalId,
-            ]),
-        ]);
-
-        $this->markRecurringRenewalPaidFromWebhook($payment, 'WEBHOOK_INVOICE_PAID', 'Recurring renewal invoice settled via webhook callback.');
-    }
-
-    private function handleXenditInvoiceExpired(array $data): void
-    {
-        $xenditInvoiceId = isset($data['id']) ? (string) $data['id'] : null;
-        $externalId = isset($data['external_id']) ? (string) $data['external_id'] : null;
-
-        Log::info('Xendit invoice expired', [
-            'invoice_id' => $xenditInvoiceId,
-            'external_id' => $externalId,
-        ]);
-
-        $payment = $this->findPaymentByXenditIdentifiers($xenditInvoiceId, $externalId);
-        if ($payment) {
-            $payment->update(['status' => 'expired']);
-
-            $invoice = $payment->invoice;
-            if ($invoice && $this->isRecurringRenewalInvoice($invoice)) {
-                $this->setRecurringRenewalReason(
-                    $invoice,
-                    'XENDIT_INVOICE_EXPIRED',
-                    'Gateway marked recurring renewal invoice as expired.'
-                );
-            }
-        }
-    }
-
-    private function handleXenditPaymentSuccessful(array $data): void
-    {
-        $xenditPaymentId = isset($data['id']) ? (string) $data['id'] : null;
-        $externalId = isset($data['external_id']) ? (string) $data['external_id'] : null;
-
-        Log::info('Xendit payment successful', [
-            'payment_id' => $xenditPaymentId,
-            'external_id' => $externalId,
-        ]);
-
-        $payment = $this->findPaymentByXenditIdentifiers($xenditPaymentId, $externalId);
-        if ($payment) {
-            $payment->update([
-                'status' => 'completed',
-                'paid_at' => now(),
-                'verified_at' => now(),
-                'metadata' => array_merge($payment->metadata ?? [], [
-                    'xendit_payment_id' => $xenditPaymentId,
-                    'xendit_external_id' => $externalId,
-                ]),
-            ]);
-            $this->markRecurringRenewalPaidFromWebhook($payment, 'WEBHOOK_CHARGE_SUCCEEDED', 'Recurring renewal payment settled via Xendit payment.successful webhook.');
-        }
-    }
-
-    private function handleXenditPaymentFailed(array $data): void
-    {
-        $xenditPaymentId = isset($data['id']) ? (string) $data['id'] : null;
-        $externalId = isset($data['external_id']) ? (string) $data['external_id'] : null;
-        $failureReason = $data['failure_reason'] ?? 'Unknown reason';
-
-        Log::warning('Xendit payment failed', [
-            'payment_id' => $xenditPaymentId,
-            'external_id' => $externalId,
-            'reason' => $failureReason,
-        ]);
-
-        $payment = $this->findPaymentByXenditIdentifiers($xenditPaymentId, $externalId);
-        if ($payment) {
-            $payment->update([
-                'status' => 'failed',
-                'metadata' => array_merge($payment->metadata ?? [], [
-                    'failure_reason' => $failureReason,
-                ]),
-            ]);
-
-            $invoice = $payment->invoice;
-            if ($invoice && $this->isRecurringRenewalInvoice($invoice)) {
-                $this->setRecurringRenewalReason(
-                    $invoice,
-                    'XENDIT_PAYMENT_FAILED',
-                    (string) $failureReason
-                );
-            }
-        }
-    }
-
-    private function findPaymentByXenditIdentifiers(?string $xenditId, ?string $externalId): ?Payment
-    {
-        if ($xenditId) {
-            $payment = Payment::query()
-                ->where('gateway', 'xendit')
-                ->where(function ($query) use ($xenditId): void {
-                    $query->where('gateway_reference', $xenditId)
-                        ->orWhere('metadata->xendit_invoice_id', $xenditId)
-                        ->orWhere('metadata->xendit_external_id', $xenditId);
-                })
-                ->latest('id')
-                ->first();
-            if ($payment) {
-                return $payment;
-            }
-        }
-
-        if ($externalId) {
-            return Payment::query()
-                ->where('gateway', 'xendit')
-                ->where(function ($query) use ($externalId): void {
-                    $query->where('gateway_reference', $externalId)
-                        ->orWhere('metadata->xendit_external_id', $externalId)
-                        ->orWhere('metadata->xendit_invoice_id', $externalId);
-                })
-                ->latest('id')
-                ->first();
-        }
-
-        return null;
-    }
 
     private function markInvoicePaidForPayment(Payment $payment): bool
     {
@@ -651,4 +423,126 @@ class PaymentWebhookController extends Controller
             'renewal_reason_message' => mb_substr($reasonMessage, 0, 255),
         ])->save();
     }
+
+    /**
+     * Handle Midtrans notification (POST /api/webhooks/midtrans)
+     *
+     * Authentication: SHA512 signature in payload body (no dedicated header).
+     * Idempotency: based on order_id (merchant-generated unique ID).
+     */
+    public function handleMidtrans(Request $request): JsonResponse
+    {
+        $data    = $request->all();
+        $orderId = (string) ($data['order_id'] ?? '');
+
+        if ($orderId === '') {
+            Log::warning('Midtrans webhook: Missing order_id', ['payload' => $data]);
+            return response()->json(['success' => true, 'message' => 'Skipped: no order_id']);
+        }
+
+        $midtrans = app(\App\Services\MidtransService::class);
+
+        if (! $midtrans->verifySignature($data)) {
+            Log::warning('Midtrans webhook: Invalid signature', ['order_id' => $orderId]);
+            return response()->json(['success' => false, 'error' => 'Invalid signature'], 401);
+        }
+
+        // Idempotency: order_id based (Midtrans has no dedicated webhook-id header)
+        $cacheKey = "midtrans_webhook:{$orderId}";
+        if (cache()->get($cacheKey)) {
+            Log::info('Midtrans webhook: Already processed', ['order_id' => $orderId]);
+            return response()->json(['success' => true, 'message' => 'Already processed']);
+        }
+
+        $txStatus    = strtolower((string) ($data['transaction_status'] ?? ''));
+        $fraudStatus = strtolower((string) ($data['fraud_status'] ?? ''));
+
+        Log::info('Midtrans webhook received', [
+            'order_id'           => $orderId,
+            'transaction_status' => $txStatus,
+            'fraud_status'       => $fraudStatus,
+        ]);
+
+        try {
+            $state = $midtrans->resolvePaymentState($txStatus, $fraudStatus);
+
+            if ($state === 'paid') {
+                $this->handleMidtransPaymentPaid($data, $orderId);
+            } elseif ($state === 'failed') {
+                $this->handleMidtransPaymentFailed($data, $orderId);
+            }
+            // 'pending' state — no action needed, wait for next notification
+
+            cache()->put($cacheKey, true, now()->addHours(24));
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            Log::error('Midtrans webhook: Processing error', [
+                'order_id' => $orderId,
+                'error'    => $e->getMessage(),
+            ]);
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    private function handleMidtransPaymentPaid(array $data, string $orderId): void
+    {
+        $payment = $this->findPaymentByMidtransIdentifiers($orderId);
+        if (! $payment) {
+            Log::warning('Midtrans webhook: No payment matched for paid notification', ['order_id' => $orderId]);
+            return;
+        }
+
+        $payment->update([
+            'status'      => 'completed',
+            'paid_at'     => now(),
+            'verified_at' => now(),
+            'metadata'    => array_merge($payment->metadata ?? [], [
+                'midtrans_transaction_id' => (string) ($data['transaction_id'] ?? ''),
+                'midtrans_payment_type'   => (string) ($data['payment_type'] ?? ''),
+                'midtrans_fraud_status'   => (string) ($data['fraud_status'] ?? ''),
+            ]),
+        ]);
+
+        $this->markRecurringRenewalPaidFromWebhook($payment, 'WEBHOOK_MIDTRANS_PAID', 'Midtrans payment notification received and verified.');
+    }
+
+    private function handleMidtransPaymentFailed(array $data, string $orderId): void
+    {
+        $payment = $this->findPaymentByMidtransIdentifiers($orderId);
+        if (! $payment) {
+            return;
+        }
+
+        $payment->update([
+            'status'   => 'failed',
+            'metadata' => array_merge($payment->metadata ?? [], [
+                'midtrans_transaction_status' => (string) ($data['transaction_status'] ?? ''),
+                'midtrans_fraud_status'       => (string) ($data['fraud_status'] ?? ''),
+                'failed_at'                   => now()->toIso8601String(),
+            ]),
+        ]);
+
+        $invoice = $payment->invoice;
+        if ($invoice && $this->isRecurringRenewalInvoice($invoice)) {
+            $this->setRecurringRenewalReason(
+                $invoice,
+                'MIDTRANS_PAYMENT_FAILED',
+                'Midtrans notification: transaction_status=' . ($data['transaction_status'] ?? 'unknown')
+            );
+        }
+    }
+
+    private function findPaymentByMidtransIdentifiers(string $orderId): ?Payment
+    {
+        return Payment::query()
+            ->where('gateway', 'midtrans')
+            ->where(function ($query) use ($orderId): void {
+                $query->where('gateway_reference', $orderId)
+                    ->orWhere('metadata->midtrans_order_id', $orderId);
+            })
+            ->latest('id')
+            ->first();
+    }
 }
+

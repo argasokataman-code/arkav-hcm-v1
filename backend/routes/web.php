@@ -542,7 +542,7 @@ Route::get('/subscription', function () {
     return view('saas.subscription-checkout');
 })->middleware('hcm.web.admin')->name('subscription');
 
-// Invoice checkout preview (display breakdown before redirect to Xendit)
+// Invoice checkout preview (display breakdown before redirect to payment gateway)
 Route::get('/company/invoices/{invoiceId}/checkout-preview', function (Request $request, $invoiceId) {
     $user = auth()->user();
     if (!$user) {

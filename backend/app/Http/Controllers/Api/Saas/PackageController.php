@@ -45,8 +45,22 @@ class PackageController extends Controller
                 'mvp_feature_codes' => $tierMapping['mvp_feature_codes'],
                 'addon_feature_codes' => $tierMapping['addon_feature_codes'],
                 'total_feature_codes' => count($tierMapping['all_feature_codes']),
+                // expose backend's authoritative addon source so frontend can honor centralized policy
+                'addon_source' => config('saas_package_feature_catalog.addon_source', 'db'),
+                // include any DB overrides for UI consumption (feature_code => tier)
+                'feature_classification_overrides' => $this->readFeatureClassificationOverrides(),
             ],
         ]);
+    }
+
+    private function readFeatureClassificationOverrides(): array
+    {
+        try {
+            $rows = \App\Models\FeatureClassification::all(['feature_code', 'tier']);
+            return $rows->mapWithKeys(fn($r) => [trim($r->feature_code) => trim($r->tier)])->toArray();
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     /**
@@ -207,10 +221,6 @@ class PackageController extends Controller
         }
 
         $query = PackageAddon::query();
-        $reservedFeatureCodes = $this->reservedFeatureCodes();
-        if ($reservedFeatureCodes !== []) {
-            $query->whereNotIn('code', $reservedFeatureCodes);
-        }
         if ($status !== '' && $status !== 'all') {
             $query->where('status', $status);
         } elseif ($status === '' || $status === null) {
@@ -221,8 +231,7 @@ class PackageController extends Controller
             $query->where(function ($subQuery) use ($search) {
                 $subQuery->where('name', 'like', '%'.$search.'%')
                     ->orWhere('code', 'like', '%'.$search.'%')
-                    ->orWhere('description', 'like', '%'.$search.'%')
-                    ->orWhere('unit_name', 'like', '%'.$search.'%');
+                    ->orWhere('description', 'like', '%'.$search.'%');
             });
         }
 
@@ -658,14 +667,27 @@ class PackageController extends Controller
             ], 403);
         }
 
+        // If addons are managed externally (runtime), prevent create operations
+        if (config('saas_package_feature_catalog.addon_source') === 'runtime') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'ADDONS_MANAGED_EXTERNALLY',
+                    'message' => 'Add-ons are managed via runtime/centralized feature catalog and cannot be created via this endpoint.',
+                ],
+            ], 403);
+        }
+
         $validated = $request->validate([
             'code' => 'required|string|unique:package_addons|max:100',
             'name' => 'required|string|max:100',
             'description' => 'nullable|string',
             'price_per_unit' => 'required|numeric|min:0',
-            'unit_name' => 'required|string|max:100',
+            'unit_name' => 'nullable|string|max:100',
             'status' => 'sometimes|in:active,inactive',
         ]);
+
+        $validated['unit_name'] = $validated['unit_name'] ?? 'tenant / month';
 
         if ($this->isReservedFeatureCode((string) $validated['code'])) {
             return response()->json([
@@ -698,6 +720,17 @@ class PackageController extends Controller
             ], 403);
         }
 
+        // If addons are managed externally (runtime), prevent update operations
+        if (config('saas_package_feature_catalog.addon_source') === 'runtime') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'ADDONS_MANAGED_EXTERNALLY',
+                    'message' => 'Add-ons are managed via runtime/centralized feature catalog and cannot be updated via this endpoint.',
+                ],
+            ], 403);
+        }
+
         $addonModel = $this->resolveAddonByIdentifier($addon);
         if (! $addonModel) {
             return response()->json([
@@ -707,7 +740,6 @@ class PackageController extends Controller
         }
 
         $validated = $request->validate([
-            'code' => 'sometimes|string|unique:package_addons,code,' . $addonModel->id . '|max:100',
             'name' => 'sometimes|string|max:100',
             'description' => 'nullable|string',
             'price_per_unit' => 'sometimes|numeric|min:0',
@@ -715,15 +747,9 @@ class PackageController extends Controller
             'status' => 'sometimes|in:active,inactive',
         ]);
 
-        if (isset($validated['code']) && $this->isReservedFeatureCode((string) $validated['code'])) {
-            return response()->json([
-                'success' => false,
-                'error' => [
-                    'code'    => 'FEATURE_CODE_NAMESPACE_CONFLICT',
-                    'message' => 'Add-on code "' . $validated['code'] . '" already exists in package feature catalog. Use a dedicated add-on SKU code to avoid baseline/add-on double entries.',
-                ],
-            ], 422);
-        }
+        // code is intentionally excluded — it is a feature identifier bundled
+        // into package_features and used by the runtime access-gate. Changing it
+        // would silently revoke access for tenants on packages that include it.
 
         $addonModel->update($validated);
 
@@ -743,6 +769,17 @@ class PackageController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
+        // If addons are managed externally (runtime), prevent delete operations
+        if (config('saas_package_feature_catalog.addon_source') === 'runtime') {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'ADDONS_MANAGED_EXTERNALLY',
+                    'message' => 'Add-ons are managed via runtime/centralized feature catalog and cannot be deleted via this endpoint.',
+                ],
             ], 403);
         }
 
@@ -831,14 +868,23 @@ class PackageController extends Controller
     private function resolveAddonByIdentifier(string $identifier): ?PackageAddon
     {
         $query = PackageAddon::query();
-        if (Str::isUuid($identifier)) {
-            return $query->where('uuid', $identifier)->first();
+        $normalized = trim((string) $identifier);
+        if ($normalized === '') {
+            return null;
         }
 
-        if (ctype_digit($identifier)) {
-            return $query->whereKey((int) $identifier)->first();
+        // UUID lookup
+        if (Str::isUuid($normalized)) {
+            return $query->where('uuid', $normalized)->first();
         }
 
-        return null;
+        // Numeric id lookup
+        if (ctype_digit($normalized)) {
+            return $query->whereKey((int) $normalized)->first();
+        }
+
+        // Fallback: allow lookup by addon `code` (friendly identifier)
+        // This makes endpoints like /v1/saas/package-addons/faq resolve correctly
+        return $query->where('code', $normalized)->first();
     }
 }

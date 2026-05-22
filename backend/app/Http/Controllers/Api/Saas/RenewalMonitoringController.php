@@ -92,16 +92,18 @@ class RenewalMonitoringController extends Controller
 
             if ($validated['status'] === 'pending') {
                 $query->where('is_paid', false)->whereNotIn('renewal_reason_code', [
-                    'XENDIT_INVOICE_EXPIRED',
-                    'XENDIT_PAYMENT_FAILED',
+                    'MIDTRANS_INVOICE_EXPIRED',
+                    'MIDTRANS_PAYMENT_FAILED',
+                    'GATEWAY_DOWN',
                     'RENEWAL_GRACE_EXPIRED',
                 ]);
             }
 
             if ($validated['status'] === 'failed') {
                 $query->whereIn('renewal_reason_code', [
-                    'XENDIT_INVOICE_EXPIRED',
-                    'XENDIT_PAYMENT_FAILED',
+                    'MIDTRANS_INVOICE_EXPIRED',
+                    'MIDTRANS_PAYMENT_FAILED',
+                    'GATEWAY_DOWN',
                     'RENEWAL_GRACE_EXPIRED',
                 ]);
             }
@@ -293,13 +295,14 @@ class RenewalMonitoringController extends Controller
     private function anomalyReasonCodes(): array
     {
         return [
-            'XENDIT_DOWN',
+            'MIDTRANS_DOWN',
+            'GATEWAY_DOWN',
             'FEATURE_CRASH',
             'RENEWAL_WORKER_CRASHED',
             'RENEWAL_PROCESS_EXCEPTION',
             'STALE_INVOICE_DETECTED',
-            'XENDIT_PAYMENT_FAILED',
-            'XENDIT_INVOICE_EXPIRED',
+            'MIDTRANS_PAYMENT_FAILED',
+            'MIDTRANS_INVOICE_EXPIRED',
         ];
     }
 }

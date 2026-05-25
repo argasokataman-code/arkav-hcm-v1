@@ -170,7 +170,7 @@ const previewContent = {
             { icon: FileText, title: 'Payroll draft', subtitle: 'Ready to finalize' },
         ],
         nextTitle: 'Mulai onboarding',
-        nextDescription: 'Buat company + owner, lalu pilih aktivasi trial atau subscription.',
+        nextDescription: 'Buat company + owner, lalu pilih aktivasi subscription.',
     },
     employees: {
         heading: 'Kesiapan struktur tim dan role',

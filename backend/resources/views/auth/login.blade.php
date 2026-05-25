@@ -299,7 +299,7 @@
                     <div>
                         <label class="form-label fw-semibold">Email Address</label>
                         <div class="input-group arcav-login-input-group">
-                            <input id="login-email" type="email" value="" class="form-control arcav-login-input" required>
+                            <input id="login-email" type="email" value="" class="form-control arcav-login-input" autocomplete="username" required>
                             <span class="input-group-text"><i class="ti ti-mail"></i></span>
                         </div>
                     </div>
@@ -307,7 +307,7 @@
                     <div>
                         <label class="form-label fw-semibold">Password</label>
                         <div class="pass-group">
-                            <input id="login-password" type="password" class="pass-input form-control arcav-login-password" required>
+                            <input id="login-password" type="password" class="pass-input form-control arcav-login-password" autocomplete="current-password" required>
                             <span class="ti toggle-password ti-eye-off"></span>
                         </div>
                     </div>

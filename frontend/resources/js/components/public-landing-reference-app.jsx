@@ -546,7 +546,7 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
                                                 <table className="table table-sm table-borderless small">
                                                     <thead className="table-light"><tr><th>Penyedia</th><th>Data (kategori)</th><th>Tujuan singkat</th></tr></thead>
                                                     <tbody>
-                                                        <tr><td>Xendit / Stripe</td><td>Nama, email, data tagihan</td><td>Pemrosesan pembayaran</td></tr>
+                                                        <tr><td>Midtrans</td><td>Nama, email, data tagihan</td><td>Pemrosesan pembayaran</td></tr>
                                                         <tr><td>Penyedia AI</td><td>Teks intent (non-PII)</td><td>Fitur asisten AI (opsional)</td></tr>
                                                         <tr><td>Cloudflare Turnstile</td><td>Token captcha</td><td>Pencegahan bot &amp; keamanan</td></tr>
                                                     </tbody>

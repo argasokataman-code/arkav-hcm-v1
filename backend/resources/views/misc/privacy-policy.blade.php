@@ -91,8 +91,7 @@ $privacyContactUrl = (string) config('pdp.privacy_contact_url', url('/privacy-po
                             <tr><th>Pihak Ketiga</th><th>Data Dibagikan</th><th>Tujuan</th><th>Lokasi Server</th></tr>
                         </thead>
                         <tbody>
-                            <tr><td>Xendit</td><td>Nama, email, jumlah tagihan</td><td>Pembayaran langganan</td><td>Indonesia</td></tr>
-                            <tr><td>Stripe</td><td>Nama, email, jumlah tagihan</td><td>Pembayaran langganan</td><td>Amerika Serikat *</td></tr>
+                            <tr><td>Midtrans</td><td>Nama, email, jumlah tagihan</td><td>Pembayaran langganan</td><td>Indonesia</td></tr>
                             <tr><td>Penyedia AI (kompatibel OpenAI)</td><td>Pesan teks intent (tanpa PII langsung)</td><td>Asisten AI HCM</td><td>Bervariasi *</td></tr>
                             <tr><td>Cloudflare Turnstile</td><td>Token captcha</td><td>Pencegahan bot</td><td>Amerika Serikat *</td></tr>
                         </tbody>

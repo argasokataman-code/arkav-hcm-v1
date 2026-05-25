@@ -118,7 +118,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Payment Gateway</label>
-                            <input type="text" class="form-control" id="input_payment_gateway" placeholder="e.g., Stripe, Xendit">
+                            <input type="text" class="form-control" id="input_payment_gateway" placeholder="e.g., Midtrans">
                         </div>
                     </div>
                     <div class="row">

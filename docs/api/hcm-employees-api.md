@@ -274,6 +274,7 @@ Behavior:
 - diblokir `422 EMPLOYEE_BULK_ORG_SETUP_REQUIRED` jika company aktif belum memiliki minimal 1 `department` dan 1 `designation`
 - workbook sekarang multi-sheet dan menyertakan referensi master `ref_departments`, `ref_designations`, `ref_teams`, `ref_banks`, `ref_enums`
 - sheet utama `employee_bulk_data` menggunakan kolom **nama saja** (`team`, `department`, `designation`) — kolom `team_id`, `department_id`, `designation_id` **telah dihapus dari template** agar lebih mudah diisi oleh pengguna akhir
+- designations di-scope langsung via `company_id` tenant aktif (bukan via relasi department)
 
 Note:
 - Endpoint uses tenant-scoped masters only. The template download will return `422 EMPLOYEE_BULK_ORG_SETUP_REQUIRED` if the active company does not have the required `department` and `designation` masters.

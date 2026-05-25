@@ -107,11 +107,9 @@ trait HandlesEmployeeBulkOperations
         $departments = $departmentsCollection->map(fn (Department $department) => [$department->id, $department->name, $department->code])->values()->all();
         $departmentIds = array_column($departments, 0);
 
-        // Load designations only for tenant departments
+        // Load designations for the active company (direct company_id filter, consistent with departments query)
         $designations = Designation::query()->with('department:id,name')
-            ->whereHas('department', function ($q) use ($activeCompanyId) {
-                $q->where('company_id', $activeCompanyId);
-            })
+            ->where('company_id', $activeCompanyId)
             ->orderBy('name')
             ->get(['id', 'department_id', 'name', 'code'])
             ->map(fn (Designation $designation) => [

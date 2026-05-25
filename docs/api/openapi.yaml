@@ -3918,6 +3918,70 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/attendance/admin/corrections:
+    get:
+      tags: [Attendance]
+      summary: List pending employee correction requests (admin)
+      description: |
+        Feature gate: `hcm.api.feature:attendance`.
+        Returns all attendance records with `correction_status = requested`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+  /v1/hcm/attendance/admin/correction-approve:
+    post:
+      tags: [Attendance]
+      summary: Approve an employee correction request (admin)
+      description: 'Feature gate: `hcm.api.feature:attendance`.'
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recordId]
+              properties:
+                recordId: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/attendance/admin/correction-dismiss:
+    post:
+      tags: [Attendance]
+      summary: Dismiss an employee correction request (admin)
+      description: 'Feature gate: `hcm.api.feature:attendance`.'
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recordId]
+              properties:
+                recordId: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/attendance/me/today:
     get:
       tags: [Attendance]

@@ -3,7 +3,7 @@
 use App\Http\Controllers\Api\BpjsGovernance\HcmBpjsGovernanceController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1/hcm/bpjs-governance')->middleware(['api.token', 'tenant.context'])->group(function (): void {
+Route::prefix('v1/hcm/bpjs-governance')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:bpjs_governance'])->group(function (): void {
     Route::get('/reference', [HcmBpjsGovernanceController::class, 'reference']);
 
     Route::get('/policies', [HcmBpjsGovernanceController::class, 'indexPolicies']);

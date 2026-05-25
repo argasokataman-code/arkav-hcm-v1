@@ -59,6 +59,12 @@
                             <i class="ti ti-file-analytics me-2"></i>Report
                         </a>
                     </div>
+                    <!-- GAP-O: open attendance settings modal -->
+                    <div class="ms-2 mb-2">
+                        <button type="button" class="btn btn-light d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#arcav_attendance_settings" data-attendance-settings-open>
+                            <i class="ti ti-settings me-1"></i>Settings
+                        </button>
+                    </div>
                     <div class="ms-2 head-icons">
                         <a href="javascript:void(0);" class="" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="Collapse" id="collapse-header">
                             <i class="ti ti-chevrons-up"></i>
@@ -146,7 +152,9 @@
 
             <div class="card">
                 <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-                    <h5>Admin Attendance</h5>
+                    <h5 class="d-flex align-items-center gap-2">
+                        Admin Attendance
+                    </h5>
                     <div class="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
                     
                             <div class="me-3">
@@ -232,29 +240,36 @@
     </div>
     <!-- /Page Wrapper -->
 
-    @component('components.modal-popup')
-    @endcomponent
-
-    <div class="modal fade" id="arcav_attendance_correction_detail" tabindex="-1" aria-hidden="true">
+    <!-- GAP-O: Attendance Settings Modal -->
+    <div class="modal fade" id="arcav_attendance_settings" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Correction Request Detail</h5>
+                    <h5 class="modal-title"><i class="ti ti-settings me-1"></i>Attendance Settings</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="mb-2"><strong>Employee:</strong> <span data-attendance-correction-detail-name>-</span></p>
-                    <p class="mb-2"><strong>Requested at:</strong> <span data-attendance-correction-detail-time>-</span></p>
-                    <div>
-                        <label class="form-label mb-1">Reason</label>
-                        <div class="border rounded p-2 bg-light" data-attendance-correction-detail-reason>-</div>
+                    <div class="mb-3">
+                        <label class="form-label" for="correction_window_days_input">Correction Request Window (days)</label>
+                        <input type="number" id="correction_window_days_input" class="form-control"
+                            min="0" max="365"
+                            data-attendance-settings-field="correctionWindowDays"
+                            placeholder="30">
+                        <div class="form-text">Jumlah hari ke belakang karyawan boleh mengajukan koreksi. Isi <strong>0</strong> untuk tanpa batas.</div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" data-attendance-settings-save>
+                        <i class="ti ti-device-floppy me-1"></i>Save Settings
+                    </button>
                 </div>
             </div>
         </div>
     </div>
+    <!-- /Attendance Settings Modal -->
+
+    @component('components.modal-popup')
+    @endcomponent
 
 @endsection

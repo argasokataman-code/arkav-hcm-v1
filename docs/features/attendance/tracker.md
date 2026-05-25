@@ -18,7 +18,7 @@
 ## Gap Aktif
 
 1. Evidence manual UI E2E untuk employee/admin/report attendance belum diringkas sebagai log eksekusi terbaru.
-2. Correction request masih belum punya approval chain berlapis di dokumentasi maupun runtime.
+2. Correction flow end-to-end punya 11 gap teridentifikasi — **planning selesai** di `docs/planning/attendance-correction-flow-fix-plan.md`, implementasi belum dimulai. Gap utama: (A) admin tidak dinotifikasi saat koreksi diajukan, (B) modal correction detail tidak punya aksi, (C) modal edit tidak tampilkan alasan koreksi, (F) employee tidak dinotifikasi saat approved, (G) tidak ada state "approved" di UI employee.
 3. Bundle JS attendance masih memegang banyak menu sekaligus sehingga regression surface tetap luas setiap kali file ini disentuh.
 
 ## Keputusan Saat Ini

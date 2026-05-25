@@ -3,7 +3,7 @@
 use App\Http\Controllers\Api\Promotion\HcmPromotionController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1/hcm/promotions')->middleware(['api.token', 'tenant.context'])->group(function () {
+Route::prefix('v1/hcm/promotions')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:employee_lifecycle'])->group(function () {
     Route::get('/', [HcmPromotionController::class, 'index']);
     Route::get('/users/{userId}/promotions', [HcmPromotionController::class, 'promotionsForUser'])->whereNumber('userId');
     Route::post('/', [HcmPromotionController::class, 'store']);

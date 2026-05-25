@@ -181,6 +181,20 @@ export function createAdminAttendanceModule(deps) {
                       esc(row.correctionRequestedAt || "") +
                       '" data-reason="' +
                       esc(row.correctionReason || "") +
+                      '" data-user-id="' +
+                      esc(String(row.userId || "")) +
+                      '" data-record-id="' +
+                      esc(String(row.recordId || "")) +
+                      '" data-work-date="' +
+                      esc(row.workDate || getSelectedAdminDate()) +
+                      '" data-check-in="' +
+                      esc(row.checkInTime24 || "") +
+                      '" data-check-out="' +
+                      esc(row.checkOutTime24 || "") +
+                      '" data-break="' +
+                      esc(String(row.breakMinutesRaw != null ? row.breakMinutesRaw : 0)) +
+                      '" data-late="' +
+                      esc(String(row.lateMinutesRaw != null ? row.lateMinutesRaw : 0)) +
                       '" data-bs-toggle="modal" data-bs-target="#arcav_attendance_correction_detail"><i class="ti ti-message-circle"></i></a>'
                     : "";
                 var checkInLoc = row.checkInLocation || "-";

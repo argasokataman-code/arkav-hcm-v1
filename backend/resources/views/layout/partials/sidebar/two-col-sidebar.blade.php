@@ -286,7 +286,7 @@
 @endif
 @if ($canSeeAttendanceMenu)
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
+                                <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings','attendance-admin','attendance-correction','attendance-employee',
                             'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee') ? 'active subdrop' : '' }}"><span>Attendance</span>
                                     <span class="menu-arrow"></span>
                                 </a>
@@ -311,11 +311,15 @@
 @else
                                     <li><a href="{{url('attendance-employee')}}" class="{{ Request::is('attendance-employee') ? 'active' : '' }}">Attendance (Employee)</a></li>
 @endif
+@if ($canSeeAttendanceCorrectionMenu)
+                                    <li><a href="{{url('attendance-correction')}}" class="{{ Request::is('attendance-correction') ? 'active' : '' }}">Attendance Correction <span class="badge bg-warning text-dark ms-1 d-none" id="sidebar-correction-badge-2col">0</span></a></li>
+@endif
 @if ($isHcmAdmin)
                                     <li><a href="{{url('timesheets')}}" class="{{ Request::is('timesheets') ? 'active' : '' }}">Timesheets</a></li>
                                     <li><a href="{{url('schedule-timing')}}" class="{{ Request::is('schedule-timing') ? 'active' : '' }}">Shift & Schedule</a></li>
                                     <li><a href="{{url('shift-master')}}" class="{{ Request::is('shift-master') ? 'active' : '' }}">Master Shift</a></li>
 @endif
+@if ($canSeeOvertimeMenu)
                                     <li class="submenu submenu-two">
                                         <a href="javascript:void(0);" class="{{ Request::is('overtime-master','overtime','overtime-employee') ? 'active subdrop' : '' }}">Overtime<span
                                                 class="menu-arrow inside-submenu"></span></a>
@@ -328,6 +332,7 @@
 @endif
                                         </ul>
                                     </li>
+@endif
                                 </ul>
                             </li>
 @endif

@@ -10,6 +10,13 @@
                         </button>
                     </div>
                     <div class="modal-body">
+                        <!-- GAP-C/E: correction context banner — shown when record has pending correction -->
+                        <div class="alert alert-warning d-none mb-3" data-attendance-correction-context role="alert">
+                            <i class="ti ti-alert-triangle me-1"></i>
+                            <strong>Pending correction request</strong><br>
+                            <span class="small">Karyawan mengajukan koreksi: &ldquo;<span data-attendance-correction-context-reason></span>&rdquo;</span><br>
+                            <span class="text-muted small">Menyimpan perubahan ini akan otomatis menyetujui request tersebut.</span>
+                        </div>
                         <p class="text-muted small mb-3" data-attendance-admin-edit-employee>—</p>
                         <input type="hidden" data-attendance-admin-field="userId" value="">
                         <input type="hidden" data-attendance-admin-field="workDate" value="">
@@ -35,9 +42,11 @@
                                 <input type="number" class="form-control" min="0" max="1440" data-attendance-admin-field="lateMinutes" value="0">
                             </div>
                         </div>
-                        <p class="text-muted small mb-0">Kosongkan jam masuk &amp; keluar dan set break ke 0 untuk menghapus record hari ini.</p>
                     </div>
                     <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-danger me-auto" data-attendance-admin-delete-record>
+                            <i class="ti ti-trash me-1"></i>Delete Record
+                        </button>
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
                         <button type="submit" class="btn btn-primary">Save</button>
                     </div>

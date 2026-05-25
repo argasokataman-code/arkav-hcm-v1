@@ -80,6 +80,16 @@ export function bindAttendanceExtras(deps) {
         return;
       }
       reasonEl.value = "";
+      // GAP-H: store work date from button attribute (history row) or fall back to today
+      var wdField = modalEl.querySelector("[data-attendance-correction-work-date]");
+      if (wdField) {
+        var btnWd = correctionBtn.getAttribute("data-work-date") || "";
+        if (!btnWd) {
+          var today = new Date();
+          btnWd = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+        }
+        wdField.value = btnWd;
+      }
       correctionModalState.open = true;
       window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
@@ -188,8 +198,14 @@ export function bindAttendanceExtras(deps) {
         return;
       }
       var today = new Date();
-      var dateStr =
-        today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+      var dateStr = (function () {
+        // GAP-H: prefer workDate stored in modal hidden field (set when correction button clicked)
+        var modal2 = document.getElementById("arcav_attendance_correction_modal");
+        var wdField = modal2 ? modal2.querySelector("[data-attendance-correction-work-date]") : null;
+        var stored = wdField ? String(wdField.value || "").trim() : "";
+        if (stored && /^\d{4}-\d{2}-\d{2}$/.test(stored)) { return stored; }
+        return today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+      })();
       correctionSubmit.disabled = true;
       correctionSubmit.textContent = "Sending...";
       apiPost("/v1/hcm/attendance/me/correction-request", {

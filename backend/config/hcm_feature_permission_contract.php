@@ -52,6 +52,7 @@ return [
         'attendance.create' => ['any_of' => ['attendance']],
         'attendance.update' => ['any_of' => ['attendance']],
         'attendance.admin' => ['any_of' => ['attendance']],
+        'attendance.correction' => ['any_of' => ['attendance_correction']],
         'timesheet.view' => ['any_of' => ['attendance']],
         'schedule.view' => ['any_of' => ['attendance', 'attendance_shift_scheduling']],
         'schedule.manage' => ['any_of' => ['attendance', 'attendance_shift_scheduling']],

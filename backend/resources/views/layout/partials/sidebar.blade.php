@@ -44,6 +44,7 @@
     $hasTraining = (bool) ($activeCompanySubscription?->package?->hasFeature('training') ?? false);
     $hasEmployeeManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('employee_management') ?? false);
     $hasAttendance = (bool) ($activeCompanySubscription?->package?->hasFeature('attendance') ?? false);
+    $hasAttendanceCorrection = (bool) ($activeCompanySubscription?->package?->hasFeature('attendance_correction') ?? false);
     $hasLeaveManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('leave_management') ?? false);
     $hasHolidayCalendar = (bool) ($activeCompanySubscription?->package?->hasFeature('holiday_calendar') ?? false);
     $hasEmployeeLifecycle = (bool) ($activeCompanySubscription?->package?->hasFeature('employee_lifecycle') ?? false);
@@ -69,6 +70,9 @@
     $canSeePayrollMenu = $featureBypass || ($hasPayroll && !$isEmployeeScopedUser && ($isHcmAdmin || $isGlobalHcmAdmin));
     $canSeeEmployeesMenu = $featureBypass || $hasEmployeeManagement || $hasDocumentCenter || $hasEmployeeLifecycle;
     $canSeeAttendanceMenu = $featureBypass || $hasAttendance || $hasLeaveManagement;
+    $canSeeAttendanceCorrectionMenu = $featureBypass || ($hasAttendanceCorrection && $isHcmAdmin);
+    $hasOvertime = (bool) ($activeCompanySubscription?->package?->hasFeature('overtime') ?? false);
+    $canSeeOvertimeMenu = $featureBypass || $hasOvertime;
     $canSeeHolidaysMenu = $featureBypass || ($hasHolidayCalendar && $isHcmAdmin);
     $canSeeEmployeeLifecycleMenu = $featureBypass || ($hasEmployeeLifecycle && $isHcmAdmin);
 

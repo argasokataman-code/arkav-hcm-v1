@@ -208,7 +208,7 @@
 @endif
 @if ($canSeeAttendanceMenu)
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings','attendance-admin','attendance-employee',
+                            <a href="javascript:void(0);" class="{{ Request::is('leaves','leaves-employee','leave-settings','attendance-admin','attendance-correction','attendance-employee',
                             'timesheets','schedule-timing','shift-master','overtime-master','overtime','overtime-employee') ? 'active subdrop' : '' }}"><span>Attendance</span>
                                 <span class="menu-arrow"></span>
                             </a>
@@ -224,12 +224,16 @@
                                     </ul>												
                                 </li>
                                 <li><a href="{{url('attendance-admin')}}" class="{{ Request::is('attendance-admin') ? 'active' : '' }}">Attendance (Admin)</a></li>
+@if ($canSeeAttendanceCorrectionMenu)
+                                <li><a href="{{url('attendance-correction')}}" class="{{ Request::is('attendance-correction') ? 'active' : '' }}">Attendance Correction</a></li>
+@endif
 @if ($isEmployeeScopedUser)
                                 <li><a href="{{url('attendance-employee')}}" class="{{ Request::is('attendance-employee') ? 'active' : '' }}">Attendance (Employee)</a></li>
 @endif
                                 <li><a href="{{url('timesheets')}}" class="{{ Request::is('timesheets') ? 'active' : '' }}">Timesheets</a></li>
                                 <li><a href="{{url('schedule-timing')}}" class="{{ Request::is('schedule-timing') ? 'active' : '' }}">Shift & Schedule</a></li>
                                 <li><a href="{{url('shift-master')}}" class="{{ Request::is('shift-master') ? 'active' : '' }}">Master Shift</a></li>
+@if ($canSeeOvertimeMenu)
                                 <li class="submenu">
                                     <a href="javascript:void(0);" class="{{ Request::is('overtime-master','overtime','overtime-employee') ? 'active subdrop' : '' }}">Overtime<span class="menu-arrow"></span></a>
                                     <ul>
@@ -238,6 +242,7 @@
                                         <li><a href="{{url('overtime-employee')}}" class="{{ Request::is('overtime-employee') ? 'active' : '' }}">Overtime (Employee)</a></li>
                                     </ul>
                                 </li>
+@endif
                             </ul>
                         </li>
 @endif

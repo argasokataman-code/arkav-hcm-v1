@@ -17,6 +17,7 @@ return [
         'notifications',
         'trial_billing_dashboard',
         'tax_governance',
+        'bpjs_governance',
     ],
 
     'groups' => [
@@ -46,6 +47,8 @@ return [
             'features' => [
                 ['code' => 'attendance', 'name' => 'Attendance Dashboard', 'description' => 'Dashboard check in/out harian untuk employee.'],
                 ['code' => 'attendance_shift_scheduling', 'name' => 'Shift Scheduling', 'description' => 'Atur shift dan jam kerja tim.'],
+                ['code' => 'attendance_correction', 'name' => 'Attendance Correction', 'description' => 'Manajemen pengajuan koreksi absensi: review, approve, dan dismiss permintaan koreksi dari employee.'],
+                ['code' => 'overtime', 'name' => 'Overtime Management', 'description' => 'Manajemen pengajuan overtime: tipe overtime, request, approval, dan kalkulasi.'],
             ],
         ],
         [
@@ -54,7 +57,6 @@ return [
             'description' => 'Fitur leave yang aktif untuk request, approval, dan kalender libur.',
             'features' => [
                 ['code' => 'leave_management', 'name' => 'Leave Requests', 'description' => 'Pengajuan cuti, izin, sakit dari employee.'],
-                ['code' => 'leave_approval_flow', 'name' => 'Approval Workflow', 'description' => 'Approval berjenjang manager hingga HR.'],
                 ['code' => 'holiday_calendar', 'name' => 'Holiday Calendar', 'description' => 'Kelola hari libur nasional dan perusahaan.'],
             ],
         ],
@@ -75,7 +77,6 @@ return [
             'features' => [
                 ['code' => 'performance', 'name' => 'Performance Review', 'description' => 'Review performa periodik per employee.'],
                 ['code' => 'goal_tracking', 'name' => 'Goal Tracking', 'description' => 'Objective dan KPI tracking lintas periode.'],
-                ['code' => 'performance_goal_tracking', 'name' => 'Advanced Goal Tracking', 'description' => 'Goal tracking lanjutan untuk workflow performance.'],
             ],
         ],
         [
@@ -102,6 +103,8 @@ return [
                 ['code' => 'notifications', 'name' => 'Notifications', 'description' => 'Inbox notifikasi, preferensi channel, dan observability notifikasi tenant.'],
                 ['code' => 'trial_billing_dashboard', 'name' => 'Trial Billing Dashboard', 'description' => 'Monitoring trial, invoice lifecycle, dan kesehatan billing tenant.'],
                 ['code' => 'tax_governance', 'name' => 'Tax Governance', 'description' => 'Governance pajak dan compliance payroll/billing lintas siklus tenant.'],
+                ['code' => 'bpjs_governance', 'name' => 'BPJS Governance', 'description' => 'Manajemen kebijakan BPJS Kesehatan dan Ketenagakerjaan, iuran, dan keanggotaan karyawan.'],
+                ['code' => 'ai_assistant', 'name' => 'AI Assistant', 'description' => 'Chat assistant berbasis AI untuk query data HCM.'],
             ],
         ],
         [

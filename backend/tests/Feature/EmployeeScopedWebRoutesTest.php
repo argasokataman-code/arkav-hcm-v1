@@ -22,6 +22,7 @@ class EmployeeScopedWebRoutesTest extends TestCase
             'attendance',
             'leave_management',
             'tickets',
+            'overtime',
         ]);
 
         $owner = User::query()->create([
@@ -64,6 +65,7 @@ class EmployeeScopedWebRoutesTest extends TestCase
             'attendance',
             'leave_management',
             'tickets',
+            'overtime',
         ]);
 
         $employee = User::query()->create([

@@ -25,6 +25,7 @@ import {
     bindBreakToggle as bindBreakToggleAction,
     bindPunch as bindPunchAction,
     setupAttendanceAdminEdit as setupAttendanceAdminEditAction,
+    setupAttendanceSettings as setupAttendanceSettingsAction,
 } from "./attendance-actions.js";
 import {
     loadScheduleTiming as loadScheduleTimingModule,
@@ -532,8 +533,18 @@ import {
             getSelectedAdminDate: getSelectedAdminDate,
             notify: notify,
             apiPut: apiPut,
+            apiPost: apiPost,
             formatApiError: formatApiError,
             loadAdminAttendance: loadAdminAttendance,
+        });
+    }
+
+    function setupAttendanceSettings() {
+        setupAttendanceSettingsAction({
+            apiGet: apiGet,
+            apiPut: apiPut,
+            notify: notify,
+            formatApiError: formatApiError,
         });
     }
 
@@ -997,6 +1008,7 @@ import {
         swapReplacementModule.init();
         setupAttendanceAdminEdit();
         adminAttendanceModule.bindSelfieViewDelegation();
+        setupAttendanceSettings();
         loadAdminAttendance();
         loadReportAttendance();
         loadEmployeeAttendance();

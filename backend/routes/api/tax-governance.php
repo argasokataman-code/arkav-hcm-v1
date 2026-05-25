@@ -3,7 +3,7 @@
 use App\Http\Controllers\Api\TaxGovernance\HcmTaxGovernanceController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1/hcm/tax-governance')->middleware(['api.token', 'tenant.context'])->group(function (): void {
+Route::prefix('v1/hcm/tax-governance')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:tax_governance'])->group(function (): void {
     // Tenant PPh21 policies CRUD + lifecycle
     Route::get('/policies', [HcmTaxGovernanceController::class, 'index']);
     Route::post('/policies', [HcmTaxGovernanceController::class, 'store']);

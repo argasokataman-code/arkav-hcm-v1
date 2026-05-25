@@ -3,7 +3,7 @@
 use App\Http\Controllers\Api\Resignation\HcmResignationController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1/hcm/resignations')->middleware(['api.token', 'tenant.context'])->group(function () {
+Route::prefix('v1/hcm/resignations')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:employee_lifecycle'])->group(function () {
     Route::get('/', [HcmResignationController::class, 'index']);
     Route::get('/users/{userId}/resignations', [HcmResignationController::class, 'resignationsForUser'])->where('userId', '[0-9a-fA-F\-]+');
     Route::post('/', [HcmResignationController::class, 'store']);

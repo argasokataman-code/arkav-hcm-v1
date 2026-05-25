@@ -195,6 +195,21 @@ class NotificationEventCatalog
                 'title' => 'Probasi karyawan selesai',
                 'description' => 'Notifikasi ke admin bahwa masa probasi karyawan telah berakhir.',
             ],
+            'attendance.correction.requested' => [
+                'severity' => 'important',
+                'title' => 'Koreksi absensi diajukan',
+                'description' => 'Notifikasi ke admin HCM bahwa karyawan mengajukan koreksi absensi.',
+            ],
+            'attendance.correction.approved' => [
+                'severity' => 'important',
+                'title' => 'Koreksi absensi disetujui',
+                'description' => 'Notifikasi ke karyawan bahwa koreksi absensi mereka telah disetujui admin.',
+            ],
+            'attendance.correction.dismissed' => [
+                'severity' => 'important',
+                'title' => 'Koreksi absensi ditolak',
+                'description' => 'Notifikasi ke karyawan bahwa koreksi absensi mereka tidak dapat diproses admin.',
+            ],
         ];
     }
 

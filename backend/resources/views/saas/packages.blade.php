@@ -549,7 +549,7 @@
         padding: 0.75rem;
         flex: 1 1 auto;
         min-height: 0;
-        max-height: 100%;
+        max-height: calc(100vh - 20rem);
         overflow-y: auto;
     }
 

@@ -243,10 +243,36 @@ export function bindEmployeeCompensationFormsModule(deps) {
         if (canAutofill) {
             contractStartInput.value = startDateValue;
             form.setAttribute("data-employee-contract-start-auto", startDateValue);
+            updateProbationEndDateMax(form);
             return;
         }
 
         form.setAttribute("data-employee-contract-start-auto", previousAutoValue || startDateValue);
+        updateProbationEndDateMax(form);
+    }
+
+    function addMonthsToDateString(dateStr, months) {
+        var parts = dateStr.split('-');
+        if (parts.length !== 3) { return ''; }
+        var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        d.setMonth(d.getMonth() + months);
+        var y = d.getFullYear();
+        var m = d.getMonth() + 1;
+        var day = d.getDate();
+        return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+    }
+
+    function updateProbationEndDateMax(form) {
+        if (!form) { return; }
+        var probInput = form.querySelector('[data-employee-add-field="probationEndDate"], [data-employee-edit-field="probationEndDate"]');
+        if (!probInput) { return; }
+        var startDate = readField(form, 'startDate');
+        if (startDate) {
+            var maxDate = addMonthsToDateString(String(startDate), 12);
+            if (maxDate) { probInput.setAttribute('max', maxDate); }
+        } else {
+            probInput.removeAttribute('max');
+        }
     }
 
     function validateCurrentStep(form) {
@@ -328,6 +354,13 @@ export function bindEmployeeCompensationFormsModule(deps) {
             if (startDate && probationEndDate && probationEndDate < startDate) {
                 showValidationToast("Probation end date tidak boleh lebih awal dari effective start date.");
                 return false;
+            }
+            if (startDate && probationEndDate) {
+                var maxProbDate = addMonthsToDateString(String(startDate), 12);
+                if (maxProbDate && probationEndDate > maxProbDate) {
+                    showValidationToast("Probation end date tidak boleh lebih dari 12 bulan sejak tanggal mulai kerja.");
+                    return false;
+                }
             }
         }
 

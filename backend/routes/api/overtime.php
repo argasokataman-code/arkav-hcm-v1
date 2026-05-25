@@ -4,7 +4,7 @@ use App\Http\Controllers\Api\Overtime\HcmOvertimeTypeController;
 use App\Http\Controllers\Api\Overtime\HcmOvertimeRequestController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
+Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:overtime'])->group(function () {
     // Overtime Types
     Route::get('/overtime-types', [HcmOvertimeTypeController::class, 'index']);
     Route::post('/overtime-types', [HcmOvertimeTypeController::class, 'store']);

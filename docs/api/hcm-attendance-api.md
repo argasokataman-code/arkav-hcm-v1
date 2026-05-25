@@ -84,6 +84,79 @@ Success `200`:
 { "success": true, "data": { "recordId": 123 } }
 ```
 
+## Attendance Correction (admin)
+
+Feature gate: `hcm.api.feature:attendance` (admin endpoints) + `hcm.api.feature:attendance_correction` (employee request)
+
+### GET `/attendance/admin/corrections`
+
+RBAC:
+- HCM Admin only
+
+Query:
+- `page` optional int ≥1
+- `perPage` optional int 1..500 (default 100)
+
+Returns pending correction requests from employees.
+
+Success `200`:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "recordId": 1,
+      "userId": 42,
+      "employeeName": "John Doe",
+      "workDate": "2026-05-01",
+      "checkIn": "08:00",
+      "checkInTime24": "08:00",
+      "checkOut": "17:00",
+      "checkOutTime24": "17:00",
+      "breakMinutesRaw": 60,
+      "lateMinutesRaw": 0,
+      "correctionReason": "Lupa absen karena meeting",
+      "correctionRequestedAt": "01 May 2026 09:15"
+    }
+  ],
+  "meta": { "total": 5, "pagination": { "page": 1, "perPage": 100, "total": 5, "totalPages": 1 } }
+}
+```
+
+### POST `/attendance/admin/correction-approve`
+
+RBAC:
+- HCM Admin only
+
+Body:
+- `recordId` required integer
+
+Errors:
+- `404 CORRECTION_NOT_FOUND`
+- `422 CORRECTION_NOT_PENDING` — tidak ada correction yang sedang pending untuk record ini
+
+Success `200`:
+```json
+{ "success": true, "data": { "recordId": 1 } }
+```
+
+### POST `/attendance/admin/correction-dismiss`
+
+RBAC:
+- HCM Admin only
+
+Body:
+- `recordId` required integer
+
+Errors:
+- `404 CORRECTION_NOT_FOUND`
+- `422 CORRECTION_NOT_PENDING` — tidak ada correction yang sedang pending untuk record ini
+
+Success `200`:
+```json
+{ "success": true, "data": { "recordId": 1 } }
+```
+
 ## Attendance (employee/self)
 
 ### GET `/attendance/me/today`

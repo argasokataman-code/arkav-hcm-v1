@@ -138,10 +138,12 @@ const featureComplianceMethods = {
                   return (
                     '<div class="package-compliance-item">' +
                       '<div class="d-flex justify-content-between gap-2 align-items-start">' +
-                        '<div class="package-compliance-item-label">' + esc(item.label || item.code || "Rule") + '</div>' +
-                        '<div class="d-flex align-items-center gap-1 flex-shrink-0">' + statusPill + addBtn + '</div>' +
+                        '<div>' +
+                          '<div class="package-compliance-item-label">' + esc(item.label || item.code || "Rule") + '</div>' +
+                          '<div class="package-compliance-item-note">' + esc(item.message || "") + '</div>' +
+                        '</div>' +
+                        '<div class="d-flex flex-column align-items-end gap-1 flex-shrink-0">' + statusPill + addBtn + '</div>' +
                       '</div>' +
-                      '<div class="package-compliance-item-note">' + esc(item.message || "") + '</div>' +
                     '</div>'
                   );
                 }).join("")

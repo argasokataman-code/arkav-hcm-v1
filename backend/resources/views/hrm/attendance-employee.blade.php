@@ -559,6 +559,8 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- GAP-H: hidden field stores work date for history correction requests -->
+                    <input type="hidden" data-attendance-correction-work-date value="">
                     <label class="form-label">Reason</label>
                     <textarea class="form-control" rows="4" data-attendance-correction-reason placeholder="Jelaskan alasan koreksi absensi"></textarea>
                     <div class="form-text">Minimal 5 karakter.</div>

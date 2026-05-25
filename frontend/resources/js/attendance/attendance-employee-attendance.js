@@ -140,7 +140,14 @@ export function createEmployeeAttendanceModule(deps) {
         }
         var correctionBtn = document.querySelector("[data-attendance-me-request-correction]");
         if (correctionBtn) {
-            if (d.needsReview || d.correctionStatus === "requested") {
+            if (d.correctionStatus === "approved") {
+                // GAP-G: approved — hide correction button, show approved label
+                correctionBtn.classList.add("d-none");
+                correctionBtn.disabled = true;
+            } else if (d.correctionStatus === "dismissed") {
+                correctionBtn.classList.add("d-none");
+                correctionBtn.disabled = true;
+            } else if (d.needsReview || d.correctionStatus === "requested") {
                 correctionBtn.classList.remove("d-none");
                 correctionBtn.disabled = d.correctionStatus === "requested";
                 correctionBtn.textContent =
@@ -232,6 +239,22 @@ export function createEmployeeAttendanceModule(deps) {
                 var prodClass = row.productionBadgeClass === "success" ? "success" : "danger";
                 var checkInLoc = row.checkInLocation || "-";
                 var checkOutLoc = row.checkOutLocation || "-";
+                // GAP-G: show approved badge when correction was approved
+                var corrStatus = String(row.correctionStatus || "");
+                var corrApprovedBadge = corrStatus === "approved"
+                    ? ' <span class="badge badge-soft-success ms-1" title="Correction approved"><i class="ti ti-check me-1"></i>Koreksi disetujui</span>'
+                    : corrStatus === "dismissed"
+                    ? ' <span class="badge badge-soft-danger ms-1" title="Correction dismissed"><i class="ti ti-x me-1"></i>Koreksi ditolak</span>'
+                    : "";
+                // GAP-H + GAP-O: show correction request button when eligible
+                var corrActionCell = "";
+                if (corrStatus === "requested") {
+                    corrActionCell = '<button type="button" class="btn btn-xs btn-light border" disabled title="Koreksi sudah diajukan">Koreksi diajukan</button>';
+                } else if (corrStatus === "dismissed") {
+                    corrActionCell = '<span class="text-muted fs-12">—</span>';
+                } else if (row.correctionEligible) {
+                    corrActionCell = '<button type="button" class="btn btn-xs btn-outline-warning" data-attendance-me-request-correction data-work-date="' + esc(row.workDate || "") + '">Ajukan koreksi</button>';
+                }
                 return (
                     "<tr>" +
                     "<td>" +
@@ -247,7 +270,9 @@ export function createEmployeeAttendanceModule(deps) {
                     esc(row.statusBadgeClass) +
                     ' d-inline-flex align-items-center"><i class="ti ti-point-filled me-1"></i>' +
                     esc(row.statusLabel) +
-                    "</span></td>" +
+                    "</span>" +
+                    corrApprovedBadge +
+                    "</td>" +
                     "<td>" +
                     esc(row.checkOut) +
                     "</td>" +
@@ -268,6 +293,7 @@ export function createEmployeeAttendanceModule(deps) {
                     ' d-inline-flex align-items-center"><i class="ti ti-clock-hour-11 me-1"></i>' +
                     esc(row.productionLabel) +
                     "</span></td>" +
+                    "<td>" + corrActionCell + "</td>" +
                     "</tr>"
                 );
             })

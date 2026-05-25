@@ -445,7 +445,7 @@ Route::middleware('hcm.web.admin')->prefix('employee-allowance-governance')->nam
     })->name('reports');
 });
 
-Route::middleware('hcm.web.admin')->group(function (): void {
+Route::middleware(['hcm.web.admin', 'hcm.web.feature:tax_governance'])->group(function (): void {
     Route::get('/spt-masa-pph21', fn () => view('spt-masa.index'))->name('spt-masa-pph21.index');
     Route::get('/spt-masa-pph21/{sptUuid}', fn (string $sptUuid) => view('spt-masa.show', ['sptUuid' => $sptUuid]))->name('spt-masa-pph21.show');
 });
@@ -522,7 +522,7 @@ Route::middleware('hcm.web.admin')->prefix('employee-allowance-governance')->nam
     })->name('reports');
 });
 
-Route::middleware('hcm.web.admin')->group(function (): void {
+Route::middleware(['hcm.web.admin', 'hcm.web.feature:tax_governance'])->group(function (): void {
     Route::get('/spt-masa-pph21', fn () => view('spt-masa.index'))->name('spt-masa-pph21.index');
     Route::get('/spt-masa-pph21/{sptUuid}', fn (string $sptUuid) => view('spt-masa.show', ['sptUuid' => $sptUuid]))->name('spt-masa-pph21.show');
 });
@@ -700,11 +700,11 @@ Route::get('/company-details', function () {
 
 Route::get('/employees', function () {
     return view(view: 'employees');
-})->middleware('hcm.web.admin')->name('employees');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:employee_management'])->name('employees');
 
 Route::get('/employees-grid', function () {
     return view(view: 'employees-grid');
-})->middleware('hcm.web.admin')->name('employees-grid');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:employee_management'])->name('employees-grid');
 
 Route::get('/employee-details', function () {
     return view(view: 'employee-details');
@@ -712,11 +712,11 @@ Route::get('/employee-details', function () {
 
 Route::get('/departments', function () {
     return view(view: 'departments');
-})->middleware('hcm.web.admin')->name('departments');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:employee_management'])->name('departments');
 
 Route::get('/designations', function () {
     return view(view: 'designations');
-})->middleware('hcm.web.admin')->name('designations');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:employee_management'])->name('designations');
 
 Route::get('/policy', function () {
     return view(view: 'policy');
@@ -770,23 +770,27 @@ Route::get('/ticket-details/{id}', function (int $id) {
 
 Route::get('/holidays', function () {
     return view(view: 'holidays');
-})->middleware('hcm.web.admin')->name('holidays');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:holiday_calendar'])->name('holidays');
 
 Route::get('/leaves', function () {
     return view(view: 'leaves');
-})->middleware('hcm.web.admin')->name('leaves');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:leave_management'])->name('leaves');
 
 Route::get('/leaves-employee', function () {
     return view(view: 'leaves-employee');
-})->middleware('hcm.web.employee:leaves')->name('leaves-employee');
+})->middleware(['hcm.web.employee:leaves', 'hcm.web.feature:leave_management'])->name('leaves-employee');
 
 Route::get('/leave-settings', function () {
     return view(view: 'leave-settings');
-})->middleware('hcm.web.admin')->name('leave-settings');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:leave_management'])->name('leave-settings');
 
 Route::get('/attendance-admin', function () {
     return view(view: 'attendance-admin');
-})->middleware('hcm.web.admin')->name('attendance-admin');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:attendance'])->name('attendance-admin');
+
+Route::get('/attendance-correction', function () {
+    return view(view: 'attendance-correction');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:attendance_correction'])->name('attendance-correction');
 
 Route::get('/attendance-employee', function () {
     return view(view: 'attendance-employee');
@@ -794,23 +798,23 @@ Route::get('/attendance-employee', function () {
 
 Route::get('/timesheets', function () {
     return view(view: 'timesheets');
-})->middleware('hcm.web.admin')->name('timesheets');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:attendance'])->name('timesheets');
 
 Route::get('/schedule-timing', function () {
     return view(view: 'schedule-timing');
-})->middleware('hcm.web.admin')->name('schedule-timing');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:attendance_shift_scheduling'])->name('schedule-timing');
 
 Route::get('/shift-master', function () {
     return view(view: 'shift-master');
-})->middleware('hcm.web.admin')->name('shift-master');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:attendance_shift_scheduling'])->name('shift-master');
 
 Route::get('/overtime', function () {
     return view('overtime', ['arcavOvertimeEmployeeOnly' => false]);
-})->middleware('hcm.web.admin')->name('overtime');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:overtime'])->name('overtime');
 
 Route::get('/overtime-employee', function () {
     return view('overtime', ['arcavOvertimeEmployeeOnly' => true]);
-})->middleware('hcm.web.employee:overtime')->name('overtime-employee');
+})->middleware(['hcm.web.employee:overtime', 'hcm.web.feature:overtime'])->name('overtime-employee');
 
 Route::get('/leave-request', function (Request $request) {
     $role = strtolower(trim((string) $request->attributes->get('activeCompanyRole', '')));
@@ -852,27 +856,27 @@ Route::get('/teams/{id}/members', function (string $id) {
 
 Route::get('/overtime-master', function () {
     return view(view: 'overtime-master');
-})->middleware('hcm.web.admin')->name('overtime-master');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:overtime'])->name('overtime-master');
 
 Route::get('/performance-indicator', function () {
     return view(view: 'performance-indicator');
-})->middleware('hcm.web.admin')->name('performance-indicator');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:performance'])->name('performance-indicator');
 
 Route::get('/performance-review', function () {
     return view(view: 'performance-review');
-})->name('performance-review');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:performance'])->name('performance-review');
 
 Route::get('/performance-appraisal', function () {
     return view(view: 'performance-appraisal');
-})->middleware('hcm.web.admin')->name('performance-appraisal');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:performance'])->name('performance-appraisal');
 
 Route::get('/goal-tracking', function () {
     return view(view: 'goal-tracking');
-})->name('goal-tracking');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:performance'])->name('goal-tracking');
 
 Route::get('/goal-type', function () {
     return view(view: 'goal-type');
-})->middleware('hcm.web.admin')->name('goal-type');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:performance'])->name('goal-type');
 
 Route::get('/training', function () {
     return view(view: 'training');
@@ -889,15 +893,15 @@ Route::get('/training-type', function () {
 Route::middleware('hcm.web.admin')->group(function (): void {
     Route::get('/promotion', function () {
         return view(view: 'promotion');
-    })->name('promotion');
+    })->middleware('hcm.web.feature:employee_lifecycle')->name('promotion');
 
     Route::get('/resignation', function () {
         return view(view: 'resignation');
-    })->name('resignation');
+    })->middleware('hcm.web.feature:employee_lifecycle')->name('resignation');
 
     Route::get('/termination', function () {
         return view(view: 'termination');
-    })->name('termination');
+    })->middleware('hcm.web.feature:employee_lifecycle')->name('termination');
 
     Route::middleware('hcm.web.feature:payroll')->group(function (): void {
         Route::get('/salary-component-master', function () {
@@ -920,10 +924,6 @@ Route::middleware('hcm.web.admin')->group(function (): void {
             return view('payroll-deduction');
         })->name('payroll-deduction');
 
-        Route::get('/payroll-thr', function () {
-            return view('payroll-thr');
-        })->name('payroll-thr');
-
         Route::get('/payroll-pkwt-compensation', function () {
             return view('payroll-pkwt-compensation');
         })->name('payroll-pkwt-compensation');
@@ -936,6 +936,10 @@ Route::middleware('hcm.web.admin')->group(function (): void {
             return view('payroll-run-history');
         })->name('payroll-run-history');
     });
+
+    Route::get('/payroll-thr', function () {
+        return view('payroll-thr');
+    })->middleware('hcm.web.feature:payroll_thr')->name('payroll-thr');
 });
 
 Route::get('/job-grid', function () {
@@ -1550,7 +1554,7 @@ Route::middleware(['hcm.web.admin', 'hcm.web.asset-management'])->group(function
 
 Route::get('payslip', function() {
     return view('payslip');
-})->name('payslip');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:payroll'])->name('payslip');
 
 Route::get('/prefixes', function () {
     return view('prefixes');
@@ -1599,7 +1603,7 @@ Route::get('/leave-type', function () {
         ->get();
 
     return view('leave-type', ['leaveTypes' => $leaveTypes]);
-})->middleware('hcm.web.admin')->name('leave-type');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:leave_management'])->name('leave-type');
 
 Route::get( '/custom-fields', function () {
     return view('custom-fields');

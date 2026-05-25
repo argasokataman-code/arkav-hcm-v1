@@ -49,18 +49,6 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
     Route::get('/payroll/monthly-report/export', [HcmPayrollRunController::class, 'exportMonthlyReport']);
     Route::post('/payroll/send-slips', [HcmPayrollRunController::class, 'sendMonthlySlips']);
 
-    // THR (Bonus)
-    Route::get('/payroll/my-thr-slip', [HcmPayrollThrBatchController::class, 'myThrSlip']);
-    Route::post('/payroll/thr-calculate', [HcmPayrollThrController::class, 'calculate']);
-    Route::get('/payroll/thr-settings', [HcmPayrollThrSettingsController::class, 'index']);
-    Route::put('/payroll/thr-settings/{calendarYear}', [HcmPayrollThrSettingsController::class, 'upsert'])->whereNumber('calendarYear');
-    Route::get('/payroll/thr-batch', [HcmPayrollThrBatchController::class, 'show']);
-    Route::post('/payroll/thr-batch/generate', [HcmPayrollThrBatchController::class, 'generate']);
-    Route::post('/payroll/thr-batch/disburse', [HcmPayrollThrBatchController::class, 'disburse']);
-    Route::post('/payroll/thr-batch/post-payroll', [HcmPayrollThrBatchController::class, 'postPayroll']);
-    Route::post('/payroll/thr-batch/send-slip', [HcmPayrollThrBatchController::class, 'sendSlip']);
-    Route::get('/payroll/thr-batch/lines/{line}/slip', [HcmPayrollThrBatchController::class, 'slip'])->whereNumber('line');
-
     // PKWT Compensation
     Route::get('/payroll/pkwt-compensations', [HcmPayrollPkwtCompensationController::class, 'index']);
     Route::post('/payroll/pkwt-calculate', [HcmPayrollPkwtCompensationController::class, 'calculate']);
@@ -83,4 +71,18 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
     Route::post('/payroll-item-assignments', [HcmPayrollItemAssignmentController::class, 'store']);
     Route::put('/payroll-item-assignments/{id}', [HcmPayrollItemAssignmentController::class, 'update'])->whereNumber('id');
     Route::delete('/payroll-item-assignments/{id}', [HcmPayrollItemAssignmentController::class, 'destroy'])->whereNumber('id');
+});
+
+Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:payroll_thr'])->group(function (): void {
+    // THR (Bonus)
+    Route::get('/payroll/my-thr-slip', [HcmPayrollThrBatchController::class, 'myThrSlip']);
+    Route::post('/payroll/thr-calculate', [HcmPayrollThrController::class, 'calculate']);
+    Route::get('/payroll/thr-settings', [HcmPayrollThrSettingsController::class, 'index']);
+    Route::put('/payroll/thr-settings/{calendarYear}', [HcmPayrollThrSettingsController::class, 'upsert'])->whereNumber('calendarYear');
+    Route::get('/payroll/thr-batch', [HcmPayrollThrBatchController::class, 'show']);
+    Route::post('/payroll/thr-batch/generate', [HcmPayrollThrBatchController::class, 'generate']);
+    Route::post('/payroll/thr-batch/disburse', [HcmPayrollThrBatchController::class, 'disburse']);
+    Route::post('/payroll/thr-batch/post-payroll', [HcmPayrollThrBatchController::class, 'postPayroll']);
+    Route::post('/payroll/thr-batch/send-slip', [HcmPayrollThrBatchController::class, 'sendSlip']);
+    Route::get('/payroll/thr-batch/lines/{line}/slip', [HcmPayrollThrBatchController::class, 'slip'])->whereNumber('line');
 });

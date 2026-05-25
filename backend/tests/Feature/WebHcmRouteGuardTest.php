@@ -614,9 +614,6 @@ class WebHcmRouteGuardTest extends TestCase
             '/employee-dashboard',
             '/attendance-employee',
             '/tickets-employee',
-            '/performance-review',
-            '/goal-tracking',
-            '/payslip',
             // Template showcase pages are still behind auth (not public) and can render for authenticated users.
             '/ui-buttons',
         ];

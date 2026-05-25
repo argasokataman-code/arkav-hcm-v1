@@ -91,6 +91,7 @@ class PackageFeatureCatalogRuntimeService
         'employee_lifecycle' => ['name' => 'Lifecycle Tracking'],
         'attendance' => ['name' => 'Attendance Dashboard'],
         'attendance_shift_scheduling' => ['name' => 'Shift Scheduling'],
+        'attendance_correction' => ['name' => 'Attendance Correction'],
         'leave_management' => ['name' => 'Leave Requests'],
         'leave_approval_flow' => ['name' => 'Approval Workflow'],
         'holiday_calendar' => ['name' => 'Holiday Calendar'],

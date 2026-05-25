@@ -3,7 +3,7 @@
 use App\Http\Controllers\Api\SptMasa\HcmSptMasaController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1/hcm/spt-masa')->middleware(['api.token', 'tenant.context'])->group(function (): void {
+Route::prefix('v1/hcm/spt-masa')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:tax_governance'])->group(function (): void {
     // List SPT Masa headers for the active tenant.
     Route::get('/headers', [HcmSptMasaController::class, 'index']);
 

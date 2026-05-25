@@ -350,6 +350,10 @@
 @endif
 <script type="module" src="{{ URL::asset('build/js/attendance/attendance-data.js') }}?v={{ file_exists(public_path('build/js/attendance/attendance-data.js')) ? filemtime(public_path('build/js/attendance/attendance-data.js')) : time() }}"></script>
 
+@if (Route::is(['attendance-correction']))
+    <script type="module" src="{{ URL::asset('build/js/attendance/attendance-correction.js') }}?v={{ file_exists(public_path('build/js/attendance/attendance-correction.js')) ? filemtime(public_path('build/js/attendance/attendance-correction.js')) : time() }}"></script>
+@endif
+
 @if (Route::is(['holidays', 'leaves', 'leaves-employee', 'leave-report', 'overtime', 'overtime-employee']))
     <script src="{{ URL::asset('build/js/hcm/hcm-extras/module-loaders.js') }}?v={{ file_exists(public_path('build/js/hcm/hcm-extras/module-loaders.js')) ? filemtime(public_path('build/js/hcm/hcm-extras/module-loaders.js')) : time() }}"></script>
     <script type="module" src="{{ URL::asset('build/js/hcm/hcm-extras-data.js') }}?v={{ file_exists(public_path('build/js/hcm/hcm-extras-data.js')) ? filemtime(public_path('build/js/hcm/hcm-extras-data.js')) : time() }}"></script>

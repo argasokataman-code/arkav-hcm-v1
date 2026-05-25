@@ -159,6 +159,7 @@ abstract class TestCase extends BaseTestCase
             'token' => (string) $login->json('data.accessToken'),
             'company_id' => $company->id,
             'company' => $company,
+            'user' => $user,
         ];
     }
 

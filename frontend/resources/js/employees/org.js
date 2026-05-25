@@ -1,4 +1,4 @@
-import { requestJson } from './api';
+import { requestJson } from './api.js';
 
 export let orgDepartmentsFlat = [];
 export let orgDesignationsFlat = [];

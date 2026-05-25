@@ -1,7 +1,7 @@
-import { requestJson } from './api';
-import { formatApiError } from './helpers';
-import * as State from './state';
-import * as Org from './org';
+import { requestJson } from './api.js';
+import { formatApiError } from './helpers.js';
+import * as State from './state.js';
+import * as Org from './org.js';
 
 export function makeBulkHandlers(deps) {
     function getBulkReassignModalInstance() {

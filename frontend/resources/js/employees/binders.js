@@ -1,5 +1,5 @@
 // Binders: centralize DOM event binding functions for employees module
-import { normalizeEmployeeScope as defaultNormalizeScope } from './helpers';
+import { normalizeEmployeeScope as defaultNormalizeScope } from './helpers.js';
 
 export function makeBinders(deps) {
     var loaders = window.ArcavEmployeesModuleLoaders || {};

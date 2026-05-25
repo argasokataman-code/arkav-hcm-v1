@@ -1,4 +1,4 @@
-import { escapeHtml, formatEmployeeCode, buildEmployeeDetailUrl } from './helpers';
+import { escapeHtml, formatEmployeeCode, buildEmployeeDetailUrl } from './helpers.js';
 
 // Factory that returns renderer functions bound to provided deps
 export function makeRenderers(deps) {

@@ -7,7 +7,7 @@ import {
     requestJson,
     requestFormData,
     requestEmployeeDetail,
-} from './api';
+} from './api.js';
 
 import {
     escapeHtml,
@@ -19,13 +19,13 @@ import {
     downloadBlob,
     toCsv,
     normalizeEmployeeScope,
-} from './helpers';
+} from './helpers.js';
 
-import * as State from './state';
-import * as Org from './org';
-import * as Renderers from './renderers';
-import * as Binders from './binders';
-import * as Bulk from './bulk';
+import * as State from './state.js';
+import * as Org from './org.js';
+import * as Renderers from './renderers.js';
+import * as Binders from './binders.js';
+import * as Bulk from './bulk.js';
 
 var employeesModuleLoaders = window.ArcavEmployeesModuleLoaders || {};
 var resolveBindEmployeeCompensationFormsModule = employeesModuleLoaders.resolveBindEmployeeCompensationFormsModule || function () { return null; };

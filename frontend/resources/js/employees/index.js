@@ -1,5 +1,5 @@
-import * as Api from './api';
-import * as Helpers from './helpers';
+import * as Api from './api.js';
+import * as Helpers from './helpers.js';
 
 export { Api, Helpers };
 

@@ -20,12 +20,15 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
     Route::delete('/employees/{id}/profile-photo', [HcmEmployeeController::class, 'deleteProfilePhoto'])->whereNumber('id');
 });
 
-Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
-    // Wilayah (Location) Lookups
+// Wilayah (Location) Lookups — public, no auth required (static Indonesian geographic reference data)
+Route::prefix('v1/hcm')->group(function () {
     Route::get('/wilayah/provinces', [WilayahLookupController::class, 'provinces']);
     Route::get('/wilayah/regencies', [WilayahLookupController::class, 'regencies']);
     Route::get('/wilayah/districts', [WilayahLookupController::class, 'districts']);
     Route::get('/wilayah/villages', [WilayahLookupController::class, 'villages']);
+});
+
+Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
 
     // Departments
     Route::get('/departments', [HcmEmployeeController::class, 'departments']);

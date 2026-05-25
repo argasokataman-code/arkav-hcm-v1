@@ -288,7 +288,7 @@
 
     @component('components.modal-popup')
     @endcomponent
-    @include('hcm.partials.employee-stepper-modal', ['mode' => 'add'])
+    {{-- Note: employee-stepper-modal (add mode) is already included via components.modal-popup → components.modals.employees --}}
 
     <div class="offcanvas offcanvas-end" tabindex="-1" id="employee_quick_preview" aria-labelledby="employee_quick_preview_label">
         <div class="offcanvas-header">

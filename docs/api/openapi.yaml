@@ -11647,6 +11647,12 @@ components:
                       type: boolean
                     isConfigured:
                       type: boolean
+                features:
+                  type: array
+                  items:
+                    type: string
+                  description: Enabled feature codes for the active package (limit != 0 or unlimited)
+                  example: ["attendance", "leave", "payroll", "max_employees"]
             activeCompany:
               type: object
               nullable: true
@@ -11811,6 +11817,12 @@ components:
                       type: boolean
                     isConfigured:
                       type: boolean
+                features:
+                  type: array
+                  items:
+                    type: string
+                  description: Enabled feature codes for the active package (limit != 0 or unlimited)
+                  example: ["attendance", "leave", "payroll", "max_employees"]
     TenantBillingInvoice:
       type: object
       properties:

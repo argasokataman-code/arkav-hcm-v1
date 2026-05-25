@@ -46,6 +46,10 @@
                 ? payload.data.token
                 : (payload && payload.token ? payload.token : null);
             if (tokenFromPayload) {
+                // Cache in localStorage so other modules (and next page loads) skip the fallback.
+                if (window.AuthApi && typeof window.AuthApi.setToken === 'function') {
+                    window.AuthApi.setToken(tokenFromPayload);
+                }
                 return tokenFromPayload;
             }
         } catch (_e) {}

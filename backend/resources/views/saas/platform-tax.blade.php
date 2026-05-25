@@ -3,6 +3,47 @@
 
 @section('content')
 
+<style>
+/* Force visible horizontal scrollbar on the tax obligations table.
+   Default overflow-x:auto uses macOS overlay scrollbars (invisible until scroll),
+   causing users to perceive content as "cut off". */
+#tax_obligations_container .table-responsive {
+    overflow-x: scroll;
+    scrollbar-width: thin;            /* Firefox */
+    scrollbar-color: #adb5bd #f1f1f1; /* Firefox: thumb track */
+}
+#tax_obligations_container .table-responsive::-webkit-scrollbar {
+    height: 6px;
+}
+#tax_obligations_container .table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+#tax_obligations_container .table-responsive::-webkit-scrollbar-thumb {
+    background: #adb5bd;
+    border-radius: 3px;
+}
+#tax_obligations_container .table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #6c757d;
+}
+/* Scroll-shadow: fade on right edge indicates more content is available */
+#tax_obligations_container .table-responsive-shadow-wrap {
+    position: relative;
+}
+#tax_obligations_container .table-responsive-shadow-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 32px;
+    height: calc(100% - 6px); /* don't cover scrollbar */
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.85));
+    pointer-events: none;
+    border-radius: 0 .375rem 0 0;
+    transition: opacity .2s;
+}
+</style>
+
 <!-- Page Wrapper -->
 <div class="page-wrapper">
     <div class="content" data-platform-tax-page>
@@ -165,6 +206,7 @@
                         <h5 class="mb-0">Ringkasan Kewajiban Pajak Platform</h5>
                         <small class="text-muted">Estimasi berdasarkan data invoice & pembayaran bulan ini</small>
                     </div>
+                    <div class="table-responsive-shadow-wrap">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
@@ -193,6 +235,7 @@
                             </tfoot>
                         </table>
                     </div>
+                    </div>{{-- end table-responsive-shadow-wrap --}}
                 </div>
 
                 <!-- Revenue Breakdown -->

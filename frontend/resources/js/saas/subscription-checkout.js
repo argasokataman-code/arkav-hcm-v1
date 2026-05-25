@@ -567,7 +567,11 @@
         }
 
         if (status === "completed") {
-            await loadInvoiceById(invoiceId, isInactiveContext ? "Pembayaran berhasil. Akses company sedang dipulihkan." : "Pembayaran berhasil.", "success");
+            var completedMsg = isInactiveContext
+                ? "Pembayaran berhasil. Akses company sedang dipulihkan. Mengarahkan ke dashboard dalam 3 detik..."
+                : "Pembayaran berhasil! Mengarahkan ke dashboard dalam 3 detik...";
+            await loadInvoiceById(invoiceId, completedMsg, "success");
+            window.setTimeout(function () { redirectTo("/index"); }, 3000);
             return true;
         }
 
@@ -605,7 +609,8 @@
                 window.snap.pay(snapToken, {
                     onSuccess: function (result) {
                         var invoiceId = String(currentInvoice.id || "");
-                        loadInvoiceById(invoiceId, "Pembayaran berhasil!", "success");
+                        loadInvoiceById(invoiceId, "Pembayaran berhasil! Mengarahkan ke dashboard dalam 3 detik...", "success");
+                        window.setTimeout(function () { redirectTo("/index"); }, 3000);
                     },
                     onPending: function (result) {
                         var invoiceId = String(currentInvoice.id || "");

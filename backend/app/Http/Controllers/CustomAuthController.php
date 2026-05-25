@@ -42,8 +42,10 @@ class CustomAuthController extends Controller
             $user = Auth::user();
 
             // Create API token so browser JS (e.g. /v1/identity/auth/me) works after web login.
+            // Revoke previous tokens first — enforce single active token per user.
             $plainToken = Str::random(64);
             $expiresIn = (int) config('auth.api_token_cookie.ttl_seconds', 3600);
+            AuthToken::where('user_id', $user->id)->delete();
             AuthToken::create([
                 'user_id' => $user->id,
                 'token_hash' => hash('sha256', $plainToken),
@@ -155,8 +157,10 @@ class CustomAuthController extends Controller
         $request->session()->regenerate();
 
         // Create/refresh API token cookie so JS calls work after lock-screen unlock.
+        // Revoke previous tokens first — enforce single active token per user.
         $plainToken = Str::random(64);
         $expiresIn = (int) config('auth.api_token_cookie.ttl_seconds', 3600);
+        AuthToken::where('user_id', $user->id)->delete();
         AuthToken::create([
             'user_id' => $user->id,
             'token_hash' => hash('sha256', $plainToken),

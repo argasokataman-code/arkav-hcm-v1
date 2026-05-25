@@ -112,6 +112,9 @@ class AuthController extends Controller
         $rememberMe = (bool) $request->boolean('rememberMe', false);
         $expiresIn = $rememberMe ? $this->rememberTtlSeconds() : $this->defaultTtlSeconds();
 
+        // Revoke all previous tokens before issuing a new one (single active token per user).
+        AuthToken::where('user_id', $user->id)->delete();
+
         AuthToken::create([
             'user_id' => $user->id,
             'token_hash' => hash('sha256', $plainToken),
@@ -965,12 +968,24 @@ class AuthController extends Controller
         $nextPaymentDate = $nextInvoice?->due_date?->toDateString()
             ?? $subscription->ends_at?->toDateString();
         $nextPaymentAmount = $nextInvoice ? (float) $nextInvoice->amount_due : (float) ($subscription->amount ?? 0);
+        // Feature code for employee count limit is 'max_employees' (see LandingPackagesSeeder).
         $employeeLimitFeature = $subscription->package?->getFeature('max_employees');
         $employeeLimit = $employeeLimitFeature?->limit;
         $employeeUsed = EmployeeProfile::query()
             ->where('company_id', $activeCompany->id)
             ->when($activeCompany->owner_user_id, fn ($q) => $q->where('user_id', '!=', $activeCompany->owner_user_id))
             ->count();
+
+        // Collect enabled feature codes for this package (limit != 0 or unlimited).
+        $enabledFeatures = $subscription->package
+            ? $subscription->package->features()
+                ->where(function ($q): void {
+                    $q->whereNull('limit')->orWhere('limit', '!=', 0);
+                })
+                ->pluck('feature_code')
+                ->values()
+                ->all()
+            : [];
 
         return [
             'id' => $subscription->id,
@@ -984,6 +999,7 @@ class AuthController extends Controller
             'trialEndsAt' => $subscription->trial_ends_at?->toIso8601String(),
             'amount' => (float) ($subscription->amount ?? 0),
             'autoRenew' => (bool) $subscription->auto_renew,
+            'features' => $enabledFeatures,
             'nextPayment' => [
                 'date' => $nextPaymentDate,
                 'amount' => $nextPaymentAmount,

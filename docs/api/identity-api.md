@@ -175,7 +175,8 @@ Success `200`:
         "remaining": 24,
         "isUnlimited": false,
         "isConfigured": true
-      }
+      },
+      "features": ["attendance", "leave", "payroll", "max_employees"]
     },
     "activeCompany": {
       "id": 1,
@@ -200,6 +201,7 @@ Frontend hardening note:
 - `subscription` memberi ringkasan paket aktif, billing cycle, dan pembayaran berikutnya untuk halaman profile/account tanpa perlu memanggil endpoint billing terpisah.
 - `subscription.nextPayment` menampilkan invoice unpaid terdekat (due_date ascending) — bukan yang terjauh. Bug fix: sebelumnya query menggunakan `latest('due_date')` sehingga menampilkan invoice paling jauh.
 - `subscription.employeeSlots` memberi info limit employee paket aktif agar tenant admin tahu kapasitas input employee tanpa membuka halaman billing lain.
+- `subscription.features` berisi array feature code yang aktif (limit != 0 atau unlimited) untuk paket saat ini. Digunakan FE untuk guard fitur tanpa round-trip ke billing endpoint.
 
 ### PUT `/auth/profile` (protected)
 
@@ -271,7 +273,8 @@ Success `200`:
         "remaining": 24,
         "isUnlimited": false,
         "isConfigured": true
-      }
+      },
+      "features": ["attendance", "leave", "payroll", "max_employees"]
     }
   }
 }

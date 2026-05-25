@@ -747,10 +747,6 @@ export async function disburseSelected(): Promise<void> {
     }
 }
 
-export async function settleMockHostedReturnAndDisburse(): Promise<void> {
-    return;
-}
-
 export async function resetPayments(): Promise<void> {
     const root = getPayrollRunRoot();
     if (!root || !payrollRunState.currentRunId) return;

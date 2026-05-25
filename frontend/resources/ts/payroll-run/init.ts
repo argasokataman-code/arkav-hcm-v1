@@ -1,6 +1,6 @@
 import { getPayrollRunRoot, getPayrollSettingsRoot } from "./shared";
 import { loadPayrollSettings, renderPayrollSettingsPreview, savePayrollSettings, updateSettingsPreviewStateFromInputs } from "./settings";
-import { calculateDraft, disburseSelected, loadPeriod, openDisburseModal, openEmployeeDetailModal, openReconciliationPreviewModal, resetPayments, settleMockHostedReturnAndDisburse, triggerExportReconciliation } from "./run-ui";
+import { calculateDraft, disburseSelected, loadPeriod, openDisburseModal, openEmployeeDetailModal, openReconciliationPreviewModal, resetPayments, triggerExportReconciliation } from "./run-ui";
 import { refreshSelectionSummary } from "./workflow";
 import { bindWorkConfigurator } from "./work-config";
 
@@ -164,7 +164,6 @@ function bindEvents(): void {
     });
 
     bindWorkConfigurator();
-    void settleMockHostedReturnAndDisburse();
 
     const previewModal = document.getElementById("payroll_reconciliation_preview_modal");
     const exportEvidenceTrigger = root.querySelector<HTMLElement>("[data-payroll-run-export-evidence]");

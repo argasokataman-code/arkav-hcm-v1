@@ -2247,7 +2247,7 @@ paths:
         Returns the tenant-scoped employee workbook template.
         The template is only available when the active company already has at least one department and one designation master.
         The endpoint uses tenant-scoped masters only; it will return `422` if the active company does not have the required organization masters.
-        The primary sheet includes paired organization columns for both ID and name-based imports: `department_id` + `department`, `designation_id` + `designation`.
+        The primary sheet uses name-only columns (`team`, `department`, `designation`) — the `_id` columns have been removed from the template to simplify data entry.
       security:
         - bearerAuth: []
       responses:

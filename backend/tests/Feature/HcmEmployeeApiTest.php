@@ -1296,10 +1296,10 @@ class HcmEmployeeApiTest extends TestCase
         $this->assertContains('ref_enums', $sheetNames);
 
         $templateSheet = $spreadsheet->getSheetByName('employee_bulk_data');
-        $this->assertSame('department', $templateSheet->getCell('I1')->getValue());
-        $this->assertSame('designation', $templateSheet->getCell('K1')->getValue());
-        $this->assertSame('=ref_departments!$B$2:$B$2', $templateSheet->getCell('I2')->getDataValidation()->getFormula1());
-        $this->assertSame('=ref_designations!$D$2:$D$2', $templateSheet->getCell('K2')->getDataValidation()->getFormula1());
+        $this->assertSame('department', $templateSheet->getCell('G1')->getValue());
+        $this->assertSame('designation', $templateSheet->getCell('H1')->getValue());
+        $this->assertSame('=ref_departments!$B$2:$B$2', $templateSheet->getCell('G2')->getDataValidation()->getFormula1());
+        $this->assertSame('=ref_designations!$D$2:$D$2', $templateSheet->getCell('H2')->getDataValidation()->getFormula1());
 
         $spreadsheet->disconnectWorksheets();
         unset($spreadsheet);

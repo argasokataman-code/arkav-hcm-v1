@@ -47,7 +47,7 @@ trait HandlesEmployeeBulkOperations
 
         $headers = [
             'employee_uuid', 'name', 'email', 'password', 'confirm_password',
-            'team_id', 'team', 'department_id', 'department', 'designation_id', 'designation', 'employment_status', 'employee_type', 'start_date', 'probation_end_date',
+            'team', 'department', 'designation', 'employment_status', 'employee_type', 'start_date', 'probation_end_date',
             'base_salary',
             'contract_type', 'contract_status', 'contract_start_date', 'contract_end_date', 'manager_user_id',
             'nik', 'phone', 'address', 'place_of_birth', 'date_of_birth', 'gender', 'marital_status', 'religion', 'nationality', 'bio',
@@ -58,7 +58,7 @@ trait HandlesEmployeeBulkOperations
         $rows = [
             [
                 '', 'Budi Santoso', 'budi@company.com', 'StrongPass1!', 'StrongPass1!',
-                '', 'HR Shared Services', '', 'People Operations', '', 'HR Officer', 'active', 'permanent', '2024-01-15', '',
+                'HR Shared Services', 'People Operations', 'HR Officer', 'active', 'permanent', '2024-01-15', '',
                 5000000,
                 'permanent', 'active', '2024-01-15', '', '',
                 '3175010101900001', '08123456789', 'Jakarta', 'Jakarta', '1990-01-01', 'male', 'married', 'Islam', 'Indonesia', 'HR Admin',
@@ -67,7 +67,7 @@ trait HandlesEmployeeBulkOperations
             ],
             [
                 '', 'Siti Aminah', 'siti@company.com', 'StrongPass1!', 'StrongPass1!',
-                '', 'Finance Operations', '', 'Finance', '', 'Finance Staff', 'probation', 'contract', '2025-02-01', '2025-05-01',
+                'Finance Operations', 'Finance', 'Finance Staff', 'probation', 'contract', '2025-02-01', '2025-05-01',
                 6200000,
                 'contract', 'active', '2025-02-01', '2026-01-31', '',
                 '3174010101900001', '08129876543', 'Bandung', 'Bandung', '1990-01-01', 'female', 'single', 'Islam', 'Indonesia', '',
@@ -164,20 +164,19 @@ trait HandlesEmployeeBulkOperations
         $this->hydrateBulkReferenceSheet($spreadsheet->createSheet(), 'ref_enums', ['employment_status', 'contract_type', 'contract_status', 'gender', 'marital_status', 'religion', 'tax_status'], $enumRows);
 
         $validationEndRow = 250;
-        $this->applyDropdownValidation($sheet, 'F2:F'.$validationEndRow, '=ref_teams!$A$2:$A$'.max(count($teams) + 1, 2), 'Team ID');
-        $this->applyDropdownValidation($sheet, 'H2:H'.$validationEndRow, '=ref_departments!$A$2:$A$'.max(count($departments) + 1, 2), 'Department ID');
-        $this->applyDropdownValidation($sheet, 'I2:I'.$validationEndRow, '=ref_departments!$B$2:$B$'.max(count($departments) + 1, 2), 'Department');
-        $this->applyDropdownValidation($sheet, 'J2:J'.$validationEndRow, '=ref_designations!$A$2:$A$'.max(count($designations) + 1, 2), 'Designation ID');
-        $this->applyDropdownValidation($sheet, 'K2:K'.$validationEndRow, '=ref_designations!$D$2:$D$'.max(count($designations) + 1, 2), 'Designation');
-        $this->applyDropdownValidation($sheet, 'L2:L'.$validationEndRow, '=ref_enums!$A$2:$A$'.max(count($employmentStatuses) + 1, 2), 'Employment Status');
-        $this->applyDropdownValidation($sheet, 'Q2:Q'.$validationEndRow, '=ref_enums!$B$2:$B$'.max(count($contractTypes) + 1, 2), 'Contract Type');
-        $this->applyDropdownValidation($sheet, 'R2:R'.$validationEndRow, '=ref_enums!$C$2:$C$'.max(count($contractStatuses) + 1, 2), 'Contract Status');
-        $this->applyDropdownValidation($sheet, 'AA2:AA'.$validationEndRow, '=ref_enums!$D$2:$D$'.max(count($genders) + 1, 2), 'Gender');
-        $this->applyDropdownValidation($sheet, 'AB2:AB'.$validationEndRow, '=ref_enums!$E$2:$E$'.max(count($maritalStatuses) + 1, 2), 'Marital Status');
-        $this->applyDropdownValidation($sheet, 'AC2:AC'.$validationEndRow, '=ref_enums!$F$2:$F$'.max(count($religions) + 1, 2), 'Religion');
-        $this->applyDropdownValidation($sheet, 'AF2:AF'.$validationEndRow, '=ref_banks!$A$2:$A$'.max(count($banks) + 1, 2), 'Bank Name');
-        $this->applyDropdownValidation($sheet, 'AL2:AL'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'Tax Status');
-        $this->applyDropdownValidation($sheet, 'AM2:AM'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'PTKP Status');
+        // Columns F=team, G=department, H=designation (name-only, no _id columns in template)
+        $this->applyDropdownValidation($sheet, 'F2:F'.$validationEndRow, '=ref_teams!$D$2:$D$'.max(count($teams) + 1, 2), 'Team');
+        $this->applyDropdownValidation($sheet, 'G2:G'.$validationEndRow, '=ref_departments!$B$2:$B$'.max(count($departments) + 1, 2), 'Department');
+        $this->applyDropdownValidation($sheet, 'H2:H'.$validationEndRow, '=ref_designations!$D$2:$D$'.max(count($designations) + 1, 2), 'Designation');
+        $this->applyDropdownValidation($sheet, 'I2:I'.$validationEndRow, '=ref_enums!$A$2:$A$'.max(count($employmentStatuses) + 1, 2), 'Employment Status');
+        $this->applyDropdownValidation($sheet, 'N2:N'.$validationEndRow, '=ref_enums!$B$2:$B$'.max(count($contractTypes) + 1, 2), 'Contract Type');
+        $this->applyDropdownValidation($sheet, 'O2:O'.$validationEndRow, '=ref_enums!$C$2:$C$'.max(count($contractStatuses) + 1, 2), 'Contract Status');
+        $this->applyDropdownValidation($sheet, 'X2:X'.$validationEndRow, '=ref_enums!$D$2:$D$'.max(count($genders) + 1, 2), 'Gender');
+        $this->applyDropdownValidation($sheet, 'Y2:Y'.$validationEndRow, '=ref_enums!$E$2:$E$'.max(count($maritalStatuses) + 1, 2), 'Marital Status');
+        $this->applyDropdownValidation($sheet, 'Z2:Z'.$validationEndRow, '=ref_enums!$F$2:$F$'.max(count($religions) + 1, 2), 'Religion');
+        $this->applyDropdownValidation($sheet, 'AC2:AC'.$validationEndRow, '=ref_banks!$A$2:$A$'.max(count($banks) + 1, 2), 'Bank Name');
+        $this->applyDropdownValidation($sheet, 'AI2:AI'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'Tax Status');
+        $this->applyDropdownValidation($sheet, 'AJ2:AJ'.$validationEndRow, '=ref_enums!$G$2:$G$'.max(count($taxStatuses) + 1, 2), 'PTKP Status');
 
         $tmp = tempnam(sys_get_temp_dir(), 'employee-bulk-template-');
         if ($tmp === false) {
@@ -401,17 +400,14 @@ trait HandlesEmployeeBulkOperations
                         }
                         $bulkDeptId = (int) $resolvedDepartment->id;
                         $bulkDeptName = $resolvedDepartment->name;
-                    } elseif ($bulkDeptId !== null && $bulkDeptName !== null) {
+                    } elseif ($bulkDeptId !== null) {
+                        // department_id is authoritative; ignore name column even if it differs
                         $resolvedDepartmentName = (string) (Department::query()
                             ->whereKey($bulkDeptId)
                             ->where('company_id', $activeCompanyId)
                             ->value('name') ?? '');
                         if ($resolvedDepartmentName === '') {
                             $errors[] = "Row {$lineNo}: department_id tidak ditemukan di company ini.";
-                            continue;
-                        }
-                        if (strcasecmp($resolvedDepartmentName, $bulkDeptName) !== 0) {
-                            $errors[] = "Row {$lineNo}: department_id dan department mengacu ke master yang berbeda.";
                             continue;
                         }
                         $bulkDeptName = $resolvedDepartmentName;
@@ -449,16 +445,13 @@ trait HandlesEmployeeBulkOperations
                         if ($bulkDeptId === null && $resolvedDesignation->department_id) {
                             $bulkDeptId = (int) $resolvedDesignation->department_id;
                         }
-                    } elseif ($bulkDesigId !== null && $bulkDesigName !== null) {
+                    } elseif ($bulkDesigId !== null) {
+                        // designation_id is authoritative; ignore name column even if it differs
                         $resolvedDesignationName = (string) (Designation::query()
                             ->whereKey($bulkDesigId)
                             ->value('name') ?? '');
                         if ($resolvedDesignationName === '') {
                             $errors[] = "Row {$lineNo}: designation_id tidak ditemukan di company ini.";
-                            continue;
-                        }
-                        if (strcasecmp($resolvedDesignationName, $bulkDesigName) !== 0) {
-                            $errors[] = "Row {$lineNo}: designation_id dan designation mengacu ke master yang berbeda.";
                             continue;
                         }
                         $bulkDesigName = $resolvedDesignationName;
@@ -485,10 +478,7 @@ trait HandlesEmployeeBulkOperations
                             $errors[] = "Row {$lineNo}: team_id tidak sesuai dengan department_id yang dipilih.";
                             continue;
                         }
-                        if ($teamNameInput !== null && strcasecmp((string) $teamNameInput, (string) $resolvedTeam->name) !== 0) {
-                            $errors[] = "Row {$lineNo}: team_id dan team mengacu ke nama yang berbeda.";
-                            continue;
-                        }
+                        // team_id is authoritative; ignore name column even if it differs
                         $teamNameInput = (string) $resolvedTeam->name;
                     } elseif ($teamNameInput !== null) {
                         $resolvedByName = DB::table('teams')

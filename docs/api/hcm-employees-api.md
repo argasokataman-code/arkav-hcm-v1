@@ -273,7 +273,7 @@ Behavior:
 - download `employee-bulk-template.xlsx`
 - diblokir `422 EMPLOYEE_BULK_ORG_SETUP_REQUIRED` jika company aktif belum memiliki minimal 1 `department` dan 1 `designation`
 - workbook sekarang multi-sheet dan menyertakan referensi master `ref_departments`, `ref_designations`, `ref_teams`, `ref_banks`, `ref_enums`
-- sheet utama `employee_bulk_data` menyediakan kolom berpasangan `department_id` + `department` serta `designation_id` + `designation` untuk mempermudah import berbasis ID atau nama master
+- sheet utama `employee_bulk_data` menggunakan kolom **nama saja** (`team`, `department`, `designation`) — kolom `team_id`, `department_id`, `designation_id` **telah dihapus dari template** agar lebih mudah diisi oleh pengguna akhir
 
 Note:
 - Endpoint uses tenant-scoped masters only. The template download will return `422 EMPLOYEE_BULK_ORG_SETUP_REQUIRED` if the active company does not have the required `department` and `designation` masters.
@@ -302,9 +302,8 @@ Catatan:
 - create baru butuh `name,email,password,confirm_password`
 - validasi enum sekarang ketat untuk `employment_status`, `contract_type`, `contract_status`, `gender`, `marital_status`, `religion`, `bank_name`, `tax_status`
 - kolom opsional yang sudah dipakai importer mencakup `employee_type`, `start_date`, `contract_type`, `contract_status`, `contract_start_date`, `contract_end_date`, `probation_end_date`, `nik`, `place_of_birth`, `date_of_birth`, `gender`, `marital_status`, `religion`, `nationality`, `bank_account_holder_name`, `npwp`, `tax_status`, `ptkp_status`, `bpjs_kesehatan_no`, `bpjs_ketenagakerjaan_no`
-- `department_id`, `department`, `designation_id`, `designation` didukung; importer dapat resolve master dari nama bila ID kosong, dan akan menolak payload jika kolom ID + nama mengacu ke master berbeda
-- Jika `team_id` dikirim, importer memverifikasi team tenant aktif dan status team harus `active`.
-- Jika hanya `team` (nama) dikirim, importer akan resolve ke master team tenant aktif bila nama match; jika match ke team inactive maka baris ditolak.
+- `department`, `designation`, `team` dikirim sebagai **nama**; importer resolve ke master tenant aktif secara otomatis
+- kolom `_id` (`department_id`, `designation_id`, `team_id`) masih diterima parser untuk backward-compat upload file lama, tapi tidak lagi ada di template resmi
 - setelah import sukses, snapshot legacy `employee_profiles` dan tabel riwayat relasional akan di-sync bersamaan.
 - template runtime saat ini sudah **multi-sheet** dengan dropdown referensi master tenant aktif.
 

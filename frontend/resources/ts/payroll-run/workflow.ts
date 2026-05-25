@@ -261,6 +261,26 @@ export function refreshSelectionSummary(): void {
         resetButton.disabled = !payrollRunState.currentRunId;
     }
     renderPayrollWorkflow();
+    syncPayOneButtons();
+}
+
+export function syncPayOneButtons(): void {
+    const root = getPayrollRunRoot();
+    if (!root) return;
+    const reviewOnly = isPostCutoffReviewOnlyMode();
+    const hasMissingTaxProfile = hasMissingTaxProfileAnomaly();
+    const canPay = hasDownloadedReconciliationForCurrentRun() && !reviewOnly && !hasMissingTaxProfile;
+    const tooltip = canPay ? "Tandai karyawan ini sudah dibayar manual" : "Selesaikan Export Reconciliation dan unduh file XLSX terlebih dahulu.";
+    root.querySelectorAll<HTMLButtonElement>("[data-payroll-run-pay-one]").forEach((btn) => {
+        btn.title = tooltip;
+        if (canPay) {
+            btn.classList.remove("btn-outline-secondary");
+            btn.classList.add("btn-outline-success");
+        } else {
+            btn.classList.remove("btn-outline-success");
+            btn.classList.add("btn-outline-secondary");
+        }
+    });
 }
 
 export function syncExportReconciliationButton(): void {

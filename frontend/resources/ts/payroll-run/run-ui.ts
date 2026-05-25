@@ -153,6 +153,7 @@ export function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | n
     if (!gridElement || !tbody) return;
 
     gridElement.classList.remove("d-none");
+    const canPayNow = hasDownloadedReconciliationForCurrentRun() && !isPostCutoffReviewOnlyMode() && !hasMissingTaxProfileAnomaly();
     tbody.innerHTML = payrollRunState.currentRows.map((row) => {
         const isPaid = row.paymentStatus === "paid";
         const paymentBadgeClass = row.paymentStatus === "paid" ? "bg-success" : "bg-light text-dark";
@@ -161,7 +162,7 @@ export function updateRunUI(runData: PayrollRun | null, lines: PayrollLine[] | n
             ? '<span class="badge bg-success-subtle text-success border border-success-subtle">Telah Dibayar</span>'
             : (!row.isEligible
                 ? '<span class="badge bg-warning-subtle text-dark border border-warning-subtle">Tidak eligible (THP <= 0)</span>'
-                : `<button type="button" class="btn btn-sm btn-outline-success" data-payroll-run-pay-one="${row.userId}">Pay</button>`);
+                : `<button type="button" class="btn btn-sm ${canPayNow ? 'btn-outline-success' : 'btn-outline-secondary'}" data-payroll-run-pay-one="${row.userId}" title="${canPayNow ? 'Tandai karyawan ini sudah dibayar manual' : 'Selesaikan Export Reconciliation dan unduh file XLSX terlebih dahulu.'}">Tandai Bayar</button>`);
         return `
             <tr>
                 <td>

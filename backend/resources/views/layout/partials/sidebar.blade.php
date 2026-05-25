@@ -68,6 +68,15 @@
     $superAdminUnlockedPayroll = $hasPayroll || $isSuperAdminDeveloperMode;
     $superAdminUnlockedPerformance = $hasPerformance || $isSuperAdminDeveloperMode;
     $canSeePayrollMenu = $featureBypass || ($hasPayroll && !$isEmployeeScopedUser && ($isHcmAdmin || $isGlobalHcmAdmin));
+    $canSeeMyPayslipMenu = $hasPayroll && $isEmployeeScopedUser;
+    $hasPayrollThr = (bool) ($activeCompanySubscription?->package?->hasFeature('payroll_thr') ?? false);
+    $hasTaxGovernance = (bool) ($activeCompanySubscription?->package?->hasFeature('tax_governance') ?? false);
+    $hasBpjsGovernance = (bool) ($activeCompanySubscription?->package?->hasFeature('bpjs_governance') ?? false);
+    $hasSptMasa = (bool) ($activeCompanySubscription?->package?->hasFeature('spt_masa_pph21') ?? false);
+    $canSeePayrollThrMenu = $featureBypass || ($hasPayrollThr && !$isEmployeeScopedUser && $isHcmAdmin);
+    $canSeeTaxGovernanceMenu = $featureBypass || ($hasTaxGovernance && $isHcmAdmin);
+    $canSeeBpjsGovernanceMenu = $featureBypass || ($hasBpjsGovernance && $isHcmAdmin);
+    $canSeeSptMasaMenu = $featureBypass || ($hasSptMasa && $isHcmAdmin);
     $canSeeEmployeesMenu = $featureBypass || $hasEmployeeManagement || $hasDocumentCenter || $hasEmployeeLifecycle;
     $canSeeAttendanceMenu = $featureBypass || $hasAttendance || $hasLeaveManagement;
     $canSeeAttendanceCorrectionMenu = $featureBypass || ($hasAttendanceCorrection && $isHcmAdmin);
@@ -89,6 +98,10 @@
         $canSeeTicketsMenu          = false;
         $canSeeAssetManagementMenu  = false;
         $showTemplateCatalogMenus   = false;
+        $canSeePayrollThrMenu       = false;
+        $canSeeTaxGovernanceMenu    = false;
+        $canSeeBpjsGovernanceMenu   = false;
+        $canSeeSptMasaMenu          = false;
     }
 @endphp
 

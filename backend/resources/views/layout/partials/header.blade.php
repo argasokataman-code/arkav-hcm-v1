@@ -62,7 +62,16 @@
     $canSeeEmployeeLifecycleMenu = $featureBypass || ($hasEmployeeLifecycle && $isHcmAdmin);
     $canSeePerformanceMenu = $featureBypass || ($hasPerformance && !$isEmployeeScopedUser && $isHcmAdmin);
     $hasPayroll = (bool) ($activeCompanySubscription?->package?->hasFeature('payroll') ?? false);
+    $hasPayrollThr = (bool) ($activeCompanySubscription?->package?->hasFeature('payroll_thr') ?? false);
+    $hasTaxGovernance = (bool) ($activeCompanySubscription?->package?->hasFeature('tax_governance') ?? false);
+    $hasBpjsGovernance = (bool) ($activeCompanySubscription?->package?->hasFeature('bpjs_governance') ?? false);
+    $hasSptMasa = (bool) ($activeCompanySubscription?->package?->hasFeature('spt_masa_pph21') ?? false);
     $canSeePayrollMenu = $featureBypass || ($hasPayroll && !$isEmployeeScopedUser && ($isHcmAdmin || $isGlobalHcmAdmin));
+    $canSeeMyPayslipMenu = $hasPayroll && $isEmployeeScopedUser;
+    $canSeePayrollThrMenu = $featureBypass || ($hasPayrollThr && !$isEmployeeScopedUser && $isHcmAdmin);
+    $canSeeTaxGovernanceMenu = $featureBypass || ($hasTaxGovernance && $isHcmAdmin);
+    $canSeeBpjsGovernanceMenu = $featureBypass || ($hasBpjsGovernance && $isHcmAdmin);
+    $canSeeSptMasaMenu = $featureBypass || ($hasSptMasa && $isHcmAdmin);
     $hasAssetManagement = (bool) ($activeCompanySubscription?->package?->hasFeature('asset_management') ?? false);
     $isQaSuperAdmin = $authUser
         && (
@@ -84,6 +93,10 @@
         $canSeeEmployeeLifecycleMenu = false;
         $canSeeTicketsMenu          = false;
         $canSeeAssetManagementMenu  = false;
+        $canSeePayrollThrMenu       = false;
+        $canSeeTaxGovernanceMenu    = false;
+        $canSeeBpjsGovernanceMenu   = false;
+        $canSeeSptMasaMenu          = false;
     }
     $headerProfileName = trim((string) ($authUser->name ?? 'User')) ?: 'User';
     $headerProfileEmail = trim((string) ($authUser->email ?? '')) ?: 'user@example.com';
@@ -470,21 +483,25 @@
                                                     <a href="javascript:void(0);" class="{{ Request::is('payroll-run','payroll-thr','payroll-pkwt-compensation','employee-salary') ? 'subdrop' : '' }}">Payroll Operations<span class="menu-arrow inside-submenu"></span></a>
                                                     <ul>
                                                         <li><a href="{{url('payroll-run')}}" class="{{ Request::is('payroll-run') ? 'active' : '' }}">Process Monthly Payroll</a></li>
+                                                        @if ($canSeePayrollThrMenu)
                                                         <li><a href="{{url('payroll-thr')}}" class="{{ Request::is('payroll-thr') ? 'active' : '' }}">THR Payroll</a></li>
+                                                        @endif
                                                         <li><a href="{{url('payroll-pkwt-compensation')}}" class="{{ Request::is('payroll-pkwt-compensation') ? 'active' : '' }}">PKWT Compensation</a></li>
                                                         <li><a href="{{url('employee-salary')}}" class="{{ Request::is('employee-salary') ? 'active' : '' }}">Compensation Management</a></li>
                                                     </ul>
                                                 </li>
                                                 <li class="submenu submenu-two">
-                                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','payroll-overtime','salary-component-master') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                                    <a href="javascript:void(0);" class="{{ Request::is('payroll-run-history','payroll-overtime','salary-component-master') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                                     <ul>
-                                                        <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                                         <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
                                         <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
                                                     </ul>
                                                 </li>
                                             </ul>
                                         </li>
+@endif
+@if ($canSeeMyPayslipMenu)
+                                        <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}"><i class="ti ti-file-invoice"></i><span>My Payslip</span></a></li>
 @endif
 @if ($canSeeAssetManagementMenu)
                                         <li class="submenu">
@@ -546,9 +563,13 @@
                                                         <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>
                                                         @endif
                                                         <li><a href="{{url('notification-settings')}}" class="{{ Request::is('notification-settings') ? 'active' : '' }}">Notifications</a></li>
-                                                        @if (!$isGlobalHcmAdmin)
+                                                        @if ($canSeeTaxGovernanceMenu)
                                                         <li><a href="{{url('tax-employees')}}" class="{{ Request::is('tax-employees*','taxes') ? 'active' : '' }}">PPh 21 Governance</a></li>
+                                                        @endif
+                                                        @if ($canSeeBpjsGovernanceMenu)
                                                         <li><a href="{{ route('bpjs-governance.index') }}" class="{{ Request::is('bpjs-governance*') ? 'active' : '' }}">BPJS Governance</a></li>
+                                                        @endif
+                                                        @if ($canSeeSptMasaMenu)
                                                         <li><a href="{{ route('spt-masa-pph21.index') }}" class="{{ Request::is('spt-masa-pph21*') ? 'active' : '' }}">SPT Masa PPh 21</a></li>
                                                         @endif
                                                     </ul>
@@ -1224,7 +1245,14 @@
                             </a>
                         </div>
                     @endif
-                    @if ($headerPackageCode !== '')
+                    @if (in_array($activeCompanyRole, ['employee', 'member']) && $headerActiveCompanyName !== '')
+                        <div class="me-2 d-none d-md-flex align-items-center">
+                            <span class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 text-nowrap px-2 pe-none" title="Company aktif">
+                                <i class="ti ti-building"></i>
+                                <span class="badge badge-soft-dark rounded-pill">{{ $headerActiveCompanyName }}</span>
+                            </span>
+                        </div>
+                    @elseif ($headerPackageCode !== '')
                         <div class="me-2 d-none d-md-flex align-items-center">
                             <a href="{{ url('/subscription') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 text-nowrap px-2" title="Paket aktif: {{ $headerPackageName !== '' ? $headerPackageName : $headerPackageCode }}">
                                 <i class="ti ti-package"></i>

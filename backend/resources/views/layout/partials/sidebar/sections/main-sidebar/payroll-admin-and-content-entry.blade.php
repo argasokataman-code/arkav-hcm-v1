@@ -1,8 +1,7 @@
                                 </li>
                                 <li class="submenu submenu-two">
-                                    <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','payroll-overtime','salary-component-master') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('payroll-run-history','payroll-overtime','salary-component-master') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
-                                        <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">My Payslip</a></li>
                                         <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll Run History</a></li>
                                         <li><a href="{{url('payroll-overtime')}}" class="{{ Request::is('payroll-overtime') ? 'active' : '' }}">Overtime</a></li>
                                         <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>

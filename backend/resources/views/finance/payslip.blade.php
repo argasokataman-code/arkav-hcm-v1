@@ -5,12 +5,12 @@
         <div class="content">
             <div class="d-md-flex d-block align-items-center justify-content-between page-breadcrumb mb-3">
                 <div class="my-auto mb-2">
-                    <h2 class="mb-1">My Payslip</h2>
+                    <h2 class="mb-1">{{ $pageTitle ?? 'Payslips' }}</h2>
                     <nav>
                         <ol class="breadcrumb mb-0">
                             <li class="breadcrumb-item"><a href="{{ url('index') }}"><i class="ti ti-smart-home"></i></a></li>
                             <li class="breadcrumb-item">HR</li>
-                            <li class="breadcrumb-item active" aria-current="page">My Payslip</li>
+                            <li class="breadcrumb-item active" aria-current="page">{{ $pageTitle ?? 'Payslips' }}</li>
                         </ol>
                     </nav>
                 </div>
@@ -45,7 +45,7 @@
                             </select>
                         </div>
                         <div class="col-md-auto">
-                            <button type="button" class="btn btn-primary" onclick="if(window.payslipLoad) window.payslipLoad({ allowLatestFallback: false });">Muat Slip Saya</button>
+                            <button type="button" class="btn btn-primary" onclick="if(window.payslipLoad) window.payslipLoad({ allowLatestFallback: false });">{{ $isEmployee ? 'Muat Slip Saya' : 'Muat Slip Gaji' }}</button>
                         </div>
                     </div>
                     <div class="alert alert-danger d-none py-2 small mt-3 mb-0" role="alert" data-payslip-error></div>
@@ -53,7 +53,9 @@
             </div>
 
             <p class="text-muted small mb-3" data-payslip-empty>
-                Slip gaji pribadi akan tampil setelah payroll periode yang dipilih difinalisasi.
+                {{ $isEmployee
+                    ? 'Slip gaji pribadi akan tampil setelah payroll periode yang dipilih difinalisasi.'
+                    : 'Pilih tahun dan bulan lalu klik tombol untuk menampilkan slip gaji karyawan.' }}
             </p>
             <p class="text-info small mb-3 d-none" data-payslip-context-hint></p>
 

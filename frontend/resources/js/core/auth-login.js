@@ -146,7 +146,10 @@
                     });
                 }
 
-                safeRedirect(sanitizeNextRedirect(params.get("next")));
+                // "Login Employee" mode has no company context → always go to employee dashboard.
+                // "Login Company" mode → go to index (admin dashboard) or `next` param.
+                var defaultAfterLogin = companyModeActive ? "/index" : "/employee-dashboard";
+                safeRedirect(params.get("next") ? sanitizeNextRedirect(params.get("next")) : defaultAfterLogin);
             } catch (error) {
                 var apiMessage = error?.response?.data?.error?.message;
                 setError(apiMessage || error.message || "Login gagal. Periksa email/password.");

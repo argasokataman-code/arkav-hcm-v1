@@ -511,21 +511,25 @@
                                             <a href="javascript:void(0);" class="{{ Request::is('payroll-run','payroll-thr','payroll-pkwt-compensation','employee-salary') ? 'subdrop' : '' }}">Payroll Operations<span class="menu-arrow inside-submenu"></span></a>
                                             <ul>
                                                 <li><a href="{{url('payroll-run')}}" class="{{ Request::is('payroll-run') ? 'active' : '' }}">Process Monthly Payroll</a></li>
+                                                @if ($canSeePayrollThrMenu)
                                                 <li><a href="{{url('payroll-thr')}}" class="{{ Request::is('payroll-thr') ? 'active' : '' }}">THR Payroll</a></li>
+                                                @endif
                                                 <li><a href="{{url('payroll-pkwt-compensation')}}" class="{{ Request::is('payroll-pkwt-compensation') ? 'active' : '' }}">PKWT Compensation</a></li>
                                                 <li><a href="{{url('employee-salary')}}" class="{{ Request::is('employee-salary') ? 'active' : '' }}">Employee Salary</a></li>
                                             </ul>
                                         </li>
                                         <li class="submenu submenu-two">
-                                            <a href="javascript:void(0);" class="{{ Request::is('payslip','payroll-run-history','payroll-overtime','salary-component-master') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
+                                            <a href="javascript:void(0);" class="{{ Request::is('payroll-run-history','payroll-overtime','salary-component-master') ? 'subdrop' : '' }}">Payroll Records &amp; Setup<span class="menu-arrow inside-submenu"></span></a>
                                             <ul>
-                                                <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">Payslips</a></li>
                                                 <li><a href="{{url('payroll-run-history')}}" class="{{ Request::is('payroll-run-history') ? 'active' : '' }}">Payroll History</a></li>
                                         <li><a href="{{url('salary-component-master')}}" class="{{ Request::is('salary-component-master') ? 'active' : '' }}">Salary Components</a></li>
                                             </ul>
                                         </li>
                                     </ul>
                                 </li>
+@endif
+@if ($canSeeMyPayslipMenu)
+                                <li><a href="{{url('payslip')}}" class="{{ Request::is('payslip') ? 'active' : '' }}">My Payslip</a></li>
 @endif
                             </ul>
                         </div>
@@ -588,10 +592,16 @@
                                         <li><a href="{{url('company-profile')}}" class="{{ Request::is('company-profile') ? 'active' : '' }}">Company Profile</a></li>
                                         <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>
                                         <li><a href="{{url('notification-settings')}}" class="{{ Request::is('notification-settings') ? 'active' : '' }}">Notifications</a></li>
+                                        @if ($canSeeTaxGovernanceMenu)
                                         <li><a href="{{route('tax-employees')}}" class="{{ Request::is('tax-employees','tax-employees/*') ? 'active' : '' }}">PPh 21 Governance</a></li>
+                                        @endif
+                                        @if ($canSeeBpjsGovernanceMenu)
                                         <li><a href="{{ route('bpjs-governance.index') }}" class="{{ Request::is('bpjs-governance*') ? 'active' : '' }}">BPJS Governance</a></li>
+                                        @endif
                                         <li><a href="{{ route('employee-allowance-governance.index') }}" class="{{ Request::is('employee-allowance-governance*') ? 'active' : '' }}">Allowance Governance</a></li>
+                                        @if ($canSeeSptMasaMenu)
                                         <li><a href="{{ route('spt-masa-pph21.index') }}" class="{{ Request::is('spt-masa-pph21*') ? 'active' : '' }}">SPT Masa PPh 21</a></li>
+                                        @endif
                                     </ul>
                                 </li>
                                 @if ($isGlobalHcmAdmin)

@@ -63,7 +63,8 @@ describe('Auth login wiring', () => {
       rememberMe: false,
       companyCode: undefined,
     });
-    expect(window.__ARCAV_LAST_REDIRECT__).toBe('/index');
+    // Regular (Login Employee) mode always redirects to employee-dashboard, not /index.
+    expect(window.__ARCAV_LAST_REDIRECT__).toBe('/employee-dashboard');
   });
 
   it('requires company code in company mode before calling API', async () => {

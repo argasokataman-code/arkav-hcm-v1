@@ -49,8 +49,13 @@ Route::get('payslip', function (Request $request) {
             ->value('value') ?? '');
     }
 
+    $role = strtolower((string) ($request->attributes->get('activeCompanyRole', '')));
+    $isEmployee = in_array($role, ['employee', 'member'], true);
+
     return view('finance.payslip', [
         'companyName' => $company?->name ?? '',
         'companyAddress' => $companyAddress,
+        'isEmployee' => $isEmployee,
+        'pageTitle' => $isEmployee ? 'My Payslip' : 'Payslips',
     ]);
 })->name('payslip');

@@ -59,19 +59,29 @@ class CustomAuthController extends Controller
             $cookieSameSite = (string) config('auth.api_token_cookie.same_site', 'lax');
             $cookieMinutes = (int) ceil($expiresIn / 60);
 
+            $isAdmin = $user->isGlobalHcmAdmin() || $user->isHcmAdmin();
+            $afterLoginCookie = cookie(
+                $cookieName,
+                $plainToken,
+                $cookieMinutes,
+                $cookiePath,
+                $cookieDomain,
+                $cookieSecure,
+                true,
+                false,
+                $cookieSameSite
+            );
+
+            if (! $isAdmin) {
+                // Employee/member: always land on employee dashboard, never admin pages.
+                return redirect('employee-dashboard')
+                    ->withSuccess('Signed in')
+                    ->withCookie($afterLoginCookie);
+            }
+
             return redirect()->intended('index')
                 ->withSuccess('Signed in')
-                ->withCookie(cookie(
-                    $cookieName,
-                    $plainToken,
-                    $cookieMinutes,
-                    $cookiePath,
-                    $cookieDomain,
-                    $cookieSecure,
-                    true,
-                    false,
-                    $cookieSameSite
-                ));
+                ->withCookie($afterLoginCookie);
         }
         return redirect("login")->withErrors('These credentials do not match our records.');
     }
@@ -173,20 +183,19 @@ class CustomAuthController extends Controller
         $cookieSameSite = (string) config('auth.api_token_cookie.same_site', 'lax');
         $cookieMinutes = (int) ceil($expiresIn / 60);
 
-        // Redirect to the intended page or dashboard
+        // Redirect to the intended page or role-appropriate dashboard
+        $unlockCookie = cookie($cookieName, $plainToken, $cookieMinutes, $cookiePath, $cookieDomain, $cookieSecure, true, false, $cookieSameSite);
+        $isAdmin = $user->isGlobalHcmAdmin() || $user->isHcmAdmin();
+
+        if (! $isAdmin) {
+            return redirect('employee-dashboard')
+                ->withSuccess('Session unlocked successfully.')
+                ->withCookie($unlockCookie);
+        }
+
         return redirect()->intended('index')
             ->withSuccess('Session unlocked successfully.')
-            ->withCookie(cookie(
-                $cookieName,
-                $plainToken,
-                $cookieMinutes,
-                $cookiePath,
-                $cookieDomain,
-                $cookieSecure,
-                true,
-                false,
-                $cookieSameSite
-            ));
+            ->withCookie($unlockCookie);
     }
 
     public function sendPasswordResetLink(Request $request)

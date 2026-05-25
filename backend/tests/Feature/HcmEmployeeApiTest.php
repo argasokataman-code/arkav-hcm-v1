@@ -111,6 +111,7 @@ class HcmEmployeeApiTest extends TestCase
     private function createDesignationForDepartment(Department $department, string $name, string $code): Designation
     {
         return Designation::query()->create([
+            'company_id' => $this->company?->id,
             'department_id' => $department->id,
             'name' => $name,
             'code' => $code,

@@ -414,9 +414,7 @@ trait HandlesEmployeeBulkOperations
                     if ($bulkDesigId === null && $bulkDesigName !== null) {
                         $designationQuery = Designation::query()
                             ->whereRaw('LOWER(name) = ?', [strtolower($bulkDesigName)])
-                            ->whereHas('department', function ($query) use ($activeCompanyId) {
-                                $query->where('company_id', $activeCompanyId);
-                            });
+                            ->where('company_id', $activeCompanyId);
 
                         if ($bulkDeptId !== null) {
                             $designationQuery->where('department_id', $bulkDeptId);
@@ -447,6 +445,7 @@ trait HandlesEmployeeBulkOperations
                         // designation_id is authoritative; ignore name column even if it differs
                         $resolvedDesignationName = (string) (Designation::query()
                             ->whereKey($bulkDesigId)
+                            ->where('company_id', $activeCompanyId)
                             ->value('name') ?? '');
                         if ($resolvedDesignationName === '') {
                             $errors[] = "Row {$lineNo}: designation_id tidak ditemukan di company ini.";
@@ -769,9 +768,7 @@ trait HandlesEmployeeBulkOperations
             ->count();
 
         $designationCountCompany = Designation::query()
-            ->whereHas('department', function ($query) use ($activeCompanyId) {
-                $query->where('company_id', $activeCompanyId);
-            })
+            ->where('company_id', $activeCompanyId)
             ->count();
 
         // Require tenant-owned masters only (no global fallback allowed)

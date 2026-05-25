@@ -304,6 +304,9 @@ Catatan:
 - validasi enum sekarang ketat untuk `employment_status`, `contract_type`, `contract_status`, `gender`, `marital_status`, `religion`, `bank_name`, `tax_status`
 - kolom opsional yang sudah dipakai importer mencakup `employee_type`, `start_date`, `contract_type`, `contract_status`, `contract_start_date`, `contract_end_date`, `probation_end_date`, `nik`, `place_of_birth`, `date_of_birth`, `gender`, `marital_status`, `religion`, `nationality`, `bank_account_holder_name`, `npwp`, `tax_status`, `ptkp_status`, `bpjs_kesehatan_no`, `bpjs_ketenagakerjaan_no`
 - `department`, `designation`, `team` dikirim sebagai **nama**; importer resolve ke master tenant aktif secara otomatis
+- resolusi designation saat upload menggunakan `WHERE company_id = activeCompanyId` (konsisten dengan template generation) — bukan via relasi department
+- resolusi `designation_id` pada upload juga di-scope ke `company_id` tenant aktif untuk mencegah cross-tenant access
+- prerequisite check designation count menggunakan `WHERE company_id` (konsisten dengan cara template memuat data)
 - kolom `_id` (`department_id`, `designation_id`, `team_id`) masih diterima parser untuk backward-compat upload file lama, tapi tidak lagi ada di template resmi
 - setelah import sukses, snapshot legacy `employee_profiles` dan tabel riwayat relasional akan di-sync bersamaan.
 - template runtime saat ini sudah **multi-sheet** dengan dropdown referensi master tenant aktif.

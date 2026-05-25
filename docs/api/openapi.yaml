@@ -2287,6 +2287,7 @@ paths:
         Organization fields may be provided by ID or master name using `department_id`/`department` and `designation_id`/`designation`.
         Import is blocked until the active company has at least one department and one designation.
         The server validates organization fields against tenant-scoped masters only; uploads will be rejected with `EMPLOYEE_BULK_ORG_SETUP_REQUIRED` if the tenant has no masters.
+        Designation resolution during upload uses `WHERE company_id = activeCompanyId` (consistent with template generation). The `designation_id` path also applies tenant scope to prevent cross-tenant access.
       security:
         - bearerAuth: []
       requestBody:

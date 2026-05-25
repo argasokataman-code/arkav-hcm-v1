@@ -185,6 +185,16 @@ class NotificationEventCatalog
                 'title' => 'Performance review finalized',
                 'description' => 'Performance review has been finalized by admin with final assessment and scores.',
             ],
+            'employee.probation.ended' => [
+                'severity' => 'important',
+                'title' => 'Masa probasi selesai',
+                'description' => 'Notifikasi kepada karyawan bahwa masa probasi telah berakhir.',
+            ],
+            'employee.probation.ended.admin' => [
+                'severity' => 'important',
+                'title' => 'Probasi karyawan selesai',
+                'description' => 'Notifikasi ke admin bahwa masa probasi karyawan telah berakhir.',
+            ],
         ];
     }
 

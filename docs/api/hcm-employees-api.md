@@ -74,7 +74,7 @@ Body:
 - `contractStatus` **required** `active|ended|terminated`
 - `contractStartDate` **required** `date`
 - `contractEndDate` **required hanya untuk `pkwt`** dan ditolak untuk `pkwtt`
-- `probationEndDate` optional `date` (dipakai jika `employmentStatus = probation`)
+- `probationEndDate` optional `date` (dipakai jika `employmentStatus = probation`) — **maksimal 12 bulan sejak `startDate`/`contractStartDate`**; melebihi batas akan dikembalikan 422
 - `managerUserId` optional int exists `users.id` — masih didukung API admin, tetapi field ini sudah disembunyikan dari UI employee modal
 - `employmentStatus` optional `active|inactive|probation|resigned|terminated`
 - `nik` / alias `ktpNo` **required** regex `^[0-9]{16}$` — satu sumber data untuk **NIK / nomor KTP**

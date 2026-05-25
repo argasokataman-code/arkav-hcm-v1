@@ -432,7 +432,18 @@ class HcmEmployeeController extends Controller
                 Rule::requiredIf(fn () => $contractType === 'contract'),
                 Rule::prohibitedIf(fn () => $contractType === 'permanent' && $this->nullableString($request->input('contractEndDate')) !== null),
             ],
-            'probationEndDate' => ['sometimes', 'nullable', 'date', 'after_or_equal:startDate'],
+            'probationEndDate' => [
+                'sometimes', 'nullable', 'date', 'after_or_equal:startDate',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $startDate = request()->input('startDate') ?? request()->input('contractStartDate');
+                    if ($startDate && $value) {
+                        $max = \Carbon\Carbon::parse((string) $startDate)->addMonths(12);
+                        if (\Carbon\Carbon::parse((string) $value)->gt($max)) {
+                            $fail('Tanggal akhir probasi tidak boleh lebih dari 12 bulan sejak tanggal mulai kerja.');
+                        }
+                    }
+                },
+            ],
             'employmentStatus' => ['sometimes', 'nullable', Rule::in($this->employmentStatusOptions())],
             'hireDate' => ['sometimes', 'nullable', 'date'],
             'nik' => $nikRules,

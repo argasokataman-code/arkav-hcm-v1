@@ -89,6 +89,18 @@ if (($leaveDailyExpire['enabled'] ?? true) !== true) {
     $leaveDailyExpireTask->skip(fn (): bool => true);
 }
 
+// ============ PROBATION CYCLE ============
+
+$probationCycle = CronjobSettings::get('probation_cycle');
+$probationCycleTask = Schedule::command('hcm:probation-cycle')
+    ->name('hcm-probation-cycle')
+    ->description('Notify employees and admins when probation periods have ended.')
+    ->timezone((string) ($probationCycle['timezone'] ?? 'Asia/Jakarta'))
+    ->dailyAt((string) ($probationCycle['time'] ?? '07:00'));
+if (($probationCycle['enabled'] ?? true) !== true) {
+    $probationCycleTask->skip(fn (): bool => true);
+}
+
 // ============ SAAS SUBSCRIPTION MANAGEMENT ============
 
 // Convert ended trials into pending_payment + invoice

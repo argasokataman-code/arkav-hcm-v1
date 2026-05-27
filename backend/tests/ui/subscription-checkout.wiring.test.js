@@ -121,6 +121,23 @@ describe('subscription checkout wiring', () => {
           });
         }
 
+        if (method === 'post' && path === '/hcm/billing/invoices/55/sync-payment-status') {
+          return Promise.resolve({
+            data: {
+              success: true,
+              data: {
+                id: 55,
+                invoiceNumber: 'INV-55',
+                amountDue: 1200000,
+                dueDate: '2026-05-01',
+                paidDate: '2026-04-21',
+                status: 'paid',
+                isPaid: true,
+              },
+            },
+          });
+        }
+
         return Promise.reject(new Error(`Unexpected AuthApi call: ${method} ${path}`));
       }),
       getToken: vi.fn(() => null),
@@ -232,7 +249,7 @@ describe('subscription checkout wiring', () => {
     await import('../../../frontend/resources/js/subscription-checkout.js');
     await flush();
 
-    expect(window.AuthApi.request).toHaveBeenCalledWith('get', '/hcm/billing/invoices/55', undefined);
+    expect(window.AuthApi.request).toHaveBeenCalledWith('post', '/hcm/billing/invoices/55/sync-payment-status', {});
     expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice sudah dibayar');
     expect(document.querySelector('[data-checkout-go-dashboard]')?.classList.contains('d-none')).toBe(false);
     expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Pembayaran berhasil');

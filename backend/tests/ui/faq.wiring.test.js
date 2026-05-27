@@ -209,6 +209,7 @@ describe('faq-data.js', function () {
         };
 
         dom.window.AuthApi = {
+            getToken: vi.fn(() => null),
             getTenantContext: vi.fn().mockReturnValue({
                 companyId: 77,
                 companyCode: 'arcav',

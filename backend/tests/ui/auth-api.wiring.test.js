@@ -87,7 +87,7 @@ describe('AuthApi wiring', () => {
     await api.probeAuthSession();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      '/v1/identity/auth/me',
+      '/api-token',
       expect.objectContaining({
         method: 'GET',
         credentials: 'same-origin',

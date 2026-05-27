@@ -53,6 +53,7 @@ describe('Leave UI wiring', () => {
     window.axios = undefined;
     window.AuthApi = {
       handleUnauthorizedFromApi: vi.fn(() => false),
+      getToken: vi.fn(() => null),
     };
     window.ApiErrorHelper = undefined;
     window.ArcavUi = undefined;

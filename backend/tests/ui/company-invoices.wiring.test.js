@@ -189,6 +189,7 @@ describe('company invoices wiring', () => {
 
         throw new Error(`Unexpected AuthApi call: ${method} ${path} ${JSON.stringify(payload)}`);
       }),
+      getToken: vi.fn(() => null),
       downloadV1Binary: vi.fn(() => Promise.resolve()),
     };
   });
@@ -360,6 +361,7 @@ describe('company invoices wiring', () => {
         }
         throw new Error(`Unexpected AuthApi call: ${method} ${path}`);
       }),
+      getToken: vi.fn(() => null),
       getTenantContext: vi.fn(() => ({ companyCode: 'tenant_pro', companyId: 77 })),
     };
 
@@ -622,6 +624,7 @@ describe('company invoices wiring', () => {
         }
         throw new Error(`Unexpected AuthApi call: ${method} ${path}`);
       }),
+      getToken: vi.fn(() => null),
       downloadV1Binary: vi.fn(() => Promise.resolve()),
     };
 

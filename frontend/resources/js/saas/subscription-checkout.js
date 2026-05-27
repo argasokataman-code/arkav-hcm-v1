@@ -100,7 +100,7 @@
                     }
                 });
         }
-        window.setTimeout(check, intervalMs);
+        check(); // First attempt immediately; retries use intervalMs delay
     }
 
     function getTenantContext() {

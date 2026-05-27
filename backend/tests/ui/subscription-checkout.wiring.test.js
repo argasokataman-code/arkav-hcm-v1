@@ -123,6 +123,7 @@ describe('subscription checkout wiring', () => {
 
         return Promise.reject(new Error(`Unexpected AuthApi call: ${method} ${path}`));
       }),
+      getToken: vi.fn(() => null),
       getTenantContext: vi.fn(() => ({ companyCode: 'demo_co_01', companyId: 42 })),
     };
 

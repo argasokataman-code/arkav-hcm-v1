@@ -455,7 +455,7 @@ describe('Packages management wiring', () => {
 
     expect(() => manager.showFeaturesModal('pkg-uuid')).not.toThrow();
     expect(document.getElementById('features_container').textContent).toContain('Growth');
-    expect(document.getElementById('features_container').textContent).toContain('Included: 2');
+    expect(document.getElementById('features_container').textContent).toContain('2 total');
     expect(document.getElementById('features_container').textContent).toContain('Maximum Employees: 25 org');
   });
 

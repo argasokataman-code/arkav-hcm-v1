@@ -37,6 +37,7 @@ describe('Manual snapshot selector reporting', () => {
     window.ApexCharts = undefined;
     window.AuthApi = {
       handleUnauthorizedFromApi: vi.fn(() => false),
+      getToken: vi.fn(() => null),
       request: vi.fn().mockResolvedValue({
         success: true,
         data: {
@@ -296,6 +297,7 @@ describe('Manual snapshot selector reporting', () => {
 
     window.AuthApi = {
       handleUnauthorizedFromApi: vi.fn(() => false),
+      getToken: vi.fn(() => null),
       request: vi.fn().mockImplementation((method, url) => {
         if (method === 'get' && url === '/identity/auth/me') {
           return Promise.resolve({

@@ -99,6 +99,34 @@ Contoh respons sukses (Midtrans Snap):
 
 Error codes: `MIDTRANS_INIT_FAILED` (502) jika service tidak bisa diinisialisasi, `MIDTRANS_CREATE_FAILED` (502) jika API Midtrans gagal, `GATEWAY_NOT_CONFIGURED` (422) jika tidak ada gateway aktif.
 
+## POST `/v1/hcm/billing/invoices/{id}/sync-payment-status`
+
+Mengecek status pembayaran secara aktif ke Midtrans API dan langsung menandai invoice sebagai dibayar jika status `settlement` atau `capture`.
+
+Dipakai oleh frontend polling loop setelah Snap `onSuccess` — agar tidak bergantung pada webhook Midtrans tiba sebelum window 30 detik habis.
+
+Flow:
+1. Cari payment Midtrans (`status = pending`) terbaru untuk invoice ini.
+2. Panggil `Transaction::status(orderId)` ke Midtrans API.
+3. Jika `transaction_status = settlement/capture` dan `fraud_status = accept`: tandai payment `completed` + `invoice.markAsPaid()`.
+4. Kembalikan invoice yang sudah diperbarui.
+
+Jika Midtrans belum konfirmasi (masih `pending`), respons tetap `200` dengan `isPaid: false` — polling akan mencoba lagi.
+
+Auth: `HCM Admin` (bearer token + tenant context header).
+
+Contoh respons sukses (sudah terbayar):
+
+```json
+{ "success": true, "data": { "id": 123, "isPaid": true, "status": "paid", ... } }
+```
+
+Contoh respons saat masih pending:
+
+```json
+{ "success": true, "data": { "id": 123, "isPaid": false, "status": "pending", ... } }
+```
+
 ## Catatan bisnis
 
 - Untuk invoice one-time atau invoice yang tidak berasal dari subscription aktif, field package/cycle/next billing bisa `null`.

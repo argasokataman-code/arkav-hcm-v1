@@ -23,4 +23,5 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/billing/invoices/{id}/download', [HcmCompanyInvoiceController::class, 'download']);
     Route::post('/billing/invoices/{id}/mock-hosted-checkout', [HcmCompanyInvoiceController::class, 'mockHostedCheckout']);
     Route::post('/billing/invoices/{id}/mock-pay', [HcmCompanyInvoiceController::class, 'mockPay']);
+    Route::post('/billing/invoices/{id}/sync-payment-status', [HcmCompanyInvoiceController::class, 'syncPaymentStatus']);
 });

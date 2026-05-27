@@ -82,7 +82,7 @@
         var attempts = 0;
         function check() {
             attempts++;
-            api("get", "/hcm/billing/invoices/" + encodeURIComponent(invoiceId))
+            api("post", "/hcm/billing/invoices/" + encodeURIComponent(invoiceId) + "/sync-payment-status", {})
                 .then(function (payload) {
                     if (payload && payload.data && (payload.data.isPaid || payload.data.is_paid)) {
                         onPaid();

@@ -2521,6 +2521,38 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
 
+  /v1/hcm/billing/invoices/{id}/sync-payment-status:
+    post:
+      tags: [SaaS, HCM]
+      summary: Sync invoice payment status from Midtrans API
+      description: "Actively fetches transaction status from Midtrans and marks invoice paid if settled/captured. Used by the frontend polling loop after Snap onSuccess to avoid relying on webhook arrival within the 30-second poll window. Idempotent — safe to call multiple times."
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceNumericIdPath'
+      responses:
+        '200':
+          description: Current invoice state (isPaid may be true or false depending on Midtrans status)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      invoiceNumber: { type: string, nullable: true }
+                      isPaid: { type: boolean }
+                      status: { type: string }
+                      amountDue: { type: number }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1/hcm/billing/invoices/{id}/mock-pay:
     post:
       tags: [SaaS, HCM]

@@ -308,6 +308,95 @@ class HcmCompanyInvoiceController
         return $this->startMockHostedCheckout($invoice);
     }
 
+    /**
+     * Actively sync invoice payment status from Midtrans.
+     * Called by the frontend polling loop after Snap onSuccess — avoids relying
+     * solely on the webhook to arrive before the 30-second poll window expires.
+     */
+    public function syncPaymentStatus(Request $request, int $id): JsonResponse
+    {
+        if ($forbidden = $this->ensureHcmAdmin($request)) {
+            return $forbidden;
+        }
+
+        $companyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($companyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context is required.'],
+            ], 422);
+        }
+
+        $invoice = Invoice::query()
+            ->where('company_id', $companyId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        // Already paid — nothing to sync.
+        if ($invoice->is_paid) {
+            return response()->json(['success' => true, 'data' => $this->invoiceService->formatInvoice($invoice)]);
+        }
+
+        // Find the most recent Midtrans payment that may have settled.
+        $payment = Payment::query()
+            ->where('invoice_id', $invoice->id)
+            ->where('gateway', 'midtrans')
+            ->whereIn('status', ['pending', 'completed'])
+            ->latest('id')
+            ->first();
+
+        if (! $payment) {
+            return response()->json(['success' => true, 'data' => $this->invoiceService->formatInvoice($invoice)]);
+        }
+
+        $orderId = (string) ($payment->gateway_reference
+            ?? data_get($payment->metadata, 'midtrans_order_id')
+            ?? '');
+
+        if ($orderId === '') {
+            return response()->json(['success' => true, 'data' => $this->invoiceService->formatInvoice($invoice)]);
+        }
+
+        try {
+            $midtransService = app(MidtransService::class);
+            $txData = $midtransService->getTransaction($orderId);
+        } catch (\Throwable $e) {
+            \Log::warning('syncPaymentStatus: getTransaction failed', [
+                'invoice_id' => $invoice->id,
+                'order_id'   => $orderId,
+                'error'      => $e->getMessage(),
+            ]);
+            return response()->json(['success' => true, 'data' => $this->invoiceService->formatInvoice($invoice)]);
+        }
+
+        if (! $txData) {
+            return response()->json(['success' => true, 'data' => $this->invoiceService->formatInvoice($invoice)]);
+        }
+
+        $txStatus    = strtolower((string) ($txData['transaction_status'] ?? ''));
+        $fraudStatus = strtolower((string) ($txData['fraud_status'] ?? ''));
+        $state       = $midtransService->resolvePaymentState($txStatus, $fraudStatus);
+
+        if ($state === 'paid' && $payment->status !== 'completed') {
+            DB::transaction(function () use ($payment, $txData, $invoice): void {
+                $payment->update([
+                    'status'      => 'completed',
+                    'paid_at'     => now(),
+                    'verified_at' => now(),
+                    'metadata'    => array_merge($payment->metadata ?? [], [
+                        'midtrans_transaction_id' => (string) ($txData['transaction_id'] ?? ''),
+                        'midtrans_payment_type'   => (string) ($txData['payment_type'] ?? ''),
+                        'synced_via_poll'         => true,
+                    ]),
+                ]);
+                $invoice->markAsPaid();
+            });
+            $invoice->refresh();
+        }
+
+        return response()->json(['success' => true, 'data' => $this->invoiceService->formatInvoice($invoice)]);
+    }
+
     private function startMockHostedCheckout(Invoice $invoice): JsonResponse
     {
         $companyId = (int) $invoice->company_id;

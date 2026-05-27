@@ -268,9 +268,25 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+
+                {{-- ─── Purchasable Add-ons Assignment ─────────────────────── --}}
+                <div class="mt-4" id="pkg_addon_assignment_section" style="display:none">
+                    <div class="package-modal-panel p-4">
+                        <h6 class="fw-bold mb-1 d-flex align-items-center gap-2">
+                            <i class="ti ti-puzzle text-warning"></i>
+                            Add-on Yang Bisa Dibeli Tenant
+                            <span class="badge text-bg-light ms-auto" id="pkg_addon_assign_count">0</span>
+                        </h6>
+                        <p class="text-muted small mb-3">
+                            Pilih add-on dari katalog global yang tersedia untuk dibeli oleh tenant pada paket ini.
+                            Perubahan langsung tersimpan.
+                        </p>
+                        <div id="pkg_addon_assign_list" class="d-flex flex-wrap gap-2">
+                            <span class="text-muted small fst-italic">Memuat...</span>
                         </div>
                     </div>
+                </div>
+
                 </fieldset>
 
                 {{-- backward-compat hidden targets --}}

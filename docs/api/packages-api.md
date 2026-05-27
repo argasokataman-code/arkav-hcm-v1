@@ -677,3 +677,48 @@ Update classification. Body sama dengan POST.
 ### DELETE `/v1/hcm/saas/feature-classifications/{id}`
 
 Hapus classification entry.
+
+---
+
+## Package Addon Assignment endpoints
+
+Endpoint untuk global admin menetapkan add-on mana yang bisa dibeli oleh tenant pada paket tertentu (pivot `package_addon_assignments`).
+
+### GET `/v1/hcm/saas/packages/{package}/addon-assignments`
+
+Kembalikan daftar addon ID yang sudah di-assign ke paket.
+
+**Response 200:**
+```json
+{ "success": true, "data": { "package_uuid": "...", "assigned_addon_ids": [1, 9] } }
+```
+
+### POST `/v1/hcm/saas/packages/{package}/addon-assignments`
+
+Tambah satu addon ke paket.
+
+**Request body:**
+```json
+{ "addon_id": 1 }
+```
+
+**Response 200:**
+```json
+{ "success": true, "data": { "package_uuid": "...", "addon_id": 1 } }
+```
+
+**Response 422:** addon tidak ditemukan atau sudah di-assign.
+
+### DELETE `/v1/hcm/saas/packages/{package}/addon-assignments/{addon}`
+
+Hapus assignment addon dari paket.
+
+**Response 200:**
+```json
+{ "success": true, "data": { "package_uuid": "...", "addon_id": 1 } }
+```
+
+**Notes:**
+- Semua 3 endpoint require global admin (primary super admin).
+- `GET /v1/hcm/saas/addons?package_uuid={uuid}` sekarang mem-filter hanya addon yang di-assign ke paket tersebut.
+- Response packages list sekarang menyertakan field `purchasableAddonsCount` (jumlah addon yang di-assign).

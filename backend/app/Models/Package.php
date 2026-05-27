@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Schema;
 
@@ -54,6 +55,21 @@ class Package extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class, 'package_uuid', 'uuid');
+    }
+
+    /**
+     * Add-ons available for purchase by tenants on this package.
+     */
+    public function availableAddons(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            PackageAddon::class,
+            'package_addon_assignments',
+            'package_uuid',
+            'package_addon_id',
+            'uuid',
+            'id'
+        )->withTimestamps();
     }
 
     /**

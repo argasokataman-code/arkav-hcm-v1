@@ -439,6 +439,14 @@ const bootstrapMethods = {
         }
       });
 
+      // Addon assignment checkboxes (event delegation on document)
+      document.addEventListener("change", function (e) {
+        const chk = e.target.closest("[data-addon-assign-toggle]");
+        if (chk) {
+          self.handleAddonAssignmentToggle(chk);
+        }
+      });
+
       const addonForm = document.getElementById("addonForm");
       if (addonForm) {
         addonForm.addEventListener("submit", function (e) {

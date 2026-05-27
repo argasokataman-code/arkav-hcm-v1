@@ -165,6 +165,7 @@ class PackageController extends Controller
                     $subQuery->whereIn('status', ['active', 'trial']);
                 },
                 'subscriptions as total_subscriptions_count',
+                'availableAddons as purchasable_addons_count',
             ])
             ->paginate($perPage);
 
@@ -182,6 +183,7 @@ class PackageController extends Controller
             'sortOrder' => $pkg->sort_order,
             'activeSubscriptionsCount' => (int) ($pkg->active_subscriptions_count ?? 0),
             'totalSubscriptionsCount' => (int) ($pkg->total_subscriptions_count ?? 0),
+            'purchasableAddonsCount' => (int) ($pkg->purchasable_addons_count ?? 0),
             'features' => $pkg->features->map(fn($f) => [
                 'id' => $f->id,
                 'code' => $f->feature_code,
@@ -232,11 +234,24 @@ class PackageController extends Controller
             $perPage = 100;
         }
 
+        // When package_uuid is provided, only return add-ons assigned to that
+        // package by the global admin (via package_addon_assignments table).
+        $packageUuid = trim((string) $request->get('package_uuid', ''));
+
         $query = PackageAddon::query();
         if ($status !== '' && $status !== 'all') {
             $query->where('status', $status);
         } elseif ($status === '' || $status === null) {
             $query->where('status', 'active');
+        }
+
+        if ($packageUuid !== '') {
+            $query->whereExists(function ($sub) use ($packageUuid) {
+                $sub->selectRaw('1')
+                    ->from('package_addon_assignments')
+                    ->whereColumn('package_addon_assignments.package_addon_id', 'package_addons.id')
+                    ->where('package_addon_assignments.package_uuid', $packageUuid);
+            });
         }
 
         if ($search !== '') {
@@ -823,6 +838,92 @@ class PackageController extends Controller
     {
         $user = $request->user();
         return $user ? $user->isGlobalHcmAdmin() : false;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Package Add-on Assignments
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * GET /v1/saas/packages/{package}/addon-assignments
+     * List all add-ons assigned to a package.
+     */
+    public function getAddonAssignments(Request $request, Package $package): JsonResponse
+    {
+        if (! $this->isHcmAdmin($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
+        $assigned = $package->availableAddons()->orderBy('code')->get();
+        $items = $assigned->map(fn (PackageAddon $addon) => $this->formatAddon($addon))->values()->toArray();
+
+        return response()->json(['success' => true, 'data' => $items]);
+    }
+
+    /**
+     * POST /v1/saas/packages/{package}/addon-assignments
+     * Assign an add-on to a package. Body: { "addon_id": <id|uuid|code> }
+     */
+    public function addAddonAssignment(Request $request, Package $package): JsonResponse
+    {
+        if (! $this->isHcmAdmin($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
+        $validated = $request->validate(['addon_id' => 'required|string']);
+        $addon = $this->resolveAddonByIdentifier((string) $validated['addon_id']);
+
+        if (! $addon) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'NOT_FOUND', 'message' => 'Package addon not found.'],
+            ], 404);
+        }
+
+        // syncWithoutDetaching ensures idempotent — no error if already assigned
+        $package->availableAddons()->syncWithoutDetaching([$addon->id]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Add-on assigned to package.',
+            'data' => $this->formatAddon($addon),
+        ]);
+    }
+
+    /**
+     * DELETE /v1/saas/packages/{package}/addon-assignments/{addon}
+     * Remove an add-on assignment from a package.
+     */
+    public function removeAddonAssignment(Request $request, Package $package, string $addon): JsonResponse
+    {
+        if (! $this->isHcmAdmin($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
+            ], 403);
+        }
+
+        $addonModel = $this->resolveAddonByIdentifier($addon);
+
+        if (! $addonModel) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'NOT_FOUND', 'message' => 'Package addon not found.'],
+            ], 404);
+        }
+
+        $package->availableAddons()->detach($addonModel->id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Add-on assignment removed from package.',
+        ]);
     }
 
     /**

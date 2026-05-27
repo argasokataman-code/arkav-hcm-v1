@@ -159,8 +159,11 @@ const dataMethods = {
 
                       <div class="d-flex align-items-center justify-content-between pt-3 border-top mt-auto">
                         <div class="d-flex gap-3">
-                          <span class="pkg-stat" title="Addon-tier features included">
+                          <span class="pkg-stat" title="Addon-tier features included in package">
                             <i class="ti ti-puzzle"></i>${addons} add-ons
+                          </span>
+                          <span class="pkg-stat" title="Purchasable add-ons available for tenants on this package">
+                            <i class="ti ti-shopping-cart"></i>${Number(pkg.purchasableAddonsCount || 0)} buyable
                           </span>
                           <span class="pkg-stat" title="Active subscriptions using this package">
                             <i class="ti ti-users"></i>${activeSubs.toLocaleString('id-ID')} active

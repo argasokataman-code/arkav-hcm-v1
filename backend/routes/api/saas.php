@@ -34,6 +34,11 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
     Route::put('/package-addons/{addon}', [PackageController::class, 'updateAddon']);
     Route::delete('/package-addons/{addon}', [PackageController::class, 'destroyAddon']);
 
+    // Package Add-on Assignments (which add-ons are available per package)
+    Route::get('/packages/{package}/addon-assignments', [PackageController::class, 'getAddonAssignments']);
+    Route::post('/packages/{package}/addon-assignments', [PackageController::class, 'addAddonAssignment']);
+    Route::delete('/packages/{package}/addon-assignments/{addon}', [PackageController::class, 'removeAddonAssignment']);
+
     // Package Features
     Route::get('/packages/{package}/features', [PackageController::class, 'getFeatures']);
     Route::post('/packages/{package}/features', [PackageController::class, 'addFeature']);

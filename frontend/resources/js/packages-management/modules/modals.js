@@ -173,6 +173,9 @@ const modalMethods = {
       if (maxEmployeesInput) {
         maxEmployeesInput.value = "";
       }
+      // Hide addon assignment section for new packages
+      const addonSection = document.getElementById('pkg_addon_assignment_section');
+      if (addonSection) addonSection.style.display = 'none';
       this._wizardGoToStep(1);
       this.resetPackageModalScrollState();
       this.queueComplianceSnapshotRefresh(true);
@@ -350,6 +353,7 @@ const modalMethods = {
             self.updateFeatureSelectionSummary();
 
             self.currentEditId = id;
+            self.loadPackageAddonAssignments(pkg.id || id);
             self._wizardGoToStep(1);
             self.resetPackageModalScrollState();
             self.queueComplianceSnapshotRefresh(true);
@@ -701,6 +705,93 @@ const modalMethods = {
     /**
      * Show success message
      */
+
+    // ─── Package Add-on Assignments ──────────────────────────────────────────
+
+    loadPackageAddonAssignments: function (packageUuid) {
+      const self = this;
+      const section = document.getElementById('pkg_addon_assignment_section');
+      const listEl = document.getElementById('pkg_addon_assign_list');
+      const countEl = document.getElementById('pkg_addon_assign_count');
+
+      if (!section || !listEl) return;
+      section.style.display = 'block';
+      listEl.innerHTML = '<span class="text-muted small fst-italic">Memuat...</span>';
+      if (countEl) countEl.textContent = '0';
+
+      // Load currently assigned addons for this package
+      apiRequest('GET', API_BASE + '/' + packageUuid + '/addon-assignments', null)
+        .then(function (res) {
+          const assigned = new Set((res.data || []).map(function (a) { return Number(a.id); }));
+          self.renderPackageAddonAssignments(packageUuid, assigned);
+        })
+        .catch(function () {
+          if (listEl) listEl.innerHTML = '<span class="text-danger small">Gagal memuat. Refresh halaman.</span>';
+        });
+    },
+
+    renderPackageAddonAssignments: function (packageUuid, assignedIds) {
+      const listEl = document.getElementById('pkg_addon_assign_list');
+      const countEl = document.getElementById('pkg_addon_assign_count');
+      if (!listEl) return;
+
+      const allAddons = Array.isArray(this.addons) ? this.addons : [];
+      if (!allAddons.length) {
+        listEl.innerHTML = '<span class="text-muted small fst-italic">Belum ada add-on di katalog global.</span>';
+        if (countEl) countEl.textContent = '0';
+        return;
+      }
+
+      if (countEl) countEl.textContent = String(assignedIds.size);
+
+      listEl.innerHTML = allAddons.map(function (addon) {
+        const addonId = Number(addon.id);
+        const checked = assignedIds.has(addonId) ? 'checked' : '';
+        const safeId = 'pkg_addon_chk_' + addonId;
+        return '<label class="d-flex align-items-center gap-2 border rounded px-3 py-2 cursor-pointer" style="font-size:.82rem;cursor:pointer" for="' + safeId + '">'
+          + '<input type="checkbox" class="form-check-input m-0 flex-shrink-0" id="' + safeId + '" '
+          + 'data-addon-assign-toggle="' + addonId + '" '
+          + 'data-addon-assign-package="' + esc(packageUuid) + '" '
+          + (checked ? 'checked' : '') + '>'
+          + '<span><span class="fw-medium">' + esc(addon.name || addon.code) + '</span>'
+          + '<span class="text-muted ms-2">' + esc(String(addon.code || '').toUpperCase()) + '</span></span>'
+          + '</label>';
+      }).join('');
+    },
+
+    handleAddonAssignmentToggle: function (checkbox) {
+      const self = this;
+      const addonId = checkbox.getAttribute('data-addon-assign-toggle');
+      const packageUuid = checkbox.getAttribute('data-addon-assign-package');
+      if (!addonId || !packageUuid) return;
+
+      const isChecked = checkbox.checked;
+      checkbox.disabled = true;
+
+      const method = isChecked ? 'POST' : 'DELETE';
+      const url = isChecked
+        ? API_BASE + '/' + packageUuid + '/addon-assignments'
+        : API_BASE + '/' + packageUuid + '/addon-assignments/' + addonId;
+      const body = isChecked ? { addon_id: addonId } : null;
+
+      apiRequest(method, url, body)
+        .then(function () {
+          checkbox.disabled = false;
+          // Update count badge
+          const listEl = document.getElementById('pkg_addon_assign_list');
+          const countEl = document.getElementById('pkg_addon_assign_count');
+          if (countEl && listEl) {
+            const checkedCount = listEl.querySelectorAll('input[type=checkbox]:checked').length;
+            countEl.textContent = String(checkedCount);
+          }
+        })
+        .catch(function () {
+          // Revert on failure
+          checkbox.checked = !isChecked;
+          checkbox.disabled = false;
+          self.showError('Gagal menyimpan perubahan add-on. Coba lagi.');
+        });
+    },
 };
 
 export default modalMethods;

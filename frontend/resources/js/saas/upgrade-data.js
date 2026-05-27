@@ -463,13 +463,43 @@
                 return;
             }
 
-            var addons = Array.isArray(ctx.addons) ? ctx.addons : [];
+            // Build set of feature codes already included in the active package so we
+            // can hide addons that the tenant already has via their subscription.
+            var activeFeatureCodes = new Set();
+            if (ctx.currentPackage && Array.isArray(ctx.currentPackage.features)) {
+                ctx.currentPackage.features.forEach(function (f) {
+                    if (f.isIncluded !== false && f.code) {
+                        activeFeatureCodes.add(String(f.code).trim().toLowerCase());
+                    }
+                });
+            }
+
+            var allAddons = Array.isArray(ctx.addons) ? ctx.addons : [];
+            var checkedOutHiddenCount = 0;
+            var addons = allAddons.filter(function (addon) {
+                var code = String(addon && addon.code || '').trim().toLowerCase();
+                var addonId = Number(addon && addon.id || 0);
+                // Hide if already in active package features
+                if (code && activeFeatureCodes.has(code)) { return false; }
+                // Hide if already purchased / pending payment
+                if (ctx.checkedOutAddonIds.has(addonId)) { checkedOutHiddenCount++; return false; }
+                return true;
+            });
+            var hiddenCount = allAddons.length - addons.length;
+
             if (!addons.length) {
-                addonCatalog.innerHTML = '<div class="col-12"><div class="upgrade-state-empty small text-muted">Saat ini belum ada add-on aktif yang bisa ditampilkan.</div></div>';
+                var emptyMsg = checkedOutHiddenCount > 0
+                    ? 'Semua add-on tersedia sudah aktif atau sedang dalam proses pembayaran.'
+                    : (hiddenCount > 0
+                        ? 'Semua add-on sudah termasuk dalam paket aktif kamu.'
+                        : 'Saat ini belum ada add-on yang bisa dibeli untuk paket kamu.');
+                addonCatalog.innerHTML = '<div class="col-12"><div class="upgrade-state-empty small text-muted">' + emptyMsg + '</div></div>';
                 return;
             }
 
-            addonCatalog.innerHTML = addons.map(function (addon) {
+            var hiddenNote = '';
+
+            addonCatalog.innerHTML = hiddenNote + addons.map(function (addon) {
                 var addonId = Number(addon && addon.id || 0);
                 var addonName = String(addon && addon.name || "Add-on");
                 var addonCode = String(addon && addon.code || "").toUpperCase();
@@ -499,7 +529,13 @@
         }
 
         function loadAddons() {
-            return apiRequest("get", "/saas/package-addons", { status: "active", per_page: 100 })
+            var params = { status: "active", per_page: 100 };
+            // Filter by current package so only admin-assigned add-ons appear.
+            var pkgUuid = ctx.currentPackage && ctx.currentPackage.uuid;
+            if (pkgUuid) {
+                params.package_uuid = pkgUuid;
+            }
+            return apiRequest("get", "/saas/package-addons", params)
                 .then(function (payload) {
                     var rows = Array.isArray(payload && payload.data) ? payload.data : [];
                     ctx.addons = rows.slice().sort(function (a, b) {

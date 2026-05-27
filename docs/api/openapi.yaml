@@ -8085,6 +8085,70 @@ paths:
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/saas/packages/{package}/addon-assignments:
+    get:
+      tags: [SaaS]
+      summary: List addon assignments for a package (global admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PackageUuidPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      package_uuid: { type: string, format: uuid }
+                      assigned_addon_ids: { type: array, items: { type: integer } }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [SaaS]
+      summary: Assign a purchasable addon to a package (global admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PackageUuidPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [addon_id]
+              properties:
+                addon_id: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/saas/packages/{package}/addon-assignments/{addon}:
+    delete:
+      tags: [SaaS]
+      summary: Remove addon assignment from a package (global admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PackageUuidPath'
+        - name: addon
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
   /v1/saas/packages/features/{feature}:
     put:
       tags: [SaaS]

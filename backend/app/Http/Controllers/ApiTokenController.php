@@ -18,19 +18,6 @@ class ApiTokenController extends Controller
      */
     public function getToken(Request $request)
     {
-        // Debug: log ALL headers
-        $allHeaders = $request->headers->all();
-        $cookie = $request->cookie('arcav_access_token') ? 'YES' : 'NO';
-        $bearer = $request->bearerToken() ? 'YES' : 'NO';
-        $authHeader = $request->headers->get('Authorization') ?? 'NONE';
-        \Log::info('API_TOKEN_CALLED', [
-            'cookie' => $cookie, 
-            'bearer' => $bearer, 
-            'auth_header' => $authHeader ? substr($authHeader, 0, 50) : 'NONE', 
-            'all_header_keys' => array_keys($allHeaders),
-            'path' => $request->path()
-        ]);
-
         $token = $request->attributes->get('authToken') ?: ArcavAccessTokenResolver::validTokenFromRequest($request);
         $user = $request->user() ?: ($token?->user) ?: Auth::user();
 

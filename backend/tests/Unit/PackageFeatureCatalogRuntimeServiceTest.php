@@ -13,8 +13,8 @@ class PackageFeatureCatalogRuntimeServiceTest extends TestCase
 
     public function test_db_overrides_change_mvp_and_addon()
     {
-        // Mark tickets as addon via DB override
-        FeatureClassification::create(['feature_code' => 'tickets', 'tier' => 'addon']);
+        // Mark tickets as addon via DB override (updateOrCreate — backfill migration may pre-populate)
+        FeatureClassification::updateOrCreate(['feature_code' => 'tickets'], ['tier' => 'addon']);
 
         $service = new PackageFeatureCatalogRuntimeService();
         $built = $service->build();

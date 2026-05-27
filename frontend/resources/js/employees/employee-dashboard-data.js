@@ -326,13 +326,15 @@
     }
 
     function apiGet(url) {
+        var token = (window.AuthApi && typeof window.AuthApi.getToken === "function" && window.AuthApi.getToken()) || localStorage.getItem("arcav_access_token");
+        var authHeaders = token ? { "Authorization": "Bearer " + token } : {};
         if (window.axios) {
-            return window.axios({ method: "get", url: url, headers: { Accept: "application/json" }, withCredentials: true }).then(function (r) {
+            return window.axios({ method: "get", url: url, headers: Object.assign({ Accept: "application/json" }, authHeaders), withCredentials: true }).then(function (r) {
                 return r.data;
             });
         }
 
-        return fetch(url, { method: "GET", headers: { Accept: "application/json" }, credentials: "same-origin" }).then(function (res) {
+        return fetch(url, { method: "GET", headers: Object.assign({ Accept: "application/json" }, authHeaders), credentials: "same-origin" }).then(function (res) {
             return res.json().catch(function () {
                 return {};
             }).then(function (data) {
@@ -343,15 +345,17 @@
     }
 
     function apiPost(url, body) {
+        var token = (window.AuthApi && typeof window.AuthApi.getToken === "function" && window.AuthApi.getToken()) || localStorage.getItem("arcav_access_token");
+        var authHeaders = token ? { "Authorization": "Bearer " + token } : {};
         if (window.axios) {
-            return window.axios({ method: "post", url: url, data: body, headers: { Accept: "application/json" }, withCredentials: true }).then(function (r) {
+            return window.axios({ method: "post", url: url, data: body, headers: Object.assign({ Accept: "application/json" }, authHeaders), withCredentials: true }).then(function (r) {
                 return r.data;
             });
         }
 
         return fetch(url, {
             method: "POST",
-            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            headers: Object.assign({ "Content-Type": "application/json", Accept: "application/json" }, authHeaders),
             credentials: "same-origin",
             body: JSON.stringify(body || {})
         }).then(function (res) {

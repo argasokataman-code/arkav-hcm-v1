@@ -10,6 +10,8 @@
 
     function apiRequest(method, url, body) {
         var headers = { Accept: "application/json" };
+        var token = (window.AuthApi && typeof window.AuthApi.getToken === "function" && window.AuthApi.getToken()) || localStorage.getItem("arcav_access_token");
+        if (token) { headers["Authorization"] = "Bearer " + token; }
         if (body && typeof body === "object" && !(body instanceof FormData)) {
             headers["Content-Type"] = "application/json";
         }

@@ -17,10 +17,14 @@
     // Get auth headers
     function getAuthHeaders() {
         var headers = {};
-        var token = document.querySelector('[data-auth-token]');
-        if (token && token.getAttribute('data-auth-token')) {
-            headers['Authorization'] = 'Bearer ' + token.getAttribute('data-auth-token');
+        var token = (window.AuthApi && typeof window.AuthApi.getToken === "function" && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        if (!token) {
+            var tokenEl = document.querySelector('[data-auth-token]');
+            if (tokenEl && tokenEl.getAttribute('data-auth-token')) {
+                token = tokenEl.getAttribute('data-auth-token');
+            }
         }
+        if (token) { headers['Authorization'] = 'Bearer ' + token; }
         var company = document.querySelector('[data-company-id]');
         if (company && company.getAttribute('data-company-id')) {
             headers['X-Company-Id'] = company.getAttribute('data-company-id');

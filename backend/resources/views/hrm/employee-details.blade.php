@@ -209,7 +209,12 @@
                     return;
                 }
                 fetch('/v1/hcm/employees/' + encodeURIComponent(id), {
-                    headers: { Accept: 'application/json' },
+                    headers: (function() {
+                        var h = { Accept: 'application/json' };
+                        var t = (window.AuthApi && typeof window.AuthApi.getToken === 'function' && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+                        if (t) { h['Authorization'] = 'Bearer ' + t; }
+                        return h;
+                    })(),
                     credentials: 'same-origin'
                 }).then(function (response) {
                     return response.json().catch(function () { return {}; }).then(function (payload) {

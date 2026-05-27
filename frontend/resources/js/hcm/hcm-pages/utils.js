@@ -3,7 +3,7 @@
 
     function getAuthHeaders() {
         var headers = {};
-        var token = window.AuthApi && typeof window.AuthApi.getToken === "function" ? window.AuthApi.getToken() : "";
+        var token = (window.AuthApi && typeof window.AuthApi.getToken === "function" ? window.AuthApi.getToken() : null) || localStorage.getItem("arcav_access_token") || "";
         var tenant = window.AuthApi && typeof window.AuthApi.getTenantContext === "function" ? window.AuthApi.getTenantContext() : null;
 
         if (token) {

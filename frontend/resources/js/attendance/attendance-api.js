@@ -8,6 +8,8 @@ export function onAuthFailure(status, data) {
 function getTenantHeaders() {
   var tenant = window.AuthApi && typeof window.AuthApi.getTenantContext === "function" ? window.AuthApi.getTenantContext() : null;
   var headers = {};
+  var token = (window.AuthApi && typeof window.AuthApi.getToken === "function" && window.AuthApi.getToken()) || localStorage.getItem("arcav_access_token");
+  if (token) { headers["Authorization"] = "Bearer " + token; }
   if (tenant && tenant.companyId !== undefined && tenant.companyId !== null && tenant.companyId !== "") {
     headers["X-Company-Id"] = String(tenant.companyId);
   }

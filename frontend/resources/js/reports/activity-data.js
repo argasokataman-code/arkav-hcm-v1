@@ -1,6 +1,13 @@
 (function () {
     'use strict';
 
+    function authHeaders(extra) {
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        var h = Object.assign({ 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, extra || {});
+        if (token) { h['Authorization'] = 'Bearer ' + token; }
+        return h;
+    }
+
     var tbody = document.querySelector('[data-activity-body]');
     if (!tbody) {
         return;
@@ -206,10 +213,7 @@
 
         return fetch(buildUrl(), {
             method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
+            headers: authHeaders(),
             credentials: 'same-origin',
         })
             .then(function (res) {
@@ -324,11 +328,7 @@
 
         fetch(url, {
             method: method,
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             credentials: 'same-origin',
             body: JSON.stringify(payload),
         })
@@ -375,10 +375,7 @@
 
             fetch('/v1/hcm/activity-manual/' + encodeURIComponent(normalizedId), {
                 method: 'DELETE',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
+                headers: authHeaders(),
                 credentials: 'same-origin',
             })
                 .then(function (res) {
@@ -488,10 +485,7 @@
 
         fetch('/v1/hcm/activity-feed-companies', {
             method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
+            headers: authHeaders(),
             credentials: 'same-origin',
         })
             .then(function (res) {

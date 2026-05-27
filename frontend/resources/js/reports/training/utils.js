@@ -36,7 +36,9 @@
   }
 
   async function apiRequest(method, url, body) {
-    const headers = { 'Content-Type': 'application/json' };
+    const token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+    const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    if (token) { headers['Authorization'] = 'Bearer ' + token; }
     if (window.axios) {
       try {
         const res = await window.axios.request({

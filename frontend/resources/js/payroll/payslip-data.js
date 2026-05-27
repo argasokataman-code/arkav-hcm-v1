@@ -11,17 +11,20 @@
   }).format(Number(value || 0));
 
   async function apiGet(url) {
+    const token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+    const authHeaders = { Accept: 'application/json' };
+    if (token) { authHeaders['Authorization'] = 'Bearer ' + token; }
     if (window.axios) {
       const response = await window.axios.get(url, {
         withCredentials: true,
-        headers: { Accept: 'application/json' },
+        headers: authHeaders,
       });
       return response.data;
     }
 
     const response = await fetch(url, {
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
+      headers: authHeaders,
     });
 
     const payload = await response.json().catch(() => ({}));

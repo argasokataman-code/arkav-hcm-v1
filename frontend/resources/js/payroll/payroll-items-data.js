@@ -103,6 +103,8 @@
         if (body && typeof body === "object" && !(body instanceof FormData)) {
             headers["Content-Type"] = "application/json";
         }
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        if (token) { headers['Authorization'] = 'Bearer ' + token; }
         if (window.axios) {
             return window.axios({ method: method, url: url, headers: headers, data: body, withCredentials: true })
                 .then(function (res) {

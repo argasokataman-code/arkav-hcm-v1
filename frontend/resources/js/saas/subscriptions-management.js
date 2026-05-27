@@ -5,12 +5,14 @@
   const PAGE_SIZE = 10;
   const subscriptionsHttp = window.ArcavSubscriptionsHttp || {};
   const apiRequest = subscriptionsHttp.apiRequest || function (method, url, body) {
+    const token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
     const opts = {
       method: method,
       headers: {
         Accept: "application/json",
         "X-Requested-With": "XMLHttpRequest",
         "Content-Type": "application/json",
+        ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
       },
       credentials: "same-origin",
     };

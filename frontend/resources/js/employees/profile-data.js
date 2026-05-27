@@ -141,11 +141,13 @@
     async function loadProfile() {
         clearFeedback();
 
+        const token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
         const response = await fetch('/v1/identity/auth/me', {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(token ? { 'Authorization': 'Bearer ' + token } : {})
             },
             credentials: 'same-origin'
         });
@@ -183,12 +185,14 @@
         try {
             setLoading(true);
 
+            const token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
             const response = await fetch('/v1/identity/auth/profile', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(token ? { 'Authorization': 'Bearer ' + token } : {})
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify(payload)

@@ -55,11 +55,14 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
 
     function requestAuthMe() {
         var url = "/v1/identity/auth/me";
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        var authHeaders = { Accept: "application/json" };
+        if (token) { authHeaders['Authorization'] = 'Bearer ' + token; }
         if (window.axios) {
             return window.axios({
                 method: "get",
                 url: url,
-                headers: { Accept: "application/json" },
+                headers: authHeaders,
                 withCredentials: true,
             }).then(function (res) {
                 return res.data;
@@ -71,7 +74,7 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
             });
         }
         return fetch(url, {
-            headers: { Accept: "application/json" },
+            headers: authHeaders,
             credentials: "same-origin",
         }).then(function (res) {
             return res.json().catch(function () { return {}; }).then(function (data) {
@@ -85,14 +88,15 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
 
     function requestEmployees(perPage, page) {
         var API_URL = employeesListUrl(perPage, page);
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        var authHeaders = { Accept: "application/json" };
+        if (token) { authHeaders['Authorization'] = 'Bearer ' + token; }
 
         if (window.axios) {
             return window.axios({
                 method: "get",
                 url: API_URL,
-                headers: {
-                    Accept: "application/json",
-                },
+                headers: authHeaders,
                 withCredentials: true,
             }).then(function (res) {
                 return res.data;
@@ -105,9 +109,7 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
         }
 
         return fetch(API_URL, {
-            headers: {
-                Accept: "application/json",
-            },
+            headers: authHeaders,
             credentials: "same-origin",
         }).then(function (res) {
             return res.json().catch(function () { return {}; }).then(function (data) {
@@ -262,6 +264,8 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
         var m = String(method || "get").toLowerCase();
         var tenant = window.AuthApi && typeof window.AuthApi.getTenantContext === "function" ? window.AuthApi.getTenantContext() : null;
         var extraHeaders = {};
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        if (token) { extraHeaders['Authorization'] = 'Bearer ' + token; }
         if (tenant && tenant.companyId !== undefined && tenant.companyId !== null && tenant.companyId !== "") {
             extraHeaders["X-Company-Id"] = String(tenant.companyId);
         }
@@ -308,11 +312,13 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
     }
 
     function requestFormData(method, url, formData) {
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        var authHeader = token ? { 'Authorization': 'Bearer ' + token } : {};
         if (window.axios) {
             return window.axios({
                 method: method,
                 url: url,
-                headers: { Accept: "application/json" },
+                headers: Object.assign({ Accept: "application/json" }, authHeader),
                 data: formData,
                 withCredentials: true,
             }).then(function (res) {
@@ -327,7 +333,7 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
 
         return fetch(url, {
             method: method.toUpperCase(),
-            headers: { Accept: "application/json" },
+            headers: Object.assign({ Accept: "application/json" }, authHeader),
             credentials: "same-origin",
             body: formData,
         }).then(function (res) {

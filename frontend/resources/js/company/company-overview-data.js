@@ -83,11 +83,14 @@
     }
 
     function apiGet(url) {
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        var headers = { Accept: 'application/json' };
+        if (token) { headers['Authorization'] = 'Bearer ' + token; }
         if (window.axios) {
-            return window.axios({ method: 'get', url: url, headers: { Accept: 'application/json' }, withCredentials: true })
+            return window.axios({ method: 'get', url: url, headers: headers, withCredentials: true })
                 .then(function (resp) { return resp.data; });
         }
-        return fetch(url, { method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        return fetch(url, { method: 'GET', credentials: 'same-origin', headers: headers })
             .then(function (res) { return res.json(); });
     }
 

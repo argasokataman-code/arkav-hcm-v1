@@ -5,12 +5,15 @@
     var totalPages = 1;
 
     function apiRequest(method, url) {
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        var authHeaders = { Accept: 'application/json' };
+        if (token) { authHeaders['Authorization'] = 'Bearer ' + token; }
         if (window.axios) {
-            return window.axios({ method: method, url: url, withCredentials: true }).then(function (res) {
+            return window.axios({ method: method, url: url, headers: authHeaders, withCredentials: true }).then(function (res) {
                 return res.data;
             });
         }
-        return fetch(url, { method: method, credentials: "same-origin", headers: { Accept: "application/json" } }).then(function (res) {
+        return fetch(url, { method: method, credentials: 'same-origin', headers: authHeaders }).then(function (res) {
             return res.json().then(function (payload) {
                 if (!res.ok) {
                     throw { status: res.status, data: payload };

@@ -15,11 +15,11 @@
      * Fetch data
      * ────────────────────────────────────────────*/
     function loadData() {
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        var reqHeaders = { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' };
+        if (token) { reqHeaders['Authorization'] = 'Bearer ' + token; }
         fetch(apiUrl, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-            },
+            headers: reqHeaders,
             credentials: 'same-origin',
         })
             .then(function (res) { return res.json(); })

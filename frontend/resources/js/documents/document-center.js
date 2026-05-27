@@ -33,7 +33,9 @@
   }
 
   async function apiRequest(method, url, body) {
-    const headers = { 'Content-Type': 'application/json' };
+    const token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+    const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    if (token) { headers['Authorization'] = 'Bearer ' + token; }
     if (window.axios) {
       try {
         const res = await window.axios.request({
@@ -76,12 +78,15 @@
   }
 
   async function apiFormRequest(method, url, formData) {
+    const token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+    const authHeader = token ? { 'Authorization': 'Bearer ' + token } : {};
     if (window.axios) {
       try {
         const res = await window.axios.request({
           method,
           url,
           data: formData,
+          headers: authHeader,
           withCredentials: true,
         });
         return res.data;
@@ -98,6 +103,7 @@
     const res = await fetch(url, {
       method,
       body: formData,
+      headers: authHeader,
       credentials: 'same-origin',
     });
     const text = await res.text();

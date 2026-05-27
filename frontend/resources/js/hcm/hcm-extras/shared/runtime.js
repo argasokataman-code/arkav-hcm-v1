@@ -15,6 +15,8 @@ function getTenantContext() {
 
 export function withTenantHeaders(headers) {
     var h = headers || {};
+    var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+    if (token) { h['Authorization'] = 'Bearer ' + token; }
     var tenant = getTenantContext();
     if (tenant.companyCode) {
         h["X-Company-Code"] = String(tenant.companyCode);

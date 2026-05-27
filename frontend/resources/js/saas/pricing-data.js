@@ -75,10 +75,11 @@
       });
     }
 
+    const token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
     return fetch(url, {
       method: "GET",
       credentials: "same-origin",
-      headers: { Accept: "application/json" },
+      headers: Object.assign({ Accept: "application/json" }, token ? { 'Authorization': 'Bearer ' + token } : {}),
     }).then(function (response) {
       return response.json().catch(function () {
         return {};

@@ -14,6 +14,8 @@
             ? window.AuthApi.getTenantContext()
             : {};
         var h = { Accept: "application/json", "Content-Type": "application/json" };
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        if (token) { h['Authorization'] = 'Bearer ' + token; }
         if (ctx.companyId)   h["X-Company-Id"]   = ctx.companyId;
         if (ctx.companyCode) h["X-Company-Code"] = ctx.companyCode;
         if (ctx.companyUuid) h["X-Company-Uuid"] = ctx.companyUuid;

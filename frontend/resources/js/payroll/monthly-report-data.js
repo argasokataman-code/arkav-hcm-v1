@@ -20,8 +20,11 @@
     }
 
     function apiRequest(method, url) {
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        var authHeaders = { Accept: 'application/json' };
+        if (token) { authHeaders['Authorization'] = 'Bearer ' + token; }
         if (window.axios) {
-            return window.axios({ method: method, url: url, withCredentials: true, headers: { Accept: "application/json" } })
+            return window.axios({ method: method, url: url, withCredentials: true, headers: authHeaders })
                 .then(function (response) { return response.data; })
                 .catch(function (error) {
                     var data = error && error.response ? error.response.data : null;
@@ -32,7 +35,7 @@
         return fetch(url, {
             method: method,
             credentials: "same-origin",
-            headers: { Accept: "application/json" },
+            headers: authHeaders,
         }).then(function (response) {
             return response.json().catch(function () { return {}; }).then(function (data) {
                 if (!response.ok) {

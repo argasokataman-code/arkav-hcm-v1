@@ -904,7 +904,7 @@
 
                 return fetch("/v1/hcm/employees/" + encodeURIComponent(id) + "/profile-photo", {
                     method: "POST",
-                    headers: { Accept: "application/json" },
+                    headers: Object.assign({ Accept: "application/json" }, getAuthHeaders()),
                     credentials: "same-origin",
                     body: fd,
                 }).then(function (res) {

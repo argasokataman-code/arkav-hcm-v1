@@ -81,6 +81,8 @@
 
     function apiRequest(method, url) {
         var headers = { Accept: "application/json" };
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        if (token) { headers['Authorization'] = 'Bearer ' + token; }
         if (window.axios) {
             return window.axios({ method: method, url: url, headers: headers, withCredentials: true }).then(function (res) {
                 return res.data;

@@ -381,6 +381,8 @@
             Accept: "application/json",
             "X-Requested-With": "XMLHttpRequest",
         };
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        if (token) { headers['Authorization'] = 'Bearer ' + token; }
         var tenant = getTenantContext();
         if (tenant && tenant.companyCode) headers["X-Company-Code"] = String(tenant.companyCode);
         if (tenant && tenant.companyId) headers["X-Company-Id"] = String(tenant.companyId);

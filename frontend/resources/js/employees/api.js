@@ -1,4 +1,10 @@
 // API helpers moved out of the big employees-data file
+function _bearerHeaders(extra) {
+    var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+    var h = Object.assign({ Accept: 'application/json' }, extra || {});
+    if (token) { h['Authorization'] = 'Bearer ' + token; }
+    return h;
+}
 export function employeesListUrl(perPage, page) {
     var n = perPage != null ? perPage : 20;
     var p = page != null ? page : 1;
@@ -11,7 +17,7 @@ export function requestAuthMe() {
         return window.axios({
             method: "get",
             url: url,
-            headers: { Accept: "application/json" },
+            headers: _bearerHeaders(),
             withCredentials: true,
         }).then(function (res) {
             return res.data;
@@ -23,7 +29,7 @@ export function requestAuthMe() {
         });
     }
     return fetch(url, {
-        headers: { Accept: "application/json" },
+        headers: _bearerHeaders(),
         credentials: "same-origin",
     }).then(function (res) {
         return res.json().catch(function () { return {}; }).then(function (data) {
@@ -42,9 +48,7 @@ export function requestEmployees(perPage, page) {
         return window.axios({
             method: "get",
             url: API_URL,
-            headers: {
-                Accept: "application/json",
-            },
+            headers: _bearerHeaders(),
             withCredentials: true,
         }).then(function (res) {
             return res.data;
@@ -57,9 +61,7 @@ export function requestEmployees(perPage, page) {
     }
 
     return fetch(API_URL, {
-        headers: {
-            Accept: "application/json",
-        },
+        headers: _bearerHeaders(),
         credentials: "same-origin",
     }).then(function (res) {
         return res.json().catch(function () { return {}; }).then(function (data) {
@@ -121,6 +123,8 @@ export function requestJson(method, url, payload) {
     var m = String(method || "get").toLowerCase();
     var tenant = window.AuthApi && typeof window.AuthApi.getTenantContext === "function" ? window.AuthApi.getTenantContext() : null;
     var extraHeaders = {};
+    var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+    if (token) { extraHeaders['Authorization'] = 'Bearer ' + token; }
     if (tenant && tenant.companyId !== undefined && tenant.companyId !== null && tenant.companyId !== "") {
         extraHeaders["X-Company-Id"] = String(tenant.companyId);
     }
@@ -167,11 +171,13 @@ export function requestJson(method, url, payload) {
 }
 
 export function requestFormData(method, url, formData) {
+    var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+    var authHeader = token ? { 'Authorization': 'Bearer ' + token } : {};
     if (window.axios) {
         return window.axios({
             method: method,
             url: url,
-            headers: { Accept: "application/json" },
+            headers: Object.assign({ Accept: "application/json" }, authHeader),
             data: formData,
             withCredentials: true,
         }).then(function (res) {
@@ -186,7 +192,7 @@ export function requestFormData(method, url, formData) {
 
     return fetch(url, {
         method: method.toUpperCase(),
-        headers: { Accept: "application/json" },
+        headers: Object.assign({ Accept: "application/json" }, authHeader),
         credentials: "same-origin",
         body: formData,
     }).then(function (res) {

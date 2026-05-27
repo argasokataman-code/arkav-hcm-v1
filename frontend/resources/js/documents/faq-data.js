@@ -26,6 +26,8 @@
             Accept: "application/json",
             "Content-Type": "application/json"
         };
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        if (token) { headers['Authorization'] = 'Bearer ' + token; }
 
         if (context.companyId) {
             headers["X-Company-Id"] = String(context.companyId);

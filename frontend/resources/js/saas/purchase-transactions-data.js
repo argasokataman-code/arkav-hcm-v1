@@ -4,10 +4,13 @@
   const API_BASE = "/v1/saas/transactions";
   const PAGE_SIZE = 15;
 
-  // Get API token from server (same pattern as super-admin-dashboard-data.js)
+  // Shared token key – same as api-client.js so both stay in sync
+  var TOKEN_KEY = "arcav_access_token";
+
+  // Get API token: prefer cached arcav_access_token, fall back to /api-token fetch
   function getApiToken() {
     return new Promise(function (resolve, reject) {
-      var cached = localStorage.getItem("saas_api_token");
+      var cached = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem(TOKEN_KEY);
       if (cached) {
         resolve(cached);
         return;
@@ -32,7 +35,7 @@
         })
         .then(function (data) {
           if (data && data.success && data.data && data.data.token) {
-            localStorage.setItem("saas_api_token", data.data.token);
+            localStorage.setItem(TOKEN_KEY, data.data.token);
             resolve(data.data.token);
           } else {
             reject(new Error("Failed to get API token"));
@@ -54,7 +57,7 @@
     }
 
     // Add authorization token if available
-    const token = localStorage.getItem("saas_api_token");
+    const token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem(TOKEN_KEY);
     if (token) {
       headers["Authorization"] = "Bearer " + token;
     }
@@ -78,6 +81,22 @@
           })
           .then(function (data) {
             if (!res.ok) {
+              // On 401: clear stale cached token and retry once with fresh /api-token
+              if (res.status === 401 && !opts._retried) {
+                localStorage.removeItem(TOKEN_KEY);
+                return fetch("/api-token", { method: "GET", headers: { Accept: "application/json" }, credentials: "include" })
+                  .then(function (r) { return r.json(); })
+                  .then(function (freshData) {
+                    if (freshData && freshData.success && freshData.data && freshData.data.token) {
+                      localStorage.setItem(TOKEN_KEY, freshData.data.token);
+                      opts.headers["Authorization"] = "Bearer " + freshData.data.token;
+                      opts._retried = true;
+                      return fetch(url, opts).then(function (r2) { return r2.json().catch(function () { return {}; }); });
+                    }
+                    return data;
+                  })
+                  .catch(function () { return data; });
+              }
               return Promise.reject({
                 status: res.status,
                 data: data,

@@ -40,7 +40,7 @@
       headers["Content-Type"] = "application/json";
     }
 
-    const token = localStorage.getItem("saas_api_token");
+    const token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem("arcav_access_token");
     if (token) {
       headers.Authorization = "Bearer " + token;
     }
@@ -107,7 +107,7 @@
         })
         .then(function (data) {
           if (data && data.success && data.data && data.data.token) {
-            localStorage.setItem("saas_api_token", data.data.token);
+            localStorage.setItem("arcav_access_token", data.data.token);
             resolve(data.data.token);
           } else {
             reject(new Error("Failed to get API token: " + JSON.stringify(data)));

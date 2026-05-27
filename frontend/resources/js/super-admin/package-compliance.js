@@ -18,8 +18,11 @@
      * ─────────────────────────────────────────*/
     function loadData() {
         showTableLoading();
+        var token = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+        var headers = { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
         fetch(apiUrl, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            headers: headers,
             credentials: 'same-origin',
         })
             .then(function (r) { return r.json(); })
@@ -324,7 +327,13 @@
             showEmployeeDetailModal();
 
             fetch(detailApiUrl + '/' + companyId + '/employees', {
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                headers: Object.assign(
+                    { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    (function () {
+                        var t = (window.AuthApi && window.AuthApi.getToken()) || localStorage.getItem('arcav_access_token');
+                        return t ? { 'Authorization': 'Bearer ' + t } : {};
+                    }())
+                ),
                 credentials: 'same-origin',
             })
                 .then(function (r) { return r.json(); })

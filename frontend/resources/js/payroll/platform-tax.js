@@ -43,12 +43,9 @@
   }
 
   function apiRequest(method, url) {
-    const token = (function () {
-      const m = document.cookie.match(/(?:^|;\s*)api_token=([^;]+)/);
-      if (m) return decodeURIComponent(m[1]);
-      const el = document.querySelector('[data-api-token]');
-      return el ? el.getAttribute('data-api-token') : null;
-    }());
+    // Resolve bearer token: prefer AuthApi (api-client.js), fall back to localStorage key
+    const token = (window.AuthApi && window.AuthApi.getToken())
+      || localStorage.getItem("arcav_access_token");
 
     const headers = { "Content-Type": "application/json", "Accept": "application/json" };
     if (token) headers["Authorization"] = "Bearer " + token;

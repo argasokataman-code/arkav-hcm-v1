@@ -84,9 +84,12 @@ class ApiTokenController extends Controller
             }
         }
 
-        // No valid cookie — clean up only expired tokens and mint a fresh one.
+        // No valid cookie — clean up only already-expired tokens and mint a fresh one.
+        // IMPORTANT: Do not delete tokens that are still valid (even if expiring soon).
+        // Deleting a valid login token (1-hour TTL) while concurrent API calls are still
+        // using it causes a race-condition 401 → redirect-to-login loop.
         AuthToken::where('user_id', $user->id)
-            ->where('expires_at', '<=', now()->addHours(2))
+            ->where('expires_at', '<=', now())
             ->delete();
 
         $rawToken = bin2hex(random_bytes(32));

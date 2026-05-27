@@ -38,15 +38,20 @@ class CustomAuthController extends Controller
             $user = Auth::user();
 
             // Create API token so browser JS (e.g. /v1/identity/auth/me) works after web login.
-            // Revoke previous tokens first — enforce single active token per user.
+            // Do NOT revoke previous tokens — let them expire naturally.
+            // Aggressive token cleanup causes issues when requests reference old session tokens.
             $plainToken = Str::random(64);
             $expiresIn = (int) config('auth.api_token_cookie.ttl_seconds', 3600);
-            AuthToken::where('user_id', $user->id)->delete();
-            AuthToken::create([
+            $token = AuthToken::create([
                 'user_id' => $user->id,
                 'token_hash' => hash('sha256', $plainToken),
                 'expires_at' => now()->addSeconds($expiresIn),
             ]);
+
+
+
+            // DO NOT store in session - session persistence is unreliable across requests.
+            // Rely on browser cookie + /api-token endpoint to manage tokens.
 
             $cookieName = (string) config('auth.api_token_cookie.name', 'arcav_access_token');
             $cookiePath = (string) config('auth.api_token_cookie.path', '/');

@@ -9,7 +9,10 @@ export function onAuthFailure(status: number, data: unknown): boolean {
 }
 
 export function apiRequest(method: string, url: string, body?: object): Promise<unknown> {
+    const authApi = (window as unknown as { AuthApi?: { getToken?: () => string | null } }).AuthApi;
+    const token = (authApi && typeof authApi.getToken === "function" && authApi.getToken()) || localStorage.getItem("arcav_access_token");
     const headers: Record<string, string> = { Accept: "application/json" };
+    if (token) { headers["Authorization"] = "Bearer " + token; }
     if (body && typeof body === "object") {
         headers["Content-Type"] = "application/json";
     }
@@ -251,6 +254,10 @@ export function toast(message: string, danger: boolean): void {
 
 export function fetchThrSlipPdfBlob(lineId: number): Promise<Blob> {
     const url = `/v1/hcm/payroll/thr-batch/lines/${lineId}/slip`;
+    const authApi = (window as unknown as { AuthApi?: { getToken?: () => string | null } }).AuthApi;
+    const slipToken = (authApi && typeof authApi.getToken === "function" && authApi.getToken()) || localStorage.getItem("arcav_access_token");
+    const slipHeaders: Record<string, string> = { Accept: "application/pdf" };
+    if (slipToken) { slipHeaders["Authorization"] = "Bearer " + slipToken; }
     const axios = (window as unknown as { axios?: (config: object) => Promise<{ data: Blob }> }).axios;
     if (axios) {
         return axios({
@@ -258,12 +265,12 @@ export function fetchThrSlipPdfBlob(lineId: number): Promise<Blob> {
             url,
             responseType: "blob",
             withCredentials: true,
-            headers: { Accept: "application/pdf" },
+            headers: slipHeaders,
         }).then((response) => response.data);
     }
     return fetch(url, {
         credentials: "same-origin",
-        headers: { Accept: "application/pdf" },
+        headers: slipHeaders,
     }).then(async (response) => {
         if (!response.ok) {
             const contentType = response.headers.get("content-type") || "";

@@ -60,7 +60,8 @@ Memulai hosted checkout untuk invoice tenant. Nama path tetap `mock-hosted-check
 
 - Jika konfigurasi Midtrans aktif (`MIDTRANS_SERVER_KEY` set), endpoint membuat transaksi Snap Midtrans dan mengembalikan `flow.snapToken` (untuk popup) dan `flow.hostedCheckoutUrl` (redirect fallback).
 - Runtime policy checkout:
-  - **Local/ngrok:** Midtrans Snap dipakai jika `MIDTRANS_SERVER_KEY` tersedia. Mock hanya aktif jika `APP_MOCK_PAYMENTS_ENABLED=true`.
+  - **Local (`APP_ENV=local`):** Selalu pakai mock gateway (`hostedCheckoutUrl` ke mock-hosted-payment.html). Midtrans Snap **tidak digunakan** di local untuk menghindari ketergantungan webhook publik. Mock override aktif otomatis tanpa perlu set `APP_MOCK_PAYMENTS_ENABLED`.
+  - **Non-local (staging/production):** Midtrans Snap dipakai jika `MIDTRANS_SERVER_KEY` tersedia. Mock hanya aktif jika `APP_MOCK_PAYMENTS_ENABLED=true`.
   - **Production:** Midtrans Snap; `is_production=true` di config.
 - Jika ada pending payment Midtrans yang belum expired, endpoint mengembalikan token yang sama (idempoten).
 

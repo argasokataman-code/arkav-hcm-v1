@@ -2581,8 +2581,8 @@ paths:
   /v1/hcm/billing/invoices/{id}/mock-hosted-checkout:
     post:
       tags: [SaaS, HCM]
-      summary: Start Midtrans Snap hosted checkout for a tenant invoice
-      description: Creates a Midtrans Snap transaction and returns a snapToken (for popup) and hostedCheckoutUrl (redirect fallback). Reuses existing pending Midtrans payment when available (idempotent).
+      summary: Start hosted checkout for a tenant invoice
+      description: "Gateway routing: on local env (APP_ENV=local) always uses mock gateway (hostedCheckoutUrl to mock-hosted-payment.html). On staging/production uses Midtrans Snap when MIDTRANS_SERVER_KEY is set (returns snapToken for popup and hostedCheckoutUrl as redirect fallback). Reuses existing pending payment when available (idempotent)."
       security:
         - bearerAuth: []
       parameters:

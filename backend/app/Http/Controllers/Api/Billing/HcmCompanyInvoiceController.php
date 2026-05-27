@@ -565,13 +565,18 @@ class HcmCompanyInvoiceController
 
     private function canUseMockCheckout(Request $request): bool
     {
-        return (bool) config('app.mock_payments_enabled');
+        return app()->isLocal() || (bool) config('app.mock_payments_enabled');
     }
 
     private function shouldUseMidtransCheckout(string $gatewayMode): bool
     {
         if ($gatewayMode === 'mock') {
             return false;
+        }
+
+        // In local dev, force mock gateway so webhook flows don't require a public URL
+        if (app()->isLocal()) {
+            return $gatewayMode === 'midtrans' && (bool) config('services.midtrans.server_key');
         }
 
         if ($gatewayMode === 'midtrans') {

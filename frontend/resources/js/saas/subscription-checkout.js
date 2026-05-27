@@ -76,6 +76,33 @@
         window.location.assign(String(url));
     }
 
+    // Poll invoice status until is_paid=true or max attempts reached.
+    // Used after Snap onSuccess to handle webhook delivery delay.
+    function pollUntilPaid(invoiceId, onPaid, onTimeout, intervalMs, maxAttempts) {
+        var attempts = 0;
+        function check() {
+            attempts++;
+            api("get", "/hcm/billing/invoices/" + encodeURIComponent(invoiceId))
+                .then(function (payload) {
+                    if (payload && payload.data && (payload.data.isPaid || payload.data.is_paid)) {
+                        onPaid();
+                    } else if (attempts < maxAttempts) {
+                        window.setTimeout(check, intervalMs);
+                    } else {
+                        onTimeout();
+                    }
+                })
+                .catch(function () {
+                    if (attempts < maxAttempts) {
+                        window.setTimeout(check, intervalMs);
+                    } else {
+                        onTimeout();
+                    }
+                });
+        }
+        window.setTimeout(check, intervalMs);
+    }
+
     function getTenantContext() {
         try {
             if (window.AuthApi && typeof window.AuthApi.getTenantContext === "function") {
@@ -572,8 +599,16 @@
             var completedMsg = isInactiveContext
                 ? "Pembayaran berhasil. Akses company sedang dipulihkan. Mengarahkan ke dashboard dalam 3 detik..."
                 : "Pembayaran berhasil! Mengarahkan ke dashboard dalam 3 detik...";
-            await loadInvoiceById(invoiceId, completedMsg, "success");
-            window.setTimeout(function () { redirectTo("/index"); }, 3000);
+            showFeedback("success", isInactiveContext
+                ? "Pembayaran berhasil. Menunggu konfirmasi aktivasi..."
+                : "Pembayaran berhasil! Menunggu konfirmasi dari server...");
+            // Poll until backend has processed the payment webhook and activated subscription
+            pollUntilPaid(invoiceId, function () {
+                loadInvoiceById(invoiceId, completedMsg, "success");
+                window.setTimeout(function () { redirectTo("/index"); }, 3000);
+            }, function () {
+                loadInvoiceById(invoiceId, "Pembayaran berhasil namun konfirmasi membutuhkan waktu lebih lama. Silakan refresh halaman.", "info");
+            }, 2500, 12);
             return true;
         }
 
@@ -611,8 +646,15 @@
                 window.snap.pay(snapToken, {
                     onSuccess: function (result) {
                         var invoiceId = String(currentInvoice.id || "");
-                        loadInvoiceById(invoiceId, "Pembayaran berhasil! Mengarahkan ke dashboard dalam 3 detik...", "success");
-                        window.setTimeout(function () { redirectTo("/index"); }, 3000);
+                        showFeedback("success", "Pembayaran berhasil! Menunggu konfirmasi dari server...");
+                        // Poll backend until webhook has activated subscription, then redirect
+                        pollUntilPaid(invoiceId, function () {
+                            loadInvoiceById(invoiceId, "Pembayaran berhasil! Mengarahkan ke dashboard dalam 3 detik...", "success");
+                            window.setTimeout(function () { redirectTo("/index"); }, 3000);
+                        }, function () {
+                            // Webhook timed out — still show success but tell user to refresh
+                            loadInvoiceById(invoiceId, "Pembayaran berhasil namun konfirmasi membutuhkan waktu lebih lama. Silakan refresh halaman.", "info");
+                        }, 2500, 12);
                     },
                     onPending: function (result) {
                         var invoiceId = String(currentInvoice.id || "");

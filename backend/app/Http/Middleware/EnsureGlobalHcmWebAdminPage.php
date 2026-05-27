@@ -19,6 +19,13 @@ class EnsureGlobalHcmWebAdminPage
     {
         $user = $this->resolveUser($request);
 
+        \Log::info('EnsureGlobalHcmWebAdminPage', [
+            'path' => $request->path(),
+            'user_found' => $user ? 'yes' : 'no',
+            'user_email' => $user?->email ?? 'none',
+            'is_global_admin' => $user?->isGlobalHcmAdmin() ? 'yes' : 'no'
+        ]);
+
         if (! $user instanceof User) {
             return redirect()->to(url('login'));
         }

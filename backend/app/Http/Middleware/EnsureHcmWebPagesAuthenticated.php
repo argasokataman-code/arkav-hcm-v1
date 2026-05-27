@@ -29,18 +29,28 @@ class EnsureHcmWebPagesAuthenticated
         }
 
         $token = ArcavAccessTokenResolver::validTokenFromRequest($request);
+        $tokenCheckInfo = [
+            'path' => $request->path(),
+            'token_found' => $token ? 'yes' : 'no',
+            'bearer' => $request->bearerToken() ? 'yes' : 'no',
+            'auth_check' => Auth::check() ? 'yes' : 'no'
+        ];
+
         if ($token && $token->user) {
             $request->setUserResolver(fn () => $token->user);
             $this->resolveTenantContext($request, $token->user);
 
             if ($redirect = $this->primarySuperAdminCodeOneGuard($request, $token->user)) {
+                \Log::info('EnsureHcmWebPages_REDIRECT', array_merge($tokenCheckInfo, ['reason' => 'primary_super_admin']));
                 return $redirect;
             }
 
             if ($redirect = $this->subscriptionLockRedirectResponse($request)) {
+                \Log::info('EnsureHcmWebPages_REDIRECT', array_merge($tokenCheckInfo, ['reason' => 'subscription_lock']));
                 return $redirect;
             }
 
+            \Log::info('EnsureHcmWebPages_PASS_TOKEN', $tokenCheckInfo);
             return $next($request);
         }
 
@@ -52,17 +62,21 @@ class EnsureHcmWebPagesAuthenticated
                 $this->resolveTenantContext($request, $sessionUser);
 
                 if ($redirect = $this->primarySuperAdminCodeOneGuard($request, $sessionUser)) {
+                    \Log::info('EnsureHcmWebPages_REDIRECT', array_merge($tokenCheckInfo, ['reason' => 'primary_super_admin_session']));
                     return $redirect;
                 }
 
                 if ($redirect = $this->subscriptionLockRedirectResponse($request)) {
+                    \Log::info('EnsureHcmWebPages_REDIRECT', array_merge($tokenCheckInfo, ['reason' => 'subscription_lock_session']));
                     return $redirect;
                 }
             }
 
+            \Log::info('EnsureHcmWebPages_PASS_SESSION', $tokenCheckInfo);
             return $next($request);
         }
 
+        \Log::info('EnsureHcmWebPages_FAIL', $tokenCheckInfo);
         return redirect()
             ->guest(url('lock-screen'))
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');

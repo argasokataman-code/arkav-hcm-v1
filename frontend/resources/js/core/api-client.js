@@ -83,8 +83,14 @@
     function getToken() {
         try {
             var token = window.localStorage.getItem(TOKEN_KEY);
+            if (typeof console !== "undefined" && console.log) {
+                console.log("getToken: Retrieved from localStorage with key '" + TOKEN_KEY + "': " + (token ? token.length + " chars" : "NULL"));
+            }
             return token && typeof token === "string" ? token : null;
         } catch (_e) {
+            if (typeof console !== "undefined" && console.error) {
+                console.error("getToken: Failed to read from localStorage:", _e.message);
+            }
             return null;
         }
     }
@@ -211,6 +217,11 @@
 
         authSessionMonitorInFlight = true;
 
+        if (typeof console !== "undefined" && console.log) {
+            var token = getToken();
+            console.log("probeAuthSession called, has token:", !!token);
+        }
+
         // Use /api-token (web route, session-aware) instead of /v1/identity/auth/me
         // (token-only). This works with the PHP session even after the short-lived
         // T0 login cookie expires. On success, store the token in localStorage so
@@ -247,6 +258,14 @@
         if (authSessionMonitorTimerId || !shouldStartAuthSessionMonitor()) {
             return;
         }
+
+        if (typeof console !== "undefined" && console.log) {
+            console.log("startAuthSessionMonitor: Starting interval");
+        }
+
+        // Call probeAuthSession immediately on first load to ensure token is populated
+        // BEFORE page-specific modules (like saas-billing-overview.js) try to use it
+        probeAuthSession();
 
         authSessionMonitorTimerId = window.setInterval(function () {
             probeAuthSession();
@@ -435,6 +454,14 @@
         var token = getToken();
         if (token) {
             headers["Authorization"] = "Bearer " + token;
+            // Debug logging
+            if (typeof console !== "undefined" && console.log) {
+                console.log("buildHeaders: Adding Bearer token (" + token.length + " chars)");
+            }
+        } else {
+            if (typeof console !== "undefined" && console.log) {
+                console.log("buildHeaders: No token in localStorage");
+            }
         }
 
         var tenantContext = getTenantContext();
@@ -505,7 +532,35 @@
         } catch (_e) {}
     }
 
-    function request(method, path, payload) {
+    function requestWithRetry(method, path, payload, retryCount) {
+        if (retryCount === undefined) retryCount = 0;
+        
+        return performRequest(method, path, payload).catch(function (error) {
+            var status = error.response && error.response.status;
+            var data = error.response && error.response.data;
+            
+            // If 401 and we haven't retried yet, wait for probeAuthSession then retry
+            if (status === 401 && retryCount === 0 && !skipAuthRedirectForAuthFormsPath(path)) {
+                // Trigger token probe and retry after brief delay
+                probeAuthSession();
+                return new Promise(function (resolve, reject) {
+                    setTimeout(function () {
+                        requestWithRetry(method, path, payload, 1).then(resolve).catch(reject);
+                    }, 100);
+                });
+            }
+            
+            if (!skipAuthRedirectForAuthFormsPath(path) && handleUnauthorizedFromApi(status, data)) {
+                return new Promise(function () {});
+            }
+            if (handleForbiddenFromApi(status, data)) {
+                return new Promise(function () {});
+            }
+            return Promise.reject(error);
+        });
+    }
+
+    function performRequest(method, path, payload) {
         var url = baseURL + path;
         var m = String(method || "get").toLowerCase();
 
@@ -521,17 +576,7 @@
             } else if (payload !== undefined && payload !== null) {
                 cfg.data = payload;
             }
-            return window.axios(cfg).catch(function (error) {
-                var status = error.response && error.response.status;
-                var data = error.response && error.response.data;
-                if (!skipAuthRedirectForAuthFormsPath(path) && handleUnauthorizedFromApi(status, data)) {
-                    return new Promise(function () {});
-                }
-                if (handleForbiddenFromApi(status, data)) {
-                    return new Promise(function () {});
-                }
-                return Promise.reject(error);
-            });
+            return window.axios(cfg);
         }
 
         if ((m === "get" || m === "head") && payload && typeof payload === "object") {
@@ -563,12 +608,6 @@
                 return {};
             }).then(function (data) {
                 if (!response.ok) {
-                    if (!skipAuthRedirectForAuthFormsPath(path) && handleUnauthorizedFromApi(response.status, data)) {
-                        return new Promise(function () {});
-                    }
-                    if (handleForbiddenFromApi(response.status, data)) {
-                        return new Promise(function () {});
-                    }
                     var error = new Error("Request failed");
                     error.response = { data: data, status: response.status };
                     throw error;
@@ -576,6 +615,10 @@
                 return { data: data, status: response.status };
             });
         });
+    }
+
+    function request(method, path, payload) {
+        return requestWithRetry(method, path, payload);
     }
 
     function parseFilenameFromContentDisposition(header) {
@@ -743,8 +786,15 @@
             try {
                 if (token) {
                     window.localStorage.setItem(TOKEN_KEY, token);
+                    if (typeof console !== "undefined" && console.log) {
+                        console.log("setToken: Stored token in localStorage with key '" + TOKEN_KEY + "' (" + token.length + " chars)");
+                    }
                 }
-            } catch (_e) {}
+            } catch (_e) {
+                if (typeof console !== "undefined" && console.error) {
+                    console.error("setToken: Failed to store token:", _e.message);
+                }
+            }
         },
         clearToken: function () {
             try {

@@ -642,7 +642,7 @@
             clearFeedback();
             // Prefer Snap popup (better UX), fallback to redirect URL
             if (snapToken && window.snap && typeof window.snap.pay === "function") {
-                setPaying(false);
+                // Keep button disabled while Snap popup is open — re-enable only on close/error/pending
                 window.snap.pay(snapToken, {
                     onSuccess: function (result) {
                         var invoiceId = String(currentInvoice.id || "");
@@ -658,13 +658,16 @@
                     },
                     onPending: function (result) {
                         var invoiceId = String(currentInvoice.id || "");
+                        setPaying(false);
                         loadInvoiceById(invoiceId, "Pembayaran sedang diproses.", "info");
                     },
                     onError: function (result) {
+                        setPaying(false);
                         showFeedback("danger", "Pembayaran gagal. Silakan coba lagi.");
                     },
                     onClose: function () {
-                        // user closed snap without paying - no feedback needed
+                        // user closed snap without paying
+                        setPaying(false);
                     }
                 });
             } else if (hostedCheckoutUrl) {

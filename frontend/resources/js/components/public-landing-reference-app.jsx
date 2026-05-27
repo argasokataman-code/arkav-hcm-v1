@@ -113,11 +113,7 @@ export function OnboardingModal({ error, formState, onChange, onChangeConsent, o
             };
         }
 
-        return {
-            variant: 'info',
-            title: 'Cloudflare Turnstile aktif',
-            message: 'Mode test lokal sedang digunakan. Verifikasi keamanan sudah disiapkan untuk submit onboarding.',
-        };
+        return null;
     }, [turnstileFallback]);
 
     useEffect(() => {

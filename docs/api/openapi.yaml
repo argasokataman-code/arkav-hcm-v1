@@ -7542,15 +7542,19 @@ paths:
                   type: array
                   nullable: true
                   items: { type: object, additionalProperties: true }
+                workflowVersion: { type: integer, minimum: 0, nullable: true, description: Optimistic lock version. Server returns 409 WORKFLOW_VERSION_CONFLICT if stale. }
+                workflowStage: { type: string, enum: [draft_review, legal_review, approved_internal, finalized_execution, cancelled], nullable: true, description: Stage transition. Triggers workflow_history append. }
+                manualLeavePayoutConfirmed: { type: boolean, description: Required true when leaveBalanceAvailable=false and finalizing. }
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { description: Workflow version conflict (WORKFLOW_VERSION_CONFLICT). }
         '422': { $ref: '#/components/responses/ValidationError' }
     delete:
       tags: [Termination]
-      summary: Delete termination (HCM admin)
+      summary: Delete termination (HCM admin). Blocked for approved/finalized status (403 DELETE_FORBIDDEN_STATUS).
       security:
         - bearerAuth: []
       parameters:
@@ -7614,6 +7618,136 @@ paths:
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/terminations/{id}/checklist-items:
+    post:
+      tags: [Termination]
+      summary: Add checklist item to a termination (HCM admin)
+      description: Blocked if termination is finalized or cancelled (422 TERMINATION_LOCKED).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label]
+              properties:
+                label: { type: string, maxLength: 255 }
+                description: { type: string, maxLength: 2000, nullable: true }
+                ownerName: { type: string, maxLength: 100, nullable: true }
+                dueDate: { type: string, format: date, nullable: true }
+                mandatory: { type: boolean }
+      responses:
+        '201': { description: Created }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [Termination]
+      summary: List checklist items for a termination (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  /v1/hcm/terminations/{id}/checklist-items/{itemId}:
+    patch:
+      tags: [Termination]
+      summary: Update a checklist item (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label: { type: string, maxLength: 255 }
+                description: { type: string, maxLength: 2000, nullable: true }
+                ownerName: { type: string, maxLength: 100, nullable: true }
+                dueDate: { type: string, format: date, nullable: true }
+                mandatory: { type: boolean }
+                status: { type: string, enum: [open, completed, skipped] }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Termination]
+      summary: Delete a checklist item (HCM admin, soft delete)
+      description: Blocked if item status is completed (422 DELETE_FORBIDDEN_COMPLETED).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/hcm/terminations/{id}/checklist-items/{itemId}/complete:
+    patch:
+      tags: [Termination]
+      summary: Mark checklist item as completed (HCM admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                completionEvidence: { type: string, maxLength: 2000, nullable: true }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
 
   /v1/saas/package-addons:
     get:

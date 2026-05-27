@@ -1,5 +1,68 @@
 # Termination Progress Tracker
 
+## Snapshot 2026-05-28
+
+- Status: **standalone package feature — sellable separately**
+- Focus: registrasi `termination` sebagai feature_code mandiri di sistem package/subscription.
+
+### Package Registration
+
+- Feature code baru: `termination` (sebelumnya bundled ke `employee_lifecycle`)
+- Migration: `2026_05_28_000100_register_termination_as_standalone_package_feature.php`
+- Paket yang mendapat akses: `business`, `enterprise`, `ultimate`, `umkm`, `unlimited`
+- Paket tanpa akses (perlu upgrade/beli terpisah): `starter`, `growth`, `trial`
+
+### Route Gate Changes
+
+| Komponen | Sebelum | Sesudah |
+|----------|---------|---------|
+| API route (`/v1/hcm/terminations`) | `hcm.api.feature:employee_lifecycle` | `hcm.api.feature:termination` |
+| Web route (`/termination`) | `hcm.web.admin` only | `hcm.web.admin` + `hcm.web.feature:termination` |
+
+### Docs Updated
+
+- `docs/features/RUNTIME-FEATURE-CLASSIFICATION.md` — termination listed as active add-on with package scope
+- `docs/planning/active-hcm-templates-and-permissions.md` — termination row updated with feature_code + gate info
+
+---
+
+## Snapshot 2026-05-26
+
+- Status: enrichment implemented (Slice A + B + C)
+- Focus: perkaya settlement calculation (severance + leave payout), workflow audit trail, dan checklist item management endpoints.
+- Catatan: formula final wajib divalidasi Legal/Industrial Relations perusahaan sebelum live.
+
+### Implemented (Slice A — Settlement Enrichment)
+- `TerminationSettlementCalculationService` — policy-based UP/UPMK/UPH + leave payout calculation
+- `TerminationSettlementBreakdown` DTO
+- `config/termination-policy-profiles.php` — 7 policy profiles per reason code + legal basis
+- `settlement_evidence_snapshot` — immutable snapshot of formula inputs (Anomaly #1)
+- `leave_balance_available` boolean — flag when leave balance unavailable (Anomaly #4)
+- Migration: `2026_05_26_000001_add_settlement_evidence_fields_to_hcm_terminations`
+
+### Implemented (Slice B — Workflow Audit Trail)
+- `WorkflowAuditEvent` DTO
+- `TerminationWorkflowValidator` — strict sequential stage transition enforcement
+- `workflow_history` JSON + `workflow_version` integer (optimistic lock)
+- DB::transaction wraps workflow_history mutations (Anomaly #2 concurrent write protection)
+- Strict stage transitions: no skipping allowed (`draft_review → finalized_execution` is blocked)
+- Migration: `2026_05_26_000002_add_workflow_history_to_hcm_terminations`
+
+### Implemented (Slice C — Checklist Item Endpoints)
+- `HcmTerminationChecklistItem` model with SoftDeletes + AssignsUuid
+- 5 endpoints: POST/GET `/checklist-items`, PATCH/DELETE `/{itemId}`, PATCH `/{itemId}/complete`
+- Finalization blocked if any mandatory DB checklist item is still `open` (422 `MANDATORY_CHECKLIST_INCOMPLETE`)
+- Migration: `2026_05_26_000003_create_hcm_termination_checklist_items_table`
+
+### Test Results (2026-05-26)
+- `vendor/bin/phpunit tests/Feature/TerminationApiTest.php` → 20 tests, 234 assertions ✅
+- Full PHPUnit gate: 1086 tests ✅
+- Vitest gate: 241 tests ✅
+
+### Pending (documented gaps)
+- **Anomaly #8**: PPh21 deduction harus menggunakan `PayrollTaxCalculationService` (service belum ada). Saat ini deduction hanya dari `finalDeductionAmount` user input. Tracked via `@todo` di `TerminationSettlementCalculationService.php` line ~193.
+- Role-based stage transition enforcement (planning §5.2.1: "non-legal cannot approve legal_review") — not yet implemented, requires role taxonomy decision from IR/Legal.
+
 ## Snapshot 2026-04-26
 
 - Status: in progress (compliance hardening)

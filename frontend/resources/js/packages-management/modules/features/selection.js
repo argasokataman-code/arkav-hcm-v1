@@ -33,89 +33,94 @@ const featureSelectionMethods = {
   },
 
   collectFeatureLimitDrafts: function () {
-    const catalogRoot = document.getElementById("input_package_feature_chips");
     const drafts = Object.assign({}, this.featureLimitDrafts || {});
-    if (!catalogRoot) return drafts;
-
-    catalogRoot.querySelectorAll("[data-feature-limit-input]").forEach(function (input) {
-      const code = input.getAttribute("data-feature-limit-code") || "";
-      drafts[code] = input.value;
+    const root = document.getElementById('input_package_feature_chips');
+    if (!root) return drafts;
+    root.querySelectorAll('[data-feature-limit-input]').forEach(function (input) {
+      const code = input.getAttribute('data-feature-limit-code') || '';
+      if (code) drafts[code] = input.value;
     });
-
     return drafts;
   },
 
-  getSelectedFeatureCodes: function () {
-    const catalogRoot = document.getElementById("input_package_feature_chips");
-    if (!catalogRoot) return [];
-    return Array.from(
-      catalogRoot.querySelectorAll("input[type='checkbox'][name='package_feature_codes']:checked")
-    ).map(function (input) {
-      return input.value;
-    });
+  // Returns selected feature codes. Pass tier='core'|'addon' to filter by tier radio.
+  getSelectedFeatureCodes: function (tier) {
+    const root = document.getElementById('input_package_feature_chips');
+    if (!root) return [];
+    const included = Array.from(
+      root.querySelectorAll("input[name='package_feature_include']:checked")
+    );
+    if (!tier) return included.map(function (el) { return el.value; });
+    return included.filter(function (el) {
+      const safeCode = el.value.replace(/[^a-zA-Z0-9_]/g, '_');
+      const tierInput = root.querySelector("input[name='pkg_feat_tier_" + safeCode + "']:checked");
+      return (tierInput ? tierInput.value : 'core') === tier;
+    }).map(function (el) { return el.value; });
   },
 
+  // Returns feature configs with tier property for save
   getSelectedFeatureConfigs: function () {
-    const catalogRoot = document.getElementById("input_package_feature_chips");
-    if (!catalogRoot) return [];
-
+    const self = this;
+    const root = document.getElementById('input_package_feature_chips');
+    if (!root) return [];
     return Array.from(
-      catalogRoot.querySelectorAll("input[type='checkbox'][name='package_feature_codes']:checked")
-    ).map(
-      function (input) {
-        const code = input.value;
-        const featureMeta = this.featureMetaFromCode(code);
-        const featureConfig = {
-          code: code,
-          name: input.getAttribute("data-feature-name") || this.featureLabelFromCode(code),
-          limit: null,
-          limitError: "",
-        };
+      root.querySelectorAll("input[name='package_feature_include']:checked")
+    ).map(function (el) {
+      const code = el.value;
+      const safeCode = code.replace(/[^a-zA-Z0-9_]/g, '_');
+      const tierInput = root.querySelector("input[name='pkg_feat_tier_" + safeCode + "']:checked");
+      const tier = tierInput ? tierInput.value : 'core';
+      const featureMeta = self.featureMetaFromCode(code);
+      const featureConfig = {
+        code: code,
+        name: el.getAttribute('data-feature-name') || self.featureLabelFromCode(code),
+        limit: null,
+        limitError: '',
+        tier: tier,
+      };
 
-        if (featureMeta?.requiresLimit) {
-          const limitInput = catalogRoot.querySelector('[data-feature-limit-code="' + code + '"]');
-          const rawValue = String(limitInput?.value || "").trim();
-
-          if (rawValue === "") {
-            featureConfig.limitError = featureMeta.limitLabel + " wajib diisi untuk " + featureConfig.name + ".";
-            return featureConfig;
-          }
-
-          if (!/^\d+$/.test(rawValue)) {
-            featureConfig.limitError = featureMeta.limitLabel + " harus berupa angka bulat positif.";
-            return featureConfig;
-          }
-
-          const limit = Number(rawValue);
-          if (!Number.isInteger(limit) || limit < 1) {
-            featureConfig.limitError = featureMeta.limitLabel + " minimal 1.";
-            return featureConfig;
-          }
-
-          featureConfig.limit = limit;
+      if (featureMeta?.requiresLimit) {
+        const limitInput = root.querySelector('[data-feature-limit-code="' + code + '"]');
+        const rawValue = String(limitInput?.value || '').trim();
+        if (rawValue === '') {
+          featureConfig.limitError = (featureMeta.limitLabel || 'Limit') + ' wajib diisi untuk ' + featureConfig.name + '.';
+          return featureConfig;
         }
-
-        return featureConfig;
-      }.bind(this)
-    );
+        if (!/^\d+$/.test(rawValue)) {
+          featureConfig.limitError = (featureMeta.limitLabel || 'Limit') + ' harus berupa angka bulat positif.';
+          return featureConfig;
+        }
+        const limit = Number(rawValue);
+        if (!Number.isInteger(limit) || limit < 1) {
+          featureConfig.limitError = (featureMeta.limitLabel || 'Limit') + ' minimal 1.';
+          return featureConfig;
+        }
+        featureConfig.limit = limit;
+      }
+      return featureConfig;
+    });
   },
 
   handleFeatureCheckboxChange: function (checkbox) {
     const code = checkbox?.value || "";
-    if (!code) {
-      return;
-    }
+    if (!code) return;
 
     this.featureLimitDrafts = this.collectFeatureLimitDrafts();
 
-    const limitInput = document.querySelector('[data-feature-limit-code="' + code + '"]');
-    if (!limitInput) {
-      return;
+    // Show/hide tier selector
+    const safeCode = code.replace(/[^a-zA-Z0-9_]/g, '_');
+    const tierRow = document.getElementById('pkg_feat_' + safeCode + '_tier_row');
+    if (tierRow) {
+      tierRow.style.display = checkbox.checked ? 'block' : 'none';
     }
 
-    limitInput.disabled = !checkbox.checked;
-    if (checkbox.checked && !String(limitInput.value || "").trim()) {
-      limitInput.focus();
+    // Enable/disable limit input
+    const limitInput = document.querySelector('[data-feature-limit-code="' + code + '"]');
+    if (limitInput) {
+      limitInput.disabled = !checkbox.checked;
+      if (checkbox.checked && !String(limitInput.value || "").trim()) {
+        limitInput.focus();
+      }
     }
 
     if (code === FEATURE_LIMIT_INPUT_CODE) {
@@ -125,7 +130,7 @@ const featureSelectionMethods = {
 
   getMaxEmployeesFeatureControls: function () {
     return {
-      checkbox: document.querySelector("input[type='checkbox'][name='package_feature_codes'][value='" + FEATURE_LIMIT_INPUT_CODE + "']"),
+      checkbox: document.querySelector("input[type='checkbox'][name='package_feature_include'][value='" + FEATURE_LIMIT_INPUT_CODE + "']"),
       limitInput: document.querySelector("[data-feature-limit-code='" + FEATURE_LIMIT_INPUT_CODE + "']"),
     };
   },

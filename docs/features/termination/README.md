@@ -155,6 +155,11 @@ Feature ini harus dibaca sebagai alur **exit management**. Karena itu, record Te
 | `GET /v1/hcm/terminations/settlement-preview` | preview sebelum create | HCM Admin only |
 | `GET /v1/hcm/terminations/{id}/settlement-preview` | preview existing record | HCM Admin only |
 | `POST /v1/hcm/terminations/{id}/clearance-items/{assignmentId}/return` | return asset dari context Termination | HCM Admin only |
+| `POST /v1/hcm/terminations/{id}/checklist-items` | buat checklist item baru | HCM Admin only |
+| `GET /v1/hcm/terminations/{id}/checklist-items` | list checklist items | HCM Admin only |
+| `PATCH /v1/hcm/terminations/{id}/checklist-items/{itemId}` | update checklist item | HCM Admin only |
+| `PATCH /v1/hcm/terminations/{id}/checklist-items/{itemId}/complete` | mark item completed | HCM Admin only |
+| `DELETE /v1/hcm/terminations/{id}/checklist-items/{itemId}` | hapus checklist item (soft delete) | HCM Admin only |
 
 **Cross-check ke matriks HCM aktif:** lihat [docs/planning/active-hcm-templates-and-permissions.md](../../planning/active-hcm-templates-and-permissions.md) baris `/termination` dan `/employee-details`.
 
@@ -172,6 +177,9 @@ Feature ini harus dibaca sebagai alur **exit management**. Karena itu, record Te
 - clearance asset sudah tampil sebagai item terstruktur dan bisa di-return langsung dari feature Termination;
 - snapshot final sudah menyimpan periode payroll target, breakdown settlement, dan clearance outstanding.
 - snapshot final juga sudah bisa menyimpan checklist kewajiban non-asset bila API mengirimkannya.
+- **[Slice A — 2026-05-26]** settlement calculator sekarang menghitung UP (pesangon), UPMK, UPH, dan leave payout per 7 policy profile berdasarkan `terminationReasonCode` + `legalBasisCode`. Evidence snapshot tersimpan immutable di `settlement_evidence_snapshot` (Anomaly #1 guard).
+- **[Slice B — 2026-05-26]** workflow stage sekarang divalidasi strict sequential (tidak boleh skip stage). `workflow_history` JSON menyimpan full audit trail setiap transisi stage + actor. `workflow_version` menjadi optimistic lock; concurrent writes dilindungi `DB::transaction + lockForUpdate` (Anomaly #2 guard).
+- **[Slice C — 2026-05-26]** 5 endpoint baru untuk manajemen checklist item per record (`POST/GET /checklist-items`, `PATCH/{itemId}`, `PATCH/{itemId}/complete`, `DELETE/{itemId}`). Finalization sekarang juga memblok jika ada mandatory item di tabel `hcm_termination_checklist_items` yang masih `open`.
 
 ### Gap yang masih terbuka
 
@@ -180,6 +188,8 @@ Feature ini harus dibaca sebagai alur **exit management**. Karena itu, record Te
 - settlement preview belum menggabungkan source lintas-purpose seperti THR atau run khusus lain dalam satu layar final settlement.
 - legal taxonomy alasan PHK + dasar hukum sudah ada, tetapi mapping formula hak PHK masih belum lengkap;
 - legal audit snapshot sudah mulai menyimpan formula/profile/version dan approval trail, tetapi hash lampiran evidentiary wajib belum immutable.
+- **[Pending — Anomaly #8]**: PPh21 deduction untuk settlement belum dihitung via `PayrollTaxCalculationService` — menunggu service tersebut tersedia di codebase.
+- **[Pending — Slice B role check]**: role-based stage transition (mis. "non-legal tidak boleh approve `legal_review`") belum diimplementasi — menunggu keputusan role taxonomy dari IR/Legal perusahaan.
 
 ### Keputusan kompromi sementara
 

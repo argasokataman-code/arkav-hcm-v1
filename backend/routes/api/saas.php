@@ -142,6 +142,7 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
             // Feature classification management (DB overrides)
             Route::get('/feature-classifications', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'index']);
             Route::post('/feature-classifications', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'store']);
+            Route::post('/feature-classifications/backfill', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'backfill']);
             Route::put('/feature-classifications/{featureClassification}', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'update']);
             Route::delete('/feature-classifications/{featureClassification}', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'destroy']);
         });

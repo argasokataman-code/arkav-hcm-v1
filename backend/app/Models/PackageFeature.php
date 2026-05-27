@@ -18,6 +18,7 @@ class PackageFeature extends Model
         'feature_code',
         'feature_name',
         'limit',
+        'tier',
     ];
 
     protected $casts = [

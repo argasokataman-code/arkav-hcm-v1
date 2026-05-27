@@ -672,11 +672,10 @@ class PackageFeatureCatalogRuntimeService
             }
         }
 
-        if (Str::startsWith($uri, 'v1/hcm/promotions')
-            || Str::startsWith($uri, 'v1/hcm/resignations')
-            || Str::startsWith($uri, 'v1/hcm/terminations')) {
-            $codes[] = 'employee_lifecycle';
-        }
+        // NOTE: employee_lifecycle is discovered directly via any route that has
+        // hcm.api.feature:employee_lifecycle middleware — do NOT hardcode URI
+        // mappings here because each lifecycle sub-feature (promotion, resignation,
+        // termination) now has its own standalone feature code.
 
         return collect($codes)
             ->map(fn (string $code): string => trim($code))

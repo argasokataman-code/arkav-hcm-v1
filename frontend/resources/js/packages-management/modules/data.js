@@ -1,4 +1,4 @@
-import { API_BASE, API_ADDONS_BASE, PAGE_SIZE, FEATURE_LIMIT_INPUT_CODE, apiRequest, esc, formatCurrency, getDefaultFeatureCatalog, getFeatureLibrary, getRuntimeFeatureDisplayName, getIncludedPackageFeatures, isPackageFeatureIncluded, getAddonClassificationMode, setAddonClassificationMode, getServerAddonClassificationMode, getFeatureClassificationOverrides } from "../shared.js";
+import { API_BASE, API_ADDONS_BASE, PAGE_SIZE, FEATURE_LIMIT_INPUT_CODE, apiRequest, esc, formatCurrency, getDefaultFeatureCatalog, getFeatureLibrary, getRuntimeFeatureDisplayName, getIncludedPackageFeatures, isPackageFeatureIncluded, getAddonClassificationMode, setAddonClassificationMode, getServerAddonClassificationMode, getFeatureClassificationOverrides, setTierByCode, getTierForCode, getModuleForCode, getModuleColorToken } from "../shared.js";
 
 const dataMethods = {
     loadPackages: function () {
@@ -22,6 +22,11 @@ const dataMethods = {
             self.packages = response.data || [];
             self.totalPages = response.pagination ? response.pagination.last_page : 1;
             self.totalItems = response.pagination ? response.pagination.total : self.packages.length;
+
+            // Store tier_by_code for Core/Addon badge rendering
+            if (response.meta && response.meta.tier_by_code) {
+              setTierByCode(response.meta.tier_by_code);
+            }
 
             if (!getFeatureLibrary().length) {
               self.hydrateRuntimeFeatureCatalogFromPackages(self.packages);
@@ -80,6 +85,41 @@ const dataMethods = {
 
       const self = this;
 
+      function statusBadge(status) {
+        const s = String(status || "").toLowerCase();
+        const tone = s === "active" ? "success" : s === "inactive" ? "warning" : "danger";
+        return `<span class="badge text-bg-${tone} d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>${esc(s || "-")}</span>`;
+      }
+
+      function renderCoreFeatureBadges(pkg) {
+        const included = getIncludedPackageFeatures(pkg.features, { catalogOnly: true });
+        const coreFeaturesRaw = included.filter(f => {
+          // Use per-package f.tier (not global getTierForCode)
+          const tier = typeof f === 'object' && f !== null ? f.tier : null;
+          return tier !== 'addon';
+        });
+        if (!coreFeaturesRaw.length) {
+          return '<span class="text-muted small">Belum ada fitur core</span>';
+        }
+        const preview = coreFeaturesRaw.slice(0, 5);
+        const rest = coreFeaturesRaw.length - preview.length;
+        return preview.map(f => {
+          const code = typeof f === 'string' ? f : (f.code || '');
+          // Use f.name from API first, then fallback to display name map, then humanize code
+          const rawName = (typeof f === 'object' && f !== null && f.name) ? f.name : null;
+          const name = rawName || getRuntimeFeatureDisplayName(code, null) || code.split('_').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+          return `<span class="pkg-feat-tag" title="${esc(name)}">${esc(name)}</span>`;
+        }).join('') + (rest ? `<span class="pkg-feat-tag pkg-feat-tag--more">+${rest} more</span>` : '');
+      }
+
+      function addonCount(pkg) {
+        const included = getIncludedPackageFeatures(pkg.features, { catalogOnly: true });
+        return included.filter(f => {
+          // Use per-package f.tier (not global getTierForCode)
+          return typeof f === 'object' && f !== null && f.tier === 'addon';
+        }).length;
+      }
+
       let html = '';
       if (this.packages.length === 0) {
         html = '<div class="card"><div class="card-body text-center text-muted py-4">No packages found</div></div>';
@@ -87,179 +127,99 @@ const dataMethods = {
         const startRow = (this.currentPage - 1) * PAGE_SIZE + 1;
         const endRow = Math.min(this.currentPage * PAGE_SIZE, this.totalItems || this.packages.length);
         const totalRow = this.totalItems || this.packages.length;
-        function statusBadge(status) {
-          const s = String(status || "").toLowerCase();
-          const tone = s === "active" ? "success" : s === "inactive" ? "warning" : "danger";
-          return `
-            <span class="badge text-bg-${tone} d-inline-flex align-items-center badge-xs">
-              <i class="ti ti-point-filled me-1"></i>${esc(s || "-")}
-            </span>
-          `;
-        }
-
-        function priceCell(pkg) {
-          const monthly = formatCurrency(pkg.monthlyPrice);
-          const yearly = formatCurrency(pkg.yearlyPrice);
-          return `
-            <div class="d-flex flex-column">
-              <span class="fw-medium">${monthly}</span>
-              <span class="fs-12 text-muted">Yearly: ${yearly}</span>
-            </div>
-          `;
-        }
-
-        function featuresCell(pkg) {
-          const included = getIncludedPackageFeatures(pkg.features, { catalogOnly: true });
-          if (!included.length) {
-            return '<span class="text-muted fs-12">No features</span>';
-          }
-          const preview = included.slice(0, 4);
-          const rest = Math.max(0, included.length - preview.length);
-          return `
-            <div class="d-flex flex-column gap-1">
-              <div class="fs-12 text-muted">Included: <strong>${included.length}</strong></div>
-              <div class="d-flex flex-wrap gap-1">
-                ${preview.map((f) => `
-                  <span class="badge bg-light text-dark small">
-                    ${esc(self.describeFeatureBadge(f))}
-                  </span>
-                `).join('')}
-                ${rest ? `<span class="badge bg-secondary small">+${rest}</span>` : ''}
-              </div>
-            </div>
-          `;
-        }
-
-        function subscribersCell(pkg) {
-          const activeCount = Number(pkg.activeSubscriptionsCount || 0);
-          const totalCount = Number(pkg.totalSubscriptionsCount || 0);
-
-          return `
-            <div class="d-flex flex-column">
-              <span class="fw-medium">${activeCount.toLocaleString("id-ID")}</span>
-              <span class="fs-12 text-muted">Total riwayat: ${totalCount.toLocaleString("id-ID")}</span>
-            </div>
-          `;
-        }
 
         html = `
-          <div class="card">
-            <div class="custom-datatable-filter table-responsive">
-              <table class="table">
-                <thead class="thead-light">
-                  <tr>
-                    <th class="no-sort">
-                      <div class="form-check form-check-md">
-                        <input class="form-check-input" type="checkbox" id="select-all-packages">
+          <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-3" data-packages-grid>
+            ${this.packages.map(pkg => {
+              const addons = addonCount(pkg);
+              const activeSubs = Number(pkg.activeSubscriptionsCount || 0);
+              return `
+                <div class="col">
+                  <div class="card h-100 pkg-card ${pkg.isGlobalAdminOnly ? 'pkg-card--admin' : ''}">
+                    ${pkg.color ? `<div class="pkg-card-accent" style="background:${esc(pkg.color)}"></div>` : '<div class="pkg-card-accent pkg-card-accent--default"></div>'}
+                    <div class="card-body d-flex flex-column p-4">
+
+                      <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
+                        <div class="min-w-0 flex-grow-1">
+                          <h6 class="fw-bold mb-1 fs-15 text-truncate" title="${esc(pkg.name)}">${esc(pkg.name)}</h6>
+                          <span class="text-muted" style="font-size:0.75rem;letter-spacing:0.3px">${esc(pkg.code || '')}</span>
+                        </div>
+                        <div class="d-flex flex-column align-items-end gap-1 flex-shrink-0">
+                          ${statusBadge(pkg.status)}
+                          ${pkg.isGlobalAdminOnly ? '<span class="badge text-bg-dark badge-xs">Admin Only</span>' : ''}
+                        </div>
                       </div>
-                    </th>
-                    <th>Package Name</th>
-                    <th>Price</th>
-                    <th>Billing Unit</th>
-                    <th>Status</th>
-                    <th>Active Subscribers</th>
-                    <th>Features</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${this.packages.map(pkg => `
-                    <tr>
-                      <td>
-                        <div class="form-check form-check-md">
-                          <input class="form-check-input" type="checkbox" data-package-compare-id="${esc(String(pkg.id))}">
+
+                      ${pkg.description ? `<p class="text-muted pkg-card-desc mb-3" style="font-size:0.8125rem;line-height:1.5">${esc(pkg.description)}</p>` : '<div class="mb-3"></div>'}
+
+                      <div class="mb-3 flex-grow-1">
+                        <p class="pkg-section-label">Core Features</p>
+                        <div class="d-flex flex-wrap gap-1">${renderCoreFeatureBadges(pkg)}</div>
+                      </div>
+
+                      <div class="d-flex align-items-center justify-content-between pt-3 border-top mt-auto">
+                        <div class="d-flex gap-3">
+                          <span class="pkg-stat" title="Addon-tier features included">
+                            <i class="ti ti-puzzle"></i>${addons} add-ons
+                          </span>
+                          <span class="pkg-stat" title="Active subscriptions using this package">
+                            <i class="ti ti-users"></i>${activeSubs.toLocaleString('id-ID')} active
+                          </span>
                         </div>
-                      </td>
-                      <td>
-                        <div class="d-flex align-items-center gap-2">
-                          ${pkg.color ? `<span class="d-inline-block rounded-circle flex-shrink-0" style="width:10px;height:10px;background:${esc(pkg.color)};" title="${esc(pkg.color)}"></span>` : ''}
-                          <div>
-                            <h6 class="fw-medium mb-0">${esc(pkg.name)}</h6>
-                            <p class="fs-12 fw-normal text-muted mb-0">${esc(pkg.code || "-")}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>${priceCell(pkg)}</td>
-                      <td>${esc(pkg.billingUnit || "-")}</td>
-                      <td>${statusBadge(pkg.status)}</td>
-                      <td>${subscribersCell(pkg)}</td>
-                      <td>${featuresCell(pkg)}</td>
-                      <td>
-                        <div class="action-icon d-inline-flex align-items-center">
-                          <button class="btn btn-sm btn-white me-2" data-edit-package="${pkg.id}" title="Edit">
-                            <i class="ti ti-edit"></i>
+                        <div class="btn-group btn-group-sm" role="group">
+                          <button type="button" class="btn btn-icon btn-light" data-edit-package="${esc(String(pkg.id))}" title="Edit Package">
+                            <i class="ti ti-edit fs-14"></i>
                           </button>
-                          <button class="btn btn-sm btn-white me-2" data-view-features="${pkg.id}" title="View Features">
-                            <i class="ti ti-list-details"></i>
+                          <button type="button" class="btn btn-icon btn-light" data-view-features="${esc(String(pkg.id))}" title="Lihat Fitur">
+                            <i class="ti ti-list-details fs-14"></i>
                           </button>
-                          <button class="btn btn-sm btn-white" data-delete-package="${pkg.id}" title="Delete">
-                            <i class="ti ti-trash"></i>
+                          <button type="button" class="btn btn-icon btn-light text-danger" data-delete-package="${esc(String(pkg.id))}" title="Hapus">
+                            <i class="ti ti-trash fs-14"></i>
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-            <div class="px-3 py-2 border-top small text-muted">
-              Centang package yang ingin dibandingkan (2-3 package), lalu klik <strong>Compare Selected</strong>.
-            </div>
-            <div class="card-footer d-flex justify-content-between align-items-center">
-              <small class="text-muted">Showing ${startRow}–${endRow} of ${totalRow} packages</small>
-              <nav aria-label="Page navigation">
-                <ul class="pagination pagination-sm mb-0" data-package-pagination>
-                <!--Pagination-->
-                </ul>
-              </nav>
-            </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          <div class="d-flex justify-content-between align-items-center px-1">
+            <small class="text-muted">Showing ${startRow}–${endRow} of ${totalRow} packages</small>
+            <nav aria-label="Page navigation">
+              <ul class="pagination pagination-sm mb-0" data-package-pagination></ul>
+            </nav>
           </div>
         `;
       }
 
       container.innerHTML = html;
-      // Directly bind action buttons to ensure clicks work even if global delegation is interrupted
+
+      // Bind action buttons directly for reliable click handling
       Array.from(container.querySelectorAll('[data-edit-package]')).forEach((btn) => {
         btn.addEventListener('click', function (e) {
           e.preventDefault();
           e.stopPropagation();
-          const id = btn.getAttribute('data-edit-package');
-          try {
-            this.editPackage(id);
-          } catch (err) {
-            console.error(err);
-          }
-        }.bind(this));
+          self.editPackage(btn.getAttribute('data-edit-package'));
+        });
       });
-
       Array.from(container.querySelectorAll('[data-delete-package]')).forEach((btn) => {
         btn.addEventListener('click', function (e) {
           e.preventDefault();
           e.stopPropagation();
-          const id = btn.getAttribute('data-delete-package');
-          try {
-            this.deletePackage(id);
-          } catch (err) {
-            console.error(err);
-          }
-        }.bind(this));
+          self.deletePackage(btn.getAttribute('data-delete-package'));
+        });
       });
-
       Array.from(container.querySelectorAll('[data-view-features]')).forEach((btn) => {
         btn.addEventListener('click', function (e) {
           e.preventDefault();
           e.stopPropagation();
-          const id = btn.getAttribute('data-view-features');
-          try {
-            this.showFeaturesModal(id);
-          } catch (err) {
-            console.error(err);
-          }
-        }.bind(this));
+          self.showFeaturesModal(btn.getAttribute('data-view-features'));
+        });
       });
 
       this.renderPagination();
-      this.syncCompareSelectAllState();
     },
 
     getSelectedPackageIdsForCompare: function () {
@@ -730,6 +690,7 @@ const dataMethods = {
                   feature_code: code,
                   feature_name: self.featureLabelFromCode(code),
                   limit: featureConfig.limit,
+                  tier: featureConfig.tier || 'core',
                 }).catch(function () {
                   return null;
                 })
@@ -752,12 +713,15 @@ const dataMethods = {
               : Number(feature.limit);
             const desiredName = self.featureLabelFromCode(feature.code);
             const currentName = feature.name || "";
+            const desiredTier = selectedFeature.tier || 'core';
+            const currentTier = feature.tier || 'core';
 
-            if (desiredLimit !== currentLimit || desiredName !== currentName) {
+            if (desiredLimit !== currentLimit || desiredName !== currentName || desiredTier !== currentTier) {
               updateRequests.push(
                 apiRequest("PUT", API_BASE + "/features/" + feature.id, {
                   feature_name: desiredName,
                   limit: desiredLimit,
+                  tier: desiredTier,
                 }).catch(function () {
                   return null;
                 })

@@ -51,6 +51,7 @@ const bootstrapMethods = {
       this.isInitialized = true;
 
       this.bindEvents();
+      this.initPackageWizard();
       this.renderFeatureCatalog(getDefaultFeatureCatalog());
       this.packageModalInstance = window.bootstrap
         ? window.bootstrap.Modal.getOrCreateInstance(document.getElementById("packageModal"))
@@ -316,16 +317,29 @@ const bootstrapMethods = {
         }
 
         const packageCheckbox = e.target.closest("[data-package-compare-id]");
-        if (!packageCheckbox) {
+        if (packageCheckbox) {
+          if (packageCheckbox.checked && self.getSelectedPackageIdsForCompare().length > self.compareSelectionLimit) {
+            packageCheckbox.checked = false;
+            self.showError("Maksimal bandingkan 3 package sekaligus.");
+          }
+          self.syncCompareSelectAllState();
           return;
         }
 
-        if (packageCheckbox.checked && self.getSelectedPackageIdsForCompare().length > self.compareSelectionLimit) {
-          packageCheckbox.checked = false;
-          self.showError("Maksimal bandingkan 3 package sekaligus.");
+        const featureCheckbox = e.target.closest("input[type='checkbox'][name='package_feature_include']");
+        if (featureCheckbox) {
+          self.handleFeatureCheckboxChange(featureCheckbox);
+          self.updateFeatureSelectionSummary();
+          self.queueComplianceSnapshotRefresh();
+          return;
         }
 
-        self.syncCompareSelectAllState();
+        const tierRadio = e.target.closest("input[type='radio'][name^='pkg_feat_tier_']");
+        if (tierRadio) {
+          self.updateFeatureSelectionSummary();
+          self.queueComplianceSnapshotRefresh(true);
+          return;
+        }
       });
 
       document.addEventListener("input", function (e) {
@@ -422,13 +436,6 @@ const bootstrapMethods = {
           } else {
             self.deleteAddon(id);
           }
-        }
-
-        const featureCheckbox = e.target.closest("input[type='checkbox'][name='package_feature_codes']");
-        if (featureCheckbox) {
-          self.handleFeatureCheckboxChange(featureCheckbox);
-          self.updateFeatureSelectionSummary();
-          self.queueComplianceSnapshotRefresh();
         }
       });
 

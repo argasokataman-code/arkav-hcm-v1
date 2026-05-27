@@ -44,6 +44,6 @@ class ApiTokenControllerTest extends TestCase
     {
         $response = $this->getJson('/api-token');
 
-        $response->assertStatus(404);
+        $response->assertStatus(401);
     }
 }

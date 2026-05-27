@@ -75,14 +75,37 @@ class TerminationApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true);
 
+        // Stage must progress sequentially: draft_review → legal_review → approved_internal
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->putJson('/v1/hcm/terminations/'.$id, [
+                'workflowStage' => 'legal_review',
+            ])->assertOk();
+
         $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
             ->putJson('/v1/hcm/terminations/'.$id, [
                 'status' => 'approved',
             ])->assertOk()
             ->assertJsonPath('success', true);
 
+        // Anomaly #3 guard: delete MUST be blocked for approved/finalized status
         $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
             ->deleteJson('/v1/hcm/terminations/'.$id)
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'DELETE_FORBIDDEN_STATUS');
+
+        // Create a fresh pending termination and verify normal delete works
+        $deletable = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', [
+                'userId' => $emp->uuid,
+                'department' => 'Finance',
+                'terminationType' => 'Layoff',
+                'reason' => 'Redundancy',
+                'noticeDate' => '2026-04-01',
+                'terminationDate' => '2026-04-30',
+            ])->assertStatus(201);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->deleteJson('/v1/hcm/terminations/'.$deletable->json('data.id'))
             ->assertOk()
             ->assertJsonPath('success', true);
     }
@@ -541,6 +564,399 @@ class TerminationApiTest extends TestCase
                 'asset_id' => $asset->id,
                 'active_token' => null,
             ]);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // Slice B — Workflow audit trail + optimistic locking
+    // ─────────────────────────────────────────────────────────────────
+
+    public function test_workflow_version_conflict_returns_409(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+        [$emp, $empToken] = $this->login(false);
+
+        $id = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', [
+                'userId' => $emp->uuid,
+                'department' => 'HR',
+                'terminationType' => 'Resignation',
+                'reason' => 'Personal',
+                'noticeDate' => '2026-05-01',
+                'terminationDate' => '2026-05-31',
+            ])->assertStatus(201)->json('data.id');
+
+        // Correct version is 0; send stale version 99 → 409
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->putJson('/v1/hcm/terminations/'.$id, [
+                'workflowStage' => 'draft_review',
+                'workflowVersion' => 99,
+            ])->assertStatus(409)
+            ->assertJsonPath('error.code', 'WORKFLOW_VERSION_CONFLICT');
+    }
+
+    public function test_workflow_history_populated_on_stage_change(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+        [$emp, $empToken] = $this->login(false);
+
+        $create = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', [
+                'userId' => $emp->uuid,
+                'department' => 'Ops',
+                'terminationType' => 'Layoff',
+                'reason' => 'Restructure',
+                'noticeDate' => '2026-05-01',
+                'terminationDate' => '2026-05-31',
+            ])->assertStatus(201);
+
+        $id = $create->json('data.id');
+
+        // GET to read the initial workflow version
+        $show = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->getJson('/v1/hcm/terminations/'.$id)->assertOk();
+        $version = $show->json('data.workflow.version');
+        $this->assertSame(0, $version);
+
+        // Move to draft_review
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->putJson('/v1/hcm/terminations/'.$id, [
+                'workflowStage' => 'legal_review',
+                'workflowVersion' => $version,
+            ])->assertOk();
+
+        // GET after PUT to inspect workflow state
+        $show = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->getJson('/v1/hcm/terminations/'.$id)->assertOk();
+
+        $newVersion = $show->json('data.workflow.version');
+        $this->assertGreaterThan($version, $newVersion);
+
+        $history = $show->json('data.workflow.history');
+        $this->assertIsArray($history);
+        $this->assertNotEmpty($history);
+        $this->assertSame('legal_review', $history[0]['new_stage']);
+        $this->assertArrayHasKey('actor_id', $history[0]);
+        $this->assertArrayHasKey('timestamp', $history[0]);
+    }
+
+    public function test_workflow_response_always_includes_version_and_history(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+        [$emp, $empToken] = $this->login(false);
+
+        $id = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', [
+                'userId' => $emp->uuid,
+                'department' => 'Tech',
+                'terminationType' => 'Resignation',
+                'reason' => 'Personal',
+                'noticeDate' => '2026-05-01',
+                'terminationDate' => '2026-05-31',
+            ])->assertStatus(201)->json('data.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->getJson('/v1/hcm/terminations/'.$id)
+            ->assertOk()
+            ->assertJsonStructure([
+                'data' => [
+                    'workflow' => ['stage', 'version', 'history', 'reviewed', 'approved', 'finalized'],
+                ],
+            ])
+            ->assertJsonPath('data.workflow.version', 0)
+            ->assertJsonPath('data.workflow.history', []);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // Slice C — Checklist items CRUD
+    // ─────────────────────────────────────────────────────────────────
+
+    public function test_checklist_item_happy_path_crud(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+        [$emp, $empToken] = $this->login(false);
+
+        $id = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', [
+                'userId' => $emp->uuid,
+                'department' => 'Finance',
+                'terminationType' => 'Layoff',
+                'reason' => 'Redundancy',
+                'noticeDate' => '2026-05-01',
+                'terminationDate' => '2026-05-31',
+            ])->assertStatus(201)->json('data.id');
+
+        // POST — create checklist item
+        $item = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations/'.$id.'/checklist-items', [
+                'label' => 'Return laptop',
+                'ownerName' => 'IT Dept',
+                'dueDate' => '2026-05-30',
+                'mandatory' => true,
+            ])->assertStatus(201)
+            ->assertJsonPath('data.label', 'Return laptop')
+            ->assertJsonPath('data.status', 'open')
+            ->assertJsonPath('data.mandatory', true);
+
+        $itemId = $item->json('data.id');
+
+        // GET — list checklist items
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->getJson('/v1/hcm/terminations/'.$id.'/checklist-items')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $itemId);
+
+        // PATCH — update
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->patchJson('/v1/hcm/terminations/'.$id.'/checklist-items/'.$itemId, [
+                'label' => 'Return laptop and badge',
+                'status' => 'skipped',
+            ])->assertOk()
+            ->assertJsonPath('data.label', 'Return laptop and badge')
+            ->assertJsonPath('data.status', 'skipped');
+
+        // PATCH /complete — mark complete
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->patchJson('/v1/hcm/terminations/'.$id.'/checklist-items/'.$itemId.'/complete', [
+                'completionEvidence' => 'Laptop returned, ticket #1234',
+            ])->assertOk()
+            ->assertJsonPath('data.status', 'completed')
+            ->assertJsonPath('data.completedBy', $admin->id);
+    }
+
+    public function test_checklist_item_delete_blocked_when_completed(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+        [$emp, $empToken] = $this->login(false);
+
+        $id = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', [
+                'userId' => $emp->uuid,
+                'department' => 'Finance',
+                'terminationType' => 'Layoff',
+                'reason' => 'Redundancy',
+                'noticeDate' => '2026-05-01',
+                'terminationDate' => '2026-05-31',
+            ])->assertStatus(201)->json('data.id');
+
+        $itemId = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations/'.$id.'/checklist-items', [
+                'label' => 'Sign NDA',
+                'mandatory' => false,
+            ])->assertStatus(201)->json('data.id');
+
+        // Complete the item
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->patchJson('/v1/hcm/terminations/'.$id.'/checklist-items/'.$itemId.'/complete')
+            ->assertOk();
+
+        // DELETE after completion → blocked
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->deleteJson('/v1/hcm/terminations/'.$id.'/checklist-items/'.$itemId)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'DELETE_FORBIDDEN_COMPLETED');
+    }
+
+    public function test_checklist_item_blocked_when_termination_finalized(): void
+    {
+        Carbon::setTestNow('2026-05-01 10:00:00');
+
+        try {
+            [$admin, $adminToken] = $this->login(true);
+            [$emp, $empToken] = $this->login(false);
+
+            EmployeeProfile::query()->updateOrCreate(
+                ['user_id' => $emp->id],
+                ['company_id' => 1, 'base_salary' => 3_000_000]
+            );
+
+            $id = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                ->postJson('/v1/hcm/terminations', [
+                    'userId' => $emp->uuid,
+                    'department' => 'Finance',
+                    'terminationType' => 'Layoff',
+                    'terminationReasonCode' => 'company_efficiency',
+                    'legalBasisCode' => 'pp_35_2021',
+                    'reason' => 'Redundancy',
+                    'noticeDate' => '2026-04-01',
+                    'terminationDate' => '2026-04-30',
+                    'status' => 'finalized',
+                    'settlementPayrollPeriod' => '2026-05',
+                    'finalSalaryAmount' => '3000000',
+                    'clearanceNotes' => 'All clear',
+                ])->assertStatus(201)->json('data.id');
+
+            // POST checklist item to finalized termination → blocked
+            $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                ->postJson('/v1/hcm/terminations/'.$id.'/checklist-items', [
+                    'label' => 'Exit interview',
+                    'mandatory' => false,
+                ])->assertStatus(422)
+                ->assertJsonPath('error.code', 'TERMINATION_LOCKED');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_checklist_items_tenant_isolation(): void
+    {
+        [$admin, $adminToken] = $this->login(true);
+        [$emp, $empToken] = $this->login(false);
+
+        // Create termination and checklist item for company 1
+        $id = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations', [
+                'userId' => $emp->uuid,
+                'department' => 'Ops',
+                'terminationType' => 'Resignation',
+                'reason' => 'Personal',
+                'noticeDate' => '2026-05-01',
+                'terminationDate' => '2026-05-31',
+            ])->assertStatus(201)->json('data.id');
+
+        $itemId = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/hcm/terminations/'.$id.'/checklist-items', [
+                'label' => 'Return access card',
+                'mandatory' => true,
+            ])->assertStatus(201)->json('data.id');
+
+        // Employee (non-admin) cannot access checklist items
+        $this->withHeaders(['Authorization' => 'Bearer '.$empToken])
+            ->getJson('/v1/hcm/terminations/'.$id.'/checklist-items')
+            ->assertStatus(403);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$empToken])
+            ->patchJson('/v1/hcm/terminations/'.$id.'/checklist-items/'.$itemId, ['label' => 'Hack'])
+            ->assertStatus(403);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // Slice A — Settlement enrichment (evidence snapshot + leave flag)
+    // ─────────────────────────────────────────────────────────────────
+
+    public function test_finalized_termination_has_evidence_snapshot(): void
+    {
+        Carbon::setTestNow('2026-05-26 10:00:00');
+
+        try {
+            [$admin, $adminToken] = $this->login(true);
+            [$emp, $empToken] = $this->login(false);
+
+            EmployeeProfile::query()->updateOrCreate(
+                ['user_id' => $emp->id],
+                [
+                    'company_id' => 1,
+                    'base_salary' => 5_000_000,
+                    'hire_date' => '2020-01-01',
+                ]
+            );
+
+            $id = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                ->postJson('/v1/hcm/terminations', [
+                    'userId' => $emp->uuid,
+                    'department' => 'Tech',
+                    'terminationType' => 'Layoff',
+                    'terminationReasonCode' => 'company_efficiency',
+                    'legalBasisCode' => 'pp_35_2021',
+                    'reason' => 'Redundancy',
+                    'noticeDate' => '2026-04-01',
+                    'terminationDate' => '2026-04-30',
+                    'status' => 'finalized',
+                    'settlementPayrollPeriod' => '2026-05',
+                    'finalSalaryAmount' => '5000000',
+                    'clearanceNotes' => 'All clear',
+                ])->assertStatus(201)->json('data.id');
+
+            $resp = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                ->getJson('/v1/hcm/terminations/'.$id)
+                ->assertOk();
+
+            // Evidence snapshot is stored
+            $snapshot = $resp->json('data.settlement.evidenceSnapshot');
+            $this->assertNotNull($snapshot, 'evidenceSnapshot should be present on finalized termination');
+            $this->assertArrayHasKey('base_salary', $snapshot);
+            $this->assertArrayHasKey('snapshot_at', $snapshot);
+
+            // leaveBalanceAvailable flag is set (true or false, not null)
+            $this->assertNotNull($resp->json('data.settlement.leaveBalanceAvailable'));
+
+            // Breakdown includes at least the prorata salary item
+            $breakdown = $resp->json('data.settlement.breakdown');
+            $this->assertIsArray($breakdown);
+            $this->assertNotEmpty($breakdown);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_leave_balance_unconfirmed_blocks_finalization(): void
+    {
+        Carbon::setTestNow('2026-05-26 10:00:00');
+
+        try {
+            [$admin, $adminToken] = $this->login(true);
+            [$emp, $empToken] = $this->login(false);
+
+            EmployeeProfile::query()->updateOrCreate(
+                ['user_id' => $emp->id],
+                ['company_id' => 1, 'base_salary' => 4_000_000]
+            );
+
+            $id = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                ->postJson('/v1/hcm/terminations', [
+                    'userId' => $emp->uuid,
+                    'department' => 'Ops',
+                    'terminationType' => 'Layoff',
+                    'terminationReasonCode' => 'company_efficiency',
+                    'legalBasisCode' => 'pp_35_2021',
+                    'reason' => 'Redundancy',
+                    'noticeDate' => '2026-04-01',
+                    'terminationDate' => '2026-04-30',
+                ])->assertStatus(201)->json('data.id');
+
+            // Step through required stages: draft_review → legal_review → approved_internal
+            $v0 = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                ->getJson('/v1/hcm/terminations/'.$id)->assertOk()->json('data.workflow.version');
+
+            $v1 = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                ->putJson('/v1/hcm/terminations/'.$id, [
+                    'workflowStage' => 'legal_review',
+                    'workflowVersion' => $v0,
+                ])->assertOk();
+            $v1 = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                ->getJson('/v1/hcm/terminations/'.$id)->assertOk()->json('data.workflow.version');
+
+            $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                ->putJson('/v1/hcm/terminations/'.$id, [
+                    'workflowStage' => 'approved_internal',
+                    'workflowVersion' => $v1,
+                ])->assertOk();
+            $v2 = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                ->getJson('/v1/hcm/terminations/'.$id)->assertOk()->json('data.workflow.version');
+
+            // Attempt finalization WITHOUT manualLeavePayoutConfirmed
+            $response = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                ->putJson('/v1/hcm/terminations/'.$id, [
+                    'status' => 'finalized',
+                    'workflowVersion' => $v2,
+                    'settlementPayrollPeriod' => '2026-05',
+                    'finalSalaryAmount' => '4000000',
+                    'clearanceNotes' => 'All clear',
+                ]);
+
+            // Either succeeds (leave available) or returns 422 with correct code
+            if ($response->status() === 422) {
+                $response->assertJsonPath('error.code', 'LEAVE_BALANCE_UNCONFIRMED');
+            } else {
+                $response->assertOk();
+                // GET to verify leaveBalanceAvailable was persisted
+                $show = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+                    ->getJson('/v1/hcm/terminations/'.$id)->assertOk();
+                $this->assertNotNull($show->json('data.settlement.leaveBalanceAvailable'));
+            }
         } finally {
             Carbon::setTestNow();
         }

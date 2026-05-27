@@ -11,7 +11,9 @@ Route::middleware('hcm.web.admin')->group(function (): void {
         return view(view: 'resignation');
     })->name('resignation');
 
-    Route::get('/termination', function () {
-        return view(view: 'termination');
-    })->name('termination');
+    Route::middleware('hcm.web.feature:termination')->group(function (): void {
+        Route::get('/termination', function () {
+            return view(view: 'termination');
+        })->name('termination');
+    });
 });

@@ -215,6 +215,13 @@ Contoh modul add-on aktif yang sudah dipakai runtime saat ini:
 - Business value: helpdesk internal lintas employee dan admin.
 - Dokumen: [docs/features/tickets/README.md](docs/features/tickets/README.md)
 
+6. Termination Management
+- Business value: proses PHK/pengunduran diri terstruktur — workflow multi-stage (draft_review → legal_review → approved_internal → finalized_execution), settlement otomatis (gaji prorata, uang pesangon, penghargaan masa kerja, UPMK, cuti sisa), clearance checklist, dan audit trail lengkap.
+- Feature code: `termination` (standalone, bisa dijual terpisah dari `employee_lifecycle`)
+- Paket: business, enterprise, ultimate, umkm, unlimited
+- Paket tidak termasuk: starter, growth, trial
+- Dokumen: [docs/features/termination/README.md](docs/features/termination/README.md)
+
 ### 3.2 Add-ons Kandidat atau Ekspansi Runtime
 
 Kelompok ini adalah modul non-MVP yang sudah ada di landscape repo saat ini dan dapat dipaketkan sebagai add-on lanjutan berdasarkan status masing-masing modul.

@@ -1,4 +1,4 @@
-import { FEATURE_LIMIT_INPUT_CODE, esc, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures, getAddonClassificationMode } from "../../shared.js";
+import { FEATURE_LIMIT_INPUT_CODE, esc, getDefaultFeatureCatalog, getFeatureLibrary, getIncludedPackageFeatures, getAddonClassificationMode, getTierForCode } from "../../shared.js";
 
 const featureCatalogUiMethods = {
   buildFeatureGroups: function (featureCodes, selectedCodesSet) {
@@ -47,143 +47,81 @@ const featureCatalogUiMethods = {
     if (!catalogRoot) return;
 
     const limitDrafts = Object.assign({}, this.featureLimitDrafts || {}, this.collectFeatureLimitDrafts());
-    const selectedCodes = new Set(this.getSelectedFeatureCodes());
-    const groups = this.buildFeatureGroups(featureCodes, selectedCodes);
+    const coreCodes = new Set(this.getSelectedFeatureCodes('core'));
+    const addonCodes = new Set(this.getSelectedFeatureCodes('addon'));
+    const allSelected = new Set([...coreCodes, ...addonCodes]);
+    const groups = this.buildFeatureGroups(featureCodes, allSelected);
 
-    const accordionId = "package_feature_catalog_accordion";
-    catalogRoot.innerHTML =
-      '<div class="accordion" id="' +
-      accordionId +
-      '">' +
-      groups
-        .map(
-          function (group, groupIndex) {
-            const collapseId = "feature_group_" + group.module + "_" + String(groupIndex);
-            return (
-              '<div class="accordion-item mb-2" data-feature-group data-feature-group-key="' +
-              esc(group.module) +
-              '">' +
-              '<h2 class="accordion-header" id="heading_' +
-              esc(collapseId) +
-              '">' +
-              '<div class="package-feature-group-head">' +
-              '<button class="accordion-button ' +
-              (groupIndex === 0 ? "" : "collapsed") +
-              '" type="button" data-bs-toggle="collapse" data-bs-target="#' +
-              esc(collapseId) +
-              '">' +
-              '<div class="d-flex align-items-center justify-content-between w-100 pe-2">' +
-              '<div><div class="fw-semibold">' +
-              esc(group.title) +
-              '</div><small class="text-muted">' +
-              esc(group.description || "") +
-              "</small></div>" +
-              '<span class="badge text-bg-light" data-feature-group-count="' +
-              esc(group.module) +
-              '">' +
-              esc(String(group.features.length)) +
-              " fitur</span>" +
-              "</div>" +
-              "</button>" +
-              '<button type="button" class="package-feature-module-preview" data-feature-preview-module="' +
-              esc(group.module) +
-              '">Preview</button>' +
-              "</div>" +
-              "</h2>" +
-              '<div id="' +
-              esc(collapseId) +
-              '" class="accordion-collapse collapse ' +
-              (groupIndex === 0 ? "show" : "") +
-              '">' +
-              '<div class="accordion-body pt-2">' +
-              group.features
-                          .map(function (feature, featureIndex) {
-                            const itemId =
-                              "pkg_feature_checkbox_" +
-                              String(groupIndex) +
-                              "_" +
-                              String(featureIndex) +
-                              "_" +
-                              String(feature.code).replace(/[^a-zA-Z0-9_\-]/g, "_");
-                            const limitValue = limitDrafts[feature.code] ?? "";
-                            const limitLabel = feature.limitLabel || "Limit";
-                            const limitPlaceholder = feature.limitPlaceholder || "Masukkan limit";
-                            const limitSuffix = feature.limitSuffix || "";
+    function renderFeatureItem(feature, groupIndex, featureIndex) {
+      const safeCode = String(feature.code).replace(/[^a-zA-Z0-9_]/g, '_');
+      const itemId = 'pkg_feat_' + safeCode;
+      const tierName = 'pkg_feat_tier_' + safeCode;
+      const isIncluded = allSelected.has(feature.code);
+      const isAddon = addonCodes.has(feature.code);
+      const limitValue = limitDrafts[feature.code] ?? "";
+      const limitLabel = feature.limitLabel || "Limit";
+      const limitPlaceholder = feature.limitPlaceholder || "Masukkan limit";
+      const limitSuffix = feature.limitSuffix || "";
 
-                            const addonMode = getAddonClassificationMode();
-                            const showTier = addonMode === 'auto';
-                            const tierLabel = showTier && feature.tier === "mvp" ? "Core" : (showTier && feature.tier === "addon" ? "Add-on" : "");
-                            const tierClass = feature.tier === "mvp" ? "badge bg-primary text-white ms-2" : "badge bg-light text-dark ms-2";
-                            const tierBadge = tierLabel ? ('<span class="' + tierClass + '">' + esc(tierLabel) + '</span>') : '';
+      const tierHtml = (
+        '<div class="feat-tier-selector" id="' + itemId + '_tier_row"' + (isIncluded ? '' : ' style="display:none"') + '>' +
+        '<div class="btn-group btn-group-sm" role="group" aria-label="Tier fitur">' +
+        '<input type="radio" class="btn-check" name="' + esc(tierName) + '" id="' + itemId + '_core" value="core"' + (!isAddon ? ' checked' : '') + '>' +
+        '<label class="btn feat-tier-btn-core" for="' + itemId + '_core">Core</label>' +
+        '<input type="radio" class="btn-check" name="' + esc(tierName) + '" id="' + itemId + '_addon" value="addon"' + (isAddon ? ' checked' : '') + '>' +
+        '<label class="btn feat-tier-btn-addon" for="' + itemId + '_addon">Addon</label>' +
+        '</div></div>'
+      );
 
-                            return (
-                              '<div class="package-feature-item" data-feature-item data-feature-filter="' +
-                              esc((feature.name + " " + feature.code + " " + (feature.description || "")).toLowerCase()) +
-                              '">' +
-                              '<div class="form-check">' +
-                              '<input class="form-check-input" type="checkbox" name="package_feature_codes" id="' +
-                              esc(itemId) +
-                              '" value="' +
-                              esc(feature.code) +
-                              '" data-feature-name="' +
-                              esc(feature.name) +
-                              '"' +
-                              (selectedCodes.has(feature.code) ? " checked" : "") +
-                              ">" +
-                              '<label class="form-check-label" for="' +
-                              esc(itemId) +
-                              '">' +
-                              '<span class="package-feature-item-title">' +
-                              esc(feature.name) +
-                              tierBadge +
-                              "</span>" +
-                              '<span class="package-feature-item-desc">' +
-                              esc(feature.description || "") +
-                              "</span>" +
-                              '<span class="text-muted small">Code: ' +
-                              esc(feature.code) +
-                              "</span>" +
-                              "</label>" +
-                              "</div>" +
-                              (feature.requiresLimit
-                                ? '<div class="mt-2 ps-4">' +
-                                  '<label class="form-label small text-muted mb-1" for="' +
-                                  esc(itemId + "_limit") +
-                                  '">' +
-                                  esc(limitLabel) +
-                                  '</label>' +
-                                  '<div class="input-group input-group-sm">' +
-                                  '<input class="form-control" type="number" min="1" step="1" id="' +
-                                  esc(itemId + "_limit") +
-                                  '" data-feature-limit-input data-feature-limit-code="' +
-                                  esc(feature.code) +
-                                  '" placeholder="' +
-                                  esc(limitPlaceholder) +
-                                  '" value="' +
-                                  esc(limitValue) +
-                                  '"' +
-                                  (selectedCodes.has(feature.code) ? "" : " disabled") +
-                                  ">" +
-                                  (limitSuffix
-                                    ? '<span class="input-group-text">' + esc(limitSuffix) + '</span>'
-                                    : "") +
-                                  "</div>" +
-                                "</div>"
-                                : "") +
-                              "</div>" +
-                              "</div>"
-                            );
-                          })
-                .join("") +
-              "</div>" +
-              "</div>" +
-              "</div>"
-            );
-          }.bind(this)
-        )
-        .join("") +
-      "</div>";
+      const limitHtml = (feature.requiresLimit && isIncluded)
+        ? '<div class="mt-2 ps-4 limit-input-row"><label class="form-label small text-muted mb-1" for="' + esc(itemId + '_limit') + '">' + esc(limitLabel) + '</label><div class="input-group input-group-sm"><input class="form-control" type="number" min="1" step="1" id="' + esc(itemId + '_limit') + '" data-feature-limit-input data-feature-limit-code="' + esc(feature.code) + '" placeholder="' + esc(limitPlaceholder) + '" value="' + esc(limitValue) + '"' + (isIncluded ? '' : ' disabled') + '>' + (limitSuffix ? '<span class="input-group-text">' + esc(limitSuffix) + '</span>' : '') + '</div></div>'
+        : '';
 
+      return (
+        '<div class="package-feature-item" data-feature-item data-feature-filter="' + esc((feature.name + ' ' + feature.code + ' ' + (feature.description || '')).toLowerCase()) + '">' +
+        '<div class="d-flex align-items-center gap-2">' +
+        '<input type="checkbox" class="form-check-input flex-shrink-0" name="package_feature_include" id="' + esc(itemId + '_chk') + '" value="' + esc(feature.code) + '" data-feature-name="' + esc(feature.name) + '"' + (isIncluded ? ' checked' : '') + '>' +
+        '<label class="pkg-feat-label flex-grow-1" for="' + esc(itemId + '_chk') + '">' +
+        '<span class="package-feature-item-title">' + esc(feature.name) + '</span>' +
+        '<span class="package-feature-item-desc">' + esc(feature.description || '') + '</span>' +
+        '</label>' +
+        tierHtml +
+        '</div>' +
+        limitHtml +
+        '</div>'
+      );
+    }
+
+    function renderGroupsAccordion(groupList) {
+      if (!groupList.length) {
+        return '<p class="text-muted small p-2 fst-italic">Tidak ada fitur tersedia.</p>';
+      }
+      return '<div class="accordion" id="feat_catalog_accordion">' +
+        groupList.map(function (group, idx) {
+          const collapseId = 'feat_catalog_group_' + group.module + '_' + String(idx);
+          return (
+            '<div class="accordion-item mb-2" data-feature-group data-feature-group-key="' + esc(group.module) + '">' +
+            '<h2 class="accordion-header">' +
+            '<div class="package-feature-group-head">' +
+            '<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#' + esc(collapseId) + '">' +
+            '<div class="d-flex align-items-center justify-content-between w-100 pe-2">' +
+            '<div><div class="fw-semibold small">' + esc(group.title) + '</div><small class="text-muted">' + esc(group.description || '') + '</small></div>' +
+            '<span class="badge text-bg-light" data-feature-group-count="' + esc(group.module) + '">' + esc(String(group.features.length)) + ' fitur</span>' +
+            '</div></button>' +
+            '<button type="button" class="package-feature-module-preview" data-feature-preview-module="' + esc(group.module) + '">Preview</button>' +
+            '</div></h2>' +
+            '<div id="' + esc(collapseId) + '" class="accordion-collapse collapse show">' +
+            '<div class="accordion-body pt-2">' +
+            group.features.map(function (feature, fIdx) {
+              return renderFeatureItem(feature, idx, fIdx);
+            }).join('') +
+            '</div></div></div>'
+          );
+        }).join('') +
+        '</div>';
+    }
+
+    catalogRoot.innerHTML = renderGroupsAccordion(groups);
     this.featureLimitDrafts = limitDrafts;
     this.syncMaxEmployeesFeatureFromTopField();
     this.updateFeatureSelectionSummary();
@@ -390,29 +328,19 @@ const featureCatalogUiMethods = {
   },
 
   filterFeatureCatalog: function (keyword) {
-    const catalogRoot = document.getElementById("input_package_feature_chips");
-    if (!catalogRoot) return;
-
     const normalized = String(keyword || "").trim().toLowerCase();
-    const groups = Array.from(catalogRoot.querySelectorAll("[data-feature-group]"));
-
+    const root = document.getElementById("input_package_feature_chips");
+    if (!root) return;
+    const groups = Array.from(root.querySelectorAll('[data-feature-group]'));
     groups.forEach(function (group) {
       let visibleCount = 0;
-      group.querySelectorAll("[data-feature-item]").forEach(function (item) {
-        const haystack = String(item.getAttribute("data-feature-filter") || "");
+      group.querySelectorAll('[data-feature-item]').forEach(function (item) {
+        const haystack = String(item.getAttribute('data-feature-filter') || '');
         const isVisible = !normalized || haystack.indexOf(normalized) >= 0;
-        item.classList.toggle("d-none", !isVisible);
-        if (isVisible) {
-          visibleCount += 1;
-        }
+        item.classList.toggle('d-none', !isVisible);
+        if (isVisible) visibleCount += 1;
       });
-
-      group.classList.toggle("d-none", visibleCount === 0);
-      const moduleKey = group.getAttribute("data-feature-group-key");
-      const counter = catalogRoot.querySelector('[data-feature-group-count="' + moduleKey + '"]');
-      if (counter) {
-        counter.textContent = String(visibleCount) + " fitur";
-      }
+      group.classList.toggle('d-none', visibleCount === 0);
     });
   },
 

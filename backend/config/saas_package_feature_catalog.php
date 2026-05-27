@@ -37,7 +37,10 @@ return [
                 ],
                 ['code' => 'employee_management', 'name' => 'Employee Directory', 'description' => 'List, profile, dan pencarian data karyawan.'],
                 ['code' => 'employee_document_center', 'name' => 'Document Center', 'description' => 'Dokumen personal, kontrak, dan arsip employee.'],
-                ['code' => 'employee_lifecycle', 'name' => 'Lifecycle Tracking', 'description' => 'Onboarding, promosi, mutasi, resign, sampai termination.'],
+                ['code' => 'employee_lifecycle', 'name' => 'Lifecycle Tracking', 'description' => 'Onboarding, promosi, mutasi, dan resign.'],
+                ['code' => 'termination', 'name' => 'Termination Management', 'description' => 'Proses PHK terstruktur: workflow multi-stage, kalkulasi settlement (pesangon, UPMK, gaji prorata, cuti sisa), clearance checklist, dan audit trail legal.'],
+                ['code' => 'promotion', 'name' => 'Promotion', 'description' => 'Manajemen kenaikan jabatan dan riwayat promosi karyawan.'],
+                ['code' => 'resignation', 'name' => 'Resignation', 'description' => 'Proses pengunduran diri dan riwayat resign karyawan.'],
             ],
         ],
         [

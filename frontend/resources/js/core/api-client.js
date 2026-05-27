@@ -211,7 +211,11 @@
 
         authSessionMonitorInFlight = true;
 
-        return window.fetch(baseURL + "/identity/auth/me", {
+        // Use /api-token (web route, session-aware) instead of /v1/identity/auth/me
+        // (token-only). This works with the PHP session even after the short-lived
+        // T0 login cookie expires. On success, store the token in localStorage so
+        // subsequent API calls and probes use Bearer auth.
+        return window.fetch("/api-token", {
             method: "GET",
             headers: buildHeaders({ Accept: "application/json" }),
             credentials: "same-origin",
@@ -222,6 +226,12 @@
                 if (!response.ok) {
                     handleUnauthorizedFromApi(response.status, data);
                     return false;
+                }
+
+                // Refresh localStorage token so future API calls and probes
+                // use the current valid token (handles post-T0-expiry sessions).
+                if (data && data.success && data.data && data.data.token) {
+                    setToken(data.data.token);
                 }
 
                 return true;

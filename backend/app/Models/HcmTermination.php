@@ -47,6 +47,12 @@ class HcmTermination extends Model
         'clearance_notes',
         'settlement_breakdown',
         'clearance_items',
+        // Slice A — evidence snapshot + leave availability flag
+        'settlement_evidence_snapshot',
+        'leave_balance_available',
+        // Slice B — workflow audit trail + optimistic lock
+        'workflow_history',
+        'workflow_version',
     ];
 
     protected $casts = [
@@ -65,6 +71,12 @@ class HcmTermination extends Model
         'final_deduction_amount' => 'decimal:2',
         'settlement_breakdown' => 'array',
         'clearance_items' => 'array',
+        // Slice A
+        'settlement_evidence_snapshot' => 'array',
+        'leave_balance_available' => 'boolean',
+        // Slice B
+        'workflow_history' => 'array',
+        'workflow_version' => 'integer',
     ];
 
     /**
@@ -142,6 +154,14 @@ class HcmTermination extends Model
     public function workflowFinalizedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'workflow_finalized_by_user_id');
+    }
+
+    /**
+     * Slice C — Checklist items stored in the dedicated table.
+     */
+    public function checklistItems(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(HcmTerminationChecklistItem::class, 'termination_id');
     }
 
     /**

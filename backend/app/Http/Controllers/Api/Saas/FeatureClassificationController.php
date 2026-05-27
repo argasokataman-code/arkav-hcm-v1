@@ -10,6 +10,48 @@ use Illuminate\Validation\Rule;
 
 class FeatureClassificationController extends Controller
 {
+    /**
+     * Canonical feature codes and their intended tier.
+     * Mirrors 2026_05_28_000200_backfill_feature_classifications_from_catalog.php.
+     */
+    private const CATALOG_TIERS = [
+        // mvp / core ────────────────────────────────────────────────────────
+        'max_employees'              => 'mvp',
+        'employee_management'        => 'mvp',
+        'employee_document_center'   => 'mvp',
+        'employee_lifecycle'         => 'mvp',
+        'attendance'                 => 'mvp',
+        'attendance_shift_scheduling'=> 'mvp',
+        'leave_management'           => 'mvp',
+        'holiday_calendar'           => 'mvp',
+        'leave_approval_flow'        => 'mvp',
+        'payroll'                    => 'mvp',
+        'payroll_components'         => 'mvp',
+        'payroll_thr'                => 'mvp',
+        'notifications'              => 'mvp',
+        'trial_billing_dashboard'    => 'mvp',
+        'tax_governance'             => 'mvp',
+        'bpjs_governance'            => 'mvp',
+        // addon ─────────────────────────────────────────────────────────────
+        'allowance_governance'       => 'addon',
+        'spt_masa_pph21'             => 'addon',
+        'attendance_correction'      => 'addon',
+        'overtime'                   => 'addon',
+        'calendar_events'            => 'addon',
+        'promotion'                  => 'addon',
+        'resignation'                => 'addon',
+        'termination'                => 'addon',
+        'goal_tracking'              => 'addon',
+        'performance_goal_tracking'  => 'addon',
+        'performance'                => 'addon',
+        'training'                   => 'addon',
+        'ai_assistant'               => 'addon',
+        'asset_management'           => 'addon',
+        'tickets'                    => 'addon',
+        'data_privacy'               => 'addon',
+        'notes'                      => 'addon',
+        'faq'                        => 'addon',
+    ];
     public function index(Request $request): JsonResponse
     {
         if (! $this->isHcmAdmin($request)) {
@@ -61,6 +103,48 @@ class FeatureClassificationController extends Controller
         $featureClassification->delete();
 
         return response()->json(['success' => true, 'message' => 'Deleted']);
+    }
+
+    /**
+     * POST /v1/saas/feature-classifications/backfill
+     *
+     * Idempotent: inserts catalog defaults for any feature code that doesn't
+     * already have a row. Existing rows are left untouched so manual overrides
+     * made via the UI survive a re-backfill.
+     */
+    public function backfill(Request $request): JsonResponse
+    {
+        if (! $this->isHcmAdmin($request)) {
+            return response()->json(['success' => false, 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.']], 403);
+        }
+
+        $existing = FeatureClassification::pluck('tier', 'feature_code')->toArray();
+
+        $inserted = 0;
+
+        foreach (self::CATALOG_TIERS as $code => $tier) {
+            if (isset($existing[$code])) {
+                continue;
+            }
+
+            FeatureClassification::create([
+                'feature_code' => $code,
+                'tier'         => $tier,
+            ]);
+
+            $inserted++;
+        }
+
+        $total = FeatureClassification::count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'inserted' => $inserted,
+                'skipped'  => count(self::CATALOG_TIERS) - $inserted,
+                'total'    => $total,
+            ],
+        ]);
     }
 
     private function isHcmAdmin(Request $request): bool

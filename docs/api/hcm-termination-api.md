@@ -61,7 +61,22 @@ Saat `status = finalized`, runtime akan otomatis:
 - menghitung gaji pokok dan tunjangan tetap secara prorata sampai `terminationDate`;
 - menambahkan komponen payroll bulanan lain sebagai reference bila payroll run periodenya sudah ada;
 - menambahkan kompensasi PKWT bila profile contract memang due pada bulan termination;
-- mengambil `clearanceItems` dari asset assignment aktif yang belum return.
+- mengambil `clearanceItems` dari asset assignment aktif yang belum return;
+- **[Slice A]** menghitung enriched settlement: pesangon (UP), UPMK, UPH, dan payout cuti berdasarkan `policy_profile_key` yang diderivasi dari `terminationReasonCode` + `legalBasisCode`;
+- **[Slice A]** menyimpan `settlement_evidence_snapshot` (immutable snapshot: hire_date, base_salary, service_years, referensi wage, dll) sebagai Anomaly #1 mitigation;
+- **[Slice A]** menetapkan `leave_balance_available` = `true`/`false`; jika `false`, finalisasi DIBLOKIR kecuali request menyertakan `manualLeavePayoutConfirmed: true` (Anomaly #4 mitigation).
+
+Breakdown enriched menggunakan policy profiles yang dikonfigurasi di `config/termination-policy-profiles.php`:
+
+| Profile | UP | UPMK | UPH |
+|---|---|---|---|
+| `pkwt_end_of_contract` | ✗ | ✗ | ✗ |
+| `retirement` | ×1.75 | ✓ | ✓ |
+| `company_termination` | ×1.0 | ✓ | ✓ |
+| `disciplinary_or_court` | ✗ | ✗ | ✗ |
+| `deceased_employee` | ×2.0 | ✓ | ✓ |
+| `medical_termination` | ×2.0 | ✓ | ✓ |
+| `general_other` | ✗ | ✗ | ✗ |
 
 Response detail/list sekarang mengembalikan `settlement` object bila snapshot finalization tersedia:
 
@@ -78,6 +93,8 @@ Response detail/list sekarang mengembalikan `settlement` object bila snapshot fi
 - `clearanceItems[]`
 - `clearanceOutstandingCount`
 - `nonAssetChecklist[]`
+- `evidenceSnapshot` — snapshot sumber data yang dipakai saat kalkulasi enriched settlement (hire_date, base_salary, service_years, dll). Hanya ada saat `status = finalized`. Immutable.
+- `leaveBalanceAvailable` (boolean) — `true` jika saldo cuti berhasil dihitung, `false` jika leave service tidak tersedia saat finalization.
 
 Response row/detail juga mengembalikan metadata taxonomy legal:
 
@@ -86,6 +103,9 @@ Response row/detail juga mengembalikan metadata taxonomy legal:
 - `policyProfileKey` (nullable) — hasil mapping profile policy settlement dari taxonomy legal
 - `policyFormulaVersion` (nullable) — versi formula policy yang dipakai saat mapping
 - `workflowStage` — stage compliance aktif
+- `workflow.stage` — stage aktif (sama dengan `workflowStage`)
+- `workflow.version` (integer) — versi optimistic lock. Client wajib membaca dan mengirim kembali via `workflowVersion` saat update. Jika tidak cocok, server return **409 `WORKFLOW_VERSION_CONFLICT`**.
+- `workflow.history[]` — audit trail perubahan stage: `previous_stage`, `new_stage`, `action`, `actor_id`, `actor_name`, `actor_role`, `timestamp`, `note`.
 - `workflow.reviewed`
 - `workflow.approved`
 - `workflow.finalized`
@@ -160,6 +180,56 @@ Create (**HCM admin only**). `userId` wajib **UUID user** dan server menolak use
 
 Update partial (**HCM admin**). Pasangan tanggal harus tetap valid (422 `VALIDATION_ERROR` jika `terminationDate` < `noticeDate`). Saat record berada di status `finalized`, update akan me-refresh link payroll period dan snapshot settlement/clearance dari source runtime kecuali field override dikirim eksplisit. Jika `workflowStage` berubah, server akan memvalidasi transisi stage dan mencatat actor/timestamp trail review/approval/finalization.
 
+Field tambahan (Slice B):
+
+- `workflowVersion` (optional, integer) — versi optimistic lock. Jika dikirim dan tidak cocok → **409 `WORKFLOW_VERSION_CONFLICT`**.
+- `workflowStage` (optional) — transisi stage; memicu audit history.
+
+Field tambahan (Slice A):
+
+- `manualLeavePayoutConfirmed` (optional, boolean) — wajib `true` untuk memfinalisasi jika `leaveBalanceAvailable = false`.
+
 ### DELETE `/terminations/{id}`
 
-Delete (**HCM admin**). **200**: `{ "success": true }`.
+Delete (**HCM admin**). **403 `DELETE_FORBIDDEN_STATUS`**: diblokir jika status adalah `approved` atau `finalized`. **200**: `{ "success": true }`.
+
+### POST `/terminations/{id}/checklist-items`
+
+Tambah checklist item ke termination (**HCM admin only**). Diblokir jika termination sudah `finalized` atau `cancelled` (**422 `TERMINATION_LOCKED`**).
+
+Payload:
+- `label` (required, string ≤ 255)
+- `description` (optional, string ≤ 2000)
+- `ownerName` (optional, string ≤ 100)
+- `dueDate` (optional, `YYYY-MM-DD`)
+- `mandatory` (optional, boolean)
+
+**201**: `{ "success": true, "data": { id, uuid, label, description, ownerName, dueDate, mandatory, status, completedBy, completedAt, completionEvidence } }`.
+
+### GET `/terminations/{id}/checklist-items`
+
+List semua checklist items untuk termination (**HCM admin only**, 403 untuk non-admin). Order: `due_date ASC`.
+
+**200**: `{ "success": true, "data": [...] }`.
+
+### PATCH `/terminations/{id}/checklist-items/{itemId}`
+
+Update checklist item (**HCM admin only**). Semua field opsional:
+- `label`, `description`, `ownerName`, `dueDate`, `mandatory`, `status` (`open` | `completed` | `skipped`)
+
+**200**: `{ "success": true, "data": {...} }`.
+
+### PATCH `/terminations/{id}/checklist-items/{itemId}/complete`
+
+Tandai checklist item sebagai `completed` (**HCM admin only**). Sets `completed_by`, `completed_at`.
+
+Payload opsional:
+- `completionEvidence` (string ≤ 2000) — catatan bukti penyelesaian.
+
+**200**: `{ "success": true, "data": { ...item, status: "completed", completedBy: userId, completedAt: ISO-8601 } }`.
+
+### DELETE `/terminations/{id}/checklist-items/{itemId}`
+
+Hapus checklist item (**HCM admin only**, soft delete). **422 `DELETE_FORBIDDEN_COMPLETED`**: diblokir jika item sudah `completed`.
+
+**200**: `{ "success": true }`.

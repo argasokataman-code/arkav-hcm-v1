@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Saas;
 
 use App\Http\Controllers\Controller;
+use App\Models\FeatureClassification;
 use App\Models\Package;
 use App\Models\PackageAddon;
 use App\Models\PackageFeature;
@@ -186,11 +187,19 @@ class PackageController extends Controller
                 'code' => $f->feature_code,
                 'name' => $f->feature_name,
                 'limit' => $f->limit,
+                'tier' => $f->tier ?? 'core',
                 'isIncluded' => $f->isIncluded(),
                 'isUnlimited' => $f->isUnlimited(),
             ])->toArray(),
             'createdAt' => $pkg->created_at->toIso8601String(),
         ])->values()->toArray();
+
+        // Tier map: { feature_code: 'mvp'|'addon' } from DB classifications.
+        // Loaded once per request and appended to meta so the UI can colour-code
+        // Core vs Addon badges without a separate featureCatalog call.
+        $tierByCode = FeatureClassification::all(['feature_code', 'tier'])
+            ->pluck('tier', 'feature_code')
+            ->toArray();
 
         return response()->json([
             'success' => true,
@@ -200,6 +209,9 @@ class PackageController extends Controller
                 'per_page' => $packages->perPage(),
                 'current_page' => $packages->currentPage(),
                 'last_page' => $packages->lastPage(),
+            ],
+            'meta' => [
+                'tier_by_code' => $tierByCode,
             ],
         ]);
     }
@@ -316,6 +328,7 @@ class PackageController extends Controller
                     'code' => $f->feature_code,
                     'name' => $f->feature_name,
                     'limit' => $f->limit,
+                    'tier' => $f->tier ?? 'core',
                     'isIncluded' => $f->isIncluded(),
                     'isUnlimited' => $f->isUnlimited(),
                 ])->toArray(),
@@ -487,6 +500,7 @@ class PackageController extends Controller
             'feature_code' => 'required|string|max:50',
             'feature_name' => 'required|string|max:100',
             'limit' => 'nullable|integer',
+            'tier' => 'nullable|string|in:core,addon',
         ]);
 
         $feature = $package->features()->create($validated);
@@ -498,6 +512,7 @@ class PackageController extends Controller
                 'code' => $feature->feature_code,
                 'name' => $feature->feature_name,
                 'limit' => $feature->limit,
+                'tier' => $feature->tier ?? 'core',
                 'isIncluded' => $feature->isIncluded(),
                 'isUnlimited' => $feature->isUnlimited(),
             ],
@@ -520,6 +535,7 @@ class PackageController extends Controller
         $validated = $request->validate([
             'feature_name' => 'sometimes|string|max:100',
             'limit' => 'nullable|integer',
+            'tier' => 'nullable|string|in:core,addon',
         ]);
 
         $feature->update($validated);
@@ -531,6 +547,7 @@ class PackageController extends Controller
                 'code' => $feature->feature_code,
                 'name' => $feature->feature_name,
                 'limit' => $feature->limit,
+                'tier' => $feature->tier ?? 'core',
                 'isIncluded' => $feature->isIncluded(),
                 'isUnlimited' => $feature->isUnlimited(),
             ],

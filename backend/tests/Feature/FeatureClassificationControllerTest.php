@@ -29,10 +29,15 @@ class FeatureClassificationControllerTest extends TestCase
 
         $id = $resp->json('data.id');
 
-        // Index
+        // Index — baseline has backfill rows; verify our new entry is present
         $list = $this->getJson('/v1/saas/feature-classifications');
         $list->assertStatus(200)->assertJson(['success' => true]);
-        $this->assertCount(1, $list->json('data'));
+        $data = $list->json('data');
+        $this->assertTrue(count($data) >= 1, 'Expected at least one classification row');
+        $this->assertTrue(
+            collect($data)->contains(fn($row) => $row['id'] === $id),
+            'Newly created classification not found in index'
+        );
 
         // Update
         $update = $this->putJson("/v1/saas/feature-classifications/{$id}", ['tier' => 'mvp']);

@@ -4,14 +4,51 @@ export const API_FEATURE_CATALOG_HEALTHCHECK = "/v1/saas/packages/feature-catalo
 export const API_PACKAGE_COMPLIANCE_CHECK = "/v1/saas/packages/check-compliance";
 export const API_ADDONS_BASE = "/v1/saas/package-addons";
 export const API_FEATURE_CLASSIFICATIONS = "/v1/saas/feature-classifications";
+export const API_FEATURE_CLASSIFICATIONS_BACKFILL = "/v1/saas/feature-classifications/backfill";
 export const PAGE_SIZE = 10;
 export const FEATURE_LIMIT_INPUT_CODE = "max_employees";
+
+// Module → Bootstrap color token used in feature badges
+export const MODULE_COLORS = {
+  employee:    'primary',
+  attendance:  'success',
+  leave:       'info',
+  payroll:     'purple',
+  performance: 'warning',
+  lifecycle:   'secondary',
+  saas:        'dark',
+};
+
+export function getModuleColorToken(module) {
+  return MODULE_COLORS[String(module || '').toLowerCase()] || 'light';
+}
+
+// Feature code → module group (mirrors resolveModuleForFeatureCode in service)
+const FEATURE_MODULE_MAP = {
+  max_employees: 'employee', employee_management: 'employee', employee_document_center: 'employee',
+  employee_lifecycle: 'lifecycle', promotion: 'lifecycle', resignation: 'lifecycle', termination: 'lifecycle',
+  attendance: 'attendance', attendance_shift_scheduling: 'attendance', attendance_correction: 'attendance',
+  overtime: 'attendance', calendar_events: 'attendance',
+  leave_management: 'leave', holiday_calendar: 'leave', leave_approval_flow: 'leave',
+  payroll: 'payroll', payroll_components: 'payroll', payroll_thr: 'payroll',
+  bpjs_governance: 'payroll', tax_governance: 'payroll', allowance_governance: 'payroll',
+  spt_masa_pph21: 'payroll',
+  performance: 'performance', goal_tracking: 'performance', performance_goal_tracking: 'performance', training: 'performance',
+  notifications: 'saas', trial_billing_dashboard: 'saas', data_privacy: 'saas',
+  notes: 'saas', faq: 'saas',
+  ai_assistant: 'saas', asset_management: 'saas', tickets: 'saas',
+};
+
+export function getModuleForCode(code) {
+  return FEATURE_MODULE_MAP[String(code || '')] || 'saas';
+}
 
 const FALLBACK_FEATURE_LIBRARY = [];
 const sharedState = {
   apiToken: null,
   featureLibrary: [],
   featureClassificationOverrides: {},
+  tierByCode: {},
 };
 
 export function setFeatureLibrary(nextLibrary) {
@@ -199,6 +236,23 @@ export function setFeatureClassificationOverrides(map) {
 
 export function getFeatureClassificationOverrides() {
   return sharedState.featureClassificationOverrides || {};
+}
+
+export function setTierByCode(map) {
+  sharedState.tierByCode = map && typeof map === 'object' ? map : {};
+}
+
+export function getTierForCode(code) {
+  return sharedState.tierByCode[String(code || '')] || null;
+}
+
+export function isAddonFeatureCode(code) {
+  const tier = getTierForCode(code);
+  if (tier) return tier === 'addon';
+  // fallback: feature_classification_overrides from featureCatalog response
+  const overrides = getFeatureClassificationOverrides();
+  if (overrides && overrides[code]) return overrides[code] === 'addon';
+  return false; // default: treat as core if unknown
 }
 
 export function apiRequest(method, url, body) {

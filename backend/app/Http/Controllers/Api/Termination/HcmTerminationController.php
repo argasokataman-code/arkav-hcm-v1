@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Termination;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
+use App\DataClasses\WorkflowAuditEvent;
 use App\Models\Asset;
 use App\Models\AssetAssignment;
 use App\Models\CompanyUser;
@@ -12,12 +13,16 @@ use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmTermination;
+use App\Models\HcmTerminationChecklistItem;
 use App\Models\User;
 use App\Services\AssetService;
 use App\Services\Hcm\PkwtCompensationService;
+use App\Services\Hcm\TerminationSettlementCalculationService;
+use App\Services\Hcm\TerminationWorkflowValidator;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class HcmTerminationController extends Controller
@@ -30,7 +35,252 @@ class HcmTerminationController extends Controller
     public function __construct(
         private readonly AssetService $assetService,
         private readonly PkwtCompensationService $pkwtCompensationService,
+        private readonly TerminationSettlementCalculationService $settlementCalculator,
+        private readonly TerminationWorkflowValidator $workflowValidator,
     ) {}
+
+    // =========================================================================
+    // Slice C — Checklist Item Management (structured DB items)
+    // =========================================================================
+
+    /**
+     * POST /v1/hcm/terminations/{id}/checklist-items
+     */
+    public function createChecklistItem(Request $request, int $id): JsonResponse
+    {
+        if ($forbidden = $this->ensurePermission($request, 'termination.manage')) {
+            return $forbidden;
+        }
+
+        $activeCompanyId = $this->resolveActiveCompanyId($request);
+        if ($activeCompanyId === null) {
+            return $this->tenantContextError();
+        }
+
+        // Anomaly #6 — always scope through company-scoped parent
+        $termination = HcmTermination::query()
+            ->where('company_id', $activeCompanyId)
+            ->findOrFail($id);
+
+        if (in_array($termination->status, ['finalized', 'cancelled'], true)) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'TERMINATION_LOCKED', 'message' => 'Cannot add checklist items to a finalized or cancelled termination.'],
+            ], 422);
+        }
+
+        $v = $request->validate([
+            'label'               => ['required', 'string', 'max:255'],
+            'description'         => ['nullable', 'string', 'max:2000'],
+            'ownerName'           => ['nullable', 'string', 'max:100'],
+            'dueDate'             => ['nullable', 'date'],
+            'mandatory'           => ['boolean'],
+        ]);
+
+        $item = HcmTerminationChecklistItem::query()->create([
+            'termination_id'    => $termination->id,
+            'label'             => trim($v['label']),
+            'description'       => $this->cleanNullableString($v['description'] ?? null),
+            'owner_name'        => $this->cleanNullableString($v['ownerName'] ?? null),
+            'due_date'          => $v['dueDate'] ?? null,
+            'mandatory'         => (bool) ($v['mandatory'] ?? false),
+            'status'            => 'open',
+        ]);
+
+        return response()->json(['success' => true, 'data' => $this->checklistItemPayload($item)], 201);
+    }
+
+    /**
+     * GET /v1/hcm/terminations/{id}/checklist-items
+     */
+    public function listChecklistItems(Request $request, int $id): JsonResponse
+    {
+        if ($forbidden = $this->ensurePermission($request, 'termination.view')) {
+            return $forbidden;
+        }
+
+        $activeCompanyId = $this->resolveActiveCompanyId($request);
+        if ($activeCompanyId === null) {
+            return $this->tenantContextError();
+        }
+
+        $termination = HcmTermination::query()
+            ->where('company_id', $activeCompanyId)
+            ->findOrFail($id);
+
+        $items = HcmTerminationChecklistItem::query()
+            ->where('termination_id', $termination->id)
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $items->map(fn (HcmTerminationChecklistItem $item) => $this->checklistItemPayload($item))->values(),
+        ]);
+    }
+
+    /**
+     * PATCH /v1/hcm/terminations/{id}/checklist-items/{itemId}
+     */
+    public function updateChecklistItem(Request $request, int $id, int $itemId): JsonResponse
+    {
+        if ($forbidden = $this->ensurePermission($request, 'termination.manage')) {
+            return $forbidden;
+        }
+
+        $activeCompanyId = $this->resolveActiveCompanyId($request);
+        if ($activeCompanyId === null) {
+            return $this->tenantContextError();
+        }
+
+        // Scope through company-scoped termination (Anomaly #6)
+        $termination = HcmTermination::query()
+            ->where('company_id', $activeCompanyId)
+            ->findOrFail($id);
+
+        $item = HcmTerminationChecklistItem::query()
+            ->where('termination_id', $termination->id)
+            ->findOrFail($itemId);
+
+        $v = $request->validate([
+            'label'       => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'ownerName'   => ['sometimes', 'nullable', 'string', 'max:100'],
+            'dueDate'     => ['sometimes', 'required', 'date'],
+            'mandatory'   => ['sometimes', 'boolean'],
+            'status'      => ['sometimes', 'string', 'in:'.implode(',', HcmTerminationChecklistItem::STATUSES)],
+        ]);
+
+        $updateData = [];
+        if (array_key_exists('label', $v))       { $updateData['label']       = trim($v['label']); }
+        if (array_key_exists('description', $v)) { $updateData['description'] = $this->cleanNullableString($v['description']); }
+        if (array_key_exists('ownerName', $v))   { $updateData['owner_name']  = $this->cleanNullableString($v['ownerName']); }
+        if (array_key_exists('dueDate', $v))     { $updateData['due_date']    = $v['dueDate']; }
+        if (array_key_exists('mandatory', $v))   { $updateData['mandatory']   = (bool) $v['mandatory']; }
+        if (array_key_exists('status', $v))      { $updateData['status']      = $v['status']; }
+
+        if ($updateData !== []) {
+            $item->update($updateData);
+        }
+
+        return response()->json(['success' => true, 'data' => $this->checklistItemPayload($item->fresh())]);
+    }
+
+    /**
+     * PATCH /v1/hcm/terminations/{id}/checklist-items/{itemId}/complete
+     */
+    public function completeChecklistItem(Request $request, int $id, int $itemId): JsonResponse
+    {
+        if ($forbidden = $this->ensurePermission($request, 'termination.manage')) {
+            return $forbidden;
+        }
+
+        $activeCompanyId = $this->resolveActiveCompanyId($request);
+        if ($activeCompanyId === null) {
+            return $this->tenantContextError();
+        }
+
+        $termination = HcmTermination::query()
+            ->where('company_id', $activeCompanyId)
+            ->findOrFail($id);
+
+        $item = HcmTerminationChecklistItem::query()
+            ->where('termination_id', $termination->id)
+            ->findOrFail($itemId);
+
+        $v = $request->validate([
+            'completionEvidence' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $item->update([
+            'status'             => 'completed',
+            'completed_by'       => (int) $request->user()->id,
+            'completed_at'       => now(),
+            'completion_evidence' => $this->cleanNullableString($v['completionEvidence'] ?? null),
+        ]);
+
+        return response()->json(['success' => true, 'data' => $this->checklistItemPayload($item->fresh())]);
+    }
+
+    /**
+     * DELETE /v1/hcm/terminations/{id}/checklist-items/{itemId}
+     * Soft-delete only — audit trail preserved (Anomaly #3).
+     */
+    public function deleteChecklistItem(Request $request, int $id, int $itemId): JsonResponse
+    {
+        if ($forbidden = $this->ensurePermission($request, 'termination.manage')) {
+            return $forbidden;
+        }
+
+        $activeCompanyId = $this->resolveActiveCompanyId($request);
+        if ($activeCompanyId === null) {
+            return $this->tenantContextError();
+        }
+
+        $termination = HcmTermination::query()
+            ->where('company_id', $activeCompanyId)
+            ->findOrFail($id);
+
+        $item = HcmTerminationChecklistItem::query()
+            ->where('termination_id', $termination->id)
+            ->findOrFail($itemId);
+
+        if ($item->status === 'completed') {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'DELETE_FORBIDDEN_COMPLETED', 'message' => 'Cannot delete a completed checklist item.'],
+            ], 422);
+        }
+
+        $item->delete(); // SoftDelete — Anomaly #3
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Serialize a checklist item for API responses.
+     *
+     * @return array<string, mixed>
+     */
+    private function checklistItemPayload(HcmTerminationChecklistItem $item): array
+    {
+        return [
+            'id'                 => $item->id,
+            'uuid'               => $item->uuid,
+            'terminationId'      => $item->termination_id,
+            'label'              => $item->label,
+            'description'        => $item->description,
+            'ownerName'          => $item->owner_name,
+            'dueDate'            => $item->due_date?->toDateString(),
+            'mandatory'          => (bool) $item->mandatory,
+            'status'             => $item->status,
+            'completedBy'        => $item->completed_by,
+            'completedAt'        => $item->completed_at?->toIso8601String(),
+            'completionEvidence' => $item->completion_evidence,
+            'createdAt'          => $item->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Extract and validate active company id from request.
+     */
+    private function resolveActiveCompanyId(Request $request): ?int
+    {
+        $id = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        return $id > 0 ? $id : null;
+    }
+
+    /**
+     * Standard 422 response for missing tenant context.
+     */
+    private function tenantContextError(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context is required.'],
+        ], 422);
+    }
 
     private function terminationForbidden(): JsonResponse
     {
@@ -532,6 +782,7 @@ class HcmTerminationController extends Controller
             'terminationReasonCode' => ['sometimes', 'nullable', 'string', 'max:64', 'in:'.implode(',', HcmTermination::TERMINATION_REASON_CODES)],
             'legalBasisCode' => ['sometimes', 'nullable', 'string', 'max:64', 'in:'.implode(',', HcmTermination::LEGAL_BASIS_CODES)],
             'workflowStage' => ['sometimes', 'nullable', 'string', 'max:64', 'in:'.implode(',', HcmTermination::WORKFLOW_STAGES)],
+            'workflowVersion' => ['sometimes', 'nullable', 'integer', 'min:0'], // Slice B — optimistic lock
             'reason' => ['sometimes', 'required', 'string', 'max:2000'],
             'noticeDate' => ['sometimes', 'required', 'date'],
             'terminationDate' => ['sometimes', 'required', 'date'],
@@ -546,6 +797,7 @@ class HcmTerminationController extends Controller
             'settlementBreakdown' => ['sometimes', 'nullable', 'array'],
             'clearanceItems' => ['sometimes', 'nullable', 'array'],
             'nonAssetChecklist' => ['sometimes', 'nullable', 'array'],
+            'manualLeavePayoutConfirmed' => ['sometimes', 'boolean'], // Slice A — Anomaly #4 override
         ]);
 
         $effectiveValues = array_merge([
@@ -562,8 +814,22 @@ class HcmTerminationController extends Controller
             'nonAssetChecklist' => $t->non_asset_checklist,
         ], $v);
 
-        if ($finalizedError = $this->validateFinalizedFields($effectiveValues)) {
+        if ($finalizedError = $this->validateFinalizedFields($effectiveValues, $t)) {
             return $finalizedError;
+        }
+
+        // Slice B — Optimistic lock: check workflow_version if provided (Anomaly #2)
+        if (array_key_exists('workflowVersion', $v)) {
+            $versionConflict = $this->workflowValidator->validateVersion($t, isset($v['workflowVersion']) ? (int) $v['workflowVersion'] : null);
+            if ($versionConflict !== null) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'WORKFLOW_VERSION_CONFLICT',
+                        'message' => $versionConflict,
+                    ],
+                ], 409);
+            }
         }
 
         if (array_key_exists('workflowStage', $v) || array_key_exists('status', $v)) {
@@ -658,6 +924,21 @@ class HcmTerminationController extends Controller
                 $nextWorkflowStage,
                 (int) $request->user()->id,
             ));
+
+            // Slice B — Append audit event to workflow_history + increment version (Anomaly #2)
+            $currentStage = $t->workflow_stage ?: $this->workflowStageFromStatus($t->status);
+            if ($currentStage !== $nextWorkflowStage) {
+                $actor = $request->user();
+                $auditEvent = WorkflowAuditEvent::make(
+                    previousStage: $currentStage,
+                    newStage:      $nextWorkflowStage,
+                    action:        $this->workflowValidator->stageToAction($nextWorkflowStage),
+                    actor:         $actor,
+                    note:          $this->cleanNullableString($v['notes'] ?? null),
+                );
+                $payload['workflow_history'] = $this->workflowValidator->appendHistory($t, $auditEvent);
+                $payload['workflow_version'] = ((int) ($t->workflow_version ?? 0)) + 1;
+            }
         }
         if (array_key_exists('reason', $v)) {
             $payload['reason'] = trim((string) $v['reason']);
@@ -710,7 +991,17 @@ class HcmTerminationController extends Controller
         }
 
         if ($payload !== []) {
-            $t->update($payload);
+            // Anomaly #2 — wrap save in transaction when workflow_history is being mutated
+            // to prevent concurrent writes from corrupting the JSON history array.
+            if (array_key_exists('workflow_history', $payload)) {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($t, $payload): void {
+                    // Re-fetch with write lock so concurrent requests must queue behind this write.
+                    $locked = HcmTermination::lockForUpdate()->findOrFail($t->id);
+                    $locked->update($payload);
+                });
+            } else {
+                $t->update($payload);
+            }
         }
 
         return response()->json(['success' => true]);
@@ -733,10 +1024,27 @@ class HcmTerminationController extends Controller
             ], 422);
         }
 
-        HcmTermination::query()
+        // Anomaly #3: block delete for approved/finalized records — fetch first, then guard
+        $termination = HcmTermination::query()
             ->where('company_id', $activeCompanyId)
             ->whereKey($id)
-            ->delete();
+            ->first();
+
+        if (! $termination) {
+            return response()->json(['success' => false, 'error' => ['code' => 'NOT_FOUND', 'message' => 'Termination record not found.']], 404);
+        }
+
+        if (in_array($termination->status, ['approved', 'finalized'], true)) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'DELETE_FORBIDDEN_STATUS',
+                    'message' => 'Cannot delete a termination record with status "'.$termination->status.'". Only draft or pending records may be deleted.',
+                ],
+            ], 403);
+        }
+
+        $termination->delete();
 
         return response()->json(['success' => true]);
     }
@@ -774,6 +1082,8 @@ class HcmTerminationController extends Controller
             'workflowStage' => $t->workflow_stage ?? $this->workflowStageFromStatus($t->status),
             'workflow' => [
                 'stage' => $t->workflow_stage ?? $this->workflowStageFromStatus($t->status),
+                'version' => (int) ($t->workflow_version ?? 0), // Slice B — clients echo back for optimistic lock
+                'history' => is_array($t->workflow_history) ? $t->workflow_history : [],
                 'reviewed' => $this->workflowActorPayload($t->workflowReviewedBy, $t->workflow_reviewed_at),
                 'approved' => $this->workflowActorPayload($t->workflowApprovedBy, $t->workflow_approved_at),
                 'finalized' => $this->workflowActorPayload($t->workflowFinalizedBy, $t->workflow_finalized_at),
@@ -794,6 +1104,8 @@ class HcmTerminationController extends Controller
                 'assetReturnNotes' => $t->asset_return_notes,
                 'clearanceNotes' => $t->clearance_notes,
                 'breakdown' => $breakdown,
+                'evidenceSnapshot' => is_array($t->settlement_evidence_snapshot) ? $t->settlement_evidence_snapshot : null, // Slice A
+                'leaveBalanceAvailable' => $t->leave_balance_available, // Slice A
                 'clearanceItems' => $clearanceItems,
                 'clearanceOutstandingCount' => count($clearanceItems),
                 'nonAssetChecklist' => $nonAssetChecklist,
@@ -871,7 +1183,7 @@ class HcmTerminationController extends Controller
         ];
     }
 
-    private function validateFinalizedFields(array $values): ?JsonResponse
+    private function validateFinalizedFields(array $values, ?HcmTermination $termination = null): ?JsonResponse
     {
         $effectiveStatus = $values['status'] ?? $this->statusFromWorkflowStage($values['workflowStage'] ?? null);
         if ($effectiveStatus !== 'finalized') {
@@ -912,6 +1224,37 @@ class HcmTerminationController extends Controller
             }
         }
 
+        // Gap 3 — Check DB checklist items: block finalization if any mandatory item is still open
+        if ($termination !== null) {
+            $openMandatoryCount = $termination->checklistItems()
+                ->where('mandatory', true)
+                ->where('status', 'open')
+                ->count();
+            if ($openMandatoryCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'MANDATORY_CHECKLIST_INCOMPLETE',
+                        'message' => "Cannot finalize: {$openMandatoryCount} mandatory checklist item(s) are still open.",
+                    ],
+                ], 422);
+            }
+        }
+
+        // Slice A — Anomaly #4: if leave balance was unavailable, require explicit admin confirmation
+        if (isset($values['leave_balance_available']) && $values['leave_balance_available'] === false) {
+            $confirmed = isset($values['manualLeavePayoutConfirmed']) && $values['manualLeavePayoutConfirmed'] === true;
+            if (! $confirmed) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'LEAVE_BALANCE_UNCONFIRMED',
+                        'message' => 'Leave balance was unavailable during calculation. Set manualLeavePayoutConfirmed=true to confirm manual override before finalization.',
+                    ],
+                ], 422);
+            }
+        }
+
         return null;
     }
 
@@ -936,10 +1279,43 @@ class HcmTerminationController extends Controller
         }
 
         $user = User::query()->findOrFail($userId);
+        $policyProfileKey = $this->cleanNullableString($values['policyProfileKey'] ?? null)
+            ?? $this->resolvePolicyProfileKey(
+                $this->cleanNullableString($values['terminationReasonCode'] ?? null),
+                $this->cleanNullableString($values['legalBasisCode'] ?? null),
+            );
+
         $preview = $this->buildSettlementPreviewData($companyId, $user, $terminationDate, true);
         $summary = $preview['summary'] ?? [];
         $resolvedPeriod = $preview['resolvedPeriod'] ?? [];
         $clearance = $preview['clearance'] ?? [];
+
+        // Slice A — Enrich settlement breakdown with severance, UPMK, UPH, leave payout
+        $enriched = $this->settlementCalculator->calculate(
+            companyId:        $companyId,
+            userId:           $userId,
+            terminationDate:  $terminationDate,
+            policyProfileKey: $policyProfileKey,
+        );
+
+        // Merge existing prorata items + enriched items (severance, UPMK, UPH, leave)
+        // settlement_breakdown stays as a flat array of line items (API backward-compat).
+        // Enriched totals/metadata live in settlement_evidence_snapshot.
+        $baseItems   = $this->normalizeNullableArray($preview['breakdown'] ?? null) ?? [];
+        $mergedItems = array_values(array_merge($baseItems, $enriched->lineItems));
+
+        $evidenceSnapshot = array_merge($enriched->toEvidenceSnapshotArray(), [
+            'totalGross'           => number_format($enriched->totalGross, 2, '.', ''),
+            'totalDeduction'       => number_format($enriched->totalDeduction, 2, '.', ''),
+            'netPayable'           => number_format($enriched->netPayable, 2, '.', ''),
+            'calculationMethod'    => $enriched->calculationMethod,
+            'policyProfileKey'     => $enriched->policyProfileKey,
+            'leaveBalanceAvailable'=> $enriched->leaveBalanceAvailable,
+            'leavePayout'          => $enriched->leavePayout !== null
+                ? number_format($enriched->leavePayout, 2, '.', '')
+                : null,
+            'source'               => ($preview['source'] ?? 'termination_policy_prorated').'_plus_enriched',
+        ]);
 
         return [
             'settlement_payroll_period_id' => $resolvedPeriod['id'] ?? null,
@@ -951,11 +1327,15 @@ class HcmTerminationController extends Controller
             'asset_return_notes' => $this->cleanNullableString($values['assetReturnNotes'] ?? null)
                 ?? $this->cleanNullableString($clearance['summaryNotes'] ?? null),
             'clearance_notes' => $this->cleanNullableString($values['clearanceNotes'] ?? null),
+            // settlement_breakdown = flat list of line items (backward-compat)
             'settlement_breakdown' => $this->normalizeNullableArray($values['settlementBreakdown'] ?? null)
-                ?? $this->normalizeNullableArray($preview['breakdown'] ?? null),
+                ?? $mergedItems,
             'clearance_items' => $this->normalizeNullableArray($values['clearanceItems'] ?? null)
                 ?? $this->normalizeNullableArray($clearance['items'] ?? null),
             'non_asset_checklist' => $this->normalizeChecklistForStorage($values['nonAssetChecklist'] ?? null),
+            // Slice A — Evidence snapshot (includes enriched totals) + leave availability flag
+            'settlement_evidence_snapshot' => $evidenceSnapshot,
+            'leave_balance_available' => $enriched->leaveBalanceAvailable,
         ];
     }
 
@@ -1466,9 +1846,10 @@ class HcmTerminationController extends Controller
             return true;
         }
 
+        // Strict sequential transitions — no stage skipping allowed (planning doc §5.2.1)
         return match ($current) {
-            'draft_review' => in_array($nextStage, ['legal_review', 'approved_internal', 'finalized_execution', 'cancelled'], true),
-            'legal_review' => in_array($nextStage, ['approved_internal', 'finalized_execution', 'cancelled'], true),
+            'draft_review'      => in_array($nextStage, ['legal_review', 'cancelled'], true),
+            'legal_review'      => in_array($nextStage, ['approved_internal', 'cancelled'], true),
             'approved_internal' => in_array($nextStage, ['finalized_execution', 'cancelled'], true),
             'finalized_execution', 'cancelled' => false,
             default => false,

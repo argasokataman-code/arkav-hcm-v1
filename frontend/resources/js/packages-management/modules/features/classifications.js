@@ -1,4 +1,4 @@
-import { API_FEATURE_CLASSIFICATIONS, apiRequest, esc, getFeatureLibrary, getRuntimeFeatureDisplayName, getFeatureClassificationOverrides } from "../../shared.js";
+import { API_FEATURE_CLASSIFICATIONS, API_FEATURE_CLASSIFICATIONS_BACKFILL, apiRequest, esc, getFeatureLibrary, getRuntimeFeatureDisplayName, getFeatureClassificationOverrides } from "../../shared.js";
 
 const classificationsMethods = {
   showFeatureClassificationsModal: function () {
@@ -33,6 +33,7 @@ const classificationsMethods = {
   },
 
   renderClassifications: function (container, entries) {
+    const self = this;
     // Build lookup for feature names and runtime tiers from runtime catalog
     const featureLibrary = getFeatureLibrary();
     const featureMap = new Map();
@@ -73,17 +74,11 @@ const classificationsMethods = {
 
     // Render create form + search + table (improved visuals)
     let html = '';
-    html += '<div class="mb-3 d-flex flex-column gap-2">';
-    html += '<div class="d-flex gap-2 w-100 align-items-start">';
-    html += '<input id="feature_class_search" class="form-control me-2" placeholder="Search features (code or name)" />';
-    html += '<input id="input_new_class_feature_code" class="form-control me-2" placeholder="Feature code (e.g. tickets)" style="max-width:320px" />';
-    html += '<select id="input_new_class_tier" class="form-select me-2" style="width:150px">';
-    html += '<option value="mvp">Core (mvp)</option>';
-    html += '<option value="addon">Add-on</option>';
-    html += '</select>';
-    html += '<button id="btn_add_classification" class="btn btn-primary">Add</button>';
+    html += '<div class="mb-3">';
+    html += '<button type="button" class="btn btn-sm btn-outline-secondary" id="btn_backfill_classifications"><i class="ti ti-database-import me-1"></i>Backfill Catalog Defaults</button>';
     html += '</div>';
-    html += '<div class="form-text text-muted mt-1">Masukkan feature code untuk memaksa klasifikasi server menjadi Core atau Add-on.</div>';
+    html += '<div class="mb-3">';
+    html += '<input id="feature_class_search" class="form-control" placeholder="Cari fitur (code atau nama)" />';
     html += '</div>';
 
     html += '<div class="table-responsive"><table class="table table-sm">';
@@ -124,6 +119,35 @@ const classificationsMethods = {
 
     container.innerHTML = html;
 
+    // Wire backfill button
+    const backfillBtn = container.querySelector('#btn_backfill_classifications');
+    if (backfillBtn) {
+      backfillBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        backfillBtn.disabled = true;
+        backfillBtn.textContent = 'Running backfill...';
+        apiRequest('POST', API_FEATURE_CLASSIFICATIONS_BACKFILL, null)
+          .then(function (resp) {
+            backfillBtn.disabled = false;
+            backfillBtn.innerHTML = '<i class="ti ti-database-import me-1"></i>Backfill Catalog Defaults';
+            if (resp && resp.success) {
+              const d = resp.data || {};
+              alert('Backfill selesai: ' + (d.inserted || 0) + ' inserted, ' + (d.skipped || 0) + ' skipped (' + (d.total || 0) + ' total).\n\nHalaman akan reload.');
+              // Reload modal contents
+              self.showFeatureClassificationsModal();
+            } else {
+              alert('Backfill gagal: ' + (resp && resp.message ? resp.message : 'Unknown error'));
+            }
+          })
+          .catch(function (err) {
+            backfillBtn.disabled = false;
+            backfillBtn.innerHTML = '<i class="ti ti-database-import me-1"></i>Backfill Catalog Defaults';
+            console.error(err);
+            alert('Backfill error: ' + err.message);
+          });
+      });
+    }
+
     // Wire search input (debounced)
     const searchInput = container.querySelector('#feature_class_search');
     let searchTimer = null;
@@ -140,15 +164,6 @@ const classificationsMethods = {
             r.style.display = show ? '' : 'none';
           });
         }, 160);
-      });
-    }
-
-    // Bind create form handler
-    const addBtn = container.querySelector('#btn_add_classification');
-    if (addBtn) {
-      addBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.handleCreateClassification(container);
       });
     }
 

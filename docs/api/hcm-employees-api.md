@@ -317,3 +317,11 @@ Routes berikut saat ini alias ke bulk template/upload yang sama:
 - `GET /employees/salary-template` → bulk-template
 - `POST /employees/salary-bulk-upload` → bulk-upload
 
+## Implementation Notes
+
+### Profile Photo Upload (Owner Support)
+- **2026-05-28**: Fixed owner profile photo upload workflow
+  - Removed blocking guard logic that prevented owner users from uploading photos via `POST /employees/{id}/profile-photo`
+  - Owner photos now correctly stored in `company_settings` table with key `owner_profile_photo_path` (matches documented behavior: "Semua role (termasuk HCM Admin/Owner)")
+  - Fixes regression: EMPLOYEE_NOT_FOUND error when owner attempted to upload profile photo during account setup or settings update
+

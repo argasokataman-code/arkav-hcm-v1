@@ -14,7 +14,7 @@ use App\Services\MockPaymentGatewayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class HcmCompanyInvoiceController
@@ -142,7 +142,15 @@ class HcmCompanyInvoiceController
             ], 500);
         }
 
-        return Storage::disk('local')->download($path, basename($path), [
+        $fullPath = storage_path('app/private/'.$path);
+        if (! File::exists($fullPath)) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'FILE_NOT_FOUND', 'message' => 'Invoice PDF file is missing.'],
+            ], 404);
+        }
+
+        return response()->download($fullPath, basename($path), [
             'Content-Type' => 'application/pdf',
         ]);
     }

@@ -1190,6 +1190,11 @@
                 <!-- /Horizontal Single -->
 
                 <div class="d-flex align-items-center">
+                    <div class="me-2" id="navbar-clock" style="min-width: 110px;">
+                        <small class="text-muted d-block" style="font-size: 0.75rem; letter-spacing: 0.04em; font-weight: 700;">
+                            <i class="ti ti-clock-hour-4" style="font-size: 0.85rem; margin-right: 4px;"></i><span id="navbar-clock-time">--:--:--</span>
+                        </small>
+                    </div>
                     <div class="me-1">
                         <a href="#" class="btn btn-menubar btnFullscreen">
                             <i class="ti ti-maximize"></i>

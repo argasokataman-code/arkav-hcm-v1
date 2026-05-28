@@ -30,6 +30,17 @@ class InvoiceService
      */
     public function sendInvoiceWithResult(Invoice $invoice, ?string $email = null): array
     {
+        // Generate PDF first, regardless of email availability.
+        // This ensures pdf_path is always populated even when email sending is skipped.
+        if (! $invoice->pdf_path) {
+            $generatedPath = $this->generatePdf($invoice);
+            if (! $generatedPath) {
+                return ['ok' => false, 'toEmail' => null, 'error' => 'Failed to generate invoice PDF.'];
+            }
+
+            $invoice->refresh();
+        }
+
         // NOTE: Company model in this repo does not have a canonical email column.
         // Prefer explicit email param; fallback to owner email if present.
         $invoice->loadMissing('company.owner');
@@ -39,16 +50,6 @@ class InvoiceService
 
         if (! $toEmail) {
             return ['ok' => false, 'toEmail' => null, 'error' => 'Missing recipient email.'];
-        }
-
-        // Ensure PDF is available so email can include attachment.
-        if (! $invoice->pdf_path) {
-            $generatedPath = $this->generatePdf($invoice);
-            if (! $generatedPath) {
-                return ['ok' => false, 'toEmail' => $toEmail, 'error' => 'Failed to generate invoice PDF.'];
-            }
-
-            $invoice->refresh();
         }
 
         try {

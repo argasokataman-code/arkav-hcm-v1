@@ -274,6 +274,21 @@
 <!-- /Main Wrapper -->
 @include('layout.partials.footerarkav')
 @include('layout.partials.footer-scripts')
+
+<!-- Global Navbar Clock -->
+<script>
+(function () {
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function updateClock() {
+        var now = new Date();
+        var el = document.getElementById('navbar-clock-time');
+        if (el) el.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+}());
+</script>
+
 </body>
 
 </html>

@@ -7,6 +7,12 @@ info:
     Implementasi Laravel saat ini menggabungkan banyak endpoint leave/attendance/shift di prefix `/v1/hcm`.
     Lihat `backend/routes/api.php` dan `docs/planning/implementation-status.md` bila path di bawah belum tercantum di file ini.
 
+    ## 2026-05-28: Implementation Fixes
+
+    - Fixed owner profile photo upload regression (POST `/employees/{id}/profile-photo`)
+      - Removed blocking guard that prevented owners from uploading photos
+      - Owner photos now correctly stored in `company_settings` table (matches API spec)
+
     ## 2026-05-21: Change Notes
 
     - Updated to reflect tenant-scoping enforcement in `HcmDashboardController::teamMembersPayload`.

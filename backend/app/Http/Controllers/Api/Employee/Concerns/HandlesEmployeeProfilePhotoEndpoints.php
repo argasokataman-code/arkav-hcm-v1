@@ -40,24 +40,6 @@ trait HandlesEmployeeProfilePhotoEndpoints
             ], 404);
         }
 
-        $activeCompanyIdForPhoto = $this->activeCompanyId($request);
-        if ($activeCompanyIdForPhoto) {
-            $isOwnerForPhoto = CompanyUser::query()
-                ->where('company_id', $activeCompanyIdForPhoto)
-                ->where('user_id', $user->id)
-                ->where('role', 'owner')
-                ->exists();
-            if ($isOwnerForPhoto) {
-                return response()->json([
-                    'success' => false,
-                    'error' => [
-                        'code' => 'EMPLOYEE_NOT_FOUND',
-                        'message' => 'Employee not found.',
-                    ],
-                ], 404);
-            }
-        }
-
         $validator = Validator::make($request->all(), [
             'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,gif', 'max:2048'],
         ]);

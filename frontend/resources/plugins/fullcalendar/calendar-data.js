@@ -24,21 +24,34 @@ if ($('#calendar').length > 0) {
             return h;
         }
 
+        function getAuthToken() {
+            return (window.AuthApi && typeof window.AuthApi.getToken === 'function' && window.AuthApi.getToken())
+                || localStorage.getItem('arcav_access_token')
+                || null;
+        }
+
+        function handleApiUnauthorized(status, data) {
+            if (status === 401 && window.AuthApi && typeof window.AuthApi.handleUnauthorizedFromApi === 'function') {
+                window.AuthApi.handleUnauthorizedFromApi(status, data);
+            }
+        }
+
         function requestJson(method, url, body) {
+            var token = getAuthToken();
             var headers = calTenantHeaders({
                 'Accept': 'application/json',
                 'Content-Type': 'application/json'
             });
+            if (token) { headers['Authorization'] = 'Bearer ' + token; }
 
             if (window.axios) {
                 return window.axios({ method: method, url: url, data: body, headers: headers, withCredentials: true })
                     .then(function (res) { return { ok: true, data: res.data }; })
                     .catch(function (err) {
-                        return {
-                            ok: false,
-                            status: err && err.response ? err.response.status : 0,
-                            data: err && err.response ? err.response.data : null,
-                        };
+                        var status = err && err.response ? err.response.status : 0;
+                        var data = err && err.response ? err.response.data : null;
+                        handleApiUnauthorized(status, data);
+                        return { ok: false, status: status, data: data };
                     });
             }
 
@@ -49,6 +62,7 @@ if ($('#calendar').length > 0) {
                 body: body ? JSON.stringify(body) : undefined,
             }).then(function (res) {
                 return res.json().catch(function () { return null; }).then(function (json) {
+                    if (!res.ok) { handleApiUnauthorized(res.status, json); }
                     return { ok: res.ok, status: res.status, data: json };
                 });
             }).catch(function () {

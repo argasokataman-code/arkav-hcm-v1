@@ -46,7 +46,7 @@
                                     </div>
                                 </div>
                                 <div class="mt-5 text-center">
-                                    <p class="mb-0 text-gray-9">Copyright &copy; 2024 - Smarthr</p>
+                                    <p class="mb-0 text-gray-9">Copyright &copy; {{ date('Y') }} - Arkav - Human Capital Management.</p>
                                 </div>
                             </div>
                         </form>

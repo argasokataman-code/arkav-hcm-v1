@@ -435,7 +435,6 @@ function initBusinessSettingsPage() {
             success: function(response) {
                 if (response.success && response.data) {
                     const settings = response.data;
-                    console.log('✓ Loaded business settings:', settings);
                     // Populate form fields with existing values
                     $('[data-business]').each(function() {
                         const $field = $(this);
@@ -475,7 +474,6 @@ function initBusinessSettingsPage() {
         const submitBtn = $(this).find('button[type="submit"]');
         const originalText = submitBtn.text();
         submitBtn.prop('disabled', true).text('Saving...');
-        console.log('→ Sending business settings:', businessData);
         
         $.ajax({
             url: `${apiBaseUrl}/settings`,

@@ -3,8 +3,8 @@
 use App\Http\Controllers\CustomAuthController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('custom-login', [CustomAuthController::class, 'customLogin'])->name('login.custom');
-Route::post('custom-registration', [CustomAuthController::class, 'customRegistration'])->name('register.custom');
+Route::post('custom-login', [CustomAuthController::class, 'customLogin'])->middleware('throttle:10,1')->name('login.custom');
+Route::post('custom-registration', [CustomAuthController::class, 'customRegistration'])->middleware('throttle:5,1')->name('register.custom');
 Route::get('signout', [CustomAuthController::class, 'signOut'])->name('signout');
 
 Route::get('/login', function () {
@@ -30,7 +30,7 @@ Route::get('/register-3', function () {
 Route::get('/forgot-password', function () {
     return view('auth.forgot-password');
 })->name('forgot-password');
-Route::post('/forgot-password', [CustomAuthController::class, 'sendPasswordResetLink'])->name('password.email');
+Route::post('/forgot-password', [CustomAuthController::class, 'sendPasswordResetLink'])->middleware('throttle:5,1')->name('password.email');
 Route::get('/forgot-password-2', function () {
     return view('auth.forgot-password-2');
 })->name('forgot-password-2');
@@ -42,7 +42,7 @@ Route::get('/reset-password', function () {
     return redirect()->route('forgot-password');
 })->name('reset-password');
 Route::get('/reset-password/{token}', [CustomAuthController::class, 'showResetPasswordForm'])->name('password.reset');
-Route::post('/reset-password', [CustomAuthController::class, 'updatePassword'])->name('password.update');
+Route::post('/reset-password', [CustomAuthController::class, 'updatePassword'])->middleware('throttle:5,1')->name('password.update');
 Route::get('/reset-password-2', function () {
     return view('auth.reset-password-2');
 })->name('reset-password-2');

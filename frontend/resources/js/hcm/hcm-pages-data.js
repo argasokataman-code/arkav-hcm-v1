@@ -139,9 +139,9 @@
             });
         }
 
-        function postMultipart(url, formData) {
+        function postMultipart(url, formData, method) {
             return fetch(url, {
-                method: "POST",
+                method: (method || "POST").toUpperCase(),
                 headers: Object.assign({ Accept: "application/json" }, getAuthHeaders()),
                 credentials: "same-origin",
                 body: formData,
@@ -348,7 +348,7 @@
                     fdEdit.append("departmentId", (polDeptEdit && polDeptEdit.value.trim()) || "");
                     fdEdit.append("effectiveDate", (polDateEdit && polDateEdit.value.trim()) || "");
                     fdEdit.append("attachment", newFile);
-                    postMultipart("/v1/hcm/policies/" + encodeURIComponent(id), fdEdit);
+                    postMultipart("/v1/hcm/policies/" + encodeURIComponent(id), fdEdit, "PUT");
                     return;
                 }
                 var polEditBase = { name: nameVal, description: descVal };
@@ -1101,7 +1101,9 @@
         bootEmployeePages();
     }
 
-    window.addEventListener("pageshow", function () {
-        bootEmployeePages();
+    window.addEventListener("pageshow", function (event) {
+        if (event.persisted) {
+            bootEmployeePages();
+        }
     });
 })(window, document);

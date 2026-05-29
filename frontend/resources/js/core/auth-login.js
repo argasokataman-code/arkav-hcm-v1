@@ -128,11 +128,10 @@
                     throw new Error("Login failed.");
                 }
 
-                // Store API token in localStorage so window.AuthApi.getToken() works on all
-                // subsequent pages — prevents every module from falling back to /api-token fetch.
-                if (loginData.accessToken && window.AuthApi && typeof window.AuthApi.setToken === 'function') {
-                    window.AuthApi.setToken(loginData.accessToken);
-                }
+                // Token is delivered via HttpOnly cookie by the server.
+                // Do NOT store in sessionStorage here — the /api-token bridge on each
+                // authenticated page will replenish it after page load, keeping it
+                // out of browser storage at login time (reduces XSS token-theft surface).
 
                 if (companyModeActive) {
                     var activeCompany = loginData.activeCompany || null;

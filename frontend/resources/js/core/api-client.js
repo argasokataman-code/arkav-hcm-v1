@@ -82,15 +82,9 @@
 
     function getToken() {
         try {
-            var token = window.localStorage.getItem(TOKEN_KEY);
-            if (typeof console !== "undefined" && console.log) {
-                console.log("getToken: Retrieved from localStorage with key '" + TOKEN_KEY + "': " + (token ? token.length + " chars" : "NULL"));
-            }
+            var token = window.sessionStorage.getItem(TOKEN_KEY);
             return token && typeof token === "string" ? token : null;
         } catch (_e) {
-            if (typeof console !== "undefined" && console.error) {
-                console.error("getToken: Failed to read from localStorage:", _e.message);
-            }
             return null;
         }
     }
@@ -114,7 +108,7 @@
         }
         authRedirectScheduled = true;
         try {
-            window.localStorage.removeItem(TOKEN_KEY);
+            window.sessionStorage.removeItem(TOKEN_KEY);
         } catch (_e) {}
         try {
             window.localStorage.removeItem(TENANT_CTX_KEY);
@@ -454,14 +448,6 @@
         var token = getToken();
         if (token) {
             headers["Authorization"] = "Bearer " + token;
-            // Debug logging
-            if (typeof console !== "undefined" && console.log) {
-                console.log("buildHeaders: Adding Bearer token (" + token.length + " chars)");
-            }
-        } else {
-            if (typeof console !== "undefined" && console.log) {
-                console.log("buildHeaders: No token in localStorage");
-            }
         }
 
         var tenantContext = getTenantContext();
@@ -785,20 +771,13 @@
         setToken: function (token) {
             try {
                 if (token) {
-                    window.localStorage.setItem(TOKEN_KEY, token);
-                    if (typeof console !== "undefined" && console.log) {
-                        console.log("setToken: Stored token in localStorage with key '" + TOKEN_KEY + "' (" + token.length + " chars)");
-                    }
+                    window.sessionStorage.setItem(TOKEN_KEY, token);
                 }
-            } catch (_e) {
-                if (typeof console !== "undefined" && console.error) {
-                    console.error("setToken: Failed to store token:", _e.message);
-                }
-            }
+            } catch (_e) {}
         },
         clearToken: function () {
             try {
-                window.localStorage.removeItem(TOKEN_KEY);
+                window.sessionStorage.removeItem(TOKEN_KEY);
             } catch (_e) {}
         },
         getTenantContext: getTenantContext,

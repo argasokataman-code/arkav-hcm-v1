@@ -19,6 +19,8 @@ use App\Services\AssetService;
 use App\Services\Hcm\PkwtCompensationService;
 use App\Services\Hcm\TerminationSettlementCalculationService;
 use App\Services\Hcm\TerminationWorkflowValidator;
+use App\Notifications\TerminationApprovalRequestedNotification;
+use App\Services\ApprovalConfigService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,6 +39,7 @@ class HcmTerminationController extends Controller
         private readonly PkwtCompensationService $pkwtCompensationService,
         private readonly TerminationSettlementCalculationService $settlementCalculator,
         private readonly TerminationWorkflowValidator $workflowValidator,
+        private readonly ApprovalConfigService $approvalConfigService,
     ) {}
 
     // =========================================================================
@@ -750,6 +753,14 @@ class HcmTerminationController extends Controller
             'notes' => isset($v['notes']) ? trim((string) $v['notes']) : null,
             ...$snapshotPayload,
         ]);
+
+        // Notify configured approvers when termination enters draft_review stage
+        if ($workflowStage === 'draft_review') {
+            $approvers = $this->approvalConfigService->resolveApproversToNotify($activeCompanyId, 'termination');
+            foreach ($approvers as $approver) {
+                $approver->notify(new TerminationApprovalRequestedNotification($t));
+            }
+        }
 
         return response()->json(['success' => true, 'data' => ['id' => $t->id]], 201);
     }

@@ -7,6 +7,8 @@ use App\Models\HcmSalaryComponent;
 use App\Models\LeaveRequest;
 use App\Models\OvertimeRequest;
 use App\Models\User;
+use App\Notifications\OvertimeApprovalRequestedNotification;
+use App\Services\ApprovalConfigService;
 use App\Services\Hcm\OvertimePayCalculator;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,7 +25,8 @@ class HcmOvertimeRequestController extends Controller
     private const MAX_WEEKLY_OVERTIME_MINUTES = 18 * 60;
 
     public function __construct(
-        private readonly OvertimePayCalculator $calculator
+        private readonly OvertimePayCalculator $calculator,
+        private readonly ApprovalConfigService $approvalConfigService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -320,6 +323,17 @@ class HcmOvertimeRequestController extends Controller
             'notes' => $validated['notes'] ?? null,
             'policy_note' => $validated['policyNote'] ?? null,
         ]);
+
+        // Notify configured approvers when request enters pending state
+        if ($status === 'pending') {
+            $companyId = $this->activeCompanyId($request);
+            if ($companyId) {
+                $approvers = $this->approvalConfigService->resolveApproversToNotify($companyId, 'overtime');
+                foreach ($approvers as $approver) {
+                    $approver->notify(new OvertimeApprovalRequestedNotification($r));
+                }
+            }
+        }
 
         return response()->json(['success' => true, 'data' => ['id' => $r->id]], 201);
     }

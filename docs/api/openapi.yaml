@@ -70,6 +70,7 @@ tags:
   - name: Promotion
   - name: Resignation
   - name: Termination
+  - name: ApprovalSettings
   - name: SaaS
   - name: User Management
   - name: Reporting
@@ -12829,3 +12830,185 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+  /v1/hcm/approval-settings:
+    get:
+      tags: [ApprovalSettings]
+      summary: Get approval config for all modules
+      description: Returns the current approval configuration for all supported modules of the active company. Admin-only.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: X-Company-Id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Approval configs per module
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        module:
+                          type: string
+                        approvalMode:
+                          type: string
+                          enum: [simultaneous, sequence]
+                        isActive:
+                          type: boolean
+                        approvers:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              userId:
+                                type: integer
+                              userUuid:
+                                type: string
+                              name:
+                                type: string
+                              email:
+                                type: string
+                              sequenceOrder:
+                                type: integer
+        '400':
+          description: Missing company context
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Not an HCM admin
+
+  /v1/hcm/approval-settings/{module}:
+    put:
+      tags: [ApprovalSettings]
+      summary: Upsert approval config for a module
+      description: Creates or updates the approval configuration for the given module. Admin-only.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: X-Company-Id
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: module
+          required: true
+          schema:
+            type: string
+            enum: [leave, expense, offer, overtime, resignation, termination]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approvalMode, approverUserIds]
+              properties:
+                approvalMode:
+                  type: string
+                  enum: [simultaneous, sequence]
+                approverUserIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Updated approval config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      module:
+                        type: string
+                      approvalMode:
+                        type: string
+                      isActive:
+                        type: boolean
+                      approvers:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            userId:
+                              type: integer
+                            name:
+                              type: string
+                            sequenceOrder:
+                              type: integer
+        '400':
+          description: Missing company context
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Not an HCM admin
+        '422':
+          description: Validation error or approver not in company
+
+  /v1/hcm/approval-settings/eligible-approvers:
+    get:
+      tags: [ApprovalSettings]
+      summary: List eligible approvers
+      description: Returns users eligible to be approvers for the active company. Used by the AJAX Select2 search in the UI. Admin-only.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: X-Company-Id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+          description: Search term matched against name, email, and designation (LIKE)
+      responses:
+        '200':
+          description: List of eligible approvers (max 20)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        email:
+                          type: string
+                        designation:
+                          type: string
+                          nullable: true
+        '400':
+          description: Missing company context
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Not an HCM admin

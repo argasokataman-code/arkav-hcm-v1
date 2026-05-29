@@ -24,6 +24,9 @@ use App\Notifications\LeaveRequestedNotification;
 use App\Notifications\LeaveApprovedNotification;
 use App\Notifications\LeaveRejectedNotification;
 use App\Notifications\LeaveCancelledNotification;
+use App\Notifications\LeaveApprovalRequestedNotification;
+use App\Notifications\LeaveNextApproverNotification;
+use App\Services\ApprovalConfigService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\JsonResponse;
@@ -522,10 +525,20 @@ class HcmLeaveRequestController extends Controller
 
         $this->syncLeaveRequestBreakdowns($r->fresh());
 
-        // Emit leave.requested notification to tenant approvers/admins.
-        $recipients = $this->resolveLeaveRequestedRecipients($companyId, $user->id);
-        foreach ($recipients as $recipient) {
-            $recipient->notify(new LeaveRequestedNotification($r->fresh()));
+        // Emit notification to configured approvers (if approval flow is configured),
+        // otherwise fallback to all tenant admins (legacy behavior).
+        $approvalConfigService = app(ApprovalConfigService::class);
+        $configuredApprovers = $approvalConfigService->populateLeaveApprovals($r->fresh());
+        if ($configuredApprovers->isNotEmpty()) {
+            foreach ($configuredApprovers as $approver) {
+                $approver->notify(new LeaveApprovalRequestedNotification($r->fresh()));
+            }
+        } else {
+            // Emit leave.requested notification to tenant approvers/admins.
+            $recipients = $this->resolveLeaveRequestedRecipients($companyId, $user->id);
+            foreach ($recipients as $recipient) {
+                $recipient->notify(new LeaveRequestedNotification($r->fresh()));
+            }
         }
 
         return response()->json(['success' => true, 'data' => ['id' => $r->id]], 201);
@@ -607,7 +620,8 @@ class HcmLeaveRequestController extends Controller
                 ],
             ]);
 
-            DB::transaction(function () use ($r, $validated, $companyId): void {
+            $actorUserId = $request->user()->id;
+            DB::transaction(function () use ($r, $validated, $companyId, $actorUserId): void {
                 $r = $this->applyTenantScope(LeaveRequest::query()->lockForUpdate(), $companyId)->whereKey($r->id)->firstOrFail();
                 $fromStatus = (string) $r->status;
                 $toStatus = (string) $validated['status'];
@@ -624,10 +638,29 @@ class HcmLeaveRequestController extends Controller
                     $nextNotes = $this->composeDeclinedLeaveNotes((string) ($r->notes ?? ''), $reason);
                 }
 
-                $r->update([
-                    'status' => $toStatus,
-                    'notes' => $nextNotes,
-                ]);
+                $statusPayload = ['status' => $toStatus, 'notes' => $nextNotes];
+                if ($toStatus === 'approved' && $fromStatus !== 'approved') {
+                    $statusPayload['approved_by_user_id'] = $actorUserId;
+                    $statusPayload['approved_at'] = now();
+                }
+
+                $r->update($statusPayload);
+
+                // Track in leave_approvals and advance chain (if approval config exists for this company)
+                $approvalConfigService = app(ApprovalConfigService::class);
+                $approvalDecision = $approvalConfigService->processApprovalDecision(
+                    $r->fresh(),
+                    $actorUserId,
+                    $toStatus,
+                    $validated['notes'] ?? null
+                );
+
+                // In sequence mode, notify the next approver in the chain when the current level approves.
+                if ($toStatus === 'approved' && $approvalDecision['next_approvers']->isNotEmpty()) {
+                    foreach ($approvalDecision['next_approvers'] as $nextApprover) {
+                        $nextApprover->notify(new LeaveNextApproverNotification($r->fresh()));
+                    }
+                }
 
                 if (! Schema::hasTable('leave_types') || ! Schema::hasTable('leave_ledger')) {
                     return;

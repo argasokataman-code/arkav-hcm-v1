@@ -34,6 +34,8 @@ class LeaveRequest extends Model
         'days',
         'status',
         'notes',
+        'approved_by_user_id',
+        'approved_at',
     ];
 
     protected function casts(): array
@@ -43,6 +45,8 @@ class LeaveRequest extends Model
             'date_from' => 'date',
             'date_to' => 'date',
             'days' => 'decimal:1',
+            'approved_by_user_id' => 'integer',
+            'approved_at' => 'datetime',
         ];
     }
 

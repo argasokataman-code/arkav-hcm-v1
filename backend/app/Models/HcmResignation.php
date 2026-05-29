@@ -24,12 +24,15 @@ class HcmResignation extends Model
         'notice_date',
         'resignation_date',
         'status',
+        'approved_by_user_id',
+        'approved_at',
         'notes',
     ];
 
     protected $casts = [
         'notice_date' => 'date',
         'resignation_date' => 'date',
+        'approved_at' => 'datetime',
     ];
 
     /**

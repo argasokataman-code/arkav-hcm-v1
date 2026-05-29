@@ -61,6 +61,7 @@ return [
             'features' => [
                 ['code' => 'leave_management', 'name' => 'Leave Requests', 'description' => 'Pengajuan cuti, izin, sakit dari employee.'],
                 ['code' => 'holiday_calendar', 'name' => 'Holiday Calendar', 'description' => 'Kelola hari libur nasional dan perusahaan.'],
+                ['code' => 'leave_approval_flow', 'name' => 'Approval Flow', 'description' => 'Konfigurasi chain approval untuk leave request: sequence atau simultaneous, dengan notifikasi ke approver yang dikonfigurasi.'],
             ],
         ],
         [

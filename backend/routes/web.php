@@ -1588,8 +1588,26 @@ Route::get( '/salary-settings', function () {
     return view('salary-settings');
 })->middleware('hcm.web.admin')->name('salary-settings');
 
-Route::get( '/approval-settings', function () {
-    return view('approval-settings');
+Route::get( '/approval-settings', function (\Illuminate\Http\Request $request) {
+    $companyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+    $company = $companyId > 0 ? \App\Models\Company::query()->find($companyId) : null;
+
+    $activeModules = [];
+    if ($company) {
+        foreach (['leave', 'expense', 'offer', 'overtime', 'resignation', 'termination'] as $module) {
+            $featureMap = ['leave' => 'leave_management', 'overtime' => 'overtime', 'expense' => 'expense', 'offer' => 'offer', 'resignation' => 'resignation', 'termination' => 'termination'];
+            $featureCode = $featureMap[$module] ?? $module;
+            if ($company->hasFeature($featureCode)) {
+                $activeModules[] = $module;
+            }
+        }
+    }
+    // Fallback: always show leave if no company context
+    if (empty($activeModules)) {
+        $activeModules = ['leave'];
+    }
+
+    return view('approval-settings', ['activeModules' => $activeModules]);
 })->middleware('hcm.web.admin')->name('approval-settings');
 
 Route::get( '/invoice-settings', function () {

@@ -17,7 +17,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Mockery;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Tests\TestCase;
 
 class HcmCompanyInvoiceHostedCheckoutTest extends TestCase
@@ -228,7 +228,7 @@ class HcmCompanyInvoiceHostedCheckoutTest extends TestCase
 
         $response = app(HcmCompanyInvoiceController::class)->download($request, $invoice->id);
 
-        $this->assertInstanceOf(StreamedResponse::class, $response);
+        $this->assertInstanceOf(BinaryFileResponse::class, $response);
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame('application/pdf', $response->headers->get('content-type'));
         $this->assertStringContainsString(basename($invoice->pdf_path), (string) $response->headers->get('content-disposition'));

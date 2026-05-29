@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
 use App\Models\HcmResignation;
 use App\Models\User;
+use App\Notifications\ResignationApprovalRequestedNotification;
+use App\Services\ApprovalConfigService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +20,10 @@ class HcmResignationController extends Controller
     use ChecksPermissions;
 
     private const STATUSES = ['pending', 'approved', 'cancelled'];
+
+    public function __construct(
+        private readonly ApprovalConfigService $approvalConfigService,
+    ) {}
 
     private function resignationForbidden(): JsonResponse
     {
@@ -219,6 +225,14 @@ class HcmResignationController extends Controller
             'notes' => isset($v['notes']) ? trim((string) $v['notes']) : null,
         ]);
 
+        // Notify configured approvers when resignation enters pending state
+        if (($v['status'] ?? 'pending') === 'pending') {
+            $approvers = $this->approvalConfigService->resolveApproversToNotify($activeCompanyId, 'resignation');
+            foreach ($approvers as $approver) {
+                $approver->notify(new ResignationApprovalRequestedNotification($r));
+            }
+        }
+
         return response()->json(['success' => true, 'data' => ['id' => $r->id]], 201);
     }
 
@@ -308,6 +322,11 @@ class HcmResignationController extends Controller
         }
         if (array_key_exists('status', $v)) {
             $payload['status'] = $v['status'];
+            // Track who approved and when
+            if ($v['status'] === 'approved' && $r->status !== 'approved') {
+                $payload['approved_by_user_id'] = $request->user()->id;
+                $payload['approved_at'] = now();
+            }
         }
         if (array_key_exists('notes', $v)) {
             $payload['notes'] = $v['notes'] !== null ? trim((string) $v['notes']) : null;

@@ -1190,10 +1190,11 @@
                 <!-- /Horizontal Single -->
 
                 <div class="d-flex align-items-center">
-                    <div class="me-2" id="navbar-clock" style="min-width: 110px;">
-                        <small class="text-muted d-block" style="font-size: 0.75rem; letter-spacing: 0.04em; font-weight: 700;">
-                            <i class="ti ti-clock-hour-4" style="font-size: 0.85rem; margin-right: 4px;"></i><span id="navbar-clock-time">--:--:--</span>
-                        </small>
+                    <div class="me-2" id="navbar-clock">
+                        <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(var(--bs-primary-rgb),0.08); border:1px solid rgba(var(--bs-primary-rgb),0.18); border-radius:8px; padding:4px 10px;">
+                            <i class="ti ti-clock-hour-4" style="font-size:0.95rem; color:var(--bs-primary); opacity:0.8;"></i>
+                            <span id="navbar-clock-time" style="font-size:0.82rem; font-weight:700; letter-spacing:0.08em; font-family:'Courier New',monospace; color:var(--bs-primary);">--:--:--</span>
+                        </div>
                     </div>
                     <div class="me-1">
                         <a href="#" class="btn btn-menubar btnFullscreen">

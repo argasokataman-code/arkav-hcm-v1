@@ -84,7 +84,7 @@
                         </div>
                         <div>
                             <!-- Change Password -->
-                            <div class="border-bottom mb-3 pb-3">
+                            <div class="mb-3 pb-3">
                                 <div class="d-flex justify-content-between align-items-start flex-wrap row-gap-2">
                                     <div>
                                         <h5 class="fw-medium mb-1">Change Password</h5>
@@ -128,82 +128,6 @@
                                         <div class="col-12">
                                             <div class="alert d-none" role="alert" data-security-password-feedback></div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Two Factor Authentication -->
-                            <div class="border-bottom mb-3 pb-3">
-                                <div class="d-flex justify-content-between align-items-center flex-wrap row-gap-2">
-                                    <div>
-                                        <h5 class="fw-medium mb-1">Two Factor Authentication</h5>
-                                        <p class="text-muted mb-0">Receive codes via SMS or email every time you log in</p>
-                                    </div>
-                                    <div>
-                                        <div class="form-check form-check-md form-switch">
-                                            <input class="form-check-input" type="checkbox" role="switch" id="twoFactorSwitch" data-security-2fa>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Google Authentication -->
-                            <div class="border-bottom mb-3 pb-3">
-                                <div class="d-flex justify-content-between align-items-center flex-wrap row-gap-2">
-                                    <div>
-                                        <h5 class="fw-medium d-flex align-items-center mb-1">
-                                            Google Authentication
-                                            <span class="badge badge-xs ms-2 bg-outline-success rounded-pill d-flex align-items-center">
-                                                <i class="ti ti-point-filled me-1"></i>Connected
-                                            </span>
-                                        </h5>
-                                        <p class="text-muted mb-0">Connect your Google account for faster sign-in</p>
-                                    </div>
-                                    <div>
-                                        <div class="form-check form-check-md form-switch">
-                                            <input class="form-check-input" type="checkbox" role="switch" id="googleAuthSwitch" data-security-google-auth>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Phone Number Verification -->
-                            <div class="border-bottom mb-3 pb-3">
-                                <div class="d-flex justify-content-between align-items-start flex-wrap row-gap-2">
-                                    <div>
-                                        <h5 class="fw-medium d-flex align-items-center mb-1">
-                                            Phone Number Verification
-                                            <i class="ti ti-discount-check-filled text-success ms-2"></i>
-                                        </h5>
-                                        <p class="text-muted mb-0">The phone number associated with your account</p>
-                                    </div>
-                                    <div class="d-flex gap-2">
-                                        <a href="#" class="btn btn-outline-light border" data-security-remove-phone>Remove</a>
-                                        <a href="#" class="btn btn-dark" data-security-change-phone>Change</a>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Email Verification -->
-                            <div class="border-bottom mb-3 pb-3">
-                                <div class="d-flex justify-content-between align-items-start flex-wrap row-gap-2">
-                                    <div>
-                                        <h5 class="fw-medium d-flex align-items-center mb-1">
-                                            Email Verification
-                                            <i class="ti ti-discount-check-filled text-success ms-2"></i>
-                                        </h5>
-                                        <p class="text-muted mb-0">Verified email: <strong>{{ auth()->user()?->email }}</strong></p>
-                                    </div>
-                                    <div>
-                                        <a href="#" class="btn btn-dark" data-security-change-email>Change Email</a>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Deactivate Account -->
-                            <div class="border-bottom mb-3 pb-3">
-                                <div class="d-flex justify-content-between align-items-start flex-wrap row-gap-2">
-                                    <div>
-                                        <h5 class="fw-medium mb-1">Deactivate Account</h5>
-                                        <p class="text-muted mb-0">Your account will be temporarily disabled. You can reactivate it by signing in again.</p>
-                                    </div>
-                                    <div>
-                                        <a href="#" class="btn btn-danger" data-security-deactivate>Deactivate</a>
                                     </div>
                                 </div>
                             </div>

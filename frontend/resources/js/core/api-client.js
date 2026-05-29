@@ -211,11 +211,6 @@
 
         authSessionMonitorInFlight = true;
 
-        if (typeof console !== "undefined" && console.log) {
-            var token = getToken();
-            console.log("probeAuthSession called, has token:", !!token);
-        }
-
         // Use /api-token (web route, session-aware) instead of /v1/identity/auth/me
         // (token-only). This works with the PHP session even after the short-lived
         // T0 login cookie expires. On success, store the token in localStorage so
@@ -251,10 +246,6 @@
     function startAuthSessionMonitor() {
         if (authSessionMonitorTimerId || !shouldStartAuthSessionMonitor()) {
             return;
-        }
-
-        if (typeof console !== "undefined" && console.log) {
-            console.log("startAuthSessionMonitor: Starting interval");
         }
 
         // Call probeAuthSession immediately on first load to ensure token is populated

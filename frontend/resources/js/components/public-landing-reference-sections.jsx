@@ -157,17 +157,9 @@ const previewContent = {
         subheading: 'Dashboard ringkasan',
         icon: ChartBar,
         status: 'Live',
-        useModuleGrid: true,
-        moduleStatuses: [
-            { name: 'Employee', status: 'live', count: 124 },
-            { name: 'Attendance', status: 'live', count: 156 },
-            { name: 'Leave', status: 'live', count: 8 },
-            { name: 'Payroll', status: 'active', count: 3 },
-            { name: 'Approval', status: 'active', count: 12 },
-            { name: 'Notifications', status: 'live', count: 'auto' },
-        ],
+        chartData: ['60%', '75%', '82%', '70%', '88%', '92%', '85%'],
         stats: [
-            { label: 'Modul aktif', value: '6+' },
+            { label: 'Modul aktif', value: '8+' },
             { label: 'Health', value: '98%' },
         ],
         activitiesHeading: 'Highlight minggu ini',
@@ -186,8 +178,7 @@ const previewContent = {
         subheading: 'Employee management',
         icon: Users,
         status: '124 aktif',
-        useOrgTree: true,
-        chartData: ['Employee', 'Manager', 'Team Lead', 'Intern'],
+        chartData: ['52%', '62%', '71%', '58%', '81%', '75%', '88%'],
         stats: [
             { label: 'Departemen', value: '8' },
             { label: 'Manager seats', value: '14' },
@@ -208,8 +199,7 @@ const previewContent = {
         subheading: 'Attendance daily',
         icon: CalendarCheck,
         status: 'Realtime',
-        useTimeline: true,
-        timelineData: ['07:30', '08:15', '08:45', '09:00', '10:15', '11:30', '16:30'],
+        chartData: ['78%', '85%', '89%', '82%', '91%', '88%', '94%'],
         stats: [
             { label: 'On time', value: '91%' },
             { label: 'Late today', value: '3 orang' },
@@ -230,7 +220,7 @@ const previewContent = {
         subheading: 'Leave requests',
         icon: FileText,
         status: 'Approval queue',
-        useApprovalQueue: true,
+        chartData: ['40%', '55%', '68%', '72%', '85%', '78%', '90%'],
         stats: [
             { label: 'Pending', value: '5' },
             { label: 'This month', value: '12' },
@@ -251,13 +241,7 @@ const previewContent = {
         subheading: 'Payroll period',
         icon: CurrencyCircleDollar,
         status: 'May 2026',
-        usePayrollBreakdown: true,
-        payrollBreakdown: [
-            { label: 'Basic salary', value: '60%', color: '#4F46E5' },
-            { label: 'Allowance', value: '20%', color: '#06B6D4' },
-            { label: 'Deduction', value: '-8%', color: '#EF4444' },
-            { label: 'Net', value: '72%', color: '#10B981' },
-        ],
+        chartData: ['52%', '64%', '73%', '68%', '82%', '88%', '96%'],
         stats: [
             { label: 'Draft payroll', value: '3' },
             { label: 'Invoice pending', value: '11' },
@@ -344,86 +328,43 @@ export function DashboardMockup({ onOpenOnboarding, packageUuid }) {
                                     <p className="small mb-1 d-flex align-items-center gap-2"><ActiveTabIcon size={14} weight="duotone" /> {activePreview.subheading}</p>
                                     <strong>{activePreview.heading}</strong>
                                 </div>
-                                <span className="mpl-preview-badge">{activePreview.status}</span>
+                                <span className="mpl-preview-badge" style={{ background: '#F0F9FF', color: '#0369A1', fontWeight: 500, padding: '4px 12px', borderRadius: 6, fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{activePreview.status}</span>
                             </div>
 
-                            {activePreview.useModuleGrid ? (
-                                <div className="mpl-module-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginTop: 16, marginBottom: 12 }}>
-                                    {(activePreview.moduleStatuses || []).map((mod) => (
-                                        <div key={mod.name} style={{ padding: 8, borderRadius: 6, background: mod.status === 'live' ? '#D4FC7E' : '#FEF08A', fontSize: '0.75rem' }}>
-                                            <p style={{ margin: 0, fontWeight: 600 }}>{mod.name}</p>
-                                            <p style={{ margin: '2px 0 0', opacity: 0.7 }}>{mod.count} items</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : activePreview.useTimeline ? (
-                                <div style={{ marginTop: 12, display: 'flex', gap: 6, overflowX: 'auto' }}>
-                                    {(activePreview.timelineData || []).map((time, idx) => (
-                                        <motion.div
-                                            key={time}
-                                            initial={{ opacity: 0 }}
-                                            whileInView={{ opacity: 1 }}
-                                            transition={{ delay: idx * 0.04 }}
-                                            style={{ padding: '6px 10px', borderRadius: 4, background: idx < 4 ? '#10B981' : '#DBEAFE', fontSize: '0.75rem', fontWeight: 500, whiteSpace: 'nowrap' }}
-                                        >
-                                            {time}
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            ) : activePreview.usePayrollBreakdown ? (
-                                <div style={{ marginTop: 12 }}>
-                                    {(activePreview.payrollBreakdown || []).map((item, idx) => (
-                                        <div key={item.label} style={{ marginBottom: 8 }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 2 }}>
-                                                <span>{item.label}</span>
-                                                <span style={{ fontWeight: 600 }}>{item.value}</span>
-                                            </div>
-                                            <div style={{ height: 6, background: '#E5E7EB', borderRadius: 3, overflow: 'hidden' }}>
-                                                <motion.div
-                                                    initial={{ width: 0 }}
-                                                    whileInView={{ width: item.value }}
-                                                    viewport={{ once: true }}
-                                                    transition={{ delay: idx * 0.05, duration: 0.4 }}
-                                                    style={{ height: '100%', background: item.color }}
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : activePreview.useApprovalQueue ? (
-                                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    {[1, 2, 3].map((n) => (
-                                        <motion.div
-                                            key={n}
-                                            initial={{ opacity: 0, x: -8 }}
-                                            whileInView={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: n * 0.06 }}
-                                            style={{ padding: 8, borderRadius: 6, background: '#F3E8FF', borderLeft: '3px solid #A855F7', fontSize: '0.75rem' }}
-                                        >
-                                            <p style={{ margin: 0, fontWeight: 600 }}>Request #{n}</p>
-                                            <p style={{ margin: '2px 0 0', opacity: 0.7 }}>Waiting approval</p>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="mpl-mini-chart" aria-hidden="true">
-                                    {activePreview.chartData.map((height, index) => (
-                                        <motion.span
-                                            key={`${height}-${index}`}
-                                            initial={{ height: 0 }}
-                                            whileInView={{ height }}
-                                            viewport={{ once: true }}
-                                            transition={{ delay: 0.1 + (index * 0.06), duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-                                        ></motion.span>
-                                    ))}
-                                </div>
-                            )}
+                            <div className="mpl-mini-chart" aria-hidden="true" style={{ marginTop: 20, marginBottom: 16, gap: 3 }}>
+                                {activePreview.chartData.map((height, index) => (
+                                    <motion.span
+                                        key={`${height}-${index}`}
+                                        initial={{ height: 0, opacity: 0 }}
+                                        whileInView={{ height, opacity: 1 }}
+                                        viewport={{ once: true }}
+                                        transition={{ delay: 0.05 + (index * 0.04), duration: 0.45, ease: 'easeOut' }}
+                                        style={{
+                                            borderRadius: 4,
+                                            background: `linear-gradient(180deg, #3B82F6 0%, #1E40AF ${height})`,
+                                            boxShadow: '0 1px 3px rgba(59, 130, 246, 0.2)',
+                                        }}
+                                    />
+                                ))}
+                            </div>
 
-                            <div className="mpl-stats-row">
+                            <div className="mpl-stats-row" style={{ gap: 12 }}>
                                 {activePreview.stats.map((stat) => (
-                                    <div key={stat.label} className="mpl-stat-box">
-                                        <p className="small mb-0">{stat.label}</p>
-                                        <strong>{stat.value}</strong>
+                                    <div
+                                        key={stat.label}
+                                        className="mpl-stat-box"
+                                        style={{
+                                            padding: '10px 14px',
+                                            background: '#F8FAFC',
+                                            borderRadius: 8,
+                                            border: '1px solid #E2E8F0',
+                                            flex: 1,
+                                        }}
+                                    >
+                                        <p className="small mb-1" style={{ color: '#64748B', fontSize: '0.75rem' }}>
+                                            {stat.label}
+                                        </p>
+                                        <strong style={{ fontSize: '1rem', color: '#1E293B' }}>{stat.value}</strong>
                                     </div>
                                 ))}
                             </div>
@@ -448,28 +389,71 @@ export function DashboardMockup({ onOpenOnboarding, packageUuid }) {
                                             initial={{ opacity: 0, x: 16 }}
                                             whileInView={{ opacity: 1, x: 0 }}
                                             viewport={{ once: true }}
-                                            transition={{ delay: 0.25 + (index * 0.08), duration: 0.45 }}
+                                            transition={{ delay: 0.08 + (index * 0.05), duration: 0.4 }}
+                                            style={{
+                                                padding: '12px 14px',
+                                                borderRadius: 8,
+                                                background: '#F8FAFC',
+                                                border: '1px solid #E2E8F0',
+                                                display: 'flex',
+                                                alignItems: 'flex-start',
+                                                gap: 10,
+                                                marginBottom: index < activePreview.activities.length - 1 ? 8 : 0,
+                                            }}
                                         >
-                                            <span className="mpl-icon-box"><ActivityIcon size={18} weight="duotone" /></span>
-                                            <div>
-                                                <strong className="d-block mb-1">{activity.title}</strong>
-                                                <p className="small mb-0">{activity.subtitle}</p>
+                                            <div style={{ marginTop: 2 }}>
+                                                <ActivityIcon
+                                                    size={16}
+                                                    weight="duotone"
+                                                    style={{ color: '#0369A1', flexShrink: 0 }}
+                                                />
+                                            </div>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <p className="small mb-0" style={{ fontWeight: 500, color: '#1E293B', fontSize: '0.85rem' }}>
+                                                    {activity.title}
+                                                </p>
+                                                <p className="small mb-0" style={{ color: '#64748B', fontSize: '0.75rem', marginTop: 2 }}>
+                                                    {activity.subtitle}
+                                                </p>
                                             </div>
                                         </motion.div>
                                     );
                                 })}
                             </div>
 
-                            <div className="mpl-next-card">
-                                <div>
-                                    <p className="small mb-1">Next step</p>
-                                    <strong className="d-block mb-1">{activePreview.nextTitle}</strong>
-                                    <p className="small mb-0">{activePreview.nextDescription}</p>
-                                </div>
-                                <button type="button" className="mpl-btn" onClick={() => onOpenOnboarding(packageUuid || '')}>
-                                    Mulai <ArrowRight size={18} weight="bold" />
-                                </button>
-                            </div>
+                            <motion.button
+                                onClick={() => onOpenOnboarding(packageUuid || '')}
+                                type="button"
+                                initial={{ opacity: 0, y: 8 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: 0.25, duration: 0.4 }}
+                                style={{
+                                    marginTop: 14,
+                                    width: '100%',
+                                    padding: '10px 16px',
+                                    background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: 8,
+                                    fontSize: '0.9rem',
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                    boxShadow: '0 4px 6px rgba(59, 130, 246, 0.3)',
+                                    transition: 'all 0.2s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 6,
+                                }}
+                                onMouseEnter={(e) => (e.target.style.boxShadow = '0 8px 12px rgba(59, 130, 246, 0.4)')}
+                                onMouseLeave={(e) => (e.target.style.boxShadow = '0 4px 6px rgba(59, 130, 246, 0.3)')}
+                            >
+                                {activePreview.nextTitle} <ArrowRight size={16} weight="bold" />
+                            </motion.button>
+                            <p className="small text-center mt-2" style={{ color: '#64748B', fontSize: '0.75rem', marginBottom: 0 }}>
+                                {activePreview.nextDescription}
+                            </p>
                         </div>
                     </div>
                 </div>

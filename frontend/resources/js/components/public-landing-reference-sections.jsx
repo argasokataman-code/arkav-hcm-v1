@@ -21,22 +21,22 @@ export const featureCards = [
     {
         icon: CalendarCheck,
         title: 'Absensi Digital',
-        description: 'Clock in/out, monitoring keterlambatan, dan ringkasan kehadiran dalam satu dashboard.',
+        description: 'Clock in/out dengan shift scheduling, monitoring keterlambatan real-time, dan lokasi berbasis GPS.',
     },
     {
         icon: FileText,
         title: 'Manajemen Cuti',
-        description: 'Approval flow yang jelas untuk employee, manager, dan admin tanpa pindah jalur kerja.',
+        description: 'Approval flow multi-level yang dapat dikonfigurasi per role. Lengkap dengan tracking dan notifikasi real-time.',
     },
     {
         icon: ChartBar,
-        title: 'Payroll Auto',
-        description: 'Proses payroll lebih tertata dari draft sampai final, lengkap dengan ringkasan biaya yang jelas.',
+        title: 'Payroll + THR',
+        description: 'Proses payroll terintegrasi dari draft hingga final, termasuk kalkulasi THR dan PPh 21 otomatis.',
     },
     {
         icon: Users,
         title: 'Employee Portal',
-        description: 'Karyawan dan owner punya akses mandiri untuk kebutuhan harian tanpa alur yang membingungkan.',
+        description: 'Self-service untuk karyawan, manager, dan finance. Akses terbatas sesuai peran dan kebutuhan operasional.',
     },
 ];
 
@@ -96,9 +96,9 @@ export const heroProofs = [
 ];
 
 export const heroStats = [
-    { label: 'Modul inti', value: '6+' },
+    { label: 'Modul aktif', value: '8+' },
     { label: 'Siap onboarding', value: '24/7' },
-    { label: 'Langkah mulai', value: '4 tahap' },
+    { label: 'Langkah mulai', value: '3 tahap' },
 ];
 
 export function FadeInSection({ children, delay = 0, className = '' }) {
@@ -147,93 +147,131 @@ const previewTabs = [
     { key: 'overview', label: 'Overview', icon: SquaresFour, badge: 'HCM ready' },
     { key: 'employees', label: 'Employees', icon: Users, badge: 'Directory live' },
     { key: 'attendance', label: 'Attendance', icon: CalendarCheck, badge: 'Realtime sync' },
+    { key: 'leave', label: 'Leave', icon: FileText, badge: 'Approval queue' },
     { key: 'payroll', label: 'Payroll', icon: CurrencyCircleDollar, badge: 'Ready to close' },
 ];
 
 const previewContent = {
     overview: {
-        heading: 'Aktivitas & progress modul HCM',
-        subheading: 'Ringkasan minggu ini',
+        heading: 'Module status & aktivitas minggu ini',
+        subheading: 'Dashboard ringkasan',
         icon: ChartBar,
         status: 'Live',
-        chartData: ['60%', '85%', '95%', '75%', '90%', '65%', '80%'],
+        useModuleGrid: true,
+        moduleStatuses: [
+            { name: 'Employee', status: 'live', count: 124 },
+            { name: 'Attendance', status: 'live', count: 156 },
+            { name: 'Leave', status: 'live', count: 8 },
+            { name: 'Payroll', status: 'active', count: 3 },
+            { name: 'Approval', status: 'active', count: 12 },
+            { name: 'Notifications', status: 'live', count: 'auto' },
+        ],
         stats: [
-            { label: 'Employees', value: '124' },
-            { label: 'Attendance', value: '98%' },
+            { label: 'Modul aktif', value: '6+' },
+            { label: 'Health', value: '98%' },
         ],
-        activitiesHeading: 'Queue operasional',
-        activitiesSubheading: 'Aktivitas terbaru',
-        activitiesIcon: CalendarBlank,
+        activitiesHeading: 'Highlight minggu ini',
+        activitiesSubheading: 'Cross-module',
+        activitiesIcon: Lightning,
         activities: [
-            { icon: User, title: 'Employee ditambahkan', subtitle: 'Directory update' },
-            { icon: CalendarBlank, title: 'Leave request', subtitle: 'Approval flow' },
-            { icon: FileText, title: 'Payroll draft', subtitle: 'Ready to finalize' },
+            { icon: Users, title: '14 karyawan baru disetujui', subtitle: 'Employee onboarding' },
+            { icon: CalendarCheck, title: 'Attendance 98% kehadiran', subtitle: 'Weekly average' },
+            { icon: CheckCircle, title: 'Approval queue selesai', subtitle: '100% processed' },
         ],
-        nextTitle: 'Mulai onboarding',
-        nextDescription: 'Buat company + owner, lalu pilih aktivasi subscription.',
+        nextTitle: 'Mulai menggunakan HCM',
+        nextDescription: 'Buat akun company dan owner, lalu pilih paket sesuai kebutuhan.',
     },
     employees: {
-        heading: 'Kesiapan struktur tim dan role',
-        subheading: 'Employee directory',
+        heading: 'Direktori karyawan & struktur organisasi',
+        subheading: 'Employee management',
         icon: Users,
         status: '124 aktif',
-        chartData: ['52%', '58%', '65%', '72%', '76%', '82%', '88%'],
+        useOrgTree: true,
+        chartData: ['Employee', 'Manager', 'Team Lead', 'Intern'],
         stats: [
-            { label: 'Dept aktif', value: '8' },
+            { label: 'Departemen', value: '8' },
             { label: 'Manager seats', value: '14' },
         ],
-        activitiesHeading: 'Perubahan terbaru',
-        activitiesSubheading: 'Employee records',
-        activitiesIcon: User,
+        activitiesHeading: 'Perubahan struktur terbaru',
+        activitiesSubheading: 'Org records',
+        activitiesIcon: Users,
         activities: [
-            { icon: User, title: 'HR Manager onboarded', subtitle: 'Access role assigned' },
-            { icon: Users, title: '3 divisi disinkronkan', subtitle: 'Org structure updated' },
-            { icon: CheckCircle, title: 'Self-service aktif', subtitle: 'Employee portal ready' },
+            { icon: Users, title: 'Tim Finance ditambah 3 member', subtitle: 'Approved & activated' },
+            { icon: CheckCircle, title: 'Self-service portal ready', subtitle: 'All employee roles' },
+            { icon: User, title: 'HR Manager promosi level', subtitle: 'Role reassignment' },
         ],
-        nextTitle: 'Lengkapi struktur tim',
-        nextDescription: 'Import employee, set approver, dan publish akses portal.',
+        nextTitle: 'Setup employee lengkap',
+        nextDescription: 'Import data, assign role, dan publikasikan akses portal untuk semua.',
     },
     attendance: {
-        heading: 'Kehadiran, shift, dan approval harian',
-        subheading: 'Attendance monitoring',
+        heading: 'Monitoring kehadiran real-time',
+        subheading: 'Attendance daily',
         icon: CalendarCheck,
         status: 'Realtime',
-        chartData: ['72%', '78%', '80%', '76%', '88%', '92%', '90%'],
+        useTimeline: true,
+        timelineData: ['07:30', '08:15', '08:45', '09:00', '10:15', '11:30', '16:30'],
         stats: [
             { label: 'On time', value: '91%' },
-            { label: 'Pending cuti', value: '6' },
+            { label: 'Late today', value: '3 orang' },
         ],
-        activitiesHeading: 'Approval & absensi',
-        activitiesSubheading: 'Today queue',
-        activitiesIcon: CalendarBlank,
+        activitiesHeading: 'Queue approval & alerts',
+        activitiesSubheading: 'Real-time',
+        activitiesIcon: CalendarCheck,
         activities: [
-            { icon: CalendarCheck, title: 'Clock-in tervalidasi', subtitle: '3 lokasi aktif' },
-            { icon: CalendarBlank, title: '2 cuti menunggu approval', subtitle: 'Manager review' },
-            { icon: CheckCircle, title: 'Late alerts terkirim', subtitle: 'Policy automation' },
+            { icon: CalendarCheck, title: '23 check-in validated', subtitle: 'Dari 3 lokasi' },
+            { icon: CalendarBlank, title: '2 cuti menunggu approval', subtitle: 'Manager review queue' },
+            { icon: Lightning, title: 'Late alert: 3 karyawan', subtitle: 'Automasi notifikasi' },
         ],
-        nextTitle: 'Aktifkan aturan attendance',
-        nextDescription: 'Set shift, holiday, dan approval matrix untuk tim inti.',
+        nextTitle: 'Setup attendance flow',
+        nextDescription: 'Konfigurasi shift, holiday calendar, dan approval chain per manager.',
     },
-    payroll: {
-        heading: 'Draft payroll, invoice, dan close period',
-        subheading: 'Payroll workspace',
-        icon: CurrencyCircleDollar,
-        status: 'Ready',
-        chartData: ['48%', '55%', '62%', '69%', '74%', '83%', '94%'],
+    leave: {
+        heading: 'Manajemen cuti & approval chain',
+        subheading: 'Leave requests',
+        icon: FileText,
+        status: 'Approval queue',
+        useApprovalQueue: true,
         stats: [
-            { label: 'Draft payroll', value: '3' },
-            { label: 'Invoice queued', value: '11' },
+            { label: 'Pending', value: '5' },
+            { label: 'This month', value: '12' },
         ],
-        activitiesHeading: 'Billing & payroll',
-        activitiesSubheading: 'Closing checklist',
+        activitiesHeading: 'Approval requests',
+        activitiesSubheading: 'Configured flow',
         activitiesIcon: FileText,
         activities: [
-            { icon: FileText, title: 'Payroll draft siap review', subtitle: 'Period April 2026' },
-            { icon: CurrencyCircleDollar, title: 'Invoice pending issue', subtitle: 'Billing automation' },
-            { icon: CheckCircle, title: 'Allowance rules validated', subtitle: 'Ready to finalize' },
+            { icon: FileText, title: 'Cuti 3 hari - Budi Santoso', subtitle: 'Waiting for manager' },
+            { icon: CheckCircle, title: 'Sakit 1 hari - Approved', subtitle: 'By: Manajer Finance' },
+            { icon: FileText, title: 'Cuti khusus - Pending HR', subtitle: 'Manager approved' },
         ],
-        nextTitle: 'Finalize payroll',
-        nextDescription: 'Review komponen gaji, publish slip, lalu kirim invoice.',
+        nextTitle: 'Aktifkan approval settings',
+        nextDescription: 'Konfigurasi multi-level approval, notifikasi, dan escalation rule.',
+    },
+    payroll: {
+        heading: 'Payroll & billing workspace',
+        subheading: 'Payroll period',
+        icon: CurrencyCircleDollar,
+        status: 'May 2026',
+        usePayrollBreakdown: true,
+        payrollBreakdown: [
+            { label: 'Basic salary', value: '60%', color: '#4F46E5' },
+            { label: 'Allowance', value: '20%', color: '#06B6D4' },
+            { label: 'Deduction', value: '-8%', color: '#EF4444' },
+            { label: 'Net', value: '72%', color: '#10B981' },
+        ],
+        stats: [
+            { label: 'Draft payroll', value: '3' },
+            { label: 'Invoice pending', value: '11' },
+        ],
+        activitiesHeading: 'Closing checklist',
+        activitiesSubheading: 'Payroll status',
+        activitiesIcon: CurrencyCircleDollar,
+        activities: [
+            { icon: FileText, title: 'Payroll draft ready', subtitle: 'Calculated & validated' },
+            { icon: CurrencyCircleDollar, title: 'THR calculation done', subtitle: 'PPh 21 auto-deducted' },
+            { icon: CheckCircle, title: 'Invoice generated', subtitle: 'Ready to send' },
+        ],
+        nextTitle: 'Finalize & distribute',
+        nextDescription: 'Review breakdown, publish slip digital, dan kirim invoice ke payment gateway.',
     },
 };
 
@@ -257,7 +295,7 @@ export function DashboardMockup({ onOpenOnboarding, packageUuid }) {
     const activePreview = previewContent[activeTab] || previewContent.overview;
     const activeTabMeta = previewTabs.find((tab) => tab.key === activeTab) || previewTabs[0];
     const ActiveTabIcon = activePreview.icon;
-    const ActivitiesIcon = activePreview.activitiesIcon;
+    const ActivitiesIcon = activePreview.activitiesIcon || activePreview.activitiesIcon;
 
     return (
         <motion.div
@@ -309,17 +347,77 @@ export function DashboardMockup({ onOpenOnboarding, packageUuid }) {
                                 <span className="mpl-preview-badge">{activePreview.status}</span>
                             </div>
 
-                            <div className="mpl-mini-chart" aria-hidden="true">
-                                {activePreview.chartData.map((height, index) => (
-                                    <motion.span
-                                        key={`${height}-${index}`}
-                                        initial={{ height: 0 }}
-                                        whileInView={{ height }}
-                                        viewport={{ once: true }}
-                                        transition={{ delay: 0.1 + (index * 0.06), duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-                                    ></motion.span>
-                                ))}
-                            </div>
+                            {activePreview.useModuleGrid ? (
+                                <div className="mpl-module-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginTop: 16, marginBottom: 12 }}>
+                                    {(activePreview.moduleStatuses || []).map((mod) => (
+                                        <div key={mod.name} style={{ padding: 8, borderRadius: 6, background: mod.status === 'live' ? '#D4FC7E' : '#FEF08A', fontSize: '0.75rem' }}>
+                                            <p style={{ margin: 0, fontWeight: 600 }}>{mod.name}</p>
+                                            <p style={{ margin: '2px 0 0', opacity: 0.7 }}>{mod.count} items</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : activePreview.useTimeline ? (
+                                <div style={{ marginTop: 12, display: 'flex', gap: 6, overflowX: 'auto' }}>
+                                    {(activePreview.timelineData || []).map((time, idx) => (
+                                        <motion.div
+                                            key={time}
+                                            initial={{ opacity: 0 }}
+                                            whileInView={{ opacity: 1 }}
+                                            transition={{ delay: idx * 0.04 }}
+                                            style={{ padding: '6px 10px', borderRadius: 4, background: idx < 4 ? '#10B981' : '#DBEAFE', fontSize: '0.75rem', fontWeight: 500, whiteSpace: 'nowrap' }}
+                                        >
+                                            {time}
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            ) : activePreview.usePayrollBreakdown ? (
+                                <div style={{ marginTop: 12 }}>
+                                    {(activePreview.payrollBreakdown || []).map((item, idx) => (
+                                        <div key={item.label} style={{ marginBottom: 8 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 2 }}>
+                                                <span>{item.label}</span>
+                                                <span style={{ fontWeight: 600 }}>{item.value}</span>
+                                            </div>
+                                            <div style={{ height: 6, background: '#E5E7EB', borderRadius: 3, overflow: 'hidden' }}>
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                    whileInView={{ width: item.value }}
+                                                    viewport={{ once: true }}
+                                                    transition={{ delay: idx * 0.05, duration: 0.4 }}
+                                                    style={{ height: '100%', background: item.color }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : activePreview.useApprovalQueue ? (
+                                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {[1, 2, 3].map((n) => (
+                                        <motion.div
+                                            key={n}
+                                            initial={{ opacity: 0, x: -8 }}
+                                            whileInView={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: n * 0.06 }}
+                                            style={{ padding: 8, borderRadius: 6, background: '#F3E8FF', borderLeft: '3px solid #A855F7', fontSize: '0.75rem' }}
+                                        >
+                                            <p style={{ margin: 0, fontWeight: 600 }}>Request #{n}</p>
+                                            <p style={{ margin: '2px 0 0', opacity: 0.7 }}>Waiting approval</p>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="mpl-mini-chart" aria-hidden="true">
+                                    {activePreview.chartData.map((height, index) => (
+                                        <motion.span
+                                            key={`${height}-${index}`}
+                                            initial={{ height: 0 }}
+                                            whileInView={{ height }}
+                                            viewport={{ once: true }}
+                                            transition={{ delay: 0.1 + (index * 0.06), duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+                                        ></motion.span>
+                                    ))}
+                                </div>
+                            )}
 
                             <div className="mpl-stats-row">
                                 {activePreview.stats.map((stat) => (

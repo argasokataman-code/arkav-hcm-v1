@@ -155,10 +155,7 @@ document.getElementById('proceedBtn').addEventListener('click', async function()
         // Call checkout API to get Midtrans Snap token / redirect URL
         const response = await fetch(`/api/v1/hcm/billing/invoices/${invoiceId}/mock-hosted-checkout`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            },
+                credentials: 'same-origin',
             body: JSON.stringify({})
         });
         

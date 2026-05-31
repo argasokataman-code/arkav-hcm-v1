@@ -205,11 +205,13 @@ class CustomAuthController extends Controller
             'email' => 'required|email',
         ]);
 
-        // Always send reset link attempt regardless of whether email exists.
-        // Do NOT expose whether email is registered (prevents email enumeration).
-        Password::sendResetLink($request->only('email'));
+        $status = Password::sendResetLink($request->only('email'));
 
-        return back()->with('status', __('passwords.sent'));
+        if ($status === Password::RESET_LINK_SENT) {
+            return back()->with('status', __($status));
+        }
+
+        return back()->withErrors(['email' => __($status)]);
     }
 
     public function showResetPasswordForm(Request $request, string $token)

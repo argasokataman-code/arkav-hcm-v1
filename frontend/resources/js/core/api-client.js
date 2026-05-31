@@ -82,7 +82,11 @@
 
     function getToken() {
         try {
-            var token = window.sessionStorage.getItem(TOKEN_KEY);
+            var token = window.localStorage.getItem(TOKEN_KEY);
+            if (token && typeof token === "string") {
+                return token;
+            }
+            token = window.sessionStorage.getItem(TOKEN_KEY);
             return token && typeof token === "string" ? token : null;
         } catch (_e) {
             return null;
@@ -762,11 +766,14 @@
         setToken: function (token) {
             try {
                 if (token) {
-                    window.sessionStorage.setItem(TOKEN_KEY, token);
+                    window.localStorage.setItem(TOKEN_KEY, token);
                 }
             } catch (_e) {}
         },
         clearToken: function () {
+            try {
+                window.localStorage.removeItem(TOKEN_KEY);
+            } catch (_e) {}
             try {
                 window.sessionStorage.removeItem(TOKEN_KEY);
             } catch (_e) {}

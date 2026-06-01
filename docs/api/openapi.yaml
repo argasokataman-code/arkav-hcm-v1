@@ -79,6 +79,7 @@ paths:
     post:
       tags: [Identity]
       summary: Register user
+      description: "Creates a new user and sends a best-effort registration success email without changing the response contract."
       requestBody:
         required: true
         content:

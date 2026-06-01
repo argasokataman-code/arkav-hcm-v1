@@ -30,6 +30,7 @@ Success `201`:
 Behavior note (tenant foundation):
 - Setelah register sukses, backend otomatis memastikan user tergabung ke `default_company` pada tabel `company_users` dengan status `active`.
 - Ini menjaga kompatibilitas single-company deployment sambil menyiapkan migrasi ke tenant context.
+- Setelah register sukses, backend juga mengirim email konfirmasi registrasi ke email user (best-effort, tidak mengubah response contract API).
 
 Errors:
 - `422 VALIDATION_ERROR` (format mengikuti error envelope)

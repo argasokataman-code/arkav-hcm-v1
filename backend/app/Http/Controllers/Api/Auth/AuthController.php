@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\RegisterSuccessMailable;
 use App\Models\AuthToken;
 use App\Models\Company;
 use App\Models\CompanySetting;
@@ -15,6 +16,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
@@ -43,6 +46,7 @@ class AuthController extends Controller
         ]);
 
         $this->attachUserToDefaultCompany($user);
+        $this->sendRegisterSuccessEmail($user);
         $legacyUserId = $this->resolveLegacyUserId($user);
 
         return response()->json([
@@ -56,6 +60,23 @@ class AuthController extends Controller
                 ],
             ],
         ], 201);
+    }
+
+    private function sendRegisterSuccessEmail(User $user): void
+    {
+        if (! filter_var((string) $user->email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        try {
+            Mail::to((string) $user->email)->send(new RegisterSuccessMailable($user));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send register success email.', [
+                'user_id' => $user->id,
+                'email' => (string) $user->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function login(Request $request): JsonResponse

@@ -113,6 +113,8 @@ Flow:
 
 Jika Midtrans belum konfirmasi (masih `pending`), respons tetap `200` dengan `isPaid: false` — polling akan mencoba lagi.
 
+Saat invoice berhasil berubah ke status `paid`, sistem juga mengirim email konfirmasi pembayaran ke owner company (best-effort, tidak mengubah response contract API).
+
 Auth: `HCM Admin` (bearer token + tenant context header).
 
 Contoh respons sukses (sudah terbayar):

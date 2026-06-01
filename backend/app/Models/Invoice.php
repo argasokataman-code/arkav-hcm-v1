@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Mail\PaymentSuccessMailable;
 use App\Models\Concerns\AssignsUuid;
 use App\Services\AddonRecurringSubscriptionService;
 use App\Services\SubscriptionActivationFromInvoiceService;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class Invoice extends Model
 {
@@ -96,6 +99,10 @@ class Invoice extends Model
      */
     public function markAsPaid(): void
     {
+        if ((bool) $this->is_paid) {
+            return;
+        }
+
         $this->update([
             'is_paid' => true,
             'paid_date' => now(),
@@ -114,6 +121,28 @@ class Invoice extends Model
 
         app(SubscriptionActivationFromInvoiceService::class)
             ->activateIfEligible($this->fresh());
+
+        $this->sendPaymentSuccessEmail();
+    }
+
+    private function sendPaymentSuccessEmail(): void
+    {
+        $invoice = $this->fresh(['company.owner']);
+        $recipient = (string) ($invoice->company?->owner?->email ?? '');
+        if ($recipient === '' || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        try {
+            Mail::to($recipient)->send(new PaymentSuccessMailable($invoice));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send payment success email.', [
+                'invoice_id' => $invoice->id,
+                'company_id' => $invoice->company_id,
+                'recipient' => $recipient,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

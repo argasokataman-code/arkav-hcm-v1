@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\AdminComposeMailable;
+use App\Mail\RegisterSuccessMailable;
 use App\Models\NotificationDelivery;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -109,7 +110,8 @@ class HcmEmailComposeApiTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'VALIDATION_ERROR');
 
-        Mail::assertNothingSent();
+        Mail::assertSent(RegisterSuccessMailable::class);
+        Mail::assertNotSent(AdminComposeMailable::class);
     }
 
     public function test_non_global_admin_cannot_access_compose_notification_endpoint(): void

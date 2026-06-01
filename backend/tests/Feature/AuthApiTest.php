@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\RegisterSuccessMailable;
 use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\CompanyUser;
@@ -13,6 +14,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
@@ -41,6 +43,8 @@ class AuthApiTest extends TestCase
 
     public function test_user_can_register_login_me_and_logout(): void
     {
+        Mail::fake();
+
         $registerResponse = $this->postJson('/v1/identity/auth/register', [
             'name' => 'John Doe',
             'email' => 'john@example.com',
@@ -52,6 +56,10 @@ class AuthApiTest extends TestCase
             ->assertStatus(201)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.user.email', 'john@example.com');
+
+        Mail::assertSent(RegisterSuccessMailable::class, function (RegisterSuccessMailable $mail): bool {
+            return (string) $mail->user->email === 'john@example.com';
+        });
 
         $defaultCompany = Company::query()->where('code', 'default_company')->first();
         $this->assertNotNull($defaultCompany);

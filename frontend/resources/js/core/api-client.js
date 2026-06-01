@@ -752,10 +752,10 @@
         request: request,
         downloadV1Binary: downloadV1Binary,
         login: function (payload) {
-            return request("post", "/identity/auth/login", payload);
+            return request("post", "/v1/identity/auth/login", payload);
         },
         register: function (payload) {
-            return request("post", "/identity/auth/register", payload);
+            return request("post", "/v1/identity/auth/register", payload);
         },
         me: function () {
             return request("get", "/identity/auth/me");

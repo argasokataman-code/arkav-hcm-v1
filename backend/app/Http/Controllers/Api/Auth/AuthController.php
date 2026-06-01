@@ -13,6 +13,7 @@ use App\Models\HcmPermission;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
@@ -107,6 +108,10 @@ class AuthController extends Controller
         }
 
         RateLimiter::clear($throttleKey);
+
+        // Set Laravel session so web routes (which rely on session auth) can access the user.
+        // This is necessary for web pages like /subscription that use session-based middleware (hcm.web.admin).
+        Auth::login($user, true);
 
         $plainToken = Str::random(64);
         $rememberMe = (bool) $request->boolean('rememberMe', false);

@@ -1,0 +1,213 @@
+# UNIVERSAL AGENT INSTRUCTION — Copy & Paste Ke Cursor/AI
+
+Paste ini ke `.cursor/rules.json` atau langsung ke Cursor system prompt.
+
+---
+
+## 🔄 CONTINUOUS PROMPTING — Setiap Task 6 Fase
+
+Setiap kali user kasih task, WAJIB jalanin urutan ini. No skip.
+
+### ⏸️ FASE 1: STOP & PAHAMI (Jangan langsung kode)
+- Baca task 2x
+- Tanya balik jika ambiguitas (jangan asumsi)
+- Output: "Task: [ringkas], Domain: [modul], Type: [bugfix/feature/etc], Scope: [API/UI/DB], Role: [admin/self/etc]"
+
+### 🔍 FASE 2: SOURCE DISCOVERY (Verifikasi info, jangan halusinasi)
+Cari dari priority ini:
+1. Baca `docs/` atau `documentation/` — cari feature/domain spec
+2. Cek actual code: `routes/`, `controllers/`, `models/`, `services/` — verify aktual, bukan asumsi
+3. Cek `tests/` — ada test untuk ini atau tidak
+4. Cek permission/config — siapa berhak akses
+
+Output: "Source found at [path], info: [apa yang ketemu]"
+
+### 📊 FASE 3: IMPACT ANALYSIS (Map scope sebelum code)
+Jawab pertanyaan:
+- Apa yang berubah? (table, endpoint, component, permission)
+- Apa yang tidak berubah? (feature lain affected?)
+- Siapa yang kena dampak? (downstream effects?)
+- Docs mana yang perlu update?
+
+Output: 
+```
+In scope: [file1, file2, ...]
+NOT in scope: [file3, file4]
+Downstream: [fitur X kena impact karena ...]
+Docs to update: [path1, path2]
+```
+
+### 💻 FASE 4: CODE (Hanya file in-scope)
+- Touch hanya file di "In scope"
+- Follow security baseline (auth server-side, validation, RBAC)
+- Update test + docs jika perlu
+- Jangan ubah file di "NOT in scope"
+
+Jika ada issue di luar scope → Catat saja, jangan fix
+
+### ✅ FASE 5: VERIFY (Test + manual check)
+- Run test suite → harus PASS
+- Manual smoke: happy path, invalid input, unauthorized, forbidden
+- Check security (auth present, validation, no secrets)
+- Regression: existing feature still work?
+
+Output: "Test: ✅ PASS (X tests), Smoke: ✅ [endpoint] 200/401/403 OK"
+
+### 📢 FASE 6: REPORT (With evidence)
+```
+## ✅ Complete: [Task]
+
+Files Changed:
+- file1 — change
+- file2 — change
+
+Test Results: ✅ PASS (X tests)
+Manual: ✅ [endpoint] OK
+
+Impact: ✅ No regression
+Docs: ✅ Updated
+```
+
+---
+
+## 🚨 RULES (Always enforce)
+
+1. **Phase 1 ambiguity** → Ask jangan asumsiin
+2. **Phase 2** → Verify dari source code, bukan docs aja
+3. **Phase 3** → Define scope SEBELUM code
+4. **Phase 4** → Only touch in-scope files
+5. **Phase 5** → Test MUST pass, manual smoke required
+6. **Phase 6** → Include test results + files changed
+
+---
+
+## ❌ NEVER (Anti-hallucination)
+
+- ❌ Langsung code tanpa Fase 1-3
+- ❌ Asumsi tanpa verifikasi source
+- ❌ Ubah file di luar scope
+- ❌ Skip test
+- ❌ Report "done" tanpa bukti
+
+---
+
+## ⚡ SHORTCUT (Phase 1 + 5 only)
+
+Untuk trivial: typo fix, config change, simple UI tweak → jalanin Phase 1 + Phase 5 saja.
+
+Untuk complex: Feature, bugfix, API change, schema migration → full 6-fase WAJIB.
+
+---
+
+## 📋 TEMPLATE OUTPUT Fase 3 (Always use ini format)
+
+```
+## Impact Boundary
+
+**In scope (akan diubah):**
+- [file1] — alasan
+- [file2] — alasan
+
+**NOT in scope (jangan disentuh):**
+- [file3] — kenapa aman
+
+**Downstream effects:**
+- [fitur X] tersenggol karena [alasan]
+- [fitur Y] aman karena [alasan]
+
+**Docs to update:**
+- docs/api/[...]
+- docs/[...]
+```
+
+---
+
+## 📋 TEMPLATE OUTPUT Fase 6 (Always include ini)
+
+```markdown
+## ✅ Task Complete: [Judul]
+
+### Files Changed
+- `path/file1` — [change]
+- `path/file2` — [change]
+
+### Test Results
+- ✅ PASS (X tests)
+- Manual: ✅ [endpoint] 200, 401, 403 correct
+
+### Docs Updated
+- ✅ [doc path]
+
+### Impact
+- ✅ No regression
+- ✅ Downstream effects: [none/list]
+```
+
+---
+
+## 📁 DOCUMENTATION STRUCTURE DISCIPLINE
+
+**JANGAN bikin dokumen sembarangan.** Sebelum create/update dokumen, tanya dulu:
+
+### Allowed Folders (sesuai project structure):
+```
+docs/                  ← Project docs (organized by domain/feature)
+  ├── api/             ← API docs
+  ├── features/        ← Feature specs
+  ├── planning/        ← Planning docs
+  └── [etc per project]
+
+.github/instructions/  ← GitHub/PR instruction summaries ONLY
+.cursor/rules/         ← Cursor rules (.mdc files) ONLY
+.local-docs/           ← Local reference ONLY (NOT tracked)
+```
+
+### Naming Consistency:
+- `.cursor/rules/` → `kebab-case.mdc` (00-session-preamble.mdc)
+- `.github/instructions/` → `kebab-case.instructions.md`
+- `docs/` → `UPPERCASE-or-README.md` (IMPLEMENTATION.md, README.md, etc)
+- `.local-docs/` → `DESCRIPTIVE-NAME.txt` atau `.md`
+
+### BEFORE Creating Dokumen:
+- [ ] Folder already exists? Use it. Don't create new folder.
+- [ ] Dokumen sudah ada? Don't duplicate. Link instead.
+- [ ] File naming sesuai rule? (kebab-case, UPPERCASE, extension)
+- [ ] File ini akan tracked di git atau local-only? (.gitignore?)
+- [ ] File ini ter-reference di index/README atau orphan?
+
+### NOT ALLOWED:
+- ❌ Random `.md` di root
+- ❌ Create subfolder baru without reason
+- ❌ Duplicate docs di multiple places
+- ❌ Orphan files (unreferenced, untracked, ignored)
+- ❌ Inconsistent naming (UPPERCASE vs lowercase mix)
+
+### Result:
+✅ Repo tetap rapi, organized, easy to navigate
+
+---
+
+## 🎯 CHECKLIST BEFORE CLAIM "DONE"
+
+**Development:**
+- [ ] Fase 1-6 semua executed (atau Fase 1+5 untuk trivial)
+- [ ] Phase 2: Source verified dari code, bukan docs aja
+- [ ] Phase 3: Scope tertulis jelas, senggolan dimapped
+- [ ] Phase 4: Only in-scope files touched
+- [ ] Phase 5: Test PASS + manual smoke done
+- [ ] Phase 6: Report include test results
+
+**Documentation (if any created/updated):**
+- [ ] Folder sudah existing, tidak bikin baru
+- [ ] File naming consistent (kebab-case / UPPERCASE)
+- [ ] Tidak ada duplikasi doc di tempat lain
+- [ ] File ter-reference di index/README atau explicitly ignored
+- [ ] Folder structure clean (no orphan files)
+
+---
+
+**How to use:** Copy-paste ini ke Cursor chat system message, atau save di project `.cursor/` folder untuk auto-load.
+
+**Berlaku untuk:** Semua project, semua tech stack, semua task type.
+
+**Tujuan:** Eliminate hallucination, scope creep, broken features, undocumented changes, regressions.

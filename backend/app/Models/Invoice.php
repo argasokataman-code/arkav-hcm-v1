@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Mail\PaymentSuccessMailable;
 use App\Models\Concerns\AssignsUuid;
 use App\Services\AddonRecurringSubscriptionService;
+use App\Services\InvoiceService;
 use App\Services\SubscriptionActivationFromInvoiceService;
 use App\Support\WebsiteSettings;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -131,6 +132,19 @@ class Invoice extends Model
         $recipient = (string) ($invoice->company?->owner?->email ?? '');
         if ($recipient === '' || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
             return;
+        }
+
+        // Generate PDF first so it can be attached to the email.
+        if (! $invoice->pdf_path) {
+            try {
+                app(InvoiceService::class)->generatePdf($invoice);
+                $invoice->refresh();
+            } catch (\Throwable $e) {
+                Log::warning('Failed to generate invoice PDF before payment success email.', [
+                    'invoice_id' => $invoice->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         try {

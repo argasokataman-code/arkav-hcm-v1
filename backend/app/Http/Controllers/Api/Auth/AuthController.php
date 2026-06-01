@@ -175,7 +175,7 @@ class AuthController extends Controller
             $this->cookieDomain(),
             $this->cookieSecure(),
             true,
-            false,
+            true,  // raw=true to skip encryption
             $this->cookieSameSite()
         );
     }

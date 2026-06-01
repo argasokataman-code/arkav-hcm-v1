@@ -98,6 +98,7 @@
 
         form.addEventListener("submit", async function (event) {
             event.preventDefault();
+            console.log('Form submission initiated');
             setError("");
             submitButton.disabled = true;
 
@@ -107,20 +108,29 @@
                     ? companyCodeInput.value.trim()
                     : "";
 
+                console.log('Company mode:', companyModeActive, 'Code:', companyCode);
+
                 if (window.AuthApi && typeof window.AuthApi.clearTenantContext === "function") {
                     window.AuthApi.clearTenantContext();
+                }
+                // Clear any stale token from a previous session so that after login,
+                // /api-token probe uses the fresh HttpOnly cookie instead of a revoked Bearer.
+                if (window.AuthApi && typeof window.AuthApi.clearToken === "function") {
+                    window.AuthApi.clearToken();
                 }
 
                 if (companyModeActive && !companyCode) {
                     throw new Error("Company code wajib diisi untuk Login Company.");
                 }
 
+                console.log('About to call AuthApi.login');
                 var response = await window.AuthApi.login({
                     email: emailInput.value.trim(),
                     password: passwordInput.value,
                     rememberMe: !!(rememberMeInput && rememberMeInput.checked),
                     companyCode: companyModeActive ? companyCode : undefined,
                 });
+                console.log('AuthApi.login response:', response);
                 var payload = response && response.data ? response.data : null;
                 var loginData = payload && payload.data ? payload.data : null;
 
@@ -148,11 +158,14 @@
                 // "Login Employee" mode has no company context → always go to employee dashboard.
                 // "Login Company" mode → go to index (admin dashboard) or `next` param.
                 var defaultAfterLogin = companyModeActive ? "/index" : "/employee-dashboard";
+                console.log('Redirecting to:', params.get("next") ? sanitizeNextRedirect(params.get("next")) : defaultAfterLogin);
                 safeRedirect(params.get("next") ? sanitizeNextRedirect(params.get("next")) : defaultAfterLogin);
             } catch (error) {
+                console.error('Login error:', error);
                 var apiMessage = error?.response?.data?.error?.message;
                 setError(apiMessage || error.message || "Login gagal. Periksa email/password.");
             } finally {
+                console.log('Form submission finally block');
                 submitButton.disabled = false;
             }
         });

@@ -17,6 +17,7 @@ use App\Http\Middleware\EnsureGlobalHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebPagesAuthenticated;
 use App\Http\Middleware\EnsurePrimarySuperAdminCodeOnePage;
+use App\Http\Middleware\EncryptCookiesExceptApiToken;
 use App\Http\Middleware\HandleCorsRequests;
 use App\Http\Middleware\ResolveTenantContext;
 use App\Http\Middleware\SecurityHeadersMiddleware;
@@ -40,6 +41,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 | Request::HEADER_X_FORWARDED_PROTO
                 | Request::HEADER_X_FORWARDED_AWS_ELB
         );
+
+        // Replace default EncryptCookies with custom one that excludes arcav_access_token
+        $middleware->encryptCookies(except: ['arcav_access_token']);
 
         $middleware->append(TraceIdMiddleware::class);
         $middleware->append(HandleCorsRequests::class);

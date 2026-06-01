@@ -51,6 +51,7 @@ class ApiTokenController extends Controller
         // cookie token actually becomes invalid or expired.
         $cookieName = (string) config('auth.api_token_cookie.name', 'arcav_access_token');
         $cookieRawToken = $request->cookie($cookieName);
+        
         if ($cookieRawToken) {
             $cookieDbToken = AuthToken::where('user_id', $user->id)
                 ->where('token_hash', hash('sha256', $cookieRawToken))

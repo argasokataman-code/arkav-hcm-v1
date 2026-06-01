@@ -18,14 +18,6 @@ class EnsureHcmWebAdminPage
     public function handle(Request $request, Closure $next): Response
     {
         $user = $this->resolveUser($request);
-        
-        \Log::debug('EnsureHcmWebAdminPage', [
-            'user_resolved' => $user ? true : false,
-            'user_email' => $user?->email ?? 'N/A',
-            'isGlobalHcmAdmin' => $user?->isGlobalHcmAdmin() ?? false,
-            'isHcmAdmin' => $user?->isHcmAdmin() ?? false,
-            'path' => $request->path(),
-        ]);
 
         if (! $user instanceof User) {
             \Log::warning('EnsureHcmWebAdminPage: User not resolved');

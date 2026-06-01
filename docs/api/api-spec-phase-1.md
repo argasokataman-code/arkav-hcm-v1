@@ -67,6 +67,7 @@ Sumber kebenaran kontrak saat ini:
   - `H:i` untuk input jam kerja (schedule/shift)
 - API versioning: prefix `/v1`
 - Authentication: `Authorization: Bearer <token>` (atau cookie HttpOnly `arcav_access_token` untuk browser flow), enforced by middleware `api.token`
+  - Cookie `arcav_access_token` dikirim raw/unencrypted (Laravel `EncryptCookies` di-exclude; `raw=true` pada `cookie()` response). Bearer token diprioritaskan di atas cookie jika keduanya hadir.
 - Response envelope:
   - success: `{ success: true, data: ... }`
   - error: `{ success: false, error: ... }`

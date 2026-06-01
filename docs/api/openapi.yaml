@@ -109,7 +109,9 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: OK
+          description: |
+            OK. Also sets HttpOnly cookie `arcav_access_token` (raw/unencrypted,
+            SameSite=Lax) for browser-based session flow via `/api-token` bridge route.
           content:
             application/json:
               schema:

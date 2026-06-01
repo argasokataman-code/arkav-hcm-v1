@@ -44,6 +44,8 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
             'company_id' => $company->id,
             'status'     => HcmTaxGovernancePolicy::STATUS_PUBLISHED,
             'version'    => 3,
+            'effective_start_date' => '2026-05-01',
+            'effective_end_date' => null,
         ]);
 
         $periodId = DB::table('hcm_payroll_periods')->insertGetId([

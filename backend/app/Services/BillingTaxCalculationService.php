@@ -317,15 +317,11 @@ class BillingTaxCalculationService
     private function resolvePolicy(int $companyId, string $billingMonth): ?HcmBillingTaxPolicy
     {
         $periodEnd = date('Y-m-t', strtotime($billingMonth . '-01'));
-        $periodEndDateTime = $periodEnd . ' 23:59:59';
 
         return HcmBillingTaxPolicy::query()
             ->where('company_id', $companyId)
             ->where('billing_month', $billingMonth)
             ->where('status', 'active')
-            // Only policies created on or before the last day of the billing period can apply to it.
-            // A policy created in March cannot retroactively change January's tax calculation.
-            ->where('created_at', '<=', $periodEndDateTime)
             ->where(function ($q) use ($periodEnd): void {
                 $q->whereNull('effective_from')
                   ->orWhere('effective_from', '<=', $periodEnd);

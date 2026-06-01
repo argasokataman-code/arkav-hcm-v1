@@ -1221,11 +1221,13 @@
                             </div>
                         </div>
                     </div>
+                    @if ($isGlobalHcmAdmin)
                     <div class="me-1">
                         <a href="{{url('email')}}" class="btn btn-menubar">
                             <i class="ti ti-mail"></i>
                         </a>
                     </div>
+                    @endif
                     @include('layout.partials.header.notification-dropdown')
                     @php
                         $trialEndsAt = $activeCompanySubscription?->trial_ends_at;

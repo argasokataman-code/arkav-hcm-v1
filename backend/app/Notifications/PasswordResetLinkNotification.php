@@ -29,7 +29,7 @@ class PasswordResetLinkNotification extends Notification
             ->action('Reset Password', $this->resetUrl)
             ->line('If the button above does not work, copy and open this URL:')
             ->line($this->resetUrl)
-            ->line('This link will expire in 60 minutes.')
+            ->line('This link will expire in 10 minutes.')
             ->line('If you did not request a password reset, no further action is required.');
     }
 

@@ -84,6 +84,9 @@ export function bindQuickPreviewModule(deps) {
             });
     }
 
+    var previewPendingForEmployeeId = null;
+    var previewClickDebounceTimer = null;
+
     document.addEventListener("click", function (event) {
         var detailLink = event.target.closest("[data-employee-detail-link]");
         if (detailLink) {
@@ -101,7 +104,19 @@ export function bindQuickPreviewModule(deps) {
             return;
         }
         event.preventDefault();
-        openEmployeePreview(row.getAttribute("data-employees-row-preview"));
+
+        var employeeId = row.getAttribute("data-employees-row-preview");
+
+        // Debounce rapid clicks (e.g., triple-click) to prevent multiple simultaneous API calls
+        window.clearTimeout(previewClickDebounceTimer);
+        if (previewPendingForEmployeeId === employeeId) {
+            return; // Preview already loading/open for this employee
+        }
+
+        previewPendingForEmployeeId = employeeId;
+        previewClickDebounceTimer = window.setTimeout(function () {
+            openEmployeePreview(employeeId);
+        }, 50); // 50ms debounce to coalesce rapid clicks
     });
 
     if (getSelectedPreviewEmployeeId()) {

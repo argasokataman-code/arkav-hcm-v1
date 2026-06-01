@@ -7,6 +7,9 @@
   // Shared token key – same as api-client.js so both stay in sync
   var TOKEN_KEY = "arcav_access_token";
 
+  // Guard to prevent multiple concurrent redirects on auth failure
+  var authRedirectScheduled = false;
+
   // Get API token: prefer cached arcav_access_token, fall back to /api-token fetch
   function getApiToken() {
     return new Promise(function (resolve, reject) {
@@ -22,12 +25,18 @@
       })
         .then(function (res) {
           if (res.status === 302 || res.status === 401) {
-            window.location.href = "/lock-screen";
+            if (!authRedirectScheduled) {
+              authRedirectScheduled = true;
+              window.location.href = "/lock-screen";
+            }
             reject(new Error("Not authenticated."));
             return;
           }
           if (res.status === 403) {
-            window.location.href = "/employee-dashboard";
+            if (!authRedirectScheduled) {
+              authRedirectScheduled = true;
+              window.location.href = "/employee-dashboard";
+            }
             reject(new Error("Admin access required."));
             return;
           }

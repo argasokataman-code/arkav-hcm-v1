@@ -1,7 +1,15 @@
 (function (window) {
   "use strict";
 
+  // Guard to prevent multiple concurrent redirects on auth failure
+  var authRedirectScheduled = false;
+
   function redirectTo(url) {
+    if (authRedirectScheduled) {
+      return;
+    }
+    authRedirectScheduled = true;
+
     try {
       window.__ARCAV_LAST_REDIRECT__ = url;
     } catch (err) {

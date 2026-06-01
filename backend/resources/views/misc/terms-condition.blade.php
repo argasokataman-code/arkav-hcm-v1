@@ -3,7 +3,7 @@
 @php
 	$page = 'terms-condition';
 	$companyName = \App\Support\WebsiteSettings::businessCompanyName();
-	$dpoEmail = (string) config('pdp.dpo_email', 'dpo@arcav.id');
+	$dpoEmail = (string) config('pdp.dpo_email', 'Hi@puree.id');
 @endphp
 
 @section('title', 'Syarat dan Ketentuan')
@@ -12,7 +12,7 @@
 <div class="mb-4">
 	<span class="badge badge-soft-primary mb-3">Dokumen Legal</span>
 	<h1 class="mb-2">Syarat dan Ketentuan {{ $companyName }}</h1>
-	<p class="text-muted mb-0">Syarat ini mengatur penggunaan layanan SaaS ARCAV HCM, termasuk onboarding tenant, berlangganan, perlindungan data, dan batas tanggung jawab.</p>
+	<p class="text-muted mb-0">Syarat ini mengatur penggunaan layanan SaaS {{ $companyName }}, termasuk onboarding tenant, berlangganan, perlindungan data, dan batas tanggung jawab.</p>
 </div>
 
 <p class="text-muted small">Berlaku efektif: 19 Mei 2026 &mdash; Terakhir diperbarui: 19 Mei 2026</p>

@@ -62,7 +62,7 @@
                         </div>
                     </div>
                     <div class="me-2 mb-2">
-                        <a href="/v1/hcm/employees/bulk-template" class="btn btn-outline-secondary d-flex align-items-center" data-employee-bulk-template-link>
+                        <a href="{{ route('employees.bulk-template') }}" class="btn btn-outline-secondary d-flex align-items-center" data-employee-bulk-template-link>
                             <i class="ti ti-file-download me-2"></i>Template Bulk Employee
                         </a>
                     </div>
@@ -353,7 +353,7 @@
                             Gunakan template Excel resmi untuk update/create data employee secara massal berdasarkan identifier employee (kolom teknis: employee_uuid) atau email.
                         </p>
                         <div class="d-flex flex-wrap gap-2 mb-3">
-                            <a href="{{ url('/v1/hcm/employees/bulk-template') }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener noreferrer" data-employee-bulk-template-link>
+                            <a href="{{ route('employees.bulk-template') }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener noreferrer" data-employee-bulk-template-link>
                                 <i class="ti ti-download me-1"></i>Download latest template
                             </a>
                             <span class="badge bg-soft-info text-info align-self-center">Multi-sheet workbook + master references</span>

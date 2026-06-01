@@ -99,9 +99,10 @@
 							<option value="RENEWAL_MAX_RETRY_EXCEEDED">RENEWAL_MAX_RETRY_EXCEEDED</option>
 							<option value="RENEWAL_GRACE_EXPIRED">RENEWAL_GRACE_EXPIRED</option>
 							<option value="RENEWAL_PROCESS_EXCEPTION">RENEWAL_PROCESS_EXCEPTION</option>
-							<option value="XENDIT_PAYMENT_FAILED">XENDIT_PAYMENT_FAILED</option>
-							<option value="XENDIT_INVOICE_EXPIRED">XENDIT_INVOICE_EXPIRED</option>
-							<option value="XENDIT_DOWN">XENDIT_DOWN</option>
+							<option value="MIDTRANS_PAYMENT_FAILED">MIDTRANS_PAYMENT_FAILED</option>
+							<option value="MIDTRANS_SETTLEMENT_FAILED">MIDTRANS_SETTLEMENT_FAILED</option>
+							<option value="MIDTRANS_INVOICE_EXPIRED">MIDTRANS_INVOICE_EXPIRED</option>
+							<option value="MIDTRANS_DOWN">MIDTRANS_DOWN</option>
 							<option value="STALE_INVOICE_DETECTED">STALE_INVOICE_DETECTED</option>
 							<option value="RENEWAL_WORKER_CRASHED">RENEWAL_WORKER_CRASHED</option>
 							<option value="FEATURE_CRASH">FEATURE_CRASH</option>

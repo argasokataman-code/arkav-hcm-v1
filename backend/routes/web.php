@@ -50,6 +50,14 @@ Route::post('custom-login', [CustomAuthController::class, 'customLogin'])->name(
 Route::post('custom-registration', [CustomAuthController::class, 'customRegistration'])->name('register.custom'); 
 Route::get('signout', [CustomAuthController::class, 'signOut'])->name('signout');
 
+// Web routes for file downloads (session-authenticated, not API token)
+Route::get('/employees/bulk-template', function (Request $request) {
+    // Redirect to API endpoint; the user is already authenticated via middleware
+    // Browser cookie 'arcav_access_token' will be sent automatically
+    return redirect('/v1/hcm/employees/bulk-template', 302);
+})->middleware('hcm.web.admin')->name('employees.bulk-template');
+
+
 
 Route::get('/', [PublicLandingController::class, 'index'])->name('root');
 

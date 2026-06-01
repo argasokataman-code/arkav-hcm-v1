@@ -17,8 +17,6 @@
 'error-500','coming-soon','under-maintenance','under-construction','success','success-2','success-3','two-step-verification','two-step-verification-2','two-step-verification-3',
 'layout-without-header', 'layout-rtl', 'layout-dark'
 ]))
-<!-- Theme Script js -->
-<script src="{{ URL::asset('build/js/core/theme-script.js') }}"></script>
 @endif
 
 @if (!Route::is(['layout-rtl']))

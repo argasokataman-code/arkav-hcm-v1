@@ -235,7 +235,9 @@
                 // Refresh localStorage token so future API calls and probes
                 // use the current valid token (handles post-T0-expiry sessions).
                 if (data && data.success && data.data && data.data.token) {
-                    setToken(data.data.token);
+                    try {
+                        window.localStorage.setItem(TOKEN_KEY, data.data.token);
+                    } catch (_e) {}
                 }
 
                 return true;

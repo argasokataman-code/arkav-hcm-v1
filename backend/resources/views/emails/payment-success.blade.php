@@ -11,6 +11,10 @@ Pembayaran untuk invoice **{{ $invoice->invoice_number }}** berhasil kami terima
 - Tanggal bayar: {{ optional($invoice->paid_date)->format('Y-m-d H:i') ?? now()->format('Y-m-d H:i') }}
 - Status: {{ ucfirst((string) $invoice->status) }}
 
+**⚠️ Penting — Simpan Company Code Anda:**
+
+Company code **{{ $company->code ?? '-' }}** wajib digunakan setiap kali login ke Arkav HCM. Tanpa company code ini, Anda tidak dapat mengakses sistem. Harap simpan dengan baik.
+
 @component('mail::button', ['url' => config('app.url') . '/subscription'])
 Buka Halaman Subscription
 @endcomponent

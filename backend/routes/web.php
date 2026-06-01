@@ -534,11 +534,13 @@ Route::middleware(['hcm.web.admin', 'hcm.web.feature:tax_governance'])->group(fu
     Route::get('/spt-masa-pph21', fn () => view('spt-masa.index'))->name('spt-masa-pph21.index');
     Route::get('/spt-masa-pph21/{sptUuid}', fn (string $sptUuid) => view('spt-masa.show', ['sptUuid' => $sptUuid]))->name('spt-masa-pph21.show');
 });
-// blocked by a feature gate. The page itself posts to /v1/hcm/subscriptions/*
-// endpoints which enforce owner/admin RBAC.
+// Upgrade page: admin/owner only access. Employees attempting to access (e.g., via feature gate
+// redirect from locked Leave Request) will be redirected to employee-dashboard or lock-screen
+// by hcm.web.admin middleware. Do not remove middleware — this enforces RBAC that prevents
+// unauthorized users from viewing subscription/upgrade pricing and payment forms.
 Route::get('/upgrade', function () {
     return view('upgrade');
-})->name('upgrade');
+})->middleware('hcm.web.admin')->name('upgrade');
 
 Route::get('/api-token', [\App\Http\Controllers\ApiTokenController::class, 'getToken'])->name('api-token');
 

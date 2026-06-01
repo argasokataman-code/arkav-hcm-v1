@@ -7,6 +7,18 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$PROJECT_ROOT/backend"
+LOCK_DIR="/tmp/arcav-local-test-gate.lock"
+
+# Prevent concurrent gate runs that can race on shared testing DB.
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  echo "Another local-test-gate process is running. Wait for it to finish, then retry."
+  exit 1
+fi
+
+cleanup_lock() {
+  rmdir "$LOCK_DIR" 2>/dev/null || true
+}
+trap cleanup_lock EXIT
 
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║ 🧪 LOCAL TEST GATE - All tests before push to main             ║"

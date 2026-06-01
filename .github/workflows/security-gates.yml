@@ -29,9 +29,8 @@ jobs:
             p/security-audit
             p/owasp-top-ten
             p/cwe-top-25
-          generateSarif: false
-          args: --severity ERROR backend/app/Http/Controllers/ backend/routes/ frontend/resources/js/ frontend/resources/ts/ --exclude=vendor --exclude=node_modules --exclude=public/build
         env:
+          SEMGREP_ARGS: --severity ERROR backend/app/Http/Controllers/ backend/routes/ frontend/resources/js/ frontend/resources/ts/ --exclude=vendor --exclude=node_modules --exclude=public/build
           SEMGREP_BASELINE_COMMIT: origin/main
 
       - name: Run Composer audit

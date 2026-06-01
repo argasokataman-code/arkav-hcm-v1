@@ -32,6 +32,10 @@ Route::get('/group-video-call', function () {
 })->name('group-video-call');
 
 Route::match(['get', 'post'], '/email', function (Request $request) {
+    // Compose email is a global HCM admin only feature
+    $user = $request->user();
+    $isGlobalAdmin = $user && method_exists($user, 'isGlobalHcmAdmin') && $user->isGlobalHcmAdmin();
+
     $redirectParameters = [];
     $label = trim((string) $request->input('Label', $request->query('Label', '')));
     if ($label !== '') {
@@ -39,6 +43,14 @@ Route::match(['get', 'post'], '/email', function (Request $request) {
     }
 
     if ($request->isMethod('post')) {
+        // POST (compose email) is global admin only
+        if (!$isGlobalAdmin) {
+            return redirect()
+                ->route('email', $redirectParameters)
+                ->withErrors([
+                    'compose' => 'Email compose is restricted to global administrators.',
+                ]);
+        }
         $validated = $request->validate([
             'to' => ['required', 'email'],
             'subject' => ['required', 'string', 'max:255'],

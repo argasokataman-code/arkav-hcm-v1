@@ -1,4 +1,5 @@
 <?php $page = 'email'; ?>
+@php($isGlobalAdmin = auth()->check() && method_exists(auth()->user(), 'isGlobalHcmAdmin') && auth()->user()->isGlobalHcmAdmin())
 @php($shouldAutoOpenCompose = $errors->has('to') || $errors->has('subject') || $errors->has('message') || $errors->has('compose'))
 @php($sentCount = isset($sentCount) ? (int) $sentCount : 0)
 @php($inboxCount = isset($inboxCount) ? (int) $inboxCount : 0)
@@ -27,7 +28,11 @@
                                         </div>
                                     </div>
                                 </div>
-                                <a href="javascript:void(0);" class="btn btn-primary w-100" id="compose_mail"><i class="ti ti-edit me-2"></i>Compose</a>
+                                @if ($isGlobalAdmin)
+                                    <a href="javascript:void(0);" class="btn btn-primary w-100" id="compose_mail"><i class="ti ti-edit me-2"></i>Compose</a>
+                                @else
+                                    <a href="javascript:void(0);" class="btn btn-secondary w-100 disabled" title="Compose email is available for global administrators only"><i class="ti ti-edit me-2"></i>Compose</a>
+                                @endif
                                 <div class="mt-4">
                                     <h5 class="mb-2">Emails</h5>
                                     <div class="d-block mb-4 pb-4 border-bottom email-tags">
@@ -271,6 +276,7 @@
     </div>
     <!-- /Page Wrapper -->
 
+    @if ($isGlobalAdmin)
     <div id="compose-view" data-auto-open="{{ $shouldAutoOpenCompose ? '1' : '0' }}">
         <div class="bg-white border-0 rounded compose-view">
             <div class="compose-header d-flex align-items-center justify-content-between bg-dark p-3">
@@ -332,5 +338,6 @@
             </form>
         </div>
     </div>
+    @endif
     
 @endsection

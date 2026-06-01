@@ -107,6 +107,12 @@ class AppServiceProvider extends ServiceProvider
 
         $fromAddress = trim((string) ($profile['fromAddress'] ?? ''));
         $fromName = trim((string) ($profile['fromName'] ?? ''));
+        
+        // Skip default "Laravel" value to allow env fallback
+        if ($fromName === 'Laravel') {
+            $fromName = '';
+        }
+        
         if ($fromAddress !== '' || $fromName !== '') {
             config([
                 'mail.from.address' => $fromAddress !== '' ? $fromAddress : config('mail.from.address'),

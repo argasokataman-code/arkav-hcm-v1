@@ -496,8 +496,12 @@ class PublicOnboardingController
                             ] : null,
                         ]
                     );
+                    $debugMsg = get_class($invoiceEx) . ': ' . $invoiceEx->getMessage();
+                    if ($invoiceEx->getPrevious()) {
+                        $debugMsg .= ' | caused by: ' . $invoiceEx->getPrevious()->getMessage();
+                    }
                     throw \Illuminate\Validation\ValidationException::withMessages([
-                        'invoice_creation' => ['Failed to create invoice. Please contact support.'],
+                        'invoice_creation' => [$debugMsg],
                     ]);
                 }
             }

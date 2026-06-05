@@ -379,13 +379,33 @@ class PublicOnboardingController
             $invoice = null;
             if ($startMode === 'pending_payment') {
                 try {
+                    // Safety check: verify company and subscription exist
+                    $companyExists = Company::query()->where('id', $company->id)->exists();
+                    $subscriptionExists = Subscription::query()->where('id', $subscription->id)->exists();
+                    
+                    if (!$companyExists) {
+                        throw new \RuntimeException("Company {$company->id} not found in database");
+                    }
+                    if (!$subscriptionExists) {
+                        throw new \RuntimeException("Subscription {$subscription->id} not found in database");
+                    }
+
                     $baseAmount = (float) $subscription->amount;
                     \Illuminate\Support\Facades\Log::debug('Onboarding invoice: calculating pricing breakdown', [
                         'company_id' => $company->id,
                         'base_amount' => $baseAmount,
                     ]);
                     
-                    $pricingBreakdown = $this->buildSubscriptionPricingBreakdown($company->id, $baseAmount);
+                    try {
+                        $pricingBreakdown = $this->buildSubscriptionPricingBreakdown($company->id, $baseAmount);
+                    } catch (\Throwable $priceEx) {
+                        throw new \RuntimeException(
+                            'Pricing breakdown calculation failed: ' . $priceEx->getMessage(),
+                            0,
+                            $priceEx
+                        );
+                    }
+                    
                     $amountDue = (float) $pricingBreakdown['total_amount'];
 
                     \Illuminate\Support\Facades\Log::debug('Onboarding invoice: resolving tax rate', [
@@ -393,8 +413,16 @@ class PublicOnboardingController
                         'amount_due' => $amountDue,
                     ]);
                     
-                    $taxRateSnapshot = app(BillingTaxCalculationService::class)
-                        ->resolvePolicyRateSnapshot($company->id, now()->format('Y-m'));
+                    try {
+                        $taxRateSnapshot = app(BillingTaxCalculationService::class)
+                            ->resolvePolicyRateSnapshot($company->id, now()->format('Y-m'));
+                    } catch (\Throwable $taxEx) {
+                        throw new \RuntimeException(
+                            'Tax rate resolution failed: ' . $taxEx->getMessage(),
+                            0,
+                            $taxEx
+                        );
+                    }
 
                     \Illuminate\Support\Facades\Log::debug('Onboarding invoice: creating invoice record', [
                         'company_id' => $company->id,
@@ -403,21 +431,36 @@ class PublicOnboardingController
                         'tax_rate' => $taxRateSnapshot,
                     ]);
                     
-                    $invoice = Invoice::query()->create([
-                        'company_id' => $company->id,
-                        'subscription_id' => $subscription->id,
-                        'purchase_transaction_id' => null,
-                        'issue_date' => now()->toDateString(),
-                        'due_date' => now()->addDay()->toDateString(),
-                        'amount_due' => $amountDue,
-                        'billing_tax_rate_snapshot' => $taxRateSnapshot > 0 ? $taxRateSnapshot : null,
-                        'status' => 'draft',
-                        'notes' => $this->buildInvoicePricingNotes(
-                            'public_onboarding',
-                            $pricingBreakdown,
-                            'Created from public onboarding.'
-                        ),
-                    ]);
+                    try {
+                        $invoiceData = [
+                            'company_id' => $company->id,
+                            'subscription_id' => $subscription->id,
+                            'purchase_transaction_id' => null,
+                            'issue_date' => now()->toDateString(),
+                            'due_date' => now()->addDay()->toDateString(),
+                            'amount_due' => $amountDue,
+                            'billing_tax_rate_snapshot' => $taxRateSnapshot > 0 ? $taxRateSnapshot : null,
+                            'status' => 'draft',
+                            'notes' => $this->buildInvoicePricingNotes(
+                                'public_onboarding',
+                                $pricingBreakdown,
+                                'Created from public onboarding.'
+                            ),
+                        ];
+                        
+                        \Illuminate\Support\Facades\Log::debug('Onboarding invoice: prepared data', [
+                            'keys' => array_keys($invoiceData),
+                            'data' => $invoiceData,
+                        ]);
+                        
+                        $invoice = Invoice::query()->create($invoiceData);
+                    } catch (\Throwable $createEx) {
+                        throw new \RuntimeException(
+                            'Invoice record creation failed: ' . $createEx->getMessage(),
+                            0,
+                            $createEx
+                        );
+                    }
 
                     // Best-effort async email send (falls back to owner email if billingEmail is not provided)
                     // Wrap in try-catch to prevent email failures from failing the entire registration

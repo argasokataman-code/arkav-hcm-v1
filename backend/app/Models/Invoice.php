@@ -184,11 +184,19 @@ class Invoice extends Model
         $month = date('m');
         $prefix = WebsiteSettings::prefixInvoice();
 
-        $count = static::whereYear('created_at', now()->year)
+        $base = static::whereYear('created_at', now()->year)
             ->whereMonth('created_at', now()->month)
             ->count() + 1;
-        $sequenceNumber = str_pad($count, 4, '0', STR_PAD_LEFT);
 
-        return "{$prefix}{$year}{$month}-{$sequenceNumber}";
+        // Loop until a unique invoice number is found (handles race conditions / gaps)
+        for ($i = 0; $i < 100; $i++) {
+            $candidate = "{$prefix}{$year}{$month}-" . str_pad($base + $i, 4, '0', STR_PAD_LEFT);
+            if (! static::where('invoice_number', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        // Last-resort fallback: timestamp suffix guarantees uniqueness
+        return "{$prefix}{$year}{$month}-" . str_pad($base, 4, '0', STR_PAD_LEFT) . '-' . substr((string) time(), -4);
     }
 }

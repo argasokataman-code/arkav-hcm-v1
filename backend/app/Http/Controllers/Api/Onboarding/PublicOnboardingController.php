@@ -380,12 +380,29 @@ class PublicOnboardingController
             if ($startMode === 'pending_payment') {
                 try {
                     $baseAmount = (float) $subscription->amount;
+                    \Illuminate\Support\Facades\Log::debug('Onboarding invoice: calculating pricing breakdown', [
+                        'company_id' => $company->id,
+                        'base_amount' => $baseAmount,
+                    ]);
+                    
                     $pricingBreakdown = $this->buildSubscriptionPricingBreakdown($company->id, $baseAmount);
                     $amountDue = (float) $pricingBreakdown['total_amount'];
 
+                    \Illuminate\Support\Facades\Log::debug('Onboarding invoice: resolving tax rate', [
+                        'company_id' => $company->id,
+                        'amount_due' => $amountDue,
+                    ]);
+                    
                     $taxRateSnapshot = app(BillingTaxCalculationService::class)
                         ->resolvePolicyRateSnapshot($company->id, now()->format('Y-m'));
 
+                    \Illuminate\Support\Facades\Log::debug('Onboarding invoice: creating invoice record', [
+                        'company_id' => $company->id,
+                        'subscription_id' => $subscription->id,
+                        'amount_due' => $amountDue,
+                        'tax_rate' => $taxRateSnapshot,
+                    ]);
+                    
                     $invoice = Invoice::query()->create([
                         'company_id' => $company->id,
                         'subscription_id' => $subscription->id,
@@ -427,7 +444,13 @@ class PublicOnboardingController
                             'subscription_id' => $subscription->id,
                             'exception' => get_class($invoiceEx),
                             'message' => $invoiceEx->getMessage(),
+                            'file' => $invoiceEx->getFile(),
+                            'line' => $invoiceEx->getLine(),
                             'trace' => $invoiceEx->getTraceAsString(),
+                            'previous' => $invoiceEx->getPrevious() ? [
+                                'exception' => get_class($invoiceEx->getPrevious()),
+                                'message' => $invoiceEx->getPrevious()->getMessage(),
+                            ] : null,
                         ]
                     );
                     throw \Illuminate\Validation\ValidationException::withMessages([

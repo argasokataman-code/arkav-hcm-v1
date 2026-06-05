@@ -321,7 +321,22 @@ class PublicOnboardingController
 
             // Provision default tenant RBAC catalog (roles/permissions + owner admin assignment)
             // so newly subscribed companies can immediately use employee/admin flows.
-            app(HcmUserManagementSeeder::class)->run();
+            try {
+                app(HcmUserManagementSeeder::class)->run();
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error(
+                    'HcmUserManagementSeeder failed during public onboarding',
+                    [
+                        'company_id' => $company->id,
+                        'exception' => get_class($e),
+                        'message' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]
+                );
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'company_provisioning' => ['Failed to provision company roles and permissions. Please contact support.'],
+                ]);
+            }
 
             $startMode = (string) ($validated['start_mode'] ?? 'trial');
 
@@ -363,32 +378,62 @@ class PublicOnboardingController
 
             $invoice = null;
             if ($startMode === 'pending_payment') {
-                $baseAmount = (float) $subscription->amount;
-                $pricingBreakdown = $this->buildSubscriptionPricingBreakdown($company->id, $baseAmount);
-                $amountDue = (float) $pricingBreakdown['total_amount'];
+                try {
+                    $baseAmount = (float) $subscription->amount;
+                    $pricingBreakdown = $this->buildSubscriptionPricingBreakdown($company->id, $baseAmount);
+                    $amountDue = (float) $pricingBreakdown['total_amount'];
 
-                $taxRateSnapshot = app(BillingTaxCalculationService::class)
-                    ->resolvePolicyRateSnapshot($company->id, now()->format('Y-m'));
+                    $taxRateSnapshot = app(BillingTaxCalculationService::class)
+                        ->resolvePolicyRateSnapshot($company->id, now()->format('Y-m'));
 
-                $invoice = Invoice::query()->create([
-                    'company_id' => $company->id,
-                    'subscription_id' => $subscription->id,
-                    'purchase_transaction_id' => null,
-                    'issue_date' => now()->toDateString(),
-                    'due_date' => now()->addDay()->toDateString(),
-                    'amount_due' => $amountDue,
-                    'billing_tax_rate_snapshot' => $taxRateSnapshot > 0 ? $taxRateSnapshot : null,
-                    'status' => 'draft',
-                    'notes' => $this->buildInvoicePricingNotes(
-                        'public_onboarding',
-                        $pricingBreakdown,
-                        'Created from public onboarding.'
-                    ),
-                ]);
+                    $invoice = Invoice::query()->create([
+                        'company_id' => $company->id,
+                        'subscription_id' => $subscription->id,
+                        'purchase_transaction_id' => null,
+                        'issue_date' => now()->toDateString(),
+                        'due_date' => now()->addDay()->toDateString(),
+                        'amount_due' => $amountDue,
+                        'billing_tax_rate_snapshot' => $taxRateSnapshot > 0 ? $taxRateSnapshot : null,
+                        'status' => 'draft',
+                        'notes' => $this->buildInvoicePricingNotes(
+                            'public_onboarding',
+                            $pricingBreakdown,
+                            'Created from public onboarding.'
+                        ),
+                    ]);
 
-                // Best-effort async email send (falls back to owner email if billingEmail is not provided)
-                $billingEmail = $validated['billingEmail'] ?? null;
-                SendInvoiceEmailJob::dispatch($invoice->id, $billingEmail)->afterCommit();
+                    // Best-effort async email send (falls back to owner email if billingEmail is not provided)
+                    // Wrap in try-catch to prevent email failures from failing the entire registration
+                    try {
+                        $billingEmail = $validated['billingEmail'] ?? null;
+                        SendInvoiceEmailJob::dispatch($invoice->id, $billingEmail)->afterCommit();
+                    } catch (\Throwable $emailEx) {
+                        // Log but don't fail the request if email dispatch fails
+                        \Illuminate\Support\Facades\Log::warning(
+                            'Failed to dispatch invoice email during onboarding',
+                            [
+                                'invoice_id' => $invoice->id,
+                                'company_id' => $company->id,
+                                'exception' => get_class($emailEx),
+                                'message' => $emailEx->getMessage(),
+                            ]
+                        );
+                    }
+                } catch (\Throwable $invoiceEx) {
+                    \Illuminate\Support\Facades\Log::error(
+                        'Failed to create invoice during pending_payment onboarding',
+                        [
+                            'company_id' => $company->id,
+                            'subscription_id' => $subscription->id,
+                            'exception' => get_class($invoiceEx),
+                            'message' => $invoiceEx->getMessage(),
+                            'trace' => $invoiceEx->getTraceAsString(),
+                        ]
+                    );
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'invoice_creation' => ['Failed to create invoice. Please contact support.'],
+                    ]);
+                }
             }
 
             return response()->json([

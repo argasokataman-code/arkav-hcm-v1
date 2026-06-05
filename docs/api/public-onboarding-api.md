@@ -145,5 +145,7 @@ Saat mode onboarding langsung berbayar (`pending_payment`), node `invoice` beris
 ### Errors
 
 - `422 VALIDATION_ERROR`: payload tidak valid / duplikat `company.code` / duplikat `owner.email`
+- `422 VALIDATION_ERROR` (code: `company_provisioning`): gagal provision roles/permissions untuk company baru (jarang terjadi, hubungi support)
+- `422 VALIDATION_ERROR` (code: `invoice_creation`): gagal membuat invoice untuk mode `pending_payment` (hubungi support)
 - `429 TOO_MANY_REQUESTS`: rate limit tercapai
 

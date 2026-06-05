@@ -13,12 +13,16 @@ Template Name: Smarthr - Bootstrap Admin Template
 	feather.replace();
 
 	// Page Content Height Resize
-	$(window).resize(function () {
+	// Use clientHeight (stable, excludes mobile URL bar/keyboard changes) to
+	// prevent page-wrapper min-height growing when mobile URL bar hides/shows.
+	function resizePageWrapper() {
 		if ($('.page-wrapper').length > 0) {
-			var height = $(window).height();
+			var height = document.documentElement.clientHeight;
 			$(".page-wrapper").css("min-height", height);
 		}
-	});
+	}
+	$(window).resize(resizePageWrapper);
+	resizePageWrapper();
 
 	// Mobile menu sidebar overlay
 	if ($('.sidebar-overlay').length === 0) {

@@ -66,6 +66,12 @@ return new class extends Migration
 
         Schema::table('invoices', function (Blueprint $table): void {
             try {
+                // Drop the foreign key constraint first (if any) before dropping the unique index
+                try {
+                    $table->dropForeign('invoices_subscription_id_foreign');
+                } catch (\Throwable $e) {
+                    // Foreign key might not exist
+                }
                 $table->dropUnique('invoices_subscription_id_renewal_period_guard_unique');
             } catch (\Throwable $e) {
                 // No-op when index does not exist.

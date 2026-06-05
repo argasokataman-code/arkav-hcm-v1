@@ -68,6 +68,11 @@ class Company extends Model
         return $this->hasOne(Invoice::class)->latestOfMany('id');
     }
 
+    public function policies(): HasMany
+    {
+        return $this->hasMany(Policy::class, 'company_uuid', 'uuid');
+    }
+
     public function activeSubscription(): ?Subscription
     {
         return $this->subscriptions()

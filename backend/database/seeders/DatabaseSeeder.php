@@ -219,4 +219,93 @@ class DatabaseSeeder extends Seeder
             }
         });
     }
+
+    /**
+     * Seed default company policies for a newly created company.
+     * Called during onboarding to provide starter policy templates.
+     */
+    public static function seedDefaultPoliciesForCompany(Company $company): void
+    {
+        $now = now()->toDateString();
+
+        Policy::query()->updateOrCreate(
+            ['company_id' => $company->id, 'name' => 'Employee Attendance'],
+            [
+                'company_uuid' => $company->uuid,
+                'department_id' => null,
+                'description' => 'Policy mengatur pedoman kehadiran dan cuti/absensi karyawan. Setiap karyawan diharapkan datang tepat waktu dan mematuhi jam kerja yang telah ditetapkan.',
+                'effective_date' => $now,
+            ]
+        );
+
+        Policy::query()->updateOrCreate(
+            ['company_id' => $company->id, 'name' => 'Code of Conduct'],
+            [
+                'company_uuid' => $company->uuid,
+                'department_id' => null,
+                'description' => 'Standar perilaku profesional yang harus diikuti semua karyawan dalam lingkungan kerja. Termasuk etika bisnis, integritas, dan tanggung jawab sosial.',
+                'effective_date' => $now,
+            ]
+        );
+
+        Policy::query()->updateOrCreate(
+            ['company_id' => $company->id, 'name' => 'Leave Management'],
+            [
+                'company_uuid' => $company->uuid,
+                'department_id' => null,
+                'description' => 'Kebijakan pengelolaan cuti karyawan mencakup jenis cuti, durasi, proses persetujuan, dan perhitungan benefit cuti. Berlaku untuk semua karyawan sesuai status kepegawaian.',
+                'effective_date' => $now,
+            ]
+        );
+
+        Policy::query()->updateOrCreate(
+            ['company_id' => $company->id, 'name' => 'Data Security and Privacy'],
+            [
+                'company_uuid' => $company->uuid,
+                'department_id' => null,
+                'description' => 'Kebijakan keamanan data dan privasi untuk melindungi informasi perusahaan dan data pribadi karyawan. Termasuk akses data, penggunaan sistem IT, dan kerahasiaan informasi.',
+                'effective_date' => $now,
+            ]
+        );
+
+        Policy::query()->updateOrCreate(
+            ['company_id' => $company->id, 'name' => 'Performance Management'],
+            [
+                'company_uuid' => $company->uuid,
+                'department_id' => null,
+                'description' => 'Sistem penilaian kinerja karyawan untuk mengukur pencapaian target, kompetensi, dan perilaku. Meliputi proses evaluasi berkala, feedback, dan pengembangan karir.',
+                'effective_date' => $now,
+            ]
+        );
+
+        Policy::query()->updateOrCreate(
+            ['company_id' => $company->id, 'name' => 'Workplace Health and Safety'],
+            [
+                'company_uuid' => $company->uuid,
+                'department_id' => null,
+                'description' => 'Kebijakan kesehatan dan keselamatan kerja untuk menjamin kondisi kerja yang aman bagi semua karyawan. Termasuk penanganan kecelakaan, kesejahteraan mental, dan fasilitas K3.',
+                'effective_date' => $now,
+            ]
+        );
+
+        Policy::query()->updateOrCreate(
+            ['company_uuid' => $company->uuid, 'name' => 'Compensation and Benefits'],
+            [
+                'company_id' => $company->id,
+                'department_id' => null,
+                'description' => 'Kebijakan kompensasi dan benefit karyawan mencakup gaji, tunjangan, asuransi, dan fasilitas kesejahteraan. Sesuai dengan posisi, pengalaman, dan kinerja karyawan.',
+                'effective_date' => $now,
+            ]
+        );
+
+        Policy::query()->updateOrCreate(
+            ['company_id' => $company->id, 'name' => 'Conflict of Interest'],
+            [
+                'company_uuid' => $company->uuid,
+                'department_id' => null,
+                'description' => 'Panduan penanganan konflik kepentingan untuk memastikan karyawan beroperasi dengan integritas dan transparansi. Meliputi transaksi keluarga, aktivitas bisnis sampingan, dan hadiah dari pihak ketiga.',
+                'effective_date' => $now,
+            ]
+        );
+    }
 }

@@ -192,6 +192,7 @@ paths:
         - User (owner)
         - Company (tenant) + CompanyUser owner mapping
         - Subscription (trial by default; or pending_payment + invoice draft)
+        - Default company policies (8 Indonesian HR policy templates as starter reference)
         Rate limited by throttle middleware.
       requestBody:
         required: true

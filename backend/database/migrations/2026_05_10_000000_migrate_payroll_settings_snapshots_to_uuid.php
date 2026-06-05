@@ -97,10 +97,14 @@ return new class extends Migration
             return;
         }
 
-        // Re-add numeric columns
+        // Re-add numeric columns if they don't exist
         Schema::table('payroll_settings_snapshots', function (Blueprint $table): void {
-            $table->bigInteger('company_id')->after('uuid');
-            $table->bigInteger('user_id')->nullable()->after('snapshot_version');
+            if (! Schema::hasColumn('payroll_settings_snapshots', 'company_id')) {
+                $table->bigInteger('company_id')->after('uuid');
+            }
+            if (! Schema::hasColumn('payroll_settings_snapshots', 'user_id')) {
+                $table->bigInteger('user_id')->nullable()->after('snapshot_version');
+            }
         });
 
         // Populate from UUID columns
@@ -108,7 +112,8 @@ return new class extends Migration
             DB::statement(
                 'UPDATE payroll_settings_snapshots s '
                 .'INNER JOIN companies c ON c.uuid = s.company_uuid '
-                .'SET s.company_id = c.id'
+                .'SET s.company_id = c.id '
+                .'WHERE s.company_id IS NULL'
             );
         }
 
@@ -117,7 +122,7 @@ return new class extends Migration
                 'UPDATE payroll_settings_snapshots s '
                 .'INNER JOIN users u ON u.uuid = s.user_uuid '
                 .'SET s.user_id = u.id '
-                .'WHERE s.user_uuid IS NOT NULL'
+                .'WHERE s.user_uuid IS NOT NULL AND s.user_id IS NULL'
             );
         }
 
@@ -131,22 +136,31 @@ return new class extends Migration
             }
         });
 
-        // Re-add numeric FK constraints
+        // Re-add numeric FK constraints if they don't exist
         Schema::table('payroll_settings_snapshots', function (Blueprint $table): void {
-            $table->foreign('company_id', 'payroll_settings_snapshots_company_id_fk')
-                ->references('id')
-                ->on('companies')
-                ->cascadeOnDelete();
+            if (! $this->hasConstraint('payroll_settings_snapshots', 'payroll_settings_snapshots_company_id_fk')) {
+                $table->foreign('company_id', 'payroll_settings_snapshots_company_id_fk')
+                    ->references('id')
+                    ->on('companies')
+                    ->cascadeOnDelete();
+            }
 
-            $table->foreign('user_id', 'payroll_settings_snapshots_user_id_fk')
-                ->references('id')
-                ->on('users')
-                ->nullOnDelete();
+            if (! $this->hasConstraint('payroll_settings_snapshots', 'payroll_settings_snapshots_user_id_fk')) {
+                $table->foreign('user_id', 'payroll_settings_snapshots_user_id_fk')
+                    ->references('id')
+                    ->on('users')
+                    ->nullOnDelete();
+            }
         });
 
         // Drop UUID columns
         Schema::table('payroll_settings_snapshots', function (Blueprint $table): void {
-            $table->dropColumn('company_uuid', 'user_uuid');
+            if (Schema::hasColumn('payroll_settings_snapshots', 'company_uuid')) {
+                $table->dropColumn('company_uuid');
+            }
+            if (Schema::hasColumn('payroll_settings_snapshots', 'user_uuid')) {
+                $table->dropColumn('user_uuid');
+            }
         });
 
         // Drop new indexes

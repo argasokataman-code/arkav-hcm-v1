@@ -89,28 +89,8 @@ return new class extends Migration
             return;
         }
 
+        // Drop columns if they exist (all indexes/constraints will be dropped with the columns)
         Schema::table('invoices', function (Blueprint $table): void {
-            if (Schema::hasColumn('invoices', 'subscription_uuid') && Schema::hasColumn('invoices', 'renewal_period_key')) {
-                try {
-                    $table->dropUnique('invoices_subscription_uuid_renewal_period_unique');
-                } catch (\Throwable $e) {
-                }
-            }
-
-            if (Schema::hasColumn('invoices', 'subscription_id') && Schema::hasColumn('invoices', 'renewal_period_key')) {
-                try {
-                    $table->dropUnique('invoices_subscription_id_renewal_period_unique');
-                } catch (\Throwable $e) {
-                }
-            }
-
-            if (Schema::hasColumn('invoices', 'renewal_period_key')) {
-                try {
-                    $table->dropIndex('invoices_renewal_period_key_idx');
-                } catch (\Throwable $e) {
-                }
-            }
-
             $dropColumns = [];
             foreach (['renewal_period_key', 'renewal_reason_code', 'renewal_reason_message'] as $column) {
                 if (Schema::hasColumn('invoices', $column)) {
@@ -118,7 +98,7 @@ return new class extends Migration
                 }
             }
 
-            if ($dropColumns !== []) {
+            if (! empty($dropColumns)) {
                 $table->dropColumn($dropColumns);
             }
         });

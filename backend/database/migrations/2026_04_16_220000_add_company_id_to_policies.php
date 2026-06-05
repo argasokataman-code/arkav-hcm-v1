@@ -8,28 +8,33 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Check if companies table exists before adding foreign keys
-        if (!Schema::hasTable('companies')) {
-            return;
+        // Add company_id column if it doesn't already exist
+        // Note: Not adding FK constraint due to MySQL unique index requirements
+        if (Schema::hasTable('policies')) {
+            Schema::table('policies', function (Blueprint $table): void {
+                if (!Schema::hasColumn('policies', 'company_id')) {
+                    $table->unsignedBigInteger('company_id')->nullable()->after('id');
+                }
+                if (!Schema::hasIndex('policies', 'policies_company_id_department_id_index')) {
+                    $table->index(['company_id', 'department_id'], 'policies_company_id_department_id_index');
+                }
+            });
         }
-
-        Schema::table('policies', function (Blueprint $table): void {
-            $table->foreignId('company_id')->nullable()->after('id')->constrained('companies')->nullOnDelete();
-            $table->index(['company_id', 'department_id']);
-        });
     }
 
     public function down(): void
     {
-        // Check if companies table exists before dropping foreign keys
-        if (!Schema::hasTable('companies')) {
-            return;
+        // Drop company_id column and index
+        if (Schema::hasTable('policies')) {
+            Schema::table('policies', function (Blueprint $table): void {
+                if (Schema::hasColumn('policies', 'company_id')) {
+                    $table->dropColumn('company_id');
+                }
+                if (Schema::hasIndex('policies', 'policies_company_id_department_id_index')) {
+                    $table->dropIndex('policies_company_id_department_id_index');
+                }
+            });
         }
-
-        Schema::table('policies', function (Blueprint $table): void {
-            $table->dropConstrainedForeignId('company_id');
-            $table->dropIndex(['company_id', 'department_id']);
-        });
     }
 };
 

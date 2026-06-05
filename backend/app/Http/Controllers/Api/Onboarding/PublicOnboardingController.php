@@ -13,6 +13,7 @@ use App\Models\Package;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Jobs\SendInvoiceEmailJob;
+use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\HcmUserManagementSeeder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -335,6 +336,25 @@ class PublicOnboardingController
                 );
                 throw \Illuminate\Validation\ValidationException::withMessages([
                     'company_provisioning' => ['Failed to provision company roles and permissions. Please contact support.'],
+                ]);
+            }
+
+            // Seed default company policies so admin can immediately view/edit starter templates.
+            try {
+                DatabaseSeeder::seedDefaultPoliciesForCompany($company);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error(
+                    'Default policies seeding failed during public onboarding',
+                    [
+                        'company_id' => $company->id,
+                        'company_uuid' => $company->uuid ?? 'NULL',
+                        'exception' => get_class($e),
+                        'message' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]
+                );
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'company_provisioning' => ['Failed to provision company default policies. Please contact support.'],
                 ]);
             }
 

@@ -14,7 +14,9 @@ class Policy extends Model
 
     protected $fillable = [
         'company_id',
+        'company_uuid',
         'department_id',
+        'department_uuid',
         'name',
         'description',
         'effective_date',

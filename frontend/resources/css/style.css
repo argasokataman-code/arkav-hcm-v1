@@ -13628,7 +13628,7 @@ button.swal2-cancel {
 .page-wrapper .content {
   padding: 24px;
   padding-bottom: 0;
-  min-height: calc(100vh - 105px);
+  min-height: calc(100svh - 105px);
 }
 @media (max-width: 991.98px) {
   .page-wrapper .content {

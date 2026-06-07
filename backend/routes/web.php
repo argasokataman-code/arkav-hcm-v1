@@ -808,7 +808,7 @@ Route::get('/attendance-employee', function () {
 
 Route::get('/timesheets', function () {
     return view(view: 'timesheets');
-})->middleware(['hcm.web.admin', 'hcm.web.feature:attendance'])->name('timesheets');
+})->middleware(['hcm.web.admin', 'hcm.web.feature:timesheet'])->name('timesheets');
 
 Route::get('/schedule-timing', function () {
     return view(view: 'schedule-timing');
@@ -1618,7 +1618,7 @@ Route::get( '/approval-settings', function (\Illuminate\Http\Request $request) {
     }
 
     return view('approval-settings', ['activeModules' => $activeModules]);
-})->middleware('hcm.web.admin')->name('approval-settings');
+})->middleware('hcm.web.admin', 'hcm.web.feature:hcm_approval_settings')->name('approval-settings');
 
 Route::get( '/invoice-settings', function () {
     return view('invoice-settings');

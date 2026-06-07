@@ -62,6 +62,11 @@ class PackageFeatureCatalogRuntimeService
             'description' => 'Helpdesk internal: tiket support dan issue tracking.',
             'order' => 90,
         ],
+        'operations' => [
+            'title' => 'Operations & Settings',
+            'description' => 'Konfigurasi workflow approval dan timesheet untuk modul HCM.',
+            'order' => 92,
+        ],
         'lifecycle' => [
             'title' => 'Employee Lifecycle',
             'description' => 'Mutasi karyawan: promosi, resign, terminasi, dan settlement.',
@@ -120,6 +125,8 @@ class PackageFeatureCatalogRuntimeService
         'data_privacy' => ['name' => 'Data Privacy'],
         'notes' => ['name' => 'Notes'],
         'faq' => ['name' => 'FAQ'],
+        'hcm_approval_settings' => ['name' => 'Approval Workflow Settings'],
+        'timesheet' => ['name' => 'Timesheet'],
     ];
 
     /**
@@ -841,6 +848,14 @@ class PackageFeatureCatalogRuntimeService
 
         if ($code === 'salary_components') {
             return 'payroll';
+        }
+
+        if ($code === 'hcm_approval_settings') {
+            return 'operations';
+        }
+
+        if ($code === 'timesheet') {
+            return 'attendance';
         }
 
         return 'custom';

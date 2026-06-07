@@ -12,17 +12,10 @@ Template Name: Smarthr - Bootstrap Admin Template
 	var $pageWrapper = $('.page-wrapper');
 	feather.replace();
 
-	// Page Content Height Resize
-	// Use clientHeight (stable, excludes mobile URL bar/keyboard changes) to
-	// prevent page-wrapper min-height growing when mobile URL bar hides/shows.
-	function resizePageWrapper() {
-		if ($('.page-wrapper').length > 0) {
-			var height = document.documentElement.clientHeight;
-			$(".page-wrapper").css("min-height", height);
-		}
-	}
-	$(window).resize(resizePageWrapper);
-	resizePageWrapper();
+	// Page Content Height Resize — REMOVED.
+	// Previously used clientHeight which caused excessive min-height on mobile,
+	// making pages scroll far beyond actual content. CSS already handles
+	// min-height via .content { min-height: calc(100svh - 105px) }.
 
 	// Mobile menu sidebar overlay
 	if ($('.sidebar-overlay').length === 0) {

@@ -78,6 +78,12 @@
                 <li>
                     <ul>
                         <li>
+                            <a href="https://wa.me/628128012838383" target="_blank" rel="noopener noreferrer">
+                                <i class="ti ti-message-circle-2"></i>
+                                <span>Send Feedback</span>
+                            </a>
+                        </li>
+                        <li>
                             <a href="javascript:void(0);"><i class="ti ti-file-text"></i><span>Documentation</span></a>
                         </li>
                         <li>

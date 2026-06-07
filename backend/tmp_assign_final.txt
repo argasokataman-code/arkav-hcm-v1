@@ -1,0 +1,30 @@
+$businessPackageUuid = 'd4ad4849-af41-46e5-97ca-887f3c89dc1b';
+$enterprisePackageUuid = '5362681b-8ed0-4afc-aec3-705322592c83';
+$ultimatePackageUuid = '9f24e017-8224-45e2-85ef-005cb78b3d0d';
+$unlimitedPackageUuid = 'bc707d2e-c6c0-4a34-b4c6-c8806550ee47';
+
+$targetUuids = [$businessPackageUuid, $enterprisePackageUuid, $ultimatePackageUuid, $unlimitedPackageUuid];
+$features = ['hcm_approval_settings', 'timesheet'];
+
+foreach ($targetUuids as $pkgUuid) {
+  foreach ($features as $featureCode) {
+    // Check if exists
+    $exists = DB::table('package_features')
+      ->where('package_uuid', $pkgUuid)
+      ->where('feature_code', $featureCode)
+      ->first();
+    
+    if (!$exists) {
+      DB::table('package_features')->insert([
+        'package_uuid' => $pkgUuid,
+        'feature_code' => $featureCode,
+        'feature_name' => ucwords(str_replace('_', ' ', $featureCode)),
+        'created_at' => now(),
+        'updated_at' => now()
+      ]);
+      echo "✅ Added $featureCode to " . substr($pkgUuid, 0, 8) . "\n";
+    } else {
+      echo "✓ Already exists: $featureCode at " . substr($pkgUuid, 0, 8) . "\n";
+    }
+  }
+}

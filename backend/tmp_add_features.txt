@@ -1,0 +1,15 @@
+$existing1 = DB::table('feature_classifications')->where('feature_code', 'hcm_approval_settings')->first();
+if (!$existing1) {
+  DB::table('feature_classifications')->insert(['feature_code' => 'hcm_approval_settings', 'tier' => 'addon', 'created_at' => now(), 'updated_at' => now()]);
+  echo "✅ hcm_approval_settings added\n";
+} else {
+  echo "✓ hcm_approval_settings already exists\n";
+}
+
+$existing2 = DB::table('feature_classifications')->where('feature_code', 'timesheet')->first();
+if (!$existing2) {
+  DB::table('feature_classifications')->insert(['feature_code' => 'timesheet', 'tier' => 'addon', 'created_at' => now(), 'updated_at' => now()]);
+  echo "✅ timesheet added\n";
+} else {
+  echo "✓ timesheet already exists\n";
+}

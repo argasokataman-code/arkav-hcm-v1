@@ -1,0 +1,11 @@
+echo "=== Package Features Assignment ===\n";
+$result = DB::table('package_features')
+  ->whereIn('feature_code', ['hcm_approval_settings', 'timesheet'])
+  ->join('packages', 'package_features.package_id', '=', 'packages.id')
+  ->select('packages.code', 'package_features.feature_code')
+  ->get();
+
+foreach ($result as $row) {
+  echo "{$row->code} => {$row->feature_code}\n";
+}
+echo "Total: " . count($result) . "\n";

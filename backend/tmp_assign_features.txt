@@ -1,0 +1,19 @@
+$packages = DB::table('packages')->where('status', 'active')->get();
+echo "Assigning features to packages...\n";
+
+foreach ($packages as $pkg) {
+  if (in_array($pkg->code, ['business', 'enterprise', 'ultimate', 'unlimited'])) {
+    // Assign hcm_approval_settings
+    DB::table('package_features')->updateOrInsert(
+      ['package_id' => $pkg->id, 'feature_code' => 'hcm_approval_settings'],
+      ['feature_code' => 'hcm_approval_settings', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()]
+    );
+    // Assign timesheet
+    DB::table('package_features')->updateOrInsert(
+      ['package_id' => $pkg->id, 'feature_code' => 'timesheet'],
+      ['feature_code' => 'timesheet', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()]
+    );
+    echo "✅ Assigned to {$pkg->code}\n";
+  }
+}
+echo "Done!\n";

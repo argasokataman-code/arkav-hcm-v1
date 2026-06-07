@@ -1,0 +1,4 @@
+$packages = DB::table('packages')->where('status', 'active')->select('code', 'uuid')->get();
+foreach ($packages as $pkg) {
+  echo $pkg->code . " => " . $pkg->uuid . "\n";
+}

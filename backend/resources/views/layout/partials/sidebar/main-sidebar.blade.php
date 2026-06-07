@@ -1200,6 +1200,7 @@
                         </li>
                     </ul>
                 </li>
+@endif
                 <li class="menu-title"><span>Extras</span></li>
                 <li>
                     <ul>
@@ -1237,7 +1238,6 @@
                         </li>
                     </ul>
                 </li>
-@endif
             </ul>
         </div>
     </div>

@@ -1210,32 +1210,6 @@
                                 <span>Send Feedback</span>
                             </a>
                         </li>
-                        <li>
-                            <a href="javascript:void(0);"><i class="ti ti-file-text"></i><span>Documentation</span></a>
-                        </li>
-                        <li>
-                            <a href="javascript:void(0);"><i class="ti ti-exchange"></i><span>Changelog</span><span class="badge bg-pink badge-xs text-white fs-10 ms-s">v4.0.2</span></a>
-                        </li>
-                        <li class="submenu">
-                            <a href="javascript:void(0);"><i class="ti ti-menu-2"></i><span>Multi Level</span><span class="menu-arrow"></span></a>
-                            <ul>
-                                <li><a href="javascript:void(0);">Multilevel 1</a></li>
-                                <li class="submenu submenu-two">
-                                    <a href="javascript:void(0);">Multilevel 2<span class="menu-arrow inside-submenu"></span></a>
-                                    <ul>
-                                        <li><a href="javascript:void(0);">Multilevel 2.1</a></li>
-                                        <li class="submenu submenu-two submenu-three">
-                                            <a href="javascript:void(0);">Multilevel 2.2<span class="menu-arrow inside-submenu inside-submenu-two"></span></a>
-                                            <ul>
-                                                <li><a href="javascript:void(0);">Multilevel 2.2.1</a></li>
-                                                <li><a href="javascript:void(0);">Multilevel 2.2.2</a></li>
-                                            </ul>
-                                        </li>
-                                    </ul>
-                                </li>
-                                <li><a href="javascript:void(0);">Multilevel 3</a></li>
-                            </ul>
-                        </li>
                     </ul>
                 </li>
             </ul>

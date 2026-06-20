@@ -11,6 +11,10 @@ on:
 jobs:
   phpunit:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: [8.2, 8.3]
+      fail-fast: false
 
     services:
       mysql:
@@ -28,9 +32,12 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.3
+          php-version: ${{ matrix.php }}
           extensions: mbstring, pdo, pdo_mysql, bcmath, intl
-          coverage: none
+          coverage: pcov
+          ini-values: pcov.directory=app
+          extensions: mbstring, pdo, pdo_mysql, bcmath, intl
+          coverage: pcov
 
       - name: Cache Composer dependencies
         uses: actions/cache@v4
@@ -68,13 +75,29 @@ jobs:
         working-directory: backend
         id: phpunit
         continue-on-error: true
-        run: php artisan test --env=testing --log-junit=test-results.xml
+        run: php artisan test --env=testing --log-junit=test-results.xml --coverage-clover=coverage.xml
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
           DB_DATABASE: arcav_hcm_test
           DB_USERNAME: root
           DB_PASSWORD: ""
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.php }}
+          path: backend/coverage.xml
+          retention-days: 7
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-${{ matrix.php }}
+          path: backend/test-results.xml
+          retention-days: 7
 
       - name: Generate QA failure report
         if: steps.phpunit.conclusion == 'failure' || steps.phpunit.outcome == 'failure'

@@ -1,0 +1,88 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, develop]
+
+jobs:
+  pint:
+    name: Pint (Code Style)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.3
+          extensions: mbstring, pdo, intl
+          coverage: none
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/vendor
+          key: pint-${{ hashFiles('backend/composer.lock') }}
+
+      - name: Install dependencies
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run Pint (dry-run)
+        working-directory: backend
+        run: vendor/bin/pint --test --ansi || echo "PINT_FAILED=true" >> $GITHUB_ENV
+
+      - name: Post Pint diff
+        if: env.PINT_FAILED == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const diff = execSync('cd backend && vendor/bin/pint --diff --ansi', { encoding: 'utf8' });
+            const body = `## 🎨 Code Style Issues\n\nPint found style violations. Run \`vendor/bin/pint\` to fix.\n\n\`\`\`diff\n${diff.slice(0, 60000)}\n\`\`\``;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+            core.setFailed('Pint failed – code style issues found');
+
+  phpstan:
+    name: PHPStan (Static Analysis)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.3
+          extensions: mbstring, pdo, pdo_mysql, intl
+          coverage: none
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/vendor
+          key: phpstan-${{ hashFiles('backend/composer.lock') }}
+
+      - name: Install dependencies
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run PHPStan
+        working-directory: backend
+        continue-on-error: true
+        id: phpstan
+        run: vendor/bin/phpstan analyse --error-format=github --memory-limit=2G | tee phpstan-report.txt
+
+      - name: Upload PHPStan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpstan-report
+          path: backend/phpstan-report.txt
+          retention-days: 7

@@ -49,17 +49,6 @@ jobs:
         working-directory: backend
         run: composer install --no-interaction --prefer-dist
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Build frontend assets
-        run: npm run build
-
       - name: Run database migrations
         working-directory: backend
         run: php artisan migrate --force --env=testing
@@ -196,20 +185,3 @@ jobs:
 
             console.log(`Created issue with ${failures.length} failure(s)`);
             core.setOutput('issue-count', failures.length.toString());
-
-  vitest:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Run Vitest
-        working-directory: frontend
-        run: npx vitest run

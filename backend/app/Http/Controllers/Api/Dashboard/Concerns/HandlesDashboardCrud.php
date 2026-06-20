@@ -23,7 +23,7 @@ use App\Models\LeaveRequest;
 use App\Models\Subscription;
 use App\Models\OvertimeRequest;
 use App\Models\PerformanceReview;
-use App\Models\User;
+use App\Modelsser;
 use App\Support\Exports\TabularExportResponse;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,12 +34,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 trait HandlesDashboardCrud
 {
-    private function activeCompanyId(Request $request): ?int
-    {
-        $value = $request->attributes->get('activeCompanyId');
-
-        return is_numeric($value) ? (int) $value : null;
-    }
 
     private function applyAttendanceTenantScope(Builder $query, ?int $companyId): Builder
     {
@@ -91,8 +85,8 @@ trait HandlesDashboardCrud
             ['Payroll Active Month', 'Paid', (string) ($payrollMonth['paid'] ?? 0)],
             ['Payroll Active Month', 'Unpaid', (string) ($payrollMonth['unpaid'] ?? 0)],
 
-            ['Payroll Command Center', 'Period Status', (string) ($payrollCenter['periodStatus'] ?? '—')],
-            ['Payroll Command Center', 'Latest Run Status', (string) ($payrollCenter['latestRunStatus'] ?? '—')],
+            ['Payroll Command Center', 'Period Status', (string) ($payrollCenter['periodStatus'] ?? '')],
+            ['Payroll Command Center', 'Latest Run Status', (string) ($payrollCenter['latestRunStatus'] ?? '')],
             ['Payroll Command Center', 'Latest Run Payment Status', (string) ($payrollCenter['latestRunPaymentStatus'] ?? 'unpaid')],
             ['Payroll Command Center', 'Employee Line Count', (string) ($payrollCenter['employeeLineCount'] ?? 0)],
 

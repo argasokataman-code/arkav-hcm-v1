@@ -37,7 +37,6 @@ jobs:
           extensions: mbstring, pdo, pdo_mysql, bcmath, intl
           coverage: pcov
           ini-values: pcov.directory=app
-          extensions: mbstring, pdo, pdo_mysql, bcmath, intl
           coverage: pcov
 
       - name: Cache Composer dependencies

@@ -1,0 +1,68 @@
+name: PR Health
+
+on:
+  pull_request:
+    types: [opened, synchronize, edited]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  label:
+    name: Auto-Label
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          configuration-path: .github/labeler.yml
+
+  size:
+    name: Size Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check PR size
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const base = context.payload.pull_request.base.sha;
+            const head = context.payload.pull_request.head.sha;
+
+            const diffStat = execSync(`git diff --stat ${base}...${head}`, { encoding: 'utf8' });
+            const lines = diffStat.trim().split('\n');
+            const lastLine = lines[lines.length - 1] || '';
+            const match = lastLine.match(/(\d+)\s+insertion/);
+            const totalInsertions = match ? parseInt(match[1], 10) : 0;
+
+            const maxChanges = 2000;
+            if (totalInsertions > maxChanges) {
+              const body = `## 📏 Large PR Warning\n\nThis PR adds **${totalInsertions}** lines (limit: ${maxChanges}).\n\nConsider splitting into smaller PRs for faster review.`;
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+            // Check for bloated files (php/js files >800 lines)
+            const largeFiles = execSync(
+              `git diff --name-only ${base}...${head} -- '*.php' '*.js' '*.ts' | xargs -I{} wc -l {} 2>/dev/null | awk '$1 > 800'`,
+              { encoding: 'utf8' }
+            ).trim();
+
+            if (largeFiles) {
+              const warnBody = `## 🐘 Bloated File Warning\n\nThe following files exceeded 800 lines:\n\`\`\`\n${largeFiles}\n\`\`\`\n\nConsider refactoring into smaller modules.`;
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: warnBody,
+              });
+            }

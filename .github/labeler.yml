@@ -1,0 +1,41 @@
+# Auto-label PRs based on changed files
+backend:
+  - backend/**/*
+
+frontend:
+  - frontend/**/*
+
+docs:
+  - docs/**/*
+
+database:
+  - backend/database/migrations/**/*
+  - docs/database/**/*
+
+api:
+  - backend/routes/**/*
+  - docs/api/**/*
+  - backend/app/Http/Controllers/**/*
+
+tests:
+  - backend/tests/**/*
+  - frontend/__tests__/**/*
+
+dependencies:
+  - backend/composer.json
+  - backend/composer.lock
+  - package.json
+  - package-lock.json
+
+ci:
+  - .github/**/*
+
+deployment:
+  - Dockerfile
+  - run.sh
+  - scripts/deploy/**/*
+  - .github/workflows/deploy*
+
+security:
+  - backend/app/Http/Middleware/**/*
+  - .github/workflows/security*

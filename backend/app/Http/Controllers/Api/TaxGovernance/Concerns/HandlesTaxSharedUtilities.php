@@ -14,7 +14,7 @@ use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTaxGovernancePolicyEvent;
 use App\Models\HcmTaxGovernanceProjection;
 use App\Models\HcmTaxGovernanceAnomaly;
-use App\Models\User;
+use App\Modelsser;
 use App\Services\BillingTaxCalculationService;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
@@ -63,16 +63,5 @@ private function normalizeNpwp(string $value): string
         }
 
         return $this->errorResponse('AUTH_FORBIDDEN', 'Only tenant owner can manage employee tax policy at this stage.', 403);
-    }
-
-    private function errorResponse(string $code, string $message, int $status): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'error' => [
-                'code' => $code,
-                'message' => $message,
-            ],
-        ], $status);
     }
 }

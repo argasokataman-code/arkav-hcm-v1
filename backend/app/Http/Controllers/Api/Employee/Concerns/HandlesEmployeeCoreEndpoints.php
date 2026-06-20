@@ -10,7 +10,7 @@ use App\Models\EmployeeProfile;
 use App\Models\HcmRole;
 use App\Models\HcmScheduleTiming;
 use App\Models\HcmUserRole;
-use App\Models\User;
+use App\Modelsser;
 use App\Services\EmployeeCountValidator;
 use Database\Seeders\HcmUserManagementSeeder;
 use Illuminate\Http\JsonResponse;

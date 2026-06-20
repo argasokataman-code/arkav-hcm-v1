@@ -64,6 +64,10 @@ use Illuminate\Validation\Rule;
 
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+use App\Http\Controllers\Api\Dashboard\Concerns\HandlesDashboardCrud;
+
+use App\Http\Controllers\Api\Dashboard\Concerns\HandlesDashboardReports;
+
 
 
 class HcmDashboardController extends Controller

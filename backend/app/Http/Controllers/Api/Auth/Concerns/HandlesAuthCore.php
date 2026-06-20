@@ -11,7 +11,7 @@ use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\Invoice;
 use App\Models\HcmPermission;
-use App\Models\User;
+use App\Modelsser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -287,18 +287,6 @@ trait HandlesAuthCore
                 'traceId' => $request->attributes->get('traceId'),
             ],
         ], 422);
-    }
-
-    private function errorResponse(string $code, string $message, int $status, Request $request): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'error' => [
-                'code' => $code,
-                'message' => $message,
-                'traceId' => $request->attributes->get('traceId'),
-            ],
-        ], $status);
     }
 
     private function loginThrottleKey(Request $request): string

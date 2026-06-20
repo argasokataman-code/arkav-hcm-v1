@@ -20,6 +20,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
+use App\Http\Controllers\Api\Payroll\Concerns\HandlesSalaryComponentCategories;
+
+use App\Http\Controllers\Api\Payroll\Concerns\HandlesSalaryComponentCrud;
+
+use App\Http\Controllers\Api\Payroll\Concerns\HandlesSalaryComponentEmployeeProfiles;
+
 class HcmSalaryComponentController extends Controller
 {
     use ChecksPermissions;

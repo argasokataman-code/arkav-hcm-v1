@@ -11,7 +11,7 @@ use App\Models\HcmBpjsGovernancePolicy;
 use App\Models\HcmBpjsGovernancePolicyHistory;
 use App\Models\HcmBpjsGovernanceRateBaseline;
 use App\Models\HcmSalaryComponent;
-use App\Models\User;
+use App\Modelsser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;

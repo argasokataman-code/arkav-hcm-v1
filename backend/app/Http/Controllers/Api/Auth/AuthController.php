@@ -8,6 +8,11 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 
+use App\Http\Controllers\Api\Auth\Concerns\HandlesAuthCore;
+use App\Http\Controllers\Api\Auth\Concerns\HandlesAuthProfile;
+use App\Http\Controllers\Api\Auth\Concerns\HandlesAuthCompany;
+use App\Http\Controllers\Api\Auth\Concerns\HandlesAuthPermissions;
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Mail\RegisterSuccessMailable;
 
 use App\Models\AuthToken;

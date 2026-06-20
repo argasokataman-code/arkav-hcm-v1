@@ -8,6 +8,8 @@ namespace App\Http\Controllers\Api\Leave;
 
 use App\Http\Controllers\Controller;
 
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
+
 use App\Models\CompanyUser;
 
 use App\Models\EmployeeLeaveBalance;
@@ -77,6 +79,12 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 use Symfony\Component\HttpFoundation\StreamedResponse;
+
+use App\Http\Controllers\Api\Leave\Concerns\HandlesLeaveRequestCrud;
+
+use App\Http\Controllers\Api\Leave\Concerns\HandlesLeaveRequestSelf;
+
+use App\Http\Controllers\Api\Leave\Concerns\HandlesLeaveRequestApproval;
 
 
 

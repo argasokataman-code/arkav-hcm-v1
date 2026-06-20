@@ -38,6 +38,12 @@ use Illuminate\Support\Facades\DB;
 
 use Illuminate\Validation\ValidationException;
 
+use App\Http\Controllers\Api\AllowanceGovernance\Concerns\HandlesAllowancePolicies;
+
+use App\Http\Controllers\Api\AllowanceGovernance\Concerns\HandlesAllowanceAssignments;
+
+use App\Http\Controllers\Api\AllowanceGovernance\Concerns\HandlesAllowanceReports;
+
 
 
 class HcmEmployeeAllowanceGovernanceController extends Controller

@@ -14,7 +14,7 @@ use App\Models\LeavePolicyAssignment;
 use App\Models\LeaveRequest;
 use App\Models\LeaveRequestBreakdown;
 use App\Models\LeaveType;
-use App\Models\User;
+use App\Modelsser;
 use App\Models\AttendanceRecord;
 use App\Support\Exports\TabularExportResponse;
 use App\Services\Hcm\LeaveLedgerService;
@@ -68,13 +68,6 @@ trait HandlesLeaveRequestCrud
         return $user->hasPermissionForCompany('leave.approve', $companyId)
             || $user->hasPermissionForCompany('leave.update', $companyId)
             || $user->hasPermissionForCompany('leave.settings', $companyId);
-    }
-
-    private function activeCompanyId(Request $request): ?int
-    {
-        $value = $request->attributes->get('activeCompanyId');
-
-        return is_numeric($value) ? (int) $value : null;
     }
 
     private function applyTenantScope(Builder $query, ?int $companyId): Builder
@@ -757,10 +750,14 @@ trait HandlesLeaveRequestCrud
         $reason = trim($reason);
 
         if ($employeeNotes === '') {
-            return '[Admin rejection reason]\n'.$reason;
+            return '[Admin rejection reason]
+'.$reason;
         }
 
-        return $employeeNotes."\n\n[Admin rejection reason]\n".$reason;
+        return $employeeNotes."
+
+[Admin rejection reason]
+".$reason;
     }
 
     /**
@@ -768,7 +765,10 @@ trait HandlesLeaveRequestCrud
      */
     private function splitDeclinedLeaveNotes(string $notes): array
     {
-        $marker = "\n\n[Admin rejection reason]\n";
+        $marker = "
+
+[Admin rejection reason]
+";
         $pos = strrpos($notes, $marker);
         if ($pos !== false) {
             return [
@@ -1401,4 +1401,3 @@ trait HandlesLeaveRequestCrud
         }
     }
 }
-

@@ -11,7 +11,7 @@ use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\Invoice;
 use App\Models\HcmPermission;
-use App\Models\User;
+use App\Modelsser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

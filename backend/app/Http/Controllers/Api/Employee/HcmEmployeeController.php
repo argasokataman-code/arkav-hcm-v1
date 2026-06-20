@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api\Employee;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeBulkOperations;
+use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeCoreBulk;
 use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeCoreEndpoints;
+use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeCoreExport;
 use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeOrganizationEndpoints;
 use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeProfilePhotoEndpoints;
 use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeSharedUtilities;
@@ -57,7 +59,9 @@ class HcmEmployeeController extends Controller
 {
     use ChecksPermissions;
     use HandlesEmployeeBulkOperations;
+    use HandlesEmployeeCoreBulk;
     use HandlesEmployeeCoreEndpoints;
+    use HandlesEmployeeCoreExport;
     use HandlesEmployeeCoreBulk;
     use HandlesEmployeeCoreExport;
     use HandlesEmployeeOrganizationEndpoints;

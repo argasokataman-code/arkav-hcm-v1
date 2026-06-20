@@ -36,6 +36,10 @@ use Illuminate\Validation\Rule;
 
 use Illuminate\Validation\ValidationException;
 
+use App\Http\Controllers\Api\BpjsGovernance\Concerns\HandlesBpjsCrud;
+
+use App\Http\Controllers\Api\BpjsGovernance\Concerns\HandlesBpjsReports;
+
 
 
 class HcmBpjsGovernanceController extends Controller

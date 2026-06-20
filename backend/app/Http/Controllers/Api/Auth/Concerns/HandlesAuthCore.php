@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\Auth\Concerns;
 
+use App\Models\User;
+
 use App\Http\Controllers\Controller;
 use App\Mail\RegisterSuccessMailable;
 use App\Models\AuthToken;

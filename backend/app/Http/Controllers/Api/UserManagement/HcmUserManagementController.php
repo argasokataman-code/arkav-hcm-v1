@@ -49,6 +49,9 @@ use App\Http\Controllers\Api\UserManagement\Concerns\HandlesUserManagementUsers;
 use App\Http\Controllers\Api\UserManagement\Concerns\HandlesUserManagementRoles;
 
 use App\Http\Controllers\Api\UserManagement\Concerns\HandlesUserManagementAssignments;
+use App\Http\Controllers\Api\Api\UserManagement\Concerns\HandlesUserManagementUsers;
+use App\Http\Controllers\Api\Api\UserManagement\Concerns\HandlesUserManagementRoles;
+use App\Http\Controllers\Api\Api\UserManagement\Concerns\HandlesUserManagementAssignments;
 
 
 

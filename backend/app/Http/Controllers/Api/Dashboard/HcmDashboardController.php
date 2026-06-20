@@ -67,6 +67,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Http\Controllers\Api\Dashboard\Concerns\HandlesDashboardCrud;
 
 use App\Http\Controllers\Api\Dashboard\Concerns\HandlesDashboardReports;
+use App\Http\Controllers\Api\Api\Dashboard\Concerns\HandlesDashboardCrud;
+use App\Http\Controllers\Api\Api\Dashboard\Concerns\HandlesDashboardReports;
 
 
 

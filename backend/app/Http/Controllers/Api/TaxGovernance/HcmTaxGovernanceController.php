@@ -39,6 +39,12 @@ use App\Http\Controllers\Api\TaxGovernance\Concerns\HandlesTaxBreakGlass;
 use App\Http\Controllers\Api\TaxGovernance\Concerns\HandlesTaxAnomalyManagement;
 
 use App\Http\Controllers\Api\TaxGovernance\Concerns\HandlesTaxSharedUtilities;
+use App\Http\Controllers\Api\Api\TaxGovernance\Concerns\HandlesPlatformTaxGovernance;
+use App\Http\Controllers\Api\Api\TaxGovernance\Concerns\HandlesTaxPolicyCrud;
+use App\Http\Controllers\Api\Api\TaxGovernance\Concerns\HandlesTaxAuditReports;
+use App\Http\Controllers\Api\Api\TaxGovernance\Concerns\HandlesTaxBreakGlass;
+use App\Http\Controllers\Api\Api\TaxGovernance\Concerns\HandlesTaxAnomalyManagement;
+use App\Http\Controllers\Api\Api\TaxGovernance\Concerns\HandlesTaxSharedUtilities;
 
 class HcmTaxGovernanceController extends Controller
 {

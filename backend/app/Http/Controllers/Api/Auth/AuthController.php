@@ -52,6 +52,10 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 use Illuminate\Validation\Rule;
+use App\Http\Controllers\Api\Api\Auth\Concerns\HandlesAuthCore;
+use App\Http\Controllers\Api\Api\Auth\Concerns\HandlesAuthProfile;
+use App\Http\Controllers\Api\Api\Auth\Concerns\HandlesAuthCompany;
+use App\Http\Controllers\Api\Api\Auth\Concerns\HandlesAuthPermissions;
 
 
 

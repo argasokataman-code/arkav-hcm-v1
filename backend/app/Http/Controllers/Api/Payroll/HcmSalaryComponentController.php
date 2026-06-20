@@ -25,6 +25,9 @@ use App\Http\Controllers\Api\Payroll\Concerns\HandlesSalaryComponentCategories;
 use App\Http\Controllers\Api\Payroll\Concerns\HandlesSalaryComponentCrud;
 
 use App\Http\Controllers\Api\Payroll\Concerns\HandlesSalaryComponentEmployeeProfiles;
+use App\Http\Controllers\Api\Api\Payroll\Concerns\HandlesSalaryComponentCategories;
+use App\Http\Controllers\Api\Api\Payroll\Concerns\HandlesSalaryComponentCrud;
+use App\Http\Controllers\Api\Api\Payroll\Concerns\HandlesSalaryComponentEmployeeProfiles;
 
 class HcmSalaryComponentController extends Controller
 {

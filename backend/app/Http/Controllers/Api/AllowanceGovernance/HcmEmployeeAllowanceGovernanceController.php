@@ -43,6 +43,9 @@ use App\Http\Controllers\Api\AllowanceGovernance\Concerns\HandlesAllowancePolici
 use App\Http\Controllers\Api\AllowanceGovernance\Concerns\HandlesAllowanceAssignments;
 
 use App\Http\Controllers\Api\AllowanceGovernance\Concerns\HandlesAllowanceReports;
+use App\Http\Controllers\Api\Api\AllowanceGovernance\Concerns\HandlesAllowancePolicies;
+use App\Http\Controllers\Api\Api\AllowanceGovernance\Concerns\HandlesAllowanceAssignments;
+use App\Http\Controllers\Api\Api\AllowanceGovernance\Concerns\HandlesAllowanceReports;
 
 
 

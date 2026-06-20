@@ -57,13 +57,19 @@ use App\Http\Controllers\Api\Performance\Concerns\HandlesPerformanceIndicators;
 use App\Http\Controllers\Api\Performance\Concerns\HandlesPerformanceCycles;
 
 use App\Http\Controllers\Api\Performance\Concerns\HandlesPerformanceReviews;
+use App\Http\Controllers\Api\Api\Performance\Concerns\HandlesPerformanceGoals;
+use App\Http\Controllers\Api\Api\Performance\Concerns\HandlesPerformanceIndicators;
+use App\Http\Controllers\Api\Api\Performance\Concerns\HandlesPerformanceCycles;
+use App\Http\Controllers\Api\Api\Performance\Concerns\HandlesPerformanceReviews;
 
 
 
 class HcmPerformanceController extends Controller
 
 {
-    use ChecksPermissions;
+    use ChecksPermissions {
+        ChecksPermissions::activeCompanyId insteadof HandlesPerformanceGoals;
+    }
     use HandlesPerformanceGoals;
     use HandlesPerformanceIndicators;
     use HandlesPerformanceCycles;

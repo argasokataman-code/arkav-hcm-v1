@@ -39,6 +39,8 @@ use Illuminate\Validation\ValidationException;
 use App\Http\Controllers\Api\BpjsGovernance\Concerns\HandlesBpjsCrud;
 
 use App\Http\Controllers\Api\BpjsGovernance\Concerns\HandlesBpjsReports;
+use App\Http\Controllers\Api\Api\BpjsGovernance\Concerns\HandlesBpjsCrud;
+use App\Http\Controllers\Api\Api\BpjsGovernance\Concerns\HandlesBpjsReports;
 
 
 

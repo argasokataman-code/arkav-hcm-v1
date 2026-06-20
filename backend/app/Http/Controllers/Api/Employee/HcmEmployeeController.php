@@ -54,6 +54,15 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Http\Controllers\Api\Api\Employee\Concerns\HandlesEmployeeBulkOperations;
+use App\Http\Controllers\Api\Api\Employee\Concerns\HandlesEmployeeCoreBulk;
+use App\Http\Controllers\Api\Api\Employee\Concerns\HandlesEmployeeCoreEndpoints;
+use App\Http\Controllers\Api\Api\Employee\Concerns\HandlesEmployeeCoreExport;
+use App\Http\Controllers\Api\Api\Employee\Concerns\HandlesEmployeeCoreBulk;
+use App\Http\Controllers\Api\Api\Employee\Concerns\HandlesEmployeeCoreExport;
+use App\Http\Controllers\Api\Api\Employee\Concerns\HandlesEmployeeOrganizationEndpoints;
+use App\Http\Controllers\Api\Api\Employee\Concerns\HandlesEmployeeProfilePhotoEndpoints;
+use App\Http\Controllers\Api\Api\Employee\Concerns\HandlesEmployeeSharedUtilities;
 
 class HcmEmployeeController extends Controller
 {

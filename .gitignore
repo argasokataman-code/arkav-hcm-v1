@@ -3,6 +3,7 @@
 .vscode/
 .windsurf/
 .idea/
+.cursor/
 
 # Local AI/tooling state
 .phpunit.result.cache

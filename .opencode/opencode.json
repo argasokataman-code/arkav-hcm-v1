@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "mcp": {
+    "mysql": {
+      "type": "local",
+      "command": ["bash", ".opencode/mysql-mcp.sh"],
+      "enabled": true
+    }
+  }
+}

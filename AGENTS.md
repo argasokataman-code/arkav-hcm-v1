@@ -310,13 +310,13 @@ Jika Context7 tidak tersedia → catat eksplisit ke user, lanjut dengan training
 ## 11. Shared Hosting Deploy (Lokal-First)
 
 ### Workflow
-1. `bash scripts/local-test-gate.sh` (mandatory gate)
+1. `bash scripts/local-test-gate.sh --quick` (opsional — cukup `composer install` + `npm ci` + syntax check; full test di CI)
 2. Commit code/docs (tanpa artifact)
 3. `bash scripts/shared-hosting-package-local.sh` (build artifact)
 4. `bash scripts/check-shared-hosting-artifact-sync.sh` (wajib PASS)
 5. Commit `release/shared-hosting/`
 6. Push ke main **hanya setelah konfirmasi operator**
-7. GitHub Actions: SCP + SSH extract + `shared-hosting-deploy-easy.sh`
+7. GitHub Actions: SCP + SSH extract + `shared-hosting-deploy-easy.sh` + **auto-run test suite**
 
 ### Mandatory Safety
 - "prepare deploy" → stop di "ready to push", jangan push otomatis.
@@ -336,17 +336,29 @@ Jika Context7 tidak tersedia → catat eksplisit ke user, lanjut dengan training
 
 ---
 
-## 13. Local Test Gate (Mandatory Pre-Push)
+## 13. Local Test Gate (Opsional — Fast Path)
+
+**Full test dijalankan otomatis oleh GitHub Actions CI setiap push/PR/cron.**  
+Local test cukup untuk quick validation sebelum commit.
 
 ```bash
-bash scripts/local-test-gate.sh
+# Quick local validation (syntax + build — cukup)
+composer install --working-dir=backend && npm ci && npm run build
+
+# Full test ada di CI → https://github.com/argasokataman-code/arkav-hcm-v1/actions
 ```
 
-Otomatis:
-1. `composer install --no-dev`
-2. `npm ci && npm run build`
-3. `php artisan migrate --force --env=testing`
-4. `php artisan test` (PHPUnit)
-5. `npx vitest run` (Vitest)
+Opsi local (jika mau):
+- `npm run build` — cek asset build ok
+- `composer install` — cek dependency ok
+- `php -l file.php` — syntax check file tertentu
 
-Hanya commit/push jika semua pass. GitHub Actions hanya cek artifact + deploy.
+| Dulu (mandatory local) | Sekarang (CI-first) |
+|------------------------|---------------------|
+| `php artisan migrate:fresh` | ❌ Skip — CI handle |
+| `php artisan test` | ❌ Skip — CI handle |
+| `npx vitest run` | ❌ Skip — CI handle |
+| `composer install` | ✅ Tetap (cek dependency) |
+| `npm ci && npm run build` | ✅ Tetap (cek build) |
+
+> **Catatan:** Jika laptop kuat, bisa jalankan `bash scripts/local-test-gate.sh` untuk validasi penuh sebelum push.

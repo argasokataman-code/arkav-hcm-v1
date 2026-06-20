@@ -80,16 +80,19 @@ Catatan: jika nanti dipecah deploy, migrasi dan FK perlu direview ulang.
 
 ### `users`
 - `id BIGINT UNSIGNED PK`
-- `name VARCHAR(150) NOT NULL`
+- `name VARCHAR(255) NOT NULL`
 - `email VARCHAR(191) NOT NULL UNIQUE`
-- `password_hash VARCHAR(255) NOT NULL`
-- `status ENUM('active','inactive') NOT NULL DEFAULT 'active'`
-- `last_login_at DATETIME NULL`
+- `email_verified_at TIMESTAMP NULL`
+- `password VARCHAR(255) NOT NULL` — Laravel bcrypt hash
+- `remember_token VARCHAR(100) NULL` — Laravel "remember me" token
+- `deleted_at TIMESTAMP NULL` — soft delete
 - `created_at`, `updated_at`
 
 Index:
-- `UNIQUE KEY uq_users_email (email)`
-- `KEY idx_users_status (status)`
+- `UNIQUE KEY users_email_unique (email)`
+- `FULLTEXT KEY users_name_email_fulltext (name, email)` — MySQL fulltext search untuk direktori karyawan (migrasi `2026_04_10_120000_add_scale_indexes_for_hcm_queries`)
+
+**Note:** Runtime pakai Laravel default (tidak ada `status` enum eksplisit atau `last_login_at`; autentikasi via `auth_tokens` table).
 
 ### `roles`
 - `id BIGINT UNSIGNED PK`
@@ -186,13 +189,26 @@ Index:
 
 ### `employee_profiles`
 - `id BIGINT UNSIGNED PK`
+- `company_id BIGINT UNSIGNED NULL` (index) — tenant scope (wave tenantization `2026_04_21_100000_tenantize_employee_org_core_tables`)
 - `user_id BIGINT UNSIGNED NOT NULL UNIQUE` (FK `users`, cascade on delete)
 - `hire_date DATE NULL` — tanggal bergabung resmi (opsional; untuk tenure / THR; jika null UI/API memakai `users.created_at` sebagai `joinDate` efektif)
 - `department_id BIGINT UNSIGNED NULL` (FK `departments`, null on delete)
 - `designation_id BIGINT UNSIGNED NULL` (FK `designations`, null on delete)
-- Field tambahan profil: `team`, `designation` (label denormalized / bebas jika tanpa master), `nik`, `place_of_birth`, `date_of_birth`, `gender`, `marital_status`, `religion`, `nationality`, `phone`, `address`, `bio`, data bank, JSON `emergency_contacts`, `education_items`, `experience_items`
-- Komponen kompensasi: `base_salary DECIMAL(15,2) NOT NULL DEFAULT 0`, `fixed_allowance DECIMAL(15,2) NOT NULL DEFAULT 0`
+- `manager_user_id BIGINT UNSIGNED NULL` (FK `users`, null on delete)
+- `team VARCHAR(100) NULL` — label team denormalized (legacy; runtime sekarang pakai `employee_assignments.team_id` → `teams` table)
+- `designation VARCHAR(150) NULL` — label designation denormalized (legacy fallback)
+- `employment_status VARCHAR(50) NULL` — status aktif/inactive (legacy; runtime pakai `employee_employment_history`)
+- Personal identity: `nik VARCHAR(100) NULL` (encrypted), `place_of_birth VARCHAR(150) NULL`, `date_of_birth DATE NULL`, `gender VARCHAR(20) NULL`, `marital_status VARCHAR(30) NULL`, `religion VARCHAR(50) NULL`, `nationality VARCHAR(50) NULL`
+- Contact: `phone VARCHAR(50) NULL`, `address TEXT NULL`, `address_province_code VARCHAR(10) NULL`, `address_regency_code VARCHAR(10) NULL`, `address_district_code VARCHAR(10) NULL`, `address_postal_code VARCHAR(10) NULL`
+- `bio TEXT NULL`
+- `profile_photo_path VARCHAR(500) NULL`
+- Bank (legacy; runtime pakai `employee_bank_accounts`): `bank_name VARCHAR(150) NULL`, `bank_account_no VARCHAR(100) NULL`, `bank_ifsc_code VARCHAR(100) NULL`, `bank_branch VARCHAR(150) NULL`
+- Compensation (legacy; runtime pakai `employee_compensations`): `base_salary DECIMAL(15,2) NOT NULL DEFAULT 0`, `fixed_allowance DECIMAL(15,2) NOT NULL DEFAULT 0`
+- Contract (legacy; runtime pakai `employee_contracts`): `contract_type VARCHAR(50) NULL`, `contract_start_date DATE NULL`, `contract_end_date DATE NULL`
+- JSON legacy (pre-normalized): `emergency_contacts JSON NULL`, `education_items JSON NULL`, `experience_items JSON NULL`
 - `created_at`, `updated_at`
+
+**Note:** Runtime utama sekarang memakai **normalized history tables** (`employee_employment_history`, `employee_assignments`, `employee_compensations`, `employee_contracts`, `employee_bank_accounts`, `employee_tax_profiles`, `employee_benefits`, `employee_emergency_contacts`, `employee_educations`, `employee_experiences`) — lihat §4 "Riwayat employee ter-normalisasi". Kolom legacy di `employee_profiles` tetap dipertahankan untuk kompatibilitas migrasi bertahap.
 
 ### `teams`
 - `id BIGINT UNSIGNED PK`
@@ -514,4 +530,259 @@ Urutan pasti mengikuti timestamp file di `backend/database/migrations/`.
 - Permissions dasar per domain
 - Department sample: `HR`, `Engineering`, `Finance`
 - Designation sample: `Staff`, `Senior Staff`, `Lead`
+
+---
+
+## 9) Additional runtime tables (April–May 2026)
+
+Tabel berikut ditambahkan setelah foundation schema untuk mendukung SaaS/HCM runtime tambahan.
+
+### `feature_classifications`
+- `id BIGINT UNSIGNED PK`
+- `feature_code VARCHAR(100) NOT NULL UNIQUE`
+- `tier VARCHAR(16) NOT NULL DEFAULT 'addon'` — klasifikasi komersial: `default`, `mvp`, `addon` (lihat `docs/features/RUNTIME-FEATURE-CLASSIFICATION.md`)
+- `created_at`, `updated_at`
+
+Index:
+- `KEY feature_classifications_tier_idx (tier)`
+
+### `subscription_events`
+- `id BIGINT UNSIGNED PK`
+- `uuid CHAR(36) NOT NULL UNIQUE`
+- `company_id BIGINT UNSIGNED NULL` (index) — FK soft ke `companies` (tanpa FK constraint untuk kompatibilitas schema mixed)
+- `company_uuid CHAR(36) NULL` (index)
+- `subscription_id BIGINT UNSIGNED NULL` (index)
+- `subscription_uuid CHAR(36) NULL` (index)
+- `invoice_id BIGINT UNSIGNED NULL` (index)
+- `invoice_uuid CHAR(36) NULL` (index)
+- `payment_id BIGINT UNSIGNED NULL` (index)
+- `payment_uuid CHAR(36) NULL` (index)
+- `renewal_period_key VARCHAR(128) NULL` (index) — format: `{subscription_id}:{period}` (contoh: `42:2026-05`)
+- `event_type VARCHAR(64) NOT NULL` (index) — contoh: `renewal_success`, `renewal_failed`, `payment_received`
+- `reason_code VARCHAR(64) NULL` (index) — contoh: `XENDIT_DOWN`, `DUPLICATE_RENEWAL_BLOCKED`
+- `reason_message VARCHAR(255) NULL`
+- `payload JSON NULL`
+- `occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP` (index)
+- `created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP`
+
+Index:
+- `KEY subscription_events_company_idx (company_id)`
+- `KEY subscription_events_subscription_idx (subscription_id)`
+- `KEY subscription_events_renewal_key_idx (renewal_period_key)`
+- `KEY subscription_events_event_type_idx (event_type)`
+- `KEY subscription_events_occurred_idx (occurred_at)`
+
+### `notification_deliveries`
+- `id BIGINT UNSIGNED PK`
+- `uuid CHAR(36) NOT NULL UNIQUE`
+- `event_key VARCHAR(191) NOT NULL` — event trigger (contoh: `email.compose.sent`, `email.inbound.received`)
+- `channel ENUM('database','mail','sms','webhook') NOT NULL DEFAULT 'database'`
+- `status VARCHAR(32) NOT NULL DEFAULT 'queued'` — `queued`, `sent`, `failed`
+- `notification_uuid VARCHAR(64) NULL` (index)
+- `recipient VARCHAR(191) NULL` — email/phone/user_id
+- `company_uuid CHAR(36) NULL` (index)
+- `attempt_count INT UNSIGNED NOT NULL DEFAULT 1`
+- `last_error TEXT NULL`
+- `metadata JSON NULL`
+- `sent_at TIMESTAMP NULL`
+- `failed_at TIMESTAMP NULL`
+- `created_at`, `updated_at`
+
+Index:
+- `KEY notification_deliveries_event_status_idx (event_key, status)`
+- `KEY notification_deliveries_channel_status_idx (channel, status)`
+- `KEY notification_deliveries_created_status_idx (created_at, status)`
+
+### `erasure_requests`
+- `id BIGINT UNSIGNED PK`
+- `uuid CHAR(36) NOT NULL UNIQUE`
+- `subject_uuid CHAR(36) NOT NULL` (index) — user requesting data erasure (UU PDP compliance)
+- `company_id BIGINT UNSIGNED NOT NULL` (index)
+- `status VARCHAR(30) NOT NULL DEFAULT 'pending'` — `pending`, `approved`, `rejected`, `completed`
+- `reason TEXT NULL`
+- `reviewed_by_uuid CHAR(36) NULL` — admin yang review
+- `reviewed_at TIMESTAMP NULL`
+- `completed_at TIMESTAMP NULL`
+- `admin_notes TEXT NULL`
+- `created_at`, `updated_at`
+
+Index:
+- `KEY erasure_requests_subject_uuid_idx (subject_uuid)`
+- `KEY erasure_requests_company_id_idx (company_id)`
+- `KEY erasure_requests_status_idx (status)`
+
+### `export_audit_logs`
+- `id BIGINT UNSIGNED PK`
+- `user_uuid CHAR(36) NOT NULL` (index)
+- `company_id BIGINT UNSIGNED NOT NULL` (index)
+- `action VARCHAR(100) NOT NULL` — contoh: `export_employees`, `export_payroll_run`, `export_attendance_report`
+- `format VARCHAR(20) NOT NULL DEFAULT 'csv'` — `csv`, `xlsx`, `pdf`
+- `record_count INT NULL`
+- `ip_address VARCHAR(45) NULL`
+- `user_agent VARCHAR(500) NULL`
+- `filters_applied JSON NULL`
+- `exported_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP`
+- `created_at`, `updated_at`
+
+Index:
+- `KEY export_audit_logs_user_uuid_idx (user_uuid)`
+- `KEY export_audit_logs_company_id_idx (company_id)`
+- `KEY export_audit_logs_action_idx (action)`
+- `KEY export_audit_logs_exported_at_idx (exported_at)`
+
+### `hcm_approval_configs`
+- `id BIGINT UNSIGNED PK`
+- `uuid CHAR(36) NOT NULL UNIQUE`
+- `company_id BIGINT UNSIGNED NOT NULL`
+- `company_uuid CHAR(36) NULL` (index)
+- `module VARCHAR(50) NOT NULL` — `leave`, `expense`, `offer`, `overtime`
+- `approval_mode ENUM('sequence','simultaneous') NOT NULL DEFAULT 'simultaneous'`
+- `is_active BOOLEAN NOT NULL DEFAULT 1`
+- `created_at`, `updated_at`
+
+Constraint:
+- `UNIQUE KEY hcm_approval_configs_company_module_unique (company_id, module)`
+- `FOREIGN KEY (company_uuid) REFERENCES companies(uuid) ON DELETE SET NULL`
+
+Index:
+- `KEY hcm_approval_configs_company_id_idx (company_id)`
+- `KEY hcm_approval_configs_company_uuid_idx (company_uuid)`
+
+### `hcm_approval_config_approvers`
+- `id BIGINT UNSIGNED PK`
+- `uuid CHAR(36) NOT NULL UNIQUE`
+- `hcm_approval_config_id BIGINT UNSIGNED NOT NULL` (FK `hcm_approval_configs`, cascade on delete)
+- `company_id BIGINT UNSIGNED NOT NULL`
+- `company_uuid CHAR(36) NULL` (index)
+- `approver_user_id BIGINT UNSIGNED NOT NULL`
+- `approver_user_uuid CHAR(36) NULL` (index)
+- `sequence_order TINYINT UNSIGNED NOT NULL DEFAULT 1` — urutan untuk mode `sequence` (level 1 approve sebelum level 2)
+- `created_at`, `updated_at`
+
+Constraint:
+- `FOREIGN KEY (hcm_approval_config_id) REFERENCES hcm_approval_configs(id) ON DELETE CASCADE`
+- `FOREIGN KEY (company_uuid) REFERENCES companies(uuid) ON DELETE SET NULL`
+- `FOREIGN KEY (approver_user_uuid) REFERENCES users(uuid) ON DELETE SET NULL`
+
+Index:
+- `KEY hcm_acapprovers_config_order_idx (hcm_approval_config_id, sequence_order)`
+- `KEY hcm_acapprovers_company_id_idx (company_id)`
+- `KEY hcm_acapprovers_company_uuid_idx (company_uuid)`
+- `KEY hcm_acapprovers_approver_user_id_idx (approver_user_id)`
+- `KEY hcm_acapprovers_approver_user_uuid_idx (approver_user_uuid)`
+
+### `ai_chat_logs`
+- `id BIGINT UNSIGNED PK`
+- `user_uuid CHAR(36) NOT NULL` (FK `users.uuid`, cascade on delete)
+- `user_legacy_id BIGINT UNSIGNED NULL` — legacy integer user ID fallback
+- `company_id INT UNSIGNED NULL`
+- `session_id CHAR(36) NOT NULL` — session identifier per conversation
+- `intent VARCHAR(100) NOT NULL DEFAULT 'unknown'` — intent recognized (contoh: `cuti.request`, `absensi.check`)
+- `allowed BOOLEAN NOT NULL DEFAULT 0` — RBAC gate: apakah user boleh akses intent tersebut
+- `deny_reason VARCHAR(100) NULL` — reason jika `allowed = 0`
+- `source_endpoints JSON NULL` — endpoint backend yang dipanggil AI
+- `created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP`
+
+Constraint:
+- `FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE`
+
+Index:
+- `KEY ai_chat_logs_user_uuid_idx (user_uuid)`
+- `KEY ai_chat_logs_user_session_idx (user_uuid, session_id)`
+- `KEY ai_chat_logs_created_at_idx (created_at)`
+
+### `wilayah_provinces` (Wilayah Indonesia cache)
+- `id BIGINT UNSIGNED PK`
+- `code CHAR(2) NOT NULL UNIQUE` — kode provinsi 2 digit (contoh: `31` = DKI Jakarta)
+- `name VARCHAR(100) NOT NULL`
+- `created_at`, `updated_at`
+
+### `wilayah_regencies`
+- `id BIGINT UNSIGNED PK`
+- `province_code CHAR(2) NOT NULL` (index, FK soft ke `wilayah_provinces.code`)
+- `code CHAR(4) NOT NULL UNIQUE` — kode kabupaten/kota 4 digit (contoh: `3101` = Jakarta Pusat)
+- `name VARCHAR(100) NOT NULL`
+- `created_at`, `updated_at`
+
+Index:
+- `KEY wilayah_regencies_province_code_idx (province_code)`
+
+### `wilayah_districts`
+- `id BIGINT UNSIGNED PK`
+- `regency_code CHAR(4) NOT NULL` (index, FK soft ke `wilayah_regencies.code`)
+- `code CHAR(7) NOT NULL UNIQUE` — kode kecamatan 7 digit (contoh: `3101010` = Gambir)
+- `name VARCHAR(100) NOT NULL`
+- `created_at`, `updated_at`
+
+Index:
+- `KEY wilayah_districts_regency_code_idx (regency_code)`
+
+**Note:** Data wilayah disinkronkan dari `wilayah.id` via command `php artisan wilayah:sync` (scheduler bulanan). Lihat `docs/features/locations/IMPLEMENTATION.md`.
+
+### `invoice_email_logs`
+- `id BIGINT UNSIGNED PK`
+- `invoice_id BIGINT UNSIGNED NOT NULL` (FK `invoices`, cascade on delete)
+- `recipient_email VARCHAR(191) NOT NULL`
+- `status VARCHAR(30) NOT NULL DEFAULT 'pending'` — `pending`, `sent`, `failed`
+- `sent_at TIMESTAMP NULL`
+- `failed_at TIMESTAMP NULL`
+- `error_message TEXT NULL`
+- `attempt_count INT UNSIGNED NOT NULL DEFAULT 1`
+- `created_at`, `updated_at`
+
+Constraint:
+- `FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE`
+
+Index:
+- `KEY invoice_email_logs_invoice_id_idx (invoice_id)`
+- `KEY invoice_email_logs_status_idx (status)`
+- `KEY invoice_email_logs_sent_at_idx (sent_at)`
+
+### `hcm_termination_checklist_items`
+- `id BIGINT UNSIGNED PK`
+- `uuid CHAR(36) NOT NULL UNIQUE`
+- `company_id BIGINT UNSIGNED NOT NULL` (index)
+- `company_uuid CHAR(36) NULL` (index)
+- `hcm_termination_id BIGINT UNSIGNED NOT NULL` (FK `hcm_terminations`, cascade on delete)
+- `hcm_termination_uuid CHAR(36) NULL` (index)
+- `item_type ENUM('task','document','clearance') NOT NULL DEFAULT 'task'`
+- `title VARCHAR(255) NOT NULL`
+- `description TEXT NULL`
+- `is_completed BOOLEAN NOT NULL DEFAULT 0`
+- `completed_at TIMESTAMP NULL`
+- `completed_by_user_id BIGINT UNSIGNED NULL` (FK `users`, null on delete)
+- `completed_by_user_uuid CHAR(36) NULL` (index)
+- `due_date DATE NULL`
+- `sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 0`
+- `created_at`, `updated_at`
+
+Constraint:
+- `FOREIGN KEY (hcm_termination_id) REFERENCES hcm_terminations(id) ON DELETE CASCADE`
+- `FOREIGN KEY (company_uuid) REFERENCES companies(uuid) ON DELETE SET NULL`
+- `FOREIGN KEY (hcm_termination_uuid) REFERENCES hcm_terminations(uuid) ON DELETE SET NULL`
+- `FOREIGN KEY (completed_by_user_uuid) REFERENCES users(uuid) ON DELETE SET NULL`
+
+Index:
+- `KEY hcm_termination_checklist_company_idx (company_id)`
+- `KEY hcm_termination_checklist_termination_idx (hcm_termination_id)`
+- `KEY hcm_termination_checklist_completed_idx (is_completed, due_date)`
+
+### `employee_biometric_consents`
+- `id BIGINT UNSIGNED PK`
+- `employee_uuid CHAR(36) NOT NULL`
+- `company_id BIGINT UNSIGNED NOT NULL` (index)
+- `selfie_consent BOOLEAN NOT NULL DEFAULT 0` — consent untuk attendance selfie capture
+- `gps_consent BOOLEAN NOT NULL DEFAULT 0` — consent untuk GPS location tracking
+- `consent_given_at TIMESTAMP NULL`
+- `consent_withdrawn_at TIMESTAMP NULL`
+- `consent_ip VARCHAR(45) NULL` — IP address saat consent diberikan
+- `created_at`, `updated_at`
+
+Constraint:
+- `UNIQUE KEY employee_biometric_consents_employee_company_unique (employee_uuid, company_id)`
+
+Index:
+- `KEY employee_biometric_consents_company_id_idx (company_id)`
+
+**Note:** UU PDP compliance — consent wajib sebelum capture biometric data (selfie/GPS).
 - Leave types sample: `annual`, `sick`, `unpaid`

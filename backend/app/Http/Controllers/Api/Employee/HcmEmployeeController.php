@@ -58,6 +58,8 @@ class HcmEmployeeController extends Controller
     use ChecksPermissions;
     use HandlesEmployeeBulkOperations;
     use HandlesEmployeeCoreEndpoints;
+    use HandlesEmployeeCoreBulk;
+    use HandlesEmployeeCoreExport;
     use HandlesEmployeeOrganizationEndpoints;
     use HandlesEmployeeProfilePhotoEndpoints;
     use HandlesEmployeeSharedUtilities;

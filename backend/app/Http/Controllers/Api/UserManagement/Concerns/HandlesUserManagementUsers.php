@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\UserManagement\Concerns;
+namespace App\Http\Controllers\ApiserManagement\Concerns;
 
 use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
@@ -9,7 +9,7 @@ use App\Models\HcmRole;
 use App\Models\HcmUserRole;
 use App\Models\HcmUserRoleAudit;
 use App\Support\Exports\TabularExportResponse;
-use App\Models\User;
+use App\Modelsser;
 use App\Support\Hcm\HcmFeatureEntitlementResolver;
 use Database\Seeders\HcmUserManagementSeeder;
 use Illuminate\Database\Eloquent\Builder;
@@ -540,23 +540,5 @@ trait HandlesUserManagementUsers
         $resolved = User::query()->where('uuid', $uuid)->value('id');
 
         return is_numeric($resolved) ? (int) $resolved : null;
-    }
-
-    private function activeCompanyId(Request $request): ?int
-    {
-        $value = $request->attributes->get('activeCompanyId');
-
-        return is_numeric($value) ? (int) $value : null;
-    }
-
-    private function errorResponse(string $code, string $message, int $status): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'error' => [
-                'code' => $code,
-                'message' => $message,
-            ],
-        ], $status);
     }
 }

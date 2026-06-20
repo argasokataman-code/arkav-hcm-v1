@@ -12,7 +12,7 @@ use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmTermination;
 use App\Models\HcmTerminationChecklistItem;
-use App\Models\User;
+use App\Modelsser;
 use App\Services\AssetService;
 use App\Services\Hcm\PkwtCompensationService;
 use App\Services\Hcm\TerminationSettlementCalculationService;
@@ -869,4 +869,3 @@ trait HandlesTerminationSettlementCalculation
         return $hasActiveMembership ? $resolvedUserId : null;
     }
 }
-

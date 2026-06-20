@@ -50,6 +50,14 @@ use Illuminate\Support\Facades\DB;
 
 use Illuminate\Validation\ValidationException;
 
+use App\Http\Controllers\Api\Performance\Concerns\HandlesPerformanceGoals;
+
+use App\Http\Controllers\Api\Performance\Concerns\HandlesPerformanceIndicators;
+
+use App\Http\Controllers\Api\Performance\Concerns\HandlesPerformanceCycles;
+
+use App\Http\Controllers\Api\Performance\Concerns\HandlesPerformanceReviews;
+
 
 
 class HcmPerformanceController extends Controller

@@ -99,7 +99,7 @@ trait HandlesEmployeeSharedUtilities
                     return;
                 }
 
-                fprintf($handle, "\xEF\xBB\xBF");
+                fprintf($handle, "﻿");
                 fputcsv($handle, $headers);
                 foreach ($rows as $row) {
                     fputcsv($handle, $row);

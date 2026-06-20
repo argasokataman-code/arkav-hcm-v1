@@ -6,11 +6,11 @@ use App\Models\Company;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\EmployeeProfile;
-use App\Models\User;
+use App\Modelsser;
 use App\Services\EmployeeCountValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
+use Illuminate\HttpploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -684,7 +684,8 @@ trait HandlesEmployeeBulkOperations
         try {
             if (in_array($extension, ['csv', 'txt'], true)) {
                 $sample = @file_get_contents($filePath, false, null, 0, 4096) ?: '';
-                $firstLine = strtok($sample, "\n\r");
+                $firstLine = strtok($sample, "
+");
                 $commaCount = $firstLine !== false ? substr_count((string) $firstLine, ',') : 0;
                 $semiCount = $firstLine !== false ? substr_count((string) $firstLine, ';') : 0;
                 $delimiter = $commaCount >= $semiCount ? ',' : ';';
@@ -718,7 +719,7 @@ trait HandlesEmployeeBulkOperations
         $headers = [];
         for ($column = 1; $column <= $highestColumnIndex; $column++) {
             $rawHeader = (string) $sheet->getCell([$column, 1])->getCalculatedValue();
-            $rawHeader = preg_replace('/\x{FEFF}/u', '', $rawHeader); // strip BOM if present
+            $rawHeader = preg_replace('/{FEFF}/u', '', $rawHeader); // strip BOM if present
             $headers[$column] = strtolower(trim($rawHeader));
         }
 

@@ -8,6 +8,8 @@ namespace App\Http\Controllers\Api\Saas;
 
 use App\Http\Controllers\Controller;
 
+use App\Http\Controllers\Api\Concerns\ChecksPermissions;
+
 use App\Models\FeatureClassification;
 
 use App\Models\Package;
@@ -29,6 +31,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 use Illuminate\Support\Str;
+
+use App\Http\Controllers\Api\Saas\Concerns\HandlesPackageCrud;
+
+use App\Http\Controllers\Api\Saas\Concerns\HandlesPackageFeatures;
+
+use App\Http\Controllers\Api\Saas\Concerns\HandlesPackageAddons;
 
 
 

@@ -44,6 +44,12 @@ use Illuminate\Support\Str;
 
 use Illuminate\Validation\Rule;
 
+use App\Http\Controllers\Api\UserManagement\Concerns\HandlesUserManagementUsers;
+
+use App\Http\Controllers\Api\UserManagement\Concerns\HandlesUserManagementRoles;
+
+use App\Http\Controllers\Api\UserManagement\Concerns\HandlesUserManagementAssignments;
+
 
 
 class HcmUserManagementController extends Controller

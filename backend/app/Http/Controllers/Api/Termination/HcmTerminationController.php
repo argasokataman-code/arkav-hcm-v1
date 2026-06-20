@@ -5,6 +5,12 @@ namespace App\Http\Controllers\Api\Termination;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 
+use App\Http\Controllers\Api\Termination\Concerns\HandlesTerminationCrud;
+
+use App\Http\Controllers\Api\Termination\Concerns\HandlesTerminationSettlementPreview;
+
+use App\Http\Controllers\Api\Termination\Concerns\HandlesTerminationSettlementCalculation;
+
 class HcmTerminationController extends Controller
 {
     use ChecksPermissions;

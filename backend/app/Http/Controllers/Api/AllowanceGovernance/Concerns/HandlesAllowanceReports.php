@@ -10,7 +10,7 @@ use App\Models\HcmEmployeeAllowancePolicy;
 use App\Models\HcmEmployeeAllowancePolicyHistory;
 use App\Models\HcmPayrollItem;
 use App\Models\HcmSalaryComponent;
-use App\Models\User;
+use App\Modelsser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;

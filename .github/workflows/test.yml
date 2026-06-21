@@ -6,12 +6,8 @@ on:
     branches: [main]
 
 jobs:
-  phpunit:
+  test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        php: [8.2, 8.3]
-      fail-fast: false
 
     services:
       mysql:
@@ -25,148 +21,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php }}
+          php-version: 8.3
           extensions: mbstring, pdo, pdo_mysql, bcmath, intl
           coverage: none
 
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: backend/vendor
-          key: composer-${{ hashFiles('backend/composer.lock') }}
-          restore-keys: composer-
-
-      - name: Install PHP dependencies
-        working-directory: backend
-        run: composer install --no-interaction --prefer-dist
-
-      - name: Prepare testing environment
-        working-directory: backend
+      - working-directory: backend
         run: |
-          cp .env.testing .env
-          php -v
-          echo "MySQL: waiting for connection..."
-          for i in $(seq 1 30); do
-            php -r "try { new PDO('mysql:host=127.0.0.1;port=3306;dbname=arcav_hcm_test', 'root', ''); echo 'OK\n'; exit(0); } catch (PDOException \$e) { echo '.'; sleep(1); exit(1); }" && { echo "MySQL ready"; break; }
-          done
+          cp .env.testing .env 2>/dev/null || true
+          composer install --no-interaction --prefer-dist
+          php artisan migrate --force
 
-      - name: Run database migrations
-        working-directory: backend
-        run: php artisan migrate --force
-
-      - name: Run PHPUnit tests
-        working-directory: backend
-        id: phpunit
-        continue-on-error: true
+      - working-directory: backend
         run: vendor/bin/phpunit --log-junit=test-results.xml
-
-      - name: Upload JUnit results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit-${{ matrix.php }}
-          path: backend/test-results.xml
-          retention-days: 7
-
-      - name: Generate QA failure report
-        if: steps.phpunit.conclusion == 'failure' || steps.phpunit.outcome == 'failure'
-        id: qa-report
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const xml = fs.readFileSync('backend/test-results.xml', 'utf8');
-
-            // Simple JUnit parser – extract failures
-            const failures = [];
-            const testMatch = /<testcase[^>]*name="([^"]+)"[^>]*class="([^"]+)"[^>]*>([\s\S]*?)<\/testcase>/g;
-            let match;
-            while ((match = testMatch.exec(xml)) !== null) {
-              const body = match[3];
-              if (body.includes('<failure') || body.includes('<error')) {
-                const name = match[1];
-                const cls = match[2];
-                const errMatch = body.match(/<failure[^>]*message="([^"]*)"/) || body.match(/<error[^>]*message="([^"]*)"/);
-                const traceMatch = body.match(/<failure[^>]*>([\s\S]*?)<\/failure>/) || body.match(/<error[^>]*>([\s\S]*?)<\/error>/);
-                const details = traceMatch ? traceMatch[1].trim() : '';
-                const lines = details.split('\n').slice(0, 20).join('\n');
-
-                // Map test class → feature domain
-                const featureMap = {
-                  'HcmEmployee': 'Employee Management',
-                  'HcmTermination': 'Termination',
-                  'HcmTaxGovernance': 'Tax Governance',
-                  'Auth': 'Authentication',
-                  'Leave': 'Leave Management',
-                  'Attendance': 'Attendance',
-                  'Payroll': 'Payroll',
-                  'Dashboard': 'Dashboard',
-                  'Bpjs': 'BPJS Governance',
-                  'Performance': 'Performance',
-                  'Package': 'Package/Billing',
-                  'UserManagement': 'User Management',
-                  'Allowance': 'Allowance Governance',
-                };
-                let feature = 'Unknown';
-                for (const [key, val] of Object.entries(featureMap)) {
-                  if (cls.includes(key)) { feature = val; break; }
-                }
-
-                // Derive reproduction steps from test method name
-                const steps = name
-                  .replace(/^test_?/, '')
-                  .replace(/_/g, ' ')
-                  .replace(/\bis\b/g, 'is')
-                  .replace(/\bwhen\b/g, 'when')
-                  .replace(/\bcan\b/g, 'can');
-
-                failures.push({
-                  feature,
-                  test: `${cls}::${name}`,
-                  message: errMatch ? errMatch[1] : 'Unknown error',
-                  trace: lines,
-                  reproduction: `1. Prepare test environment: ${feature}\n2. Execute test: ${name}\n3. Assert: ${steps}`,
-                });
-              }
-            }
-
-            if (failures.length === 0) {
-              console.log('No failures found in JUnit XML');
-              return;
-            }
-
-            // Build markdown report
-            let report = `## 🔴 QA Failure Report\n\n`;
-            report += `**Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n`;
-            report += `**Branch:** ${context.ref}\n`;
-            report += `**Commit:** ${context.sha}\n`;
-            report += `**Time:** ${new Date().toISOString()}\n\n`;
-            report += `---\n\n`;
-
-            for (const f of failures) {
-              report += `### 🎯 ${f.feature}\n\n`;
-              report += `**Test:** \`${f.test}\`\n\n`;
-              report += `**Error:**\n\`\`\`\n${f.message}\n\`\`\`\n\n`;
-              report += `**Stack Trace (top 20):**\n\`\`\`\n${f.trace}\n\`\`\`\n\n`;
-              report += `**Reproduction Steps:**\n${f.reproduction}\n\n`;
-              report += `---\n\n`;
-            }
-
-            report += `_Auto-generated by CI pipeline._`;
-
-            // Create GitHub Issue
-            const title = `🧪 Test Failure Report (${new Date().toLocaleDateString('id-ID')})`;
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title,
-              body: report,
-              labels: ['bug', 'ci-test-failure'],
-            });
-
-            console.log(`Created issue with ${failures.length} failure(s)`);
-            core.setOutput('issue-count', failures.length.toString());

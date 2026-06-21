@@ -85,8 +85,15 @@
     $canSeeHolidaysMenu = $featureBypass || ($hasHolidayCalendar && $isHcmAdmin);
     $canSeeEmployeeLifecycleMenu = $featureBypass || ($hasEmployeeLifecycle && $isHcmAdmin);
 
+    // Detect expired subscription: hide all tenant HRM menus
+    $latestSub = $activeCompany instanceof \App\Models\Company ? $activeCompany->latestSubscription : null;
+    $isSubscriptionExpired = $latestSub && (
+        $latestSub->status === 'expired'
+        || ($latestSub->ends_at?->isPast() && in_array($latestSub->status, ['active', 'trial'], true))
+    );
+
     // Super admin hanya melihat menu platform/SaaS, bukan HRM operasional tenant
-    if ($isGlobalHcmAdmin) {
+    if ($isGlobalHcmAdmin || $isSubscriptionExpired) {
         $canSeePayrollMenu          = false;
         $canSeeEmployeesMenu        = false;
         $canSeeAttendanceMenu       = false;

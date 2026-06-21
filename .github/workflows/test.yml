@@ -1,6 +1,8 @@
 name: Test Suite
 
 on:
+  schedule:
+    - cron: "0 */3 * * *"
   workflow_dispatch:
   pull_request:
     branches: [main]
@@ -73,95 +75,314 @@ jobs:
           retention-days: 7
 
       - name: Generate QA failure report
-        if: steps.phpunit.conclusion == 'failure' || steps.phpunit.outcome == 'failure'
+        if: always()
         id: qa-report
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const xml = fs.readFileSync('backend/test-results.xml', 'utf8');
+            const path = require('path');
+            const xmlPath = 'backend/test-results.xml';
+
+            if (!fs.existsSync(xmlPath)) {
+              console.log('No JUnit XML found — tests may not have run');
+              return;
+            }
+
+            const xml = fs.readFileSync(xmlPath, 'utf8');
+
+            // ── Feature mapping ──
+            const FEATURE_MAP = {
+              'HcmEmployee':     { domain: 'Employee Management',     flow: 'CRUD Employee' },
+              'HcmTermination':  { domain: 'Termination',             flow: 'Terminate Employee' },
+              'HcmTaxGovernance':{ domain: 'Tax Governance',          flow: 'Tax Configuration' },
+              'HcmSalary':       { domain: 'Employee Salary',         flow: 'Salary Management' },
+              'Auth':            { domain: 'Authentication',          flow: 'Login/Auth' },
+              'Leave':           { domain: 'Leave Management',        flow: 'Leave Request' },
+              'Attendance':      { domain: 'Attendance',              flow: 'Attendance Check' },
+              'Payroll':         { domain: 'Payroll',                 flow: 'Payroll Run' },
+              'Dashboard':       { domain: 'Dashboard',               flow: 'Dashboard' },
+              'Bpjs':            { domain: 'BPJS Governance',         flow: 'BPJS Config' },
+              'Performance':     { domain: 'Performance',             flow: 'Performance Review' },
+              'Package':         { domain: 'Package/Billing',         flow: 'Billing' },
+              'UserManagement':  { domain: 'User Management',         flow: 'User CRUD' },
+              'Allowance':       { domain: 'Allowance Governance',    flow: 'Allowance Config' },
+              'Notification':    { domain: 'Notifications',           flow: 'Notification' },
+            };
+
+            // ── Root cause classification ──
+            function classifyRootCause(msg, trace) {
+              const m = msg.toLowerCase();
+              if (m.includes('expected') && m.includes('received')) return 'assertion_failed (HTTP status mismatch)';
+              if (m.includes('failed asserting that')) {
+                if (m.includes('expected')) return 'assertion_failed (value mismatch)';
+                if (m.includes('true')) return 'assertion_failed (expected true)';
+                if (m.includes('null')) return 'assertion_failed (expected non-null)';
+                return 'assertion_failed';
+              }
+              if (m.includes('could not find')) return 'missing_resource';
+              if (m.includes('not found')) return 'not_found';
+              if (m.includes('unauthorized') || m.includes('forbidden')) return 'authorization_failure';
+              if (m.includes('undefined') || m.includes('trying to get')) return 'php_error (undefined property)';
+              if (m.includes('call to undefined')) return 'php_error (undefined method)';
+              if (m.includes('pdoexception') || m.includes('sqlstate')) return 'database_error';
+              if (m.includes('exception')) {
+                if (m.includes('query')) return 'database_error (query)';
+                if (m.includes('validation')) return 'validation_failure';
+                return 'exception';
+              }
+              if (m.includes('timeout')) return 'timeout';
+              const s = trace.toLowerCase();
+              if (s.includes('pdoexception') || s.includes('sqlstate')) return 'database_error';
+              if (s.includes('http')) {
+                const sc = trace.match(/(\d{3})/);
+                if (sc && parseInt(sc[1]) >= 500) return 'server_error (' + sc[1] + ')';
+                if (sc && parseInt(sc[1]) >= 400) return 'client_error (' + sc[1] + ')';
+              }
+              return 'unknown';
+            }
+
+            // ── Extract expected vs actual from assertion message ──
+            function extractExpectation(msg) {
+              let expected = null, actual = null;
+
+              // "Failed asserting that 422 matches expected 201."
+              const m1 = msg.match(/Failed asserting that (.+) matches expected (.+)\./);
+              if (m1) { actual = m1[1].trim(); expected = m1[2].trim(); return { expected, actual }; }
+
+              // "Expected response status code [201] but received 422"
+              const m2 = msg.match(/Expected.*?\[?(\d{3})\]?.*?received (\d{3})/);
+              if (m2) { expected = m2[1]; actual = m2[2]; return { expected, actual }; }
+
+              // "Failed asserting that two strings are equal. Expected: 'X', Actual: 'Y'"
+              const m3 = msg.match(/Expected:\s*['"]?([^'"]+)['"]?\s*Actual:\s*['"]?([^'"]+)['"]?/);
+              if (m3) { expected = m3[1].trim(); actual = m3[2].trim(); return { expected, actual }; }
+
+              // "Expected: X" / "Actual: Y" on separate lines
+              const m4e = msg.match(/Expected:\s*(.+)/);
+              const m4a = msg.match(/Actual:\s*(.+)/);
+              if (m4e && m4a) { expected = m4e[1].trim(); actual = m4a[1].trim(); return { expected, actual }; }
+
+              // Simple HTTP: "expected 201, got 422"
+              const m5 = msg.match(/expected (\d{3}).*?got (\d{3})/i);
+              if (m5) { expected = m5[1]; actual = m5[2]; return { expected, actual }; }
+
+              return { expected, actual };
+            }
+
+            // ── Extract business flow from test method name ──
+            function extractFlow(name) {
+              let cleaned = name.replace(/^test_?/i, '');
+              // "admin_can_create_employee" → "Create Employee"
+              // "hcm_admin_cannot_delete_terminated_employee" → "Delete Employee (negative)"
+              cleaned = cleaned
+                .replace(/_/g, ' ')
+                .replace(/\b(?:test|it)\b/gi, '')
+                .trim();
+              // Extract the core action verb+noun
+              const verbNouns = cleaned.match(/(can|cannot|should|will|must|is)\s+(.+)/i);
+              if (verbNouns) {
+                let flow = verbNouns[2]
+                  .split(/\s+/)
+                  .filter(w => !['a', 'an', 'the', 'with', 'for', 'by', 'when', 'to', 'be'].includes(w.toLowerCase()))
+                  .join(' ');
+                const isNegative = verbNouns[1].toLowerCase() === 'cannot';
+                return { action: flow.substring(0, 60), negative: isNegative };
+              }
+              // fallback: take first meaningful words
+              const words = cleaned.split(/\s+/).filter(w => w.length > 2);
+              return { action: words.slice(0, 4).join(' ').substring(0, 60), negative: false };
+            }
+
+            // ── Find the source file (not test, not vendor) from stack trace ──
+            function findSourceFile(trace) {
+              const lines = trace.split('\n');
+              for (const line of lines) {
+                // Match paths like: /app/Http/Controller.php:123 or #0 /path/app/File.php:42
+                const m = line.match(/(?:\/|#\d+\s+)(\S+?)(?::(\d+))?$/);
+                if (!m) continue;
+                const filePath = m[1];
+                // Skip vendor, tests, config, database/migrations
+                if (filePath.includes('/vendor/')) continue;
+                if (filePath.includes('/tests/')) continue;
+                if (filePath.includes('/config/')) continue;
+                if (filePath.includes('/database/migrations')) continue;
+                if (filePath.includes('/storage/')) continue;
+                if (filePath.includes('/bootstrap/')) continue;
+                // Found a source file
+                return { file: filePath.replace(/^.*?\/(?=app\/|modules\/|src\/)/, ''), line: m[2] || null };
+              }
+              // Fallback: return the test file
+              for (const line of lines) {
+                const m = line.match(/(?:\/|#\d+\s+)(\S+?):(\d+)$/);
+                if (m) return { file: m[1].replace(/^.*?\/(?=tests\/)/, ''), line: m[2] };
+              }
+              return { file: 'unknown', line: null };
+            }
+
+            // ── Determine severity ──
+            function classifySeverity(feature, rootCause, negative) {
+              if (negative) return 'medium'; // negative tests breaking is less critical
+              if (rootCause.includes('server_error')) return 'critical';
+              if (rootCause.includes('database_error')) return 'critical';
+              if (rootCause.includes('assertion_failed')) return 'high';
+              if (rootCause.includes('authorization')) return 'high';
+              if (rootCause.includes('validation')) return 'medium';
+              return 'high';
+            }
+
+            // ══════════════════════════════════════════
+            //  PARSE JUnit XML
+            // ══════════════════════════════════════════
 
             const failures = [];
             const testMatch = /<testcase[^>]*name="([^"]+)"[^>]*class="([^"]+)"[^>]*>([\s\S]*?)<\/testcase>/g;
             let match;
+
             while ((match = testMatch.exec(xml)) !== null) {
+              const name = match[1];
+              const cls = match[2];
               const body = match[3];
-              if (body.includes('<failure') || body.includes('<error')) {
-                const name = match[1];
-                const cls = match[2];
-                const errMatch = body.match(/<failure[^>]*message="([^"]*)"/) || body.match(/<error[^>]*message="([^"]*)"/);
-                const traceMatch = body.match(/<failure[^>]*>([\s\S]*?)<\/failure>/) || body.match(/<error[^>]*>([\s\S]*?)<\/error>/);
-                const details = traceMatch ? traceMatch[1].trim() : '';
-                const lines = details.split('\n').slice(0, 20).join('\n');
 
-                const featureMap = {
-                  'HcmEmployee': 'Employee Management',
-                  'HcmTermination': 'Termination',
-                  'HcmTaxGovernance': 'Tax Governance',
-                  'Auth': 'Authentication',
-                  'Leave': 'Leave Management',
-                  'Attendance': 'Attendance',
-                  'Payroll': 'Payroll',
-                  'Dashboard': 'Dashboard',
-                  'Bpjs': 'BPJS Governance',
-                  'Performance': 'Performance',
-                  'Package': 'Package/Billing',
-                  'UserManagement': 'User Management',
-                  'Allowance': 'Allowance Governance',
-                };
-                let feature = 'Unknown';
-                for (const [key, val] of Object.entries(featureMap)) {
-                  if (cls.includes(key)) { feature = val; break; }
-                }
+              if (!body.includes('<failure') && !body.includes('<error')) continue;
 
-                const steps = name
-                  .replace(/^test_?/, '')
-                  .replace(/_/g, ' ')
-                  .replace(/\bis\b/g, 'is')
-                  .replace(/\bwhen\b/g, 'when')
-                  .replace(/\bcan\b/g, 'can');
+              const errMatch = body.match(/<(?:failure|error)[^>]*message="([^"]*)"/);
+              const traceMatch = body.match(/<(?:failure|error)[^>]*>([\s\S]*?)<\/(?:failure|error)>/);
+              const msg = errMatch ? errMatch[1] : 'Unknown error';
+              const fullTrace = traceMatch ? traceMatch[1].trim() : '';
+              const topTrace = fullTrace.split('\n').slice(0, 5).join('\n') || msg;
 
-                failures.push({
-                  feature,
-                  test: `${cls}::${name}`,
-                  message: errMatch ? errMatch[1] : 'Unknown error',
-                  trace: lines,
-                  reproduction: `1. Prepare test environment: ${feature}\n2. Execute test: ${name}\n3. Assert: ${steps}`,
-                });
+              // Feature + flow
+              let domain = 'Unknown', businessFlow = 'Unknown';
+              for (const [key, val] of Object.entries(FEATURE_MAP)) {
+                if (cls.includes(key)) { domain = val.domain; businessFlow = val.flow; break; }
               }
+
+              // Parse method name → action
+              const flowInfo = extractFlow(name);
+              const actionFlow = flowInfo.action;
+              const businessFlowLabel = businessFlow === 'Unknown'
+                ? actionFlow
+                : `${businessFlow} → ${actionFlow}`;
+
+              // Source file
+              const source = findSourceFile(fullTrace);
+
+              // Root cause
+              const rootCause = classifyRootCause(msg, fullTrace);
+
+              // Expected vs actual
+              const expected = extractExpectation(msg);
+
+              // Severity
+              const severity = classifySeverity(domain, rootCause, flowInfo.negative);
+
+              failures.push({
+                feature: domain,
+                business_flow: businessFlowLabel,
+                source_file: source.file,
+                source_line: source.line,
+                test_class: cls,
+                test_method: name,
+                test_file: fullTrace.match(/tests\/\S+?\.php:\d+/) ? fullTrace.match(/tests\/\S+?\.php:\d+/)[0] : cls,
+                root_cause: rootCause,
+                expected: expected.expected,
+                actual: expected.actual,
+                error_message: msg.substring(0, 200),
+                severity: severity,
+                timestamp: new Date().toISOString(),
+              });
             }
 
-            if (failures.length === 0) {
-              console.log('No failures found in JUnit XML');
-              return;
-            }
-
-            let report = `## 🔴 QA Failure Report\n\n`;
-            report += `**Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n`;
-            report += `**Branch:** ${context.ref}\n`;
-            report += `**Commit:** ${context.sha}\n`;
-            report += `**Time:** ${new Date().toISOString()}\n\n`;
-            report += `---\n\n`;
+            // ── Write JSON artifact ──
+            const jsonReport = {
+              schema_version: '1.0',
+              run_id: context.runId,
+              commit: context.sha,
+              branch: context.ref.replace('refs/heads/', ''),
+              trigger: context.eventName,
+              php_version: process.env.PHP_VERSION || 'unknown',
+              total_failures: failures.length,
+              failures: failures,
+              summary: {
+                by_severity: {},
+                by_feature: {},
+                by_root_cause: {},
+              },
+            };
 
             for (const f of failures) {
-              report += `### 🎯 ${f.feature}\n\n`;
-              report += `**Test:** \`${f.test}\`\n\n`;
-              report += `**Error:**\n\`\`\`\n${f.message}\n\`\`\`\n\n`;
-              report += `**Stack Trace (top 20):**\n\`\`\`\n${f.trace}\n\`\`\`\n\n`;
-              report += `**Reproduction Steps:**\n${f.reproduction}\n\n`;
-              report += `---\n\n`;
+              jsonReport.summary.by_severity[f.severity] = (jsonReport.summary.by_severity[f.severity] || 0) + 1;
+              jsonReport.summary.by_feature[f.feature] = (jsonReport.summary.by_feature[f.feature] || 0) + 1;
+              jsonReport.summary.by_root_cause[f.root_cause] = (jsonReport.summary.by_root_cause[f.root_cause] || 0) + 1;
             }
 
-            report += `_Auto-generated by CI pipeline._`;
+            const jsonPath = 'backend/qa-report.json';
+            fs.writeFileSync(jsonPath, JSON.stringify(jsonReport, null, 2));
+            console.log(`QA report written: ${jsonPath} (${failures.length} failures)`);
 
-            const title = `🧪 Test Failure Report (${new Date().toLocaleDateString('id-ID')})`;
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title,
-              body: report,
-              labels: ['bug', 'ci-test-failure'],
-            });
+            // ── Upload as artifact ──
+            const execSync = require('child_process').execSync;
+            // Skip if no failures – still upload summary
 
-            console.log(`Created issue with ${failures.length} failure(s)`);
-            core.setOutput('issue-count', failures.length.toString());
+            // ── Create GitHub Issue on failure ──
+            if (failures.length > 0) {
+              // Build AI-friendly summary line
+              const severitySummary = Object.entries(jsonReport.summary.by_severity)
+                .map(([k, v]) => `${v} ${k}`).join(', ');
+              const featureSummary = Object.entries(jsonReport.summary.by_feature)
+                .slice(0, 5).map(([k, v]) => `${k}(${v})`).join(', ');
+
+              let report = `## 🔴 QA Failure Report\n\n`;
+              report += `**Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n`;
+              report += `**Trigger:** ${context.eventName}\n`;
+              report += `**Branch:** ${context.ref}\n`;
+              report += `**Commit:** ${context.sha}\n`;
+              report += `**PHP:** ${process.env.PHP_VERSION || '8.x'}\n\n`;
+              report += `### Quick Summary\n\n`;
+              report += `- Failures: **${failures.length}**\n`;
+              report += `- By severity: ${severitySummary}\n`;
+              report += `- By feature: ${featureSummary}\n`;
+              report += `- JSON artifact: \`qa-report.json\` (download from run artifacts)\n\n`;
+              report += `---\n\n`;
+
+              for (const f of failures) {
+                const sevBadge = f.severity === 'critical' ? '🔴' : f.severity === 'high' ? '🟠' : '🟡';
+                report += `### ${sevBadge} ${f.feature}\n\n`;
+                report += `| Field | Value |\n`;
+                report += `|---|---|\n`;
+                report += `| Business Flow | \`${f.business_flow}\` |\n`;
+                report += `| Root Cause | \`${f.root_cause}\` |\n`;
+                report += `| Severity | ${f.severity} |\n`;
+                report += `| Test | \`${f.test_method}\` |\n`;
+                report += `| Test File | \`${f.test_file}\` |\n`;
+                if (f.source_file !== 'unknown') report += `| Source File | \`${f.source_file}:${f.source_line}\` |\n`;
+                if (f.expected) report += `| Expected | \`${f.expected}\` |\n`;
+                if (f.actual) report += `| Actual | \`${f.actual}\` |\n`;
+                report += `| Error | \`${f.error_message.substring(0, 150)}\` |\n`;
+                report += `\n---\n\n`;
+              }
+
+              report += `_Auto-generated by CI pipeline. AI agents: use \`qa-report.json\` artifact for programmatic consumption._`;
+
+              const title = `🧪 Test Failure Report (${new Date().toLocaleDateString('id-ID')})`;
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body: report,
+                labels: ['bug', 'ci-test-failure'],
+              });
+
+              console.log(`Created issue with ${failures.length} failure(s)`);
+            } else {
+              console.log('All tests passed — no issue created');
+            }
+
+      - name: Upload QA JSON report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report-${{ matrix.php }}
+          path: backend/qa-report.json
+          retention-days: 30

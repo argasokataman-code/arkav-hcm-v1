@@ -55,6 +55,7 @@ backend/cookies.txt
 .env.*
 backend/.env
 backend/.env.*
+!backend/.env.testing
 
 # Sensitive key material
 backend/fileconfig/key.pem

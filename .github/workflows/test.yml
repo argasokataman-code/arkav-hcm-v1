@@ -386,3 +386,45 @@ jobs:
           name: qa-report-${{ matrix.php }}
           path: backend/qa-report.json
           retention-days: 30
+
+  vitest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install JS dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run Vitest (UI wiring tests)
+        working-directory: backend
+        continue-on-error: true
+        id: vitest
+        run: npx vitest run --config vitest.config.js
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install JS dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Build frontend (Vite)
+        working-directory: backend
+        run: npm run build

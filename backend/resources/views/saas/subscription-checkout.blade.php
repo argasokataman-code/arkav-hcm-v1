@@ -16,7 +16,7 @@
             ->first()
         : null;
     $isPendingPaymentLock = ($latestCheckoutSubscription?->status ?? null) === 'pending_payment';
-    $isInactiveContext = ($latestCheckoutSubscription?->status ?? null) === 'inactive';
+    $isInactiveContext = in_array(($latestCheckoutSubscription?->status ?? null), ['inactive', 'expired'], true);
     $isTrialContext = ($latestCheckoutSubscription?->status ?? null) === 'trial';
     $hasBlockingPendingInvoice = $preloadedPendingInvoice instanceof \App\Models\Invoice;
     $showCheckoutCreationForms = ! $hasBlockingPendingInvoice;

@@ -9,6 +9,7 @@ import {
   TrendingUp,
   ArrowRight
 } from "lucide-react";
+import arkavLogo from "../assets/arkav-logo.png";
 
 export default function FinaleScene({ onNavigate, isMobile = false, onOpenOnboarding }: { 
   onNavigate: (index: number) => void; 
@@ -148,8 +149,12 @@ export default function FinaleScene({ onNavigate, isMobile = false, onOpenOnboar
         <div className="relative w-full max-w-[450px] h-auto lg:h-[390px] flex flex-col lg:block items-center justify-center gap-8 lg:gap-0">
           
           {/* Glowing central core emblem - SQUARE - Centered on desktop */}
-          <div className="relative lg:absolute lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 z-20 w-24 h-24 bg-[#FF6600] flex items-center justify-center border-2 border-orange-100 select-none animate-pulse shadow-sm rounded-none">
-            <span className="font-display font-black text-2xl text-white tracking-widest">ARK</span>
+          <div className="relative lg:absolute lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 z-20 w-24 h-24 bg-[#FF6600] flex items-center justify-center border-2 border-orange-100 select-none animate-pulse shadow-sm rounded-none overflow-hidden">
+            <img 
+              src={arkavLogo} 
+              alt="Arkav HCM" 
+              className="w-full h-full object-contain p-1.5"
+            />
             
             {/* Ambient neon particle orbits */}
             <div className="absolute inset-0 bg-white/20 opacity-30 animate-pulse rounded-none" />
@@ -177,7 +182,7 @@ export default function FinaleScene({ onNavigate, isMobile = false, onOpenOnboar
             </svg>
           )}
 
-          {/* Redesigned Modules: clean descriptive card list on mobile, space orbit on desktop */}
+          {/* Redesigned Modules: clean descriptive card list on mobile, grid on tablet, space orbit on desktop */}
           {isMobile ? (
             <div className="w-full flex flex-col gap-3 px-4 z-30 mt-4">
               {modules.map((mod) => (
@@ -200,52 +205,23 @@ export default function FinaleScene({ onNavigate, isMobile = false, onOpenOnboar
               ))}
             </div>
           ) : (
-            <div className="w-full flex flex-wrap justify-center gap-3 px-4 z-30 lg:absolute lg:inset-0 lg:p-0">
-              {modules.map((mod) => {
-                const isSelected = selectedModule === mod.id;
-                return (
-                  <div
-                    key={mod.id}
-                    className="relative lg:absolute flex flex-col items-center transition-all duration-300 z-30"
-                    style={{
-                      top: mod.top,
-                      left: mod.left
-                    }}
-                  >
-                    <button
-                      onMouseEnter={() => setSelectedModule(mod.id)}
-                      onMouseLeave={() => setSelectedModule(null)}
-                      className={`p-3 border flex items-center gap-2.5 transition-all duration-200 relative cursor-pointer rounded-none ${
-                        isSelected
-                          ? "bg-white border-[#FF6600] text-gray-900 scale-105 shadow-sm"
-                          : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-800 shadow-xs"
-                      }`}
-                      id={`finale-module-node-${mod.id}`}
-                    >
-                      <div className={`p-1.5 rounded-none ${isSelected ? "bg-orange-50/60" : "bg-gray-50"}`}>
-                        {mod.icon}
-                      </div>
-                      <span className="text-[10.5px] font-extrabold font-display uppercase tracking-widest leading-none">
-                        {mod.name}
-                      </span>
-                    </button>
-
-                    {/* Micro popup detail descriptions shown on hover */}
-                    {isSelected && (
-                      <AnimatePresence>
-                        <motion.div 
-                          key={`popup-${mod.id}`}
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="absolute top-14 bg-white text-left border border-gray-200 p-3 shadow-md max-w-[180px] text-[10px] text-gray-500 leading-normal font-sans z-50 rounded-none"
-                        >
-                          {mod.desc}
-                        </motion.div>
-                      </AnimatePresence>
-                    )}
+            <div className="w-full grid grid-cols-2 sm:grid-cols-3 lg:hidden gap-3 px-4 z-30 mt-6">
+              {modules.map((mod) => (
+                <div
+                  key={mod.id}
+                  className="bg-white border border-gray-200 p-3 flex flex-col gap-2 text-left shadow-xs rounded-none hover:border-[#FF6600] transition-colors"
+                >
+                  <div className="p-1.5 bg-orange-50 border border-orange-100 text-[#FF6600] self-start rounded-none">
+                    {mod.icon}
                   </div>
-                );
-              })}
+                  <h3 className="text-[10px] font-extrabold font-display uppercase tracking-widest text-gray-900 leading-tight">
+                    {mod.name}
+                  </h3>
+                  <p className="text-[9px] text-gray-500 font-sans leading-relaxed">
+                    {mod.desc}
+                  </p>
+                </div>
+              ))}
             </div>
           )}
 

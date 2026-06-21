@@ -26,6 +26,27 @@ class InvoiceMailRenderTest extends TestCase
         $this->assertStringContainsString('View Invoice', $html);
     }
 
+    public function test_invoice_mailable_text_version_contains_no_raw_markdown(): void
+    {
+        $invoice = $this->createInvoice();
+
+        $text = view('emails.invoice-text', [
+            'invoice' => $invoice,
+            'company' => $invoice->company,
+            'issuerName' => 'Test Issuer',
+        ])->render();
+
+        $this->assertStringContainsString((string) $invoice->invoice_number, $text);
+        $this->assertStringContainsString('Invoice Number:', $text);
+        $this->assertStringContainsString('View Invoice:', $text);
+        $this->assertStringNotContainsString('@component', $text);
+        $this->assertStringNotContainsString('mail::message', $text);
+        $this->assertStringNotContainsString('mail::button', $text);
+        $this->assertStringNotContainsString('@endcomponent', $text);
+        $this->assertStringNotContainsString('@if', $text);
+        $this->assertStringNotContainsString('@endif', $text);
+    }
+
     public function test_payment_reminder_mailable_renders_without_mail_hint_errors(): void
     {
         $invoice = $this->createInvoice();

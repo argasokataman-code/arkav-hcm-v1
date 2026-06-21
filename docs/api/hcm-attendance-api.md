@@ -544,3 +544,49 @@ Success `200`:
   - `shift` object nullable (`id`, `name`, `shiftType`, `startTime`, `endTime`)
 - `meta.pagination` (page/perPage/total/totalPages)
 
+### GET `/attendance/recap?period=weekly|monthly|yearly`
+
+Rekap absensi per karyawan — total hadir, bolos, dan rincian tanggal bolos.
+
+**Feature gate:** `attendance`
+
+**Params:**
+
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `period` | string | `weekly` | Periode: `weekly`, `monthly`, `yearly` |
+
+**Response `200`:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "userId": 1,
+        "fullName": "Alice",
+        "totalDays": 7,
+        "totalPresent": 5,
+        "totalAbsent": 2,
+        "absentDates": ["2026-06-15", "2026-06-17"]
+      }
+    ],
+    "meta": {
+      "period": "weekly",
+      "startDate": "2026-06-15",
+      "endDate": "2026-06-21",
+      "totalEmployees": 10,
+      "totalPresent": 45,
+      "totalAbsent": 8,
+      "attendanceRate": 85
+    }
+  }
+}
+```
+
+**Notes:**
+- `absentDates` hanya terisi untuk status `absent` (tidak termasuk `leave` / `present`).
+- `attendanceRate` = `totalPresent / (totalPresent + totalAbsent) * 100`, dibulatkan.
+- Karyawan tanpa record attendance di periode tsb tetap muncul dgn `totalAbsent=0, totalPresent=0`.
+

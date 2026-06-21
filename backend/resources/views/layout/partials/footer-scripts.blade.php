@@ -350,6 +350,10 @@
 @endif
 <script type="module" src="{{ URL::asset('build/js/attendance/attendance-data.js') }}?v={{ file_exists(public_path('build/js/attendance/attendance-data.js')) ? filemtime(public_path('build/js/attendance/attendance-data.js')) : time() }}"></script>
 
+@if (Route::is(['attendance-report']))
+    <script src="{{ URL::asset('build/js/attendance/attendance-recap-data.js') }}?v={{ file_exists(public_path('build/js/attendance/attendance-recap-data.js')) ? filemtime(public_path('build/js/attendance/attendance-recap-data.js')) : time() }}"></script>
+@endif
+
 @if (Route::is(['attendance-correction']))
     <script type="module" src="{{ URL::asset('build/js/attendance/attendance-correction.js') }}?v={{ file_exists(public_path('build/js/attendance/attendance-correction.js')) ? filemtime(public_path('build/js/attendance/attendance-correction.js')) : time() }}"></script>
 @endif

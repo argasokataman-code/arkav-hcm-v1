@@ -16,6 +16,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
     Route::get('/attendance/admin', [AttendanceAdminController::class, 'adminIndex']);
     Route::get('/attendance/admin/export', [AttendanceAdminController::class, 'adminExport']);
     Route::put('/attendance/admin/record', [AttendanceAdminController::class, 'adminUpsertRecord']);
+    Route::get('/attendance/recap', [AttendanceAdminController::class, 'recap']);
 
     // Corrections (admin: review, approve, dismiss)
     Route::get('/attendance/admin/corrections', [AttendanceCorrectionController::class, 'pendingCorrections']);

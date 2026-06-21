@@ -255,9 +255,131 @@
             </div>
         </div>
 
+        <!-- Rekap Absensi Karyawan (Weekly/Monthly/Yearly) -->
+        <div class="card" data-attendance-recap-card>
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
+                <h5 class="card-title d-flex align-items-center gap-2 mb-0">
+                    <i class="ti ti-report-analytics text-primary"></i>
+                    Rekap Absensi Karyawan
+                </h5>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <div class="btn-group btn-group-sm" role="group" data-attendance-recap-period>
+                        <button type="button" class="btn btn-primary" data-period="weekly">Minggu Ini</button>
+                        <button type="button" class="btn btn-outline-primary" data-period="monthly">Bulan Ini</button>
+                        <button type="button" class="btn btn-outline-primary" data-period="yearly">Tahun Ini</button>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-icon btn-outline-secondary" data-attendance-recap-load title="Muat ulang">
+                        <i class="ti ti-refresh"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Loading skeleton -->
+                <div class="d-none" data-attendance-recap-loading>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3"><div class="card bg-light mb-0"><div class="card-body py-4 placeholder-glow"><span class="placeholder col-12 h-100"></span></div></div></div>
+                        <div class="col-md-3"><div class="card bg-light mb-0"><div class="card-body py-4 placeholder-glow"><span class="placeholder col-12"></span></div></div></div>
+                        <div class="col-md-3"><div class="card bg-light mb-0"><div class="card-body py-4 placeholder-glow"><span class="placeholder col-12"></span></div></div></div>
+                        <div class="col-md-3"><div class="card bg-light mb-0"><div class="card-body py-4 placeholder-glow"><span class="placeholder col-12"></span></div></div></div>
+                    </div>
+                    <div class="placeholder-glow"><span class="placeholder col-12" style="height:200px"></span></div>
+                </div>
+                <!-- Error -->
+                <div class="alert alert-warning d-none mb-0" data-attendance-recap-error>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="ti ti-alert-triangle fs-5"></i>
+                        <span data-attendance-recap-error-msg>Gagal memuat data.</span>
+                        <button type="button" class="btn btn-sm btn-outline-warning ms-auto" data-attendance-recap-retry>
+                            <i class="ti ti-refresh me-1"></i>Coba Lagi
+                        </button>
+                    </div>
+                </div>
+                <!-- Empty -->
+                <div class="text-center py-5 d-none" data-attendance-recap-empty>
+                    <i class="ti ti-calendar-off fs-1 text-muted d-block mb-2"></i>
+                    <p class="text-muted mb-0">Belum ada data absensi untuk periode ini.</p>
+                </div>
+                <!-- Summary Cards -->
+                <div class="d-none" data-attendance-recap-summary>
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6 col-xl-3">
+                            <div class="card border-0 bg-gradient-primary-light mb-0">
+                                <div class="card-body d-flex align-items-center gap-3 py-3">
+                                    <div class="avatar avatar-lg bg-white rounded shadow-sm">
+                                        <i class="ti ti-users fs-20 text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-muted fs-12 mb-0">Total Karyawan</p>
+                                        <h4 class="mb-0 fw-bold" data-recap-total-employees>0</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-xl-3">
+                            <div class="card border-0 bg-gradient-success-light mb-0">
+                                <div class="card-body d-flex align-items-center gap-3 py-3">
+                                    <div class="avatar avatar-lg bg-white rounded shadow-sm">
+                                        <i class="ti ti-user-check fs-20 text-success"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-muted fs-12 mb-0">Hadir</p>
+                                        <h4 class="mb-0 fw-bold text-success" data-recap-total-present>0</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-xl-3">
+                            <div class="card border-0 bg-gradient-danger-light mb-0">
+                                <div class="card-body d-flex align-items-center gap-3 py-3">
+                                    <div class="avatar avatar-lg bg-white rounded shadow-sm">
+                                        <i class="ti ti-user-off fs-20 text-danger"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-muted fs-12 mb-0">Bolos</p>
+                                        <h4 class="mb-0 fw-bold text-danger" data-recap-total-absent>0</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-xl-3">
+                            <div class="card border-0 bg-gradient-warning-light mb-0">
+                                <div class="card-body d-flex align-items-center gap-3 py-3">
+                                    <div class="avatar avatar-lg bg-white rounded shadow-sm">
+                                        <i class="ti ti-percentage fs-20 text-warning"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-muted fs-12 mb-0">Kehadiran</p>
+                                        <h4 class="mb-0 fw-bold text-warning" data-recap-attendance-rate>0%</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Table -->
+                <div class="table-responsive d-none" data-attendance-recap-table>
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="min-width:160px">Karyawan</th>
+                                <th style="width:100px" class="text-center">Bolos</th>
+                                <th style="width:100px" class="text-center">Hadir</th>
+                                <th style="width:90px" class="text-center">Total</th>
+                                <th style="min-width:160px">Kehadiran</th>
+                                <th style="min-width:200px">Tanggal Bolos</th>
+                            </tr>
+                        </thead>
+                        <tbody data-attendance-recap-tbody>
+                            <!-- filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- /Rekap Absensi Karyawan -->
+
     </div>
-
-
+    <!-- /content -->
 </div>
 <!-- /Page Wrapper -->
 

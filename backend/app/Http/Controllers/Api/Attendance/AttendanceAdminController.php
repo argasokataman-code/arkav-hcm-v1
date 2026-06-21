@@ -604,4 +604,123 @@ class AttendanceAdminController extends BaseAttendanceController
 
         return response()->json(['success' => true, 'data' => ['recordId' => $rec->id]]);
     }
+
+    /**
+     * Rekap absensi per karyawan — weekly, monthly, yearly.
+     */
+    public function recap(Request $request): JsonResponse
+    {
+        $companyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($companyId <= 0) {
+            return response()->json(['success' => false, 'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context is required.']], 422);
+        }
+
+        $period = (string) $request->query('period', 'weekly');
+        $now = Carbon::now('Asia/Jakarta');
+
+        $startDate = $now->copy()->startOfWeek(Carbon::MONDAY);
+        $endDate = $now->copy()->endOfWeek(Carbon::SUNDAY);
+
+        if ($period === 'monthly') {
+            $startDate = $now->copy()->startOfMonth();
+            $endDate = $now->copy()->endOfMonth();
+        } elseif ($period === 'yearly') {
+            $startDate = $now->copy()->startOfYear();
+            $endDate = $now->copy()->endOfYear();
+        }
+
+        $startStr = $startDate->toDateString();
+        $endStr = $endDate->toDateString();
+
+        // Get all active employees for this company
+        $employees = User::query()
+            ->select('users.id', 'users.name')
+            ->join('company_users', function ($join) use ($companyId) {
+                $join->on('company_users.user_id', '=', 'users.id')
+                    ->where('company_users.company_id', $companyId)
+                    ->where('company_users.status', 'active')
+                    ->whereIn('company_users.role', ['admin', 'owner', 'hr_admin', 'ops_admin', 'member', 'employee']);
+            })
+            ->orderBy('users.name')
+            ->get()
+            ->keyBy('id');
+
+        if ($employees->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'items' => [],
+                    'meta' => [
+                        'period' => $period,
+                        'startDate' => $startStr,
+                        'endDate' => $endStr,
+                        'totalEmployees' => 0,
+                        'totalPresent' => 0,
+                        'totalAbsent' => 0,
+                        'attendanceRate' => 0,
+                    ],
+                ],
+            ]);
+        }
+
+        // Get attendance records within date range
+        $records = AttendanceRecord::query()
+            ->selectRaw('user_id, work_date, status')
+            ->where('company_id', $companyId)
+            ->whereBetween('work_date', [$startStr, $endStr])
+            ->get()
+            ->groupBy('user_id');
+
+        // Build result per employee
+        $totalDays = (int) $startDate->diffInDays($endDate) + 1;
+        $grandPresent = 0;
+        $grandAbsent = 0;
+        $items = [];
+
+        foreach ($employees as $uid => $user) {
+            $userRecords = $records->get($uid, collect());
+            $presentCount = $userRecords->filter(fn ($r) => $r->status === 'present')->count();
+            $absentCount = $userRecords->filter(fn ($r) => $r->status === 'absent')->count();
+            $absentDates = $userRecords->filter(fn ($r) => $r->status === 'absent')
+                ->pluck('work_date')
+                ->map(fn ($d) => $d instanceof Carbon ? $d->toDateString() : (string) $d)
+                ->sort()
+                ->values()
+                ->toArray();
+
+            $grandPresent += $presentCount;
+            $grandAbsent += $absentCount;
+
+            $items[] = [
+                'userId' => $uid,
+                'fullName' => $user->name,
+                'totalDays' => $totalDays,
+                'totalPresent' => $presentCount,
+                'totalAbsent' => $absentCount,
+                'absentDates' => $absentDates,
+            ];
+        }
+
+        $totalEmployees = $employees->count();
+        $totalAttendanceRecords = $grandPresent + $grandAbsent;
+        $attendanceRate = $totalAttendanceRecords > 0
+            ? (int) round(($grandPresent / $totalAttendanceRecords) * 100)
+            : 0;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'items' => $items,
+                'meta' => [
+                    'period' => $period,
+                    'startDate' => $startStr,
+                    'endDate' => $endStr,
+                    'totalEmployees' => $totalEmployees,
+                    'totalPresent' => $grandPresent,
+                    'totalAbsent' => $grandAbsent,
+                    'attendanceRate' => $attendanceRate,
+                ],
+            ],
+        ]);
+    }
 }

@@ -6493,6 +6493,50 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
+  /v1/hcm/attendance/recap:
+    get:
+      tags: [Attendance]
+      summary: Rekap absensi per karyawan (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: period, in: query, required: false, schema: { type: string, enum: [weekly, monthly, yearly], default: weekly } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            userId: { type: integer }
+                            fullName: { type: string }
+                            totalDays: { type: integer }
+                            totalPresent: { type: integer }
+                            totalAbsent: { type: integer }
+                            absentDates: { type: array, items: { type: string, format: date } }
+                      meta:
+                        type: object
+                        properties:
+                          period: { type: string }
+                          startDate: { type: string, format: date }
+                          endDate: { type: string, format: date }
+                          totalEmployees: { type: integer }
+                          totalPresent: { type: integer }
+                          totalAbsent: { type: integer }
+                          attendanceRate: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+
   /v1/hcm/attendance/admin/records/{id}/selfie/download:
     get:
       tags: [Attendance]

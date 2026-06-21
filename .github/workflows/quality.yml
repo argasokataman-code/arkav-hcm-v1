@@ -50,13 +50,19 @@ jobs:
               diff = (err.stdout || err.message || '').toString();
             }
 
-            const body = `## 🎨 Code Style Issues\n\nPint found style violations. Run \`vendor/bin/pint\` to fix.\n\n\`\`\`diff\n${diff.slice(0, 60000)}\n\`\`\``;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body,
-            });
+            const body = `## 🎨 Code Style Issues\n\nPint found style violations. Run \`vendor/bin/pint --fix\` to fix.\n\n\`\`\`diff\n${diff.slice(0, 60000)}\n\`\`\``;
+
+            if (context.issue && context.issue.number) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            } else {
+              core.warning('No issue number available; skipping Pint diff comment.');
+            }
+
             core.setFailed('Pint failed – code style issues found');
 
   phpstan:

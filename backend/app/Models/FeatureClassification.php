@@ -14,6 +14,7 @@ class FeatureClassification extends Model
     ];
 
     public const TIER_MVP = 'mvp';
+
     public const TIER_ADDON = 'addon';
 
     public $timestamps = true;

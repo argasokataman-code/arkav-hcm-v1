@@ -19,7 +19,6 @@ class HcmTrainingType extends Model
         });
     }
 
-
     protected $fillable = [
         'company_id',
         'company_uuid',
@@ -33,4 +32,3 @@ class HcmTrainingType extends Model
         'is_active' => 'boolean',
     ];
 }
-

@@ -12,9 +12,6 @@ class HcmGlobalSearchController extends Controller
 {
     use ChecksPermissions;
 
-    /**
-     * @return JsonResponse
-     */
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class HcmShift extends Model
 {
     use AssignsUuid;
+
     protected $table = 'hcm_shifts';
 
     protected $fillable = [

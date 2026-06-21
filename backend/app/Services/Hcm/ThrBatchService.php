@@ -15,9 +15,9 @@ use App\Models\HcmThrBatchLine;
 use App\Models\HcmThrDisbursement;
 use App\Models\HcmThrYearlySetting;
 use App\Models\User;
+use App\Support\Hcm\ThrSlipPublicNoAllocator;
 use App\Support\WebsiteSettings;
 use Carbon\Carbon;
-use App\Support\Hcm\ThrSlipPublicNoAllocator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -324,6 +324,7 @@ final class ThrBatchService
         }
 
         $result['lines'] = $this->serializeAllLines($batchId, $companyId);
+
         return $result;
     }
 

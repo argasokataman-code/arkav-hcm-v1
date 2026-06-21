@@ -42,7 +42,7 @@ class HcmAiChatController extends Controller
     public function chat(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'message'    => ['required', 'string', 'min:2', 'max:500'],
+            'message' => ['required', 'string', 'min:2', 'max:500'],
             'session_id' => ['nullable', 'string', 'uuid'],
         ]);
 
@@ -51,12 +51,12 @@ class HcmAiChatController extends Controller
             return response()->json(['success' => false, 'error' => ['code' => 'AUTH_UNAUTHENTICATED', 'message' => 'Unauthenticated.']], 401);
         }
 
-        $message   = trim((string) $validated['message']);
+        $message = trim((string) $validated['message']);
         $sessionId = (string) ($validated['session_id'] ?? Str::uuid());
         $companyId = $this->activeCompanyId($request);
 
         // 1. Classify intent (no LLM call yet)
-        $intent    = $this->classifier->classify($message);
+        $intent = $this->classifier->classify($message);
         $rawIntent = $intent; // capture original classifier output BEFORE any fallback swap
 
         // 2. RBAC gate — check BEFORE fetching any data
@@ -72,16 +72,16 @@ class HcmAiChatController extends Controller
             // Re-check after potential intent swap; deny if still not allowed
             if (! $this->gate->allows($user, $intent, $companyId)) {
                 $denyReason = $this->gate->isKnownIntent($intent) ? 'permission_denied' : 'intent_unknown';
-                $denyMsg    = $this->denyMessage($denyReason);
+                $denyMsg = $this->denyMessage($denyReason);
                 $this->writeLog($user->uuid, $companyId, $sessionId, $intent, $rawIntent, false, $denyReason, [], $message, $denyMsg);
 
                 return response()->json([
                     'success' => true,
-                    'data'    => [
-                        'reply'      => $denyMsg,
-                        'intent'     => $intent,
-                        'allowed'    => false,
-                        'sources'    => [],
+                    'data' => [
+                        'reply' => $denyMsg,
+                        'intent' => $intent,
+                        'allowed' => false,
+                        'sources' => [],
                         'session_id' => $sessionId,
                     ],
                 ]);
@@ -103,11 +103,11 @@ class HcmAiChatController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data'    => [
-                    'reply'      => 'Maaf, data tidak bisa diambil saat ini. Silakan coba beberapa saat lagi atau buka halaman terkait langsung.',
-                    'intent'     => $intent,
-                    'allowed'    => true,
-                    'sources'    => [],
+                'data' => [
+                    'reply' => 'Maaf, data tidak bisa diambil saat ini. Silakan coba beberapa saat lagi atau buka halaman terkait langsung.',
+                    'intent' => $intent,
+                    'allowed' => true,
+                    'sources' => [],
                     'session_id' => $sessionId,
                 ],
             ]);
@@ -118,17 +118,17 @@ class HcmAiChatController extends Controller
         $priorTurns = $this->recentSessionTurns($sessionId, $user->uuid, 3);
         try {
             $messages = $this->llm->buildMessages(self::SYSTEM_PROMPT, $resolved['data'], $message, $priorTurns);
-            $reply    = $this->llm->chat($messages);
+            $reply = $this->llm->chat($messages);
         } catch (\RuntimeException $e) {
             $this->writeLog($user->uuid, $companyId, $sessionId, $intent, $rawIntent, true, 'llm_error', [$resolved['source']], $message, null);
 
             return response()->json([
                 'success' => true,
-                'data'    => [
-                    'reply'      => 'Maaf, asisten sedang tidak tersedia. Silakan coba beberapa saat lagi.',
-                    'intent'     => $intent,
-                    'allowed'    => true,
-                    'sources'    => [$resolved['source']],
+                'data' => [
+                    'reply' => 'Maaf, asisten sedang tidak tersedia. Silakan coba beberapa saat lagi.',
+                    'intent' => $intent,
+                    'allowed' => true,
+                    'sources' => [$resolved['source']],
                     'session_id' => $sessionId,
                 ],
             ]);
@@ -139,11 +139,11 @@ class HcmAiChatController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => [
-                'reply'      => $reply,
-                'intent'     => $intent,
-                'allowed'    => true,
-                'sources'    => [$resolved['source']],
+            'data' => [
+                'reply' => $reply,
+                'intent' => $intent,
+                'allowed' => true,
+                'sources' => [$resolved['source']],
                 'session_id' => $sessionId,
             ],
         ]);
@@ -161,11 +161,11 @@ class HcmAiChatController extends Controller
         }
 
         $companyId = $this->activeCompanyId($request);
-        $allowed   = $this->gate->allowedIntentsFor($user, $companyId);
+        $allowed = $this->gate->allowedIntentsFor($user, $companyId);
 
         return response()->json([
             'success' => true,
-            'data'    => ['intents' => $allowed],
+            'data' => ['intents' => $allowed],
         ]);
     }
 
@@ -174,9 +174,9 @@ class HcmAiChatController extends Controller
     private function denyMessage(string $reason): string
     {
         return match ($reason) {
-            'intent_unknown'    => 'Saya hanya dapat membantu pertanyaan seputar HRMS Arkav. Coba tanyakan hal lain seperti cuti, absensi, atau payslip kamu.',
+            'intent_unknown' => 'Saya hanya dapat membantu pertanyaan seputar HRMS Arkav. Coba tanyakan hal lain seperti cuti, absensi, atau payslip kamu.',
             'permission_denied' => 'Kamu tidak memiliki akses untuk informasi ini.',
-            default             => 'Permintaan ini tidak dapat diproses.',
+            default => 'Permintaan ini tidak dapat diproses.',
         };
     }
 
@@ -187,16 +187,16 @@ class HcmAiChatController extends Controller
     {
         try {
             AiChatLog::create([
-                'user_uuid'        => $userUuid,
-                'company_id'       => $companyId,
-                'session_id'       => $sessionId,
-                'intent'           => $intent,
-                'raw_intent'       => $rawIntent !== $intent ? $rawIntent : null,
-                'allowed'          => $allowed,
-                'deny_reason'      => $denyReason,
+                'user_uuid' => $userUuid,
+                'company_id' => $companyId,
+                'session_id' => $sessionId,
+                'intent' => $intent,
+                'raw_intent' => $rawIntent !== $intent ? $rawIntent : null,
+                'allowed' => $allowed,
+                'deny_reason' => $denyReason,
                 'source_endpoints' => $sources,
-                'user_message'     => $userMessage,
-                'ai_reply'         => $aiReply,
+                'user_message' => $userMessage,
+                'ai_reply' => $aiReply,
             ]);
         } catch (\Throwable) {
             // best-effort; log failure must never break user response

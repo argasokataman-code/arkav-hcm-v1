@@ -33,10 +33,11 @@ class CheckEmployeeCountLimitsJob implements ShouldQueue
 
         if (empty($violations)) {
             Log::info('No employee count violations found');
+
             return;
         }
 
-        Log::warning("Found " . count($violations) . " employee count violation(s)");
+        Log::warning('Found '.count($violations).' employee count violation(s)');
 
         foreach ($violations as [$subscription, $currentCount, $planLimit]) {
             try {
@@ -47,6 +48,7 @@ class CheckEmployeeCountLimitsJob implements ShouldQueue
                         'current_count' => $currentCount,
                         'plan_limit' => $planLimit,
                     ]);
+
                     continue;
                 }
 
@@ -69,6 +71,6 @@ class CheckEmployeeCountLimitsJob implements ShouldQueue
             }
         }
 
-        Log::info("CheckEmployeeCountLimitsJob completed");
+        Log::info('CheckEmployeeCountLimitsJob completed');
     }
 }

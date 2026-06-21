@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Models\Company;
 use App\Models\HcmRole;
-use App\Models\HcmPermission;
 use App\Services\HcmRbacService;
 use Illuminate\Console\Command;
 
@@ -27,8 +26,9 @@ class InitializeTenantRbacCommand extends Command
         $companyId = (int) $this->argument('company_id');
 
         $company = Company::find($companyId);
-        if (!$company) {
+        if (! $company) {
             $this->error("Company with ID {$companyId} not found.");
+
             return;
         }
 
@@ -80,6 +80,7 @@ class InitializeTenantRbacCommand extends Command
 
             if ($existingRole) {
                 $this->info("Role {$roleData['name']} already exists, skipping...");
+
                 continue;
             }
 

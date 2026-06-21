@@ -8,6 +8,7 @@ use App\Models\EmployeeProfile;
 use App\Models\PerformanceGoal;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
 
@@ -21,7 +22,7 @@ class PerformanceGoalsTenantScopeTest extends TestCase
         return (string) config('auth.api_token_cookie.name', 'arcav_access_token');
     }
 
-    private function readCookieValueFromLoginResponse(\Illuminate\Testing\TestResponse $response): string
+    private function readCookieValueFromLoginResponse(TestResponse $response): string
     {
         $setCookies = $response->headers->getCookies();
         foreach ($setCookies as $cookie) {
@@ -137,4 +138,3 @@ class PerformanceGoalsTenantScopeTest extends TestCase
         $this->assertNotContains($goalA->id, $idsB);
     }
 }
-

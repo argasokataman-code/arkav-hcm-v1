@@ -112,7 +112,7 @@ class DevelopmentSuperUserSeeder extends Seeder
 
     private function ensureEnterpriseSubscription(Company $company): void
     {
-        if (! \Illuminate\Support\Facades\Schema::hasTable('subscriptions') || ! \Illuminate\Support\Facades\Schema::hasTable('packages')) {
+        if (! Schema::hasTable('subscriptions') || ! Schema::hasTable('packages')) {
             return;
         }
 
@@ -133,14 +133,14 @@ class DevelopmentSuperUserSeeder extends Seeder
         Subscription::query()->updateOrCreate(
             ['company_id' => $company->id],
             [
-                'package_uuid'  => $enterprise->uuid,
-                'plan_code'     => 'enterprise',
-                'status'        => 'active',
-                'starts_at'     => now(),
-                'ends_at'       => now()->addYears(10),
-                'auto_renew'    => true,
+                'package_uuid' => $enterprise->uuid,
+                'plan_code' => 'enterprise',
+                'status' => 'active',
+                'starts_at' => now(),
+                'ends_at' => now()->addYears(10),
+                'auto_renew' => true,
                 'billing_cycle' => 'yearly',
-                'amount'        => '0.00',
+                'amount' => '0.00',
             ]
         );
     }

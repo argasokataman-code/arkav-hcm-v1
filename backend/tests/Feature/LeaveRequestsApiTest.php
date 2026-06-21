@@ -2,17 +2,18 @@
 
 namespace Tests\Feature;
 
-use App\Models\EmployeeProfile;
 use App\Models\AttendanceRecord;
+use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeLeaveBalance;
+use App\Models\EmployeeProfile;
 use App\Models\Holiday;
 use App\Models\HolidayCalendar;
 use App\Models\LeaveLedger;
+use App\Models\LeavePolicy;
 use App\Models\LeaveRequest;
 use App\Models\LeaveRequestBreakdown;
 use App\Models\LeaveType;
-use App\Models\Company;
 use App\Models\User;
 use App\Notifications\LeaveRequestedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -104,10 +105,10 @@ class LeaveRequestsApiTest extends TestCase
         ]);
 
         // Seed balance for the other user
-        $leaveType = \App\Models\LeaveType::where('code', 'annual_leave')->first();
+        $leaveType = LeaveType::where('code', 'annual_leave')->first();
         $companyId = $company->id;
 
-        \App\Models\EmployeeLeaveBalance::create([
+        EmployeeLeaveBalance::create([
             'company_id' => $companyId,
             'employee_id' => $other->id,
             'leave_type_id' => $leaveType->id,
@@ -432,7 +433,7 @@ class LeaveRequestsApiTest extends TestCase
         ]);
 
         // Seed policy for the test
-        $policy = \App\Models\LeavePolicy::create([
+        $policy = LeavePolicy::create([
             'company_id' => $company->id,
             'leave_type_id' => $annualType->id,
             'name' => 'Test Annual Policy',
@@ -939,7 +940,7 @@ class LeaveRequestsApiTest extends TestCase
     {
         $adminToken = $this->bearerToken('leave-idor-admin@example.com', 'HR Admin');
 
-        \App\Models\Company::query()->create([
+        Company::query()->create([
             'code' => 'leave_idor_other_company',
             'name' => 'Leave IDOR Other Company',
             'legal_name' => 'Leave IDOR Other Company LLC',

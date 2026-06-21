@@ -37,6 +37,7 @@ return new class extends Migration
                     foreach ($rows as $row) {
                         if ($keepFirst) {
                             $keepFirst = false;
+
                             continue;
                         }
 
@@ -52,7 +53,7 @@ return new class extends Migration
         Schema::table('invoices', function (Blueprint $table): void {
             try {
                 $table->unique(['subscription_id', 'renewal_period_key'], 'invoices_subscription_id_renewal_period_guard_unique');
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 // Ignore if index already exists in current environment.
             }
         });
@@ -69,11 +70,11 @@ return new class extends Migration
                 // Drop the foreign key constraint first (if any) before dropping the unique index
                 try {
                     $table->dropForeign('invoices_subscription_id_foreign');
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     // Foreign key might not exist
                 }
                 $table->dropUnique('invoices_subscription_id_renewal_period_guard_unique');
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 // No-op when index does not exist.
             }
         });

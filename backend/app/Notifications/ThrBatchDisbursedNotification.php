@@ -16,8 +16,7 @@ class ThrBatchDisbursedNotification extends Notification
 
     public function __construct(
         public readonly HcmThrBatch $batch,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -31,7 +30,7 @@ class ThrBatchDisbursedNotification extends Notification
             'entityType' => 'payroll_thr',
             'entityUuid' => (string) ($this->batch->uuid ?? ''),
             'title' => 'THR payment processed',
-            'message' => 'Year-end bonus for ' . $this->batch->calendar_year,
+            'message' => 'Year-end bonus for '.$this->batch->calendar_year,
             'occurredAt' => now(),
         ], [
             'event' => 'payroll.thr.disbursed',

@@ -44,7 +44,7 @@ class TabularExportResponse
         }
 
         return response()->streamDownload(function () use ($headers, $rows, $sheetTitle): void {
-            $spreadsheet = new Spreadsheet();
+            $spreadsheet = new Spreadsheet;
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle(substr($sheetTitle, 0, 31));
 
@@ -81,7 +81,7 @@ class TabularExportResponse
     public static function buildXlsxBinary(string $sheetTitle, array $headers, array $rows): ?string
     {
         try {
-            $spreadsheet = new Spreadsheet();
+            $spreadsheet = new Spreadsheet;
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle(substr($sheetTitle ?: 'Export', 0, 31));
 

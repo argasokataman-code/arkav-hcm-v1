@@ -80,9 +80,9 @@ class DashboardSummaryTenantScopeTest extends TestCase
 
         // Act: Hit dashboard summary endpoint as this user
         $response = $this->withHeaders([
-                'Authorization' => 'Bearer '.$token,
+            'Authorization' => 'Bearer '.$token,
             'X-Company-Code' => (string) $companyA->code,
-            ])
+        ])
             ->getJson('/v1/hcm/dashboard-summary');
         $response->assertStatus(200);
         $data = $response->json('data.executive');

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\HcmLeaveCustomPolicy;
+use App\Models\HcmLeaveTypeSetting;
 use App\Models\LeavePolicy;
 use App\Models\LeavePolicyAssignment;
 use App\Models\LeaveType;
@@ -39,7 +40,7 @@ class LeaveFoundationBackfillCommandTest extends TestCase
 
         $this->assertEquals(14.0, (float) $customPolicy->days_per_year);
 
-        $legacyType = \App\Models\HcmLeaveTypeSetting::query()->where('code', 'annual_leave')->firstOrFail();
+        $legacyType = HcmLeaveTypeSetting::query()->where('code', 'annual_leave')->firstOrFail();
         $legacyCustom = HcmLeaveCustomPolicy::query()->where('name', 'Legacy 14 Days Policy')->firstOrFail();
         $this->assertSame((int) $leaveType->id, (int) $legacyType->leave_type_id);
         $this->assertSame((int) $leaveType->id, (int) $legacyCustom->leave_type_id);

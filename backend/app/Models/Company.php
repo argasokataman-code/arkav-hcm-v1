@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Company extends Model
 {
-    use HasFactory, AssignsUuid;
+    use AssignsUuid, HasFactory;
 
     protected $fillable = [
         'id',

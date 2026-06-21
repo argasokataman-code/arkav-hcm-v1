@@ -2,18 +2,10 @@
 
 namespace App\Http\Controllers\Api\Auth\Concerns;
 
-use App\Models\User;
-
-use App\Http\Controllers\Controller;
 use App\Mail\RegisterSuccessMailable;
 use App\Models\AuthToken;
 use App\Models\Company;
-use App\Models\CompanySetting;
-use App\Models\CompanyUser;
-use App\Models\EmployeeProfile;
-use App\Models\Invoice;
-use App\Models\HcmPermission;
-use App\Modelsser;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,13 +13,13 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 trait HandlesAuthCore
-{    public function register(Request $request): JsonResponse
+{
+    public function register(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'min:2', 'max:150', 'regex:/^[A-Za-z][A-Za-z\s\'.-]{1,149}$/'],
@@ -228,7 +220,7 @@ trait HandlesAuthCore
         $isGlobalHcmAdmin = $user->isHcmAdmin();
         $isTenantHcmAdmin = $activeCompanyId > 0 ? $user->isHcmAdminForCompany($activeCompanyId) : $isGlobalHcmAdmin;
         $permissions = $user->permissionsForContext($activeCompanyId > 0 ? $activeCompanyId : null);
-        
+
         // Global admin should always expose the full permission map, even if
         // legacy company-role assignments only return a partial subset.
         if ($isGlobalHcmAdmin) {
@@ -265,6 +257,7 @@ trait HandlesAuthCore
     /**
      * Get all permissions for global admin (super user has access to EVERYTHING)
      * Audit Result: 257 comprehensive permissions across ALL 48 modules
+     *
      * @return array<string, bool>
      */
     private function validationError(array $errors, Request $request): JsonResponse
@@ -340,5 +333,4 @@ trait HandlesAuthCore
     {
         return max(1, (int) ceil($seconds / 60));
     }
-
 }

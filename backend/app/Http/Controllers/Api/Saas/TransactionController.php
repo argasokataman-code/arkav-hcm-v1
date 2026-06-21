@@ -59,13 +59,13 @@ class TransactionController extends Controller
 
         // Search by invoice number
         if ($request->has('invoice_number') && $request->get('invoice_number')) {
-            $query->where('invoice_number', 'like', '%' . $request->get('invoice_number') . '%');
+            $query->where('invoice_number', 'like', '%'.$request->get('invoice_number').'%');
         }
 
         // Search by company name (join via subscription->company)
         if ($request->has('company_search') && $request->get('company_search')) {
             $query->whereHas('subscription.company', function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->get('company_search') . '%');
+                $q->where('name', 'like', '%'.$request->get('company_search').'%');
             });
         }
 
@@ -74,7 +74,7 @@ class TransactionController extends Controller
             ->paginate(15);
 
         $items = collect($transactions->items())
-            ->map(fn(Transaction $txn) => $this->formatTransaction($txn))
+            ->map(fn (Transaction $txn) => $this->formatTransaction($txn))
             ->values();
 
         return response()->json([
@@ -399,7 +399,7 @@ class TransactionController extends Controller
      */
     public function export(Request $request)
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -436,7 +436,7 @@ class TransactionController extends Controller
         return TabularExportResponse::download(
             headers: $headers,
             rows: $rows,
-            filenameBase: 'transactions-export-' . now()->format('Y-m-d'),
+            filenameBase: 'transactions-export-'.now()->format('Y-m-d'),
             format: $format,
             sheetTitle: 'Transactions'
         );
@@ -453,7 +453,7 @@ class TransactionController extends Controller
             'subscriptionId' => $transaction->subscription_id,
             'companyName' => $transaction->subscription?->company?->name ?? '-',
             'packageName' => $transaction->subscription?->package?->name ?? '-',
-            'amount' => (float)$transaction->amount,
+            'amount' => (float) $transaction->amount,
             'status' => $transaction->status,
             'paymentMethod' => $transaction->payment_method,
             'paymentGateway' => $transaction->payment_gateway,

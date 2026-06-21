@@ -4,11 +4,10 @@ namespace App\Http\Controllers\Api\Employee;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
-use App\Models\Team;
-use App\Models\Department;
 use App\Models\EmployeeAssignment;
 use App\Models\EmployeeProfile;
 use App\Models\HcmManualActivity;
+use App\Models\Team;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -441,6 +440,7 @@ class HcmTeamController extends Controller
 
         $data = $members->map(function (EmployeeProfile $profile): array {
             $designationName = (string) ($profile->designationRef?->name ?? $profile->designation ?? '—');
+
             return [
                 'employee_id' => $profile->id,
                 'user_id' => $profile->user_id,

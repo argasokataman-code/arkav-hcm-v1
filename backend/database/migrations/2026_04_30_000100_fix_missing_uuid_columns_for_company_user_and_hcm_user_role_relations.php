@@ -134,7 +134,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $tableBlueprint) use ($column, $name): void {
                 $tableBlueprint->index($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }
@@ -151,7 +151,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $tableBlueprint) use ($column, $name): void {
                 $tableBlueprint->unique($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }

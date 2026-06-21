@@ -19,6 +19,7 @@ class SptMasaValidationService
         $period = SptMasaGenerationService::findPeriod((int) $header->company_id, (string) $header->periode);
         if (! $period) {
             $errors[] = 'SPT_PAYROLL_NOT_FINAL';
+
             return $errors;
         }
 
@@ -32,6 +33,7 @@ class SptMasaValidationService
 
         if (empty($runIds)) {
             $errors[] = 'SPT_PAYROLL_NOT_FINAL';
+
             return $errors;
         }
 
@@ -39,7 +41,7 @@ class SptMasaValidationService
             ->whereIn('hcm_payroll_run_id', $runIds)
             ->where('company_id', $header->company_id)
             ->where('kind', 'deduction')
-            ->where(DB::raw("1"), '=', DB::raw("1"))
+            ->where(DB::raw('1'), '=', DB::raw('1'))
             ->where(function ($q): void {
                 $q->where('category', 'LIKE', 'pph21%');
             })
@@ -51,7 +53,7 @@ class SptMasaValidationService
             ->where('kind', 'addition')
             ->where(function ($q): void {
                 $q->where('category', 'LIKE', 'pph21_taxable_%')
-                  ->orWhere('category', 'addition');
+                    ->orWhere('category', 'addition');
             })
             ->sum('amount');
 
@@ -78,6 +80,7 @@ class SptMasaValidationService
 
         if ($details->isEmpty()) {
             $errors[] = 'SPT_DETAIL_INCOMPLETE';
+
             return $errors;
         }
 
@@ -107,6 +110,7 @@ class SptMasaValidationService
     {
         $normalized = SptMasaGenerationService::normalizeNpwp($npwp);
         $len = strlen($normalized);
+
         return $len === 15 || $len === 16;
     }
 }

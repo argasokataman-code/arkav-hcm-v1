@@ -4,6 +4,7 @@ namespace App\Services\Reporting;
 
 use App\Models\AttendanceRecord;
 use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollRun;
 use App\Models\Invoice;
@@ -13,20 +14,16 @@ use App\Models\PurchaseTransaction;
 use App\Models\ReportSnapshot;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class ReportSnapshotService
 {
     /**
      * Generate a snapshot for the specified report type and store data blocks.
      *
-     * @param string $reportType (attendance|payroll|employee|leave|daily|finance)
-     * @param Carbon $periodStart
-     * @param Carbon $periodEnd
-     * @param array $filters key-value pairs for filtering (e.g., department_id, user_id, status)
-     * @param int $userId ID of user generating the snapshot
-     * @param int $companyId Tenant company ID
-     *
+     * @param  string  $reportType  (attendance|payroll|employee|leave|daily|finance)
+     * @param  array  $filters  key-value pairs for filtering (e.g., department_id, user_id, status)
+     * @param  int  $userId  ID of user generating the snapshot
+     * @param  int  $companyId  Tenant company ID
      * @return ReportSnapshot Snapshot model with status completed/failed
      */
     public function generateSnapshot(
@@ -54,9 +51,9 @@ class ReportSnapshotService
 
         try {
             // Dispatch to type-specific generator
-            $method = "generate" . str_replace(' ', '', ucwords(str_replace('_', ' ', $reportType))) . "Snapshot";
+            $method = 'generate'.str_replace(' ', '', ucwords(str_replace('_', ' ', $reportType))).'Snapshot';
 
-            if (!method_exists($this, $method)) {
+            if (! method_exists($this, $method)) {
                 throw new \InvalidArgumentException("Report type '{$reportType}' is not supported.");
             }
 
@@ -120,7 +117,7 @@ class ReportSnapshotService
         foreach ($records as $record) {
             // By user
             $userId = $record->user_id;
-            if (!isset($aggregated['by_user'][$userId])) {
+            if (! isset($aggregated['by_user'][$userId])) {
                 $aggregated['by_user'][$userId] = [
                     'user_id' => $userId,
                     'user_name' => $record->user->name ?? 'Unknown',
@@ -142,14 +139,14 @@ class ReportSnapshotService
             }
 
             // By status
-            if (!isset($aggregated['by_status'][$record->status])) {
+            if (! isset($aggregated['by_status'][$record->status])) {
                 $aggregated['by_status'][$record->status] = 0;
             }
             $aggregated['by_status'][$record->status]++;
 
             // By date
             $date = $record->work_date->toDateString();
-            if (!isset($aggregated['by_date'][$date])) {
+            if (! isset($aggregated['by_date'][$date])) {
                 $aggregated['by_date'][$date] = [
                     'date' => $date,
                     'present' => 0,
@@ -183,7 +180,7 @@ class ReportSnapshotService
         }
 
         // By status block
-        if (!empty($aggregated['by_status'])) {
+        if (! empty($aggregated['by_status'])) {
             $snapshot->dataBlocks()->create([
                 'module' => 'attendance',
                 'data_key' => 'by_status',
@@ -255,7 +252,7 @@ class ReportSnapshotService
         foreach ($allLines as $line) {
             // By component
             $componentCode = $line->component_code;
-            if (!isset($aggregated['by_component'][$componentCode])) {
+            if (! isset($aggregated['by_component'][$componentCode])) {
                 $aggregated['by_component'][$componentCode] = [
                     'component_code' => $componentCode,
                     'component_name' => $line->component_name,
@@ -271,7 +268,7 @@ class ReportSnapshotService
 
             // By user
             $userId = $line->user_id;
-            if (!isset($aggregated['by_user'][$userId])) {
+            if (! isset($aggregated['by_user'][$userId])) {
                 $aggregated['by_user'][$userId] = [
                     'user_id' => $userId,
                     'user_name' => $line->user->name ?? 'Unknown',
@@ -347,7 +344,7 @@ class ReportSnapshotService
         }
 
         // By run block
-        if (!empty($aggregated['by_run'])) {
+        if (! empty($aggregated['by_run'])) {
             $snapshot->dataBlocks()->create([
                 'module' => 'payroll',
                 'data_key' => 'by_run',
@@ -369,7 +366,7 @@ class ReportSnapshotService
         array $filters,
         int $companyId
     ): int {
-        $query = \App\Models\CompanyUser::where('company_id', $companyId)
+        $query = CompanyUser::where('company_id', $companyId)
             ->with(['user'])
             ->where('status', '!=', 'archived');
 
@@ -411,7 +408,7 @@ class ReportSnapshotService
         $rowCount++;
 
         // By status block
-        if (!empty($aggregated['by_status'])) {
+        if (! empty($aggregated['by_status'])) {
             $snapshot->dataBlocks()->create([
                 'module' => 'employee',
                 'data_key' => 'by_status',
@@ -461,7 +458,7 @@ class ReportSnapshotService
 
         foreach ($records as $record) {
             // By leave type
-            if (!isset($aggregated['by_leave_type'][$record->leave_type])) {
+            if (! isset($aggregated['by_leave_type'][$record->leave_type])) {
                 $aggregated['by_leave_type'][$record->leave_type] = [
                     'leave_type' => $record->leave_type,
                     'count' => 0,
@@ -472,7 +469,7 @@ class ReportSnapshotService
             $aggregated['by_leave_type'][$record->leave_type]['total_days'] += $record->days;
 
             // By status
-            if (!isset($aggregated['by_status'][$record->status])) {
+            if (! isset($aggregated['by_status'][$record->status])) {
                 $aggregated['by_status'][$record->status] = [
                     'status' => $record->status,
                     'count' => 0,
@@ -482,7 +479,7 @@ class ReportSnapshotService
 
             // By user
             $userId = $record->user_id;
-            if (!isset($aggregated['by_user'][$userId])) {
+            if (! isset($aggregated['by_user'][$userId])) {
                 $aggregated['by_user'][$userId] = [
                     'user_id' => $userId,
                     'user_name' => $record->user->name ?? 'Unknown',
@@ -515,7 +512,7 @@ class ReportSnapshotService
         }
 
         // By status block
-        if (!empty($aggregated['by_status'])) {
+        if (! empty($aggregated['by_status'])) {
             $snapshot->dataBlocks()->create([
                 'module' => 'leave',
                 'data_key' => 'by_status',

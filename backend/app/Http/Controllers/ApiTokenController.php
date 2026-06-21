@@ -21,7 +21,7 @@ class ApiTokenController extends Controller
         $token = $request->attributes->get('authToken') ?: ArcavAccessTokenResolver::validTokenFromRequest($request);
         $user = $request->user() ?: ($token?->user) ?: Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             if (! $request->expectsJson()) {
                 return redirect()->guest(url('lock-screen'));
             }
@@ -34,7 +34,7 @@ class ApiTokenController extends Controller
 
         // Cache-based dedup: prevents DB churn when multiple JS modules call /api-token
         // concurrently on the same page load (within 10 seconds).
-        $cacheKey = 'api_token_mint_' . $user->id;
+        $cacheKey = 'api_token_mint_'.$user->id;
         $cachedRawToken = Cache::get($cacheKey);
         if ($cachedRawToken) {
             return response()->json([
@@ -51,7 +51,7 @@ class ApiTokenController extends Controller
         // cookie token actually becomes invalid or expired.
         $cookieName = (string) config('auth.api_token_cookie.name', 'arcav_access_token');
         $cookieRawToken = $request->cookie($cookieName);
-        
+
         if ($cookieRawToken) {
             $cookieDbToken = AuthToken::where('user_id', $user->id)
                 ->where('token_hash', hash('sha256', $cookieRawToken))

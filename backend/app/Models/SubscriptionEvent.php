@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SubscriptionEvent extends Model
 {
-    use HasFactory, AssignsUuid;
+    use AssignsUuid, HasFactory;
 
     public $timestamps = false;
 

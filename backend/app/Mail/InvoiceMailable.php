@@ -7,7 +7,6 @@ use App\Support\WebsiteSettings;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
-use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -25,7 +24,7 @@ class InvoiceMailable extends Mailable
         $issuerName = WebsiteSettings::businessCompanyName();
 
         return new Envelope(
-            subject: "Invoice {$this->invoice->invoice_number} - " . $issuerName,
+            subject: "Invoice {$this->invoice->invoice_number} - ".$issuerName,
         );
     }
 

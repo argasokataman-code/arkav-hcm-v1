@@ -14,12 +14,12 @@ class QueueBackpressureGuard
      * Does NOT throw — this is an observability guard, not a hard circuit-breaker.
      * Integrate monitoring alerts on 'tax_governance.queue_backpressure_alert' log channel.
      *
-     * @param string $channel  Logical queue/listener channel name (e.g. 'revenue_capture').
-     * @param int    $threshold Max events-per-minute before warning is emitted.
+     * @param  string  $channel  Logical queue/listener channel name (e.g. 'revenue_capture').
+     * @param  int  $threshold  Max events-per-minute before warning is emitted.
      */
     public function check(string $channel, int $threshold = 200): void
     {
-        $windowKey = 'queue_bp:' . $channel . ':' . now()->format('Y-m-d-H-i');
+        $windowKey = 'queue_bp:'.$channel.':'.now()->format('Y-m-d-H-i');
 
         $count = (int) Cache::get($windowKey, 0);
 

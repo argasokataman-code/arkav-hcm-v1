@@ -55,13 +55,13 @@ class HcmCompanyInvoiceController
             ->with(['company:id,name,code', 'subscription.package'])
             ->where('company_id', $companyId);
 
-        if (!empty($validated['status'])) {
+        if (! empty($validated['status'])) {
             $q->where('status', $validated['status']);
         }
         if (array_key_exists('is_paid', $validated)) {
             $q->where('is_paid', (bool) ((int) $validated['is_paid']));
         }
-        if (!empty($validated['search'])) {
+        if (! empty($validated['search'])) {
             $term = trim((string) $validated['search']);
             $q->where(function ($inner) use ($term): void {
                 $inner->where('invoice_number', 'like', '%'.$term.'%')
@@ -202,7 +202,7 @@ class HcmCompanyInvoiceController
             ]);
         }
 
-        $mockGateway = new MockPaymentGatewayService();
+        $mockGateway = new MockPaymentGatewayService;
         $paymentMethod = (string) ($validated['paymentMethod'] ?? 'mock_card');
         $gateway = (string) ($validated['gateway'] ?? 'mock');
         $mappedPaymentMethod = match ($paymentMethod) {
@@ -240,8 +240,8 @@ class HcmCompanyInvoiceController
 
         $invoice->refresh();
 
-            // Best-effort: notify customer with invoice email (includes PDF attachment when available).
-            SendInvoiceEmailJob::dispatch($invoice->id)->afterCommit();
+        // Best-effort: notify customer with invoice email (includes PDF attachment when available).
+        SendInvoiceEmailJob::dispatch($invoice->id)->afterCommit();
 
         return response()->json([
             'success' => true,
@@ -371,9 +371,10 @@ class HcmCompanyInvoiceController
         } catch (\Throwable $e) {
             \Log::warning('syncPaymentStatus: getTransaction failed', [
                 'invoice_id' => $invoice->id,
-                'order_id'   => $orderId,
-                'error'      => $e->getMessage(),
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
             ]);
+
             return response()->json(['success' => true, 'data' => $this->invoiceService->formatInvoice($invoice)]);
         }
 
@@ -381,20 +382,20 @@ class HcmCompanyInvoiceController
             return response()->json(['success' => true, 'data' => $this->invoiceService->formatInvoice($invoice)]);
         }
 
-        $txStatus    = strtolower((string) ($txData['transaction_status'] ?? ''));
+        $txStatus = strtolower((string) ($txData['transaction_status'] ?? ''));
         $fraudStatus = strtolower((string) ($txData['fraud_status'] ?? ''));
-        $state       = $midtransService->resolvePaymentState($txStatus, $fraudStatus);
+        $state = $midtransService->resolvePaymentState($txStatus, $fraudStatus);
 
         if ($state === 'paid' && $payment->status !== 'completed') {
             DB::transaction(function () use ($payment, $txData, $invoice): void {
                 $payment->update([
-                    'status'      => 'completed',
-                    'paid_at'     => now(),
+                    'status' => 'completed',
+                    'paid_at' => now(),
                     'verified_at' => now(),
-                    'metadata'    => array_merge($payment->metadata ?? [], [
+                    'metadata' => array_merge($payment->metadata ?? [], [
                         'midtrans_transaction_id' => (string) ($txData['transaction_id'] ?? ''),
-                        'midtrans_payment_type'   => (string) ($txData['payment_type'] ?? ''),
-                        'synced_via_poll'         => true,
+                        'midtrans_payment_type' => (string) ($txData['payment_type'] ?? ''),
+                        'synced_via_poll' => true,
                     ]),
                 ]);
                 $invoice->markAsPaid();
@@ -447,8 +448,8 @@ class HcmCompanyInvoiceController
             ]);
         }
 
-        $mockGateway = new MockPaymentGatewayService();
-        $callbackToken = (string) \Illuminate\Support\Str::random(40);
+        $mockGateway = new MockPaymentGatewayService;
+        $callbackToken = (string) Str::random(40);
         $result = $mockGateway->createPayment([
             'invoice_id' => $invoice->id,
             'amount' => (float) $invoice->amount_due,
@@ -578,9 +579,10 @@ class HcmCompanyInvoiceController
             $midtransService = app(MidtransService::class);
         } catch (\Throwable $e) {
             \Log::error('Midtrans: Failed to resolve MidtransService', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'MIDTRANS_INIT_FAILED', 'message' => 'Midtrans service unavailable: ' . $e->getMessage()],
+                'error' => ['code' => 'MIDTRANS_INIT_FAILED', 'message' => 'Midtrans service unavailable: '.$e->getMessage()],
             ], 502);
         }
 
@@ -593,7 +595,7 @@ class HcmCompanyInvoiceController
             $result = $midtransService->createTransaction([
                 'order_id' => $orderId,
                 'amount' => (int) round((float) $invoice->amount_due),
-                'description' => 'Invoice ' . $invoice->invoice_number,
+                'description' => 'Invoice '.$invoice->invoice_number,
                 'customer' => [
                     'name' => $companyName,
                     'email' => $companyEmail,
@@ -609,9 +611,10 @@ class HcmCompanyInvoiceController
                 'order_id' => $orderId,
                 'error' => $e->getMessage(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'error' => ['code' => 'MIDTRANS_CREATE_FAILED', 'message' => 'Gagal membuat transaksi Midtrans: ' . $e->getMessage()],
+                'error' => ['code' => 'MIDTRANS_CREATE_FAILED', 'message' => 'Gagal membuat transaksi Midtrans: '.$e->getMessage()],
             ], 502);
         }
 
@@ -657,8 +660,6 @@ class HcmCompanyInvoiceController
             ],
         ]);
     }
-
-
 
     private function canUseMockCheckout(Request $request): bool
     {
@@ -731,9 +732,9 @@ class HcmCompanyInvoiceController
     {
         return [
             [
-                'id'       => 'invoice-' . $invoice->id,
-                'name'     => 'Invoice ' . $invoice->invoice_number,
-                'price'    => (int) round((float) $invoice->amount_due),
+                'id' => 'invoice-'.$invoice->id,
+                'name' => 'Invoice '.$invoice->invoice_number,
+                'price' => (int) round((float) $invoice->amount_due),
                 'quantity' => 1,
             ],
         ];
@@ -746,12 +747,11 @@ class HcmCompanyInvoiceController
     {
         $map = [
             'bank_transfer' => 'bank_transfer',
-            'credit_card'   => 'credit_card',
-            'gopay'         => 'gopay',
-            'qris'          => 'qris',
+            'credit_card' => 'credit_card',
+            'gopay' => 'gopay',
+            'qris' => 'qris',
         ];
 
         return $map[$paymentMethod] ?? 'bank_transfer';
     }
 }
-

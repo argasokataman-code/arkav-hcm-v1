@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\Attendance;
 
 use App\Models\AttendanceRecord;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -22,11 +21,11 @@ class AttendanceSelfieController extends BaseAttendanceController
         }
 
         $declaredMime = null;
-        $base64Data   = $raw;
+        $base64Data = $raw;
 
         if (preg_match('/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s', $raw, $matches) === 1) {
             $declaredMime = strtolower((string) ($matches[1] ?? ''));
-            $base64Data   = (string) ($matches[2] ?? '');
+            $base64Data = (string) ($matches[2] ?? '');
         }
 
         $base64Data = str_replace(["\r", "\n", ' '], '', $base64Data);
@@ -43,7 +42,7 @@ class AttendanceSelfieController extends BaseAttendanceController
             return null;
         }
 
-        $imageInfo    = @getimagesizefromstring($binary);
+        $imageInfo = @getimagesizefromstring($binary);
         $detectedMime = strtolower((string) ($imageInfo['mime'] ?? ''));
         if (! isset(self::SELFIE_ALLOWED_MIME_TO_EXT[$detectedMime])) {
             return null;
@@ -55,7 +54,7 @@ class AttendanceSelfieController extends BaseAttendanceController
 
         return [
             'binary' => $binary,
-            'mime'   => $detectedMime,
+            'mime' => $detectedMime,
         ];
     }
 
@@ -63,19 +62,19 @@ class AttendanceSelfieController extends BaseAttendanceController
     {
         $validated = $request->validate([
             'selfie_base64' => 'required|string',
-            'timestamp'     => 'nullable|integer',
+            'timestamp' => 'nullable|integer',
         ]);
 
         try {
-            $user            = $request->user();
+            $user = $request->user();
             $activeCompanyId = $this->activeCompanyId($request);
-            $workDate        = now('UTC')->setTimezone($this->tz())->toDateString();
+            $workDate = now('UTC')->setTimezone($this->tz())->toDateString();
 
             if (! $user) {
                 return response()->json([
                     'success' => false,
-                    'error'   => [
-                        'code'    => 'AUTH_UNAUTHORIZED',
+                    'error' => [
+                        'code' => 'AUTH_UNAUTHORIZED',
                         'message' => 'Missing authentication token.',
                     ],
                 ], 401);
@@ -91,8 +90,8 @@ class AttendanceSelfieController extends BaseAttendanceController
             if (! $attendance || ! $attendance->check_in_at) {
                 return response()->json([
                     'success' => false,
-                    'error'   => [
-                        'code'    => 'ATTENDANCE_NOT_STARTED',
+                    'error' => [
+                        'code' => 'ATTENDANCE_NOT_STARTED',
                         'message' => 'Harap lakukan punch in terlebih dahulu sebelum mengambil selfie.',
                     ],
                 ], 422);
@@ -102,8 +101,8 @@ class AttendanceSelfieController extends BaseAttendanceController
             if ($parsedImage === null) {
                 return response()->json([
                     'success' => false,
-                    'error'   => [
-                        'code'    => 'VALIDATION_ERROR',
+                    'error' => [
+                        'code' => 'VALIDATION_ERROR',
                         'message' => 'Data selfie tidak valid. Gunakan format JPEG/PNG/WEBP maksimal 5MB.',
                     ],
                 ], 422);
@@ -116,7 +115,7 @@ class AttendanceSelfieController extends BaseAttendanceController
                 'selfie/%d/%s_%s.%s',
                 (int) ($activeCompanyId ?? 0),
                 $user->id,
-                $workDate . '_' . now('UTC')->timestamp,
+                $workDate.'_'.now('UTC')->timestamp,
                 $extension
             );
 
@@ -125,28 +124,28 @@ class AttendanceSelfieController extends BaseAttendanceController
             $hash = hash('sha256', $imageBinary);
 
             $attendance->update([
-                'selfie_path'            => $path,
-                'selfie_encrypted_hash'  => $hash,
+                'selfie_path' => $path,
+                'selfie_encrypted_hash' => $hash,
             ]);
 
             return response()->json([
                 'success' => true,
-                'data'    => [
+                'data' => [
                     'attendance_id' => $attendance->id,
-                    'selfie_path'   => $path,
-                    'uploaded_at'   => $attendance->updated_at,
+                    'selfie_path' => $path,
+                    'uploaded_at' => $attendance->updated_at,
                 ],
             ]);
         } catch (\Exception $e) {
             \Log::error('Selfie upload error', [
                 'user_id' => $request->user()?->id,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'error'   => [
-                    'code'    => 'INTERNAL_ERROR',
+                'error' => [
+                    'code' => 'INTERNAL_ERROR',
                     'message' => 'Gagal menyimpan selfie, coba lagi nanti.',
                 ],
             ], 500);
@@ -156,15 +155,15 @@ class AttendanceSelfieController extends BaseAttendanceController
     public function meSelfieStatus(Request $request): JsonResponse
     {
         try {
-            $user            = $request->user();
+            $user = $request->user();
             $activeCompanyId = $this->activeCompanyId($request);
-            $workDate        = now('UTC')->setTimezone($this->tz())->toDateString();
+            $workDate = now('UTC')->setTimezone($this->tz())->toDateString();
 
             if (! $user) {
                 return response()->json([
                     'success' => false,
-                    'error'   => [
-                        'code'    => 'AUTH_UNAUTHORIZED',
+                    'error' => [
+                        'code' => 'AUTH_UNAUTHORIZED',
                         'message' => 'Missing authentication token.',
                     ],
                 ], 401);
@@ -180,20 +179,20 @@ class AttendanceSelfieController extends BaseAttendanceController
             if (! $attendance) {
                 return response()->json([
                     'success' => true,
-                    'data'    => [
+                    'data' => [
                         'has_selfie' => false,
-                        'selfie'     => null,
+                        'selfie' => null,
                     ],
                 ]);
             }
 
             return response()->json([
                 'success' => true,
-                'data'    => [
+                'data' => [
                     'has_selfie' => (bool) $attendance->selfie_path,
-                    'selfie'     => $attendance->selfie_path ? [
-                        'path'         => $attendance->selfie_path,
-                        'uploaded_at'  => $attendance->updated_at,
+                    'selfie' => $attendance->selfie_path ? [
+                        'path' => $attendance->selfie_path,
+                        'uploaded_at' => $attendance->updated_at,
                         'is_encrypted' => true,
                     ] : null,
                 ],
@@ -201,8 +200,8 @@ class AttendanceSelfieController extends BaseAttendanceController
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error'   => [
-                    'code'    => 'INTERNAL_ERROR',
+                'error' => [
+                    'code' => 'INTERNAL_ERROR',
                     'message' => 'Failed to fetch selfie status.',
                 ],
             ], 500);
@@ -220,8 +219,8 @@ class AttendanceSelfieController extends BaseAttendanceController
         if (! $companyId) {
             return response()->json([
                 'success' => false,
-                'error'   => [
-                    'code'    => 'TENANT_CONTEXT_REQUIRED',
+                'error' => [
+                    'code' => 'TENANT_CONTEXT_REQUIRED',
                     'message' => 'Active company context is required.',
                 ],
             ], 422);
@@ -235,8 +234,8 @@ class AttendanceSelfieController extends BaseAttendanceController
         if (! $rec) {
             return response()->json([
                 'success' => false,
-                'error'   => [
-                    'code'    => 'ATTENDANCE_NOT_FOUND',
+                'error' => [
+                    'code' => 'ATTENDANCE_NOT_FOUND',
                     'message' => 'Attendance record not found.',
                 ],
             ], 404);
@@ -246,8 +245,8 @@ class AttendanceSelfieController extends BaseAttendanceController
         if ($path === '') {
             return response()->json([
                 'success' => false,
-                'error'   => [
-                    'code'    => 'SELFIE_NOT_FOUND',
+                'error' => [
+                    'code' => 'SELFIE_NOT_FOUND',
                     'message' => 'Selfie not found for this attendance record.',
                 ],
             ], 404);
@@ -256,14 +255,14 @@ class AttendanceSelfieController extends BaseAttendanceController
         if (! Storage::disk('private')->exists($path)) {
             return response()->json([
                 'success' => false,
-                'error'   => [
-                    'code'    => 'SELFIE_FILE_MISSING',
+                'error' => [
+                    'code' => 'SELFIE_FILE_MISSING',
                     'message' => 'Selfie file missing on storage.',
                 ],
             ], 404);
         }
 
-        $fullPath     = Storage::disk('private')->path($path);
+        $fullPath = Storage::disk('private')->path($path);
         $downloadName = basename($path);
 
         return response()->download($fullPath, $downloadName);

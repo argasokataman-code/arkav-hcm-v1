@@ -2,14 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Models\EmployeeProfile;
-use App\Models\HcmPermission;
-use App\Models\HcmRole;
-use App\Models\HcmManualActivity;
-use App\Models\HcmUserRole;
-use App\Models\HcmUserRoleAudit;
 use App\Models\Company;
 use App\Models\CompanyUser;
+use App\Models\EmployeeProfile;
+use App\Models\HcmManualActivity;
+use App\Models\HcmPermission;
+use App\Models\HcmRole;
+use App\Models\HcmUserRole;
+use App\Models\HcmUserRoleAudit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

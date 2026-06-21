@@ -25,11 +25,11 @@ class WebFeatureGateTest extends TestCase
      */
     private function makeAdminTenant(string $emailSuffix, array $featureCodes = []): array
     {
-        $code = 'TST' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+        $code = 'TST'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
         $company = Company::query()->create([
             'code' => $code,
-            'name' => 'Web Feature Gate ' . $emailSuffix,
-            'legal_name' => 'Web Feature Gate ' . $emailSuffix . ' Ltd',
+            'name' => 'Web Feature Gate '.$emailSuffix,
+            'legal_name' => 'Web Feature Gate '.$emailSuffix.' Ltd',
             'status' => 'active',
             'timezone' => 'UTC',
             'currency' => 'IDR',
@@ -37,8 +37,8 @@ class WebFeatureGateTest extends TestCase
         ]);
 
         $package = Package::query()->create([
-            'code' => 'wfg-' . strtolower($emailSuffix),
-            'name' => 'WFG ' . $emailSuffix,
+            'code' => 'wfg-'.strtolower($emailSuffix),
+            'name' => 'WFG '.$emailSuffix,
             'monthly_price' => 99000,
             'yearly_price' => 990000,
             'billing_unit' => 'company',
@@ -73,8 +73,8 @@ class WebFeatureGateTest extends TestCase
         ]);
 
         $user = User::query()->create([
-            'name' => 'WFG Admin ' . $emailSuffix,
-            'email' => 'wfg.' . strtolower($emailSuffix) . '@example.com',
+            'name' => 'WFG Admin '.$emailSuffix,
+            'email' => 'wfg.'.strtolower($emailSuffix).'@example.com',
             'password' => bcrypt('StrongPass1'),
         ]);
 
@@ -129,12 +129,12 @@ class WebFeatureGateTest extends TestCase
         $this->actingAs($tenant['user'])
             ->withHeader('X-Company-Code', $tenant['company']->code)
             ->get('/tickets-admin')
-            ->assertRedirect(url('upgrade') . '?blocked=tickets');
+            ->assertRedirect(url('upgrade').'?blocked=tickets');
 
         $this->actingAs($tenant['user'])
             ->withHeader('X-Company-Code', $tenant['company']->code)
             ->get('/ticket-master')
-            ->assertRedirect(url('upgrade') . '?blocked=tickets');
+            ->assertRedirect(url('upgrade').'?blocked=tickets');
     }
 
     public function test_payroll_web_pages_blocked_when_subscription_lacks_payroll_feature(): void
@@ -145,7 +145,7 @@ class WebFeatureGateTest extends TestCase
             $this->actingAs($tenant['user'])
                 ->withHeader('X-Company-Code', $tenant['company']->code)
                 ->get($path)
-                ->assertRedirect(url('upgrade') . '?blocked=payroll');
+                ->assertRedirect(url('upgrade').'?blocked=payroll');
         }
     }
 
@@ -157,7 +157,7 @@ class WebFeatureGateTest extends TestCase
             $this->actingAs($tenant['user'])
                 ->withHeader('X-Company-Code', $tenant['company']->code)
                 ->get($path)
-                ->assertRedirect(url('upgrade') . '?blocked=training');
+                ->assertRedirect(url('upgrade').'?blocked=training');
         }
     }
 

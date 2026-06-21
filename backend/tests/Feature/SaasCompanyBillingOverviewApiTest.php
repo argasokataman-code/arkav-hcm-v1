@@ -15,6 +15,7 @@ class SaasCompanyBillingOverviewApiTest extends TestCase
     use RefreshDatabase;
 
     private string $adminToken;
+
     private string $userToken;
 
     protected function setUp(): void
@@ -786,4 +787,3 @@ class SaasCompanyBillingOverviewApiTest extends TestCase
         $this->assertStringContainsString('data demo seed', strtolower((string) ($row['subscription']['cancellationDescription'] ?? '')));
     }
 }
-

@@ -4,16 +4,17 @@ namespace App\Http\Controllers\Api\Ticket;
 
 use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
+use App\Models\Subscription;
 use App\Models\Ticket;
 use App\Models\TicketAssignmentHistory;
 use App\Models\TicketAttachment;
 use App\Models\TicketCategory;
 use App\Models\TicketComment;
 use App\Models\User;
-use App\Notifications\TicketCreatedNotification;
 use App\Notifications\TicketAssignedNotification;
-use App\Notifications\TicketResolvedNotification;
 use App\Notifications\TicketClosedNotification;
+use App\Notifications\TicketCreatedNotification;
+use App\Notifications\TicketResolvedNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -66,7 +67,7 @@ class HcmTicketController extends Controller
             return null;
         }
 
-        $subscription = \App\Models\Subscription::activeForCompany($companyId);
+        $subscription = Subscription::activeForCompany($companyId);
         if ($subscription && ! $subscription->package?->hasFeature('tickets')) {
             return response()->json([
                 'success' => false,
@@ -375,6 +376,7 @@ class HcmTicketController extends Controller
             ], 422);
         }
         $ticket->delete();
+
         return response()->json(['success' => true]);
     }
 
@@ -399,6 +401,7 @@ class HcmTicketController extends Controller
             'user_id' => $request->user()->id,
             'body' => trim((string) $validated['body']),
         ]);
+
         return response()->json(['success' => true, 'data' => ['id' => $comment->id]], 201);
     }
 
@@ -431,6 +434,7 @@ class HcmTicketController extends Controller
             'mime_type' => (string) $file->getClientMimeType(),
             'size_bytes' => (int) $file->getSize(),
         ]);
+
         return response()->json(['success' => true, 'data' => ['id' => $attachment->id]], 201);
     }
 
@@ -444,6 +448,7 @@ class HcmTicketController extends Controller
         if (! Storage::disk($attachment->disk)->exists($attachment->path)) {
             return response()->json(['success' => false, 'error' => ['code' => 'FILE_NOT_FOUND', 'message' => 'Attachment file is not found.']], 404);
         }
+
         return Storage::disk($attachment->disk)->download($attachment->path, $attachment->original_name);
     }
 
@@ -459,6 +464,7 @@ class HcmTicketController extends Controller
         }
 
         $absolutePath = Storage::disk($attachment->disk)->path($attachment->path);
+
         return response()->file($absolutePath, [
             'Content-Type' => $attachment->mime_type ?: 'application/octet-stream',
             'Content-Disposition' => 'inline; filename="'.addslashes($attachment->original_name).'"',
@@ -503,6 +509,7 @@ class HcmTicketController extends Controller
             return $this->forbidden();
         }
         $rows = TicketCategory::query()->orderBy('sort_order')->orderBy('name')->get();
+
         return response()->json([
             'success' => true,
             'data' => $rows->map(fn (TicketCategory $c) => [
@@ -521,6 +528,7 @@ class HcmTicketController extends Controller
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get(['id', 'name']);
+
         return response()->json([
             'success' => true,
             'data' => $rows->map(fn (TicketCategory $c) => ['id' => $c->id, 'name' => $c->name])->values(),
@@ -542,6 +550,7 @@ class HcmTicketController extends Controller
             'is_active' => (bool) ($validated['isActive'] ?? true),
             'sort_order' => (int) ($validated['sortOrder'] ?? 0),
         ]);
+
         return response()->json(['success' => true, 'data' => ['id' => $row->id]], 201);
     }
 
@@ -561,6 +570,7 @@ class HcmTicketController extends Controller
             'is_active' => (bool) ($validated['isActive'] ?? true),
             'sort_order' => (int) ($validated['sortOrder'] ?? 0),
         ]);
+
         return response()->json(['success' => true]);
     }
 
@@ -570,6 +580,7 @@ class HcmTicketController extends Controller
             return $this->forbidden();
         }
         TicketCategory::query()->whereKey($id)->delete();
+
         return response()->json(['success' => true]);
     }
 
@@ -649,6 +660,7 @@ class HcmTicketController extends Controller
             $base->where('user_id', $ownerUserId);
         }
         $rows = $base->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
+
         return [
             'total' => (int) $rows->sum(),
             'open' => (int) ($rows['open'] ?? 0),
@@ -685,6 +697,7 @@ class HcmTicketController extends Controller
         if (! $this->canManageTickets($request)) {
             $query->where('user_id', $request->user()?->id);
         }
+
         return $query->first();
     }
 
@@ -754,6 +767,7 @@ class HcmTicketController extends Controller
     {
         $today = now()->format('Ymd');
         $count = (int) Ticket::query()->whereDate('created_at', now()->toDateString())->count() + 1;
+
         return sprintf('TIC-%s-%03d', $today, $count);
     }
 

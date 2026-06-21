@@ -44,7 +44,7 @@ return new class extends Migration
 
     private function addCompanyIdColumn(string $table): void
     {
-        Schema::table($table, function (Blueprint $t) use ($table): void {
+        Schema::table($table, function (Blueprint $t): void {
             $t->unsignedBigInteger('company_id')->nullable()->after('id')->index();
         });
     }

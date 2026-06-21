@@ -3,11 +3,9 @@
 namespace App\Models;
 
 use App\Models\Concerns\AssignsUuid;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class PackageFeature extends Model
 {
@@ -62,6 +60,6 @@ class PackageFeature extends Model
             return $this->newQuery()->whereKey((int) $value)->first();
         }
 
-        throw (new ModelNotFoundException())->setModel(static::class, [$value]);
+        throw (new ModelNotFoundException)->setModel(static::class, [$value]);
     }
 }

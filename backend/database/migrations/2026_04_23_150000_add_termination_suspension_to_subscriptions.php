@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasTable('subscriptions') && !Schema::hasColumn('subscriptions', 'terminated_at')) {
+        if (Schema::hasTable('subscriptions') && ! Schema::hasColumn('subscriptions', 'terminated_at')) {
             Schema::table('subscriptions', function (Blueprint $table) {
                 $table->timestamp('terminated_at')->nullable()->after('ends_at');
                 $table->text('termination_reason')->nullable()->after('terminated_at');

@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\EmployeeAiConsent;
 use App\Models\EmployeeProfile;
 use App\Models\User;
+use App\Services\Ai\AiLlmService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -125,7 +126,7 @@ class AiChatConsentTest extends TestCase
     {
         $user = User::factory()->create();
         $employee = $this->createEmployeeForUser($user);
-        $service = new \App\Services\Ai\AiLlmService();
+        $service = new AiLlmService;
 
         // Before consent
         $this->assertFalse($service->checkUserHasAiConsent($user->uuid));
@@ -149,7 +150,7 @@ class AiChatConsentTest extends TestCase
     {
         $user = User::factory()->create();
         $employee = $this->createEmployeeForUser($user);
-        $service = new \App\Services\Ai\AiLlmService();
+        $service = new AiLlmService;
 
         // Create and withdraw consent
         EmployeeAiConsent::create([
@@ -170,7 +171,7 @@ class AiChatConsentTest extends TestCase
     {
         $user = User::factory()->create();
         // No employee profile
-        $service = new \App\Services\Ai\AiLlmService();
+        $service = new AiLlmService;
 
         $this->assertFalse($service->checkUserHasAiConsent($user->uuid));
     }

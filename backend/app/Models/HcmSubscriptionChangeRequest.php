@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property string $id
@@ -17,25 +18,31 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $status
  * @property ?array $preview
  * @property ?string $notes
- * @property ?\Illuminate\Support\Carbon $effective_at
- * @property ?\Illuminate\Support\Carbon $decided_at
+ * @property ?Carbon $effective_at
+ * @property ?Carbon $decided_at
  * @property ?string $decided_by_user_uuid
- * @property ?\Illuminate\Support\Carbon $applied_at
+ * @property ?Carbon $applied_at
  */
 class HcmSubscriptionChangeRequest extends Model
 {
     use AssignsUuid;
 
     public const ACTION_UPGRADE = 'upgrade';
+
     public const ACTION_DOWNGRADE = 'downgrade';
+
     public const ACTION_CANCEL = 'cancel';
 
     public const VALID_ACTIONS = [self::ACTION_UPGRADE, self::ACTION_DOWNGRADE, self::ACTION_CANCEL];
 
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_APPROVED = 'approved';
+
     public const STATUS_REJECTED = 'rejected';
+
     public const STATUS_APPLIED = 'applied';
+
     public const STATUS_CANCELLED = 'cancelled';
 
     public const VALID_STATUSES = [

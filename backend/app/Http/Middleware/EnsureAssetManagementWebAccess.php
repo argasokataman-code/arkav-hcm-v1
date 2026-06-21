@@ -17,8 +17,7 @@ class EnsureAssetManagementWebAccess
     public function __construct(
         private readonly AssetService $assetService,
         private readonly TenantContextResolver $tenantContextResolver,
-    ) {
-    }
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {

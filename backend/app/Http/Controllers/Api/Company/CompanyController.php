@@ -20,7 +20,7 @@ class CompanyController extends Controller
         $activeCompany = $request->attributes->get('activeCompany');
         $activeUser = $request->user();
 
-        if (!$activeCompany || !$activeUser) {
+        if (! $activeCompany || ! $activeUser) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -223,7 +223,7 @@ class CompanyController extends Controller
         $user = $request->user();
         $company = Company::find($id);
 
-        if (!$company) {
+        if (! $company) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -272,7 +272,7 @@ class CompanyController extends Controller
         $user = $request->user();
         $company = Company::find($id);
 
-        if (!$company) {
+        if (! $company) {
             return response()->json([
                 'success' => false,
                 'error' => [

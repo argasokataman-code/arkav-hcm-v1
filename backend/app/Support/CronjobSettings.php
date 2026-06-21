@@ -3,8 +3,8 @@
 namespace App\Support;
 
 use App\Models\Setting;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class CronjobSettings

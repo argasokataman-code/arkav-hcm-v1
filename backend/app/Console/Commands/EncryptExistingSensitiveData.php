@@ -2,9 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Models\EmployeeBenefit;
 use App\Models\EmployeeProfile;
+use App\Models\EmployeeTaxProfile;
 use Illuminate\Console\Command;
-use Illuminate\Database\Eloquent\Model;
 
 class EncryptExistingSensitiveData extends Command
 {
@@ -60,21 +61,21 @@ class EncryptExistingSensitiveData extends Command
 
         // Update EmployeeTaxProfile
         $this->info('Processing EmployeeTaxProfile...');
-        $taxCount = \App\Models\EmployeeTaxProfile::query()->chunk(100, function ($taxProfiles) {
+        $taxCount = EmployeeTaxProfile::query()->chunk(100, function ($taxProfiles) {
             foreach ($taxProfiles as $taxProfile) {
                 $taxProfile->save();
             }
         });
-        $this->info("✓ Encrypted EmployeeTaxProfile records");
+        $this->info('✓ Encrypted EmployeeTaxProfile records');
 
         // Update EmployeeBenefit
         $this->info('Processing EmployeeBenefit...');
-        $benefitCount = \App\Models\EmployeeBenefit::query()->chunk(100, function ($benefits) {
+        $benefitCount = EmployeeBenefit::query()->chunk(100, function ($benefits) {
             foreach ($benefits as $benefit) {
                 $benefit->save();
             }
         });
-        $this->info("✓ Encrypted EmployeeBenefit records");
+        $this->info('✓ Encrypted EmployeeBenefit records');
 
         $this->line('');
         $this->info('✓ All sensitive data encrypted successfully!');

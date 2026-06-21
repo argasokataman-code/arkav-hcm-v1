@@ -3,27 +3,27 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
-use App\Models\Invoice;
+use App\Models\CompanyUser;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\EmployeeProfile;
 use App\Models\HcmRole;
 use App\Models\HcmUserRole;
+use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\PackageFeature;
 use App\Models\Policy;
 use App\Models\Subscription;
 use App\Models\Team;
 use App\Models\User;
-use App\Models\CompanyUser;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use App\Models\WilayahDistrict;
 use App\Models\WilayahProvince;
 use App\Models\WilayahRegency;
 use App\Models\WilayahVillage;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
@@ -34,7 +34,6 @@ class HcmEmployeeApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @var Company */
     private ?Company $company = null;
 
     private function bearerToken(bool $isAdmin = true): string
@@ -46,6 +45,7 @@ class HcmEmployeeApiTest extends TestCase
                 'password' => 'StrongPass1',
             ]);
             $this->company = $result['company'];
+
             return $result['token'];
         }
 
@@ -825,6 +825,7 @@ class HcmEmployeeApiTest extends TestCase
             ->assertJsonPath('data.addressRegion.villageId', $village->id)
             ->assertJsonPath('data.addressRegion.provinceName', 'DKI Jakarta');
     }
+
     public function test_employees_filter_by_status(): void
     {
         $token = $this->adminBearerToken();

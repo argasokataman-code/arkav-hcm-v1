@@ -13,10 +13,10 @@ use App\Models\HcmThrBatch;
 use App\Models\HcmThrBatchLine;
 use App\Services\Hcm\PkwtCompensationService;
 use App\Services\Reconciliation\ReconciliationExportService;
+use App\Support\Exports\TabularExportResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use App\Support\Exports\TabularExportResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -28,8 +28,7 @@ class ReconciliationExportController extends Controller
 
     public function __construct(
         private readonly ReconciliationExportService $exportService,
-    ) {
-    }
+    ) {}
 
     public function store(Request $request): JsonResponse
     {
@@ -468,7 +467,8 @@ class ReconciliationExportController extends Controller
      *
      * @param  array<string, mixed>  $filterPayload
      */
-    private function buildPayrollRunReconciliationCsv(?int $companyId, int $runId, array $filterPayload, string $datasetChecksum): string {
+    private function buildPayrollRunReconciliationCsv(?int $companyId, int $runId, array $filterPayload, string $datasetChecksum): string
+    {
         $rows = $this->buildPayrollRunPaymentExportRows($companyId, $runId, $filterPayload, $datasetChecksum);
         $stream = fopen('php://temp', 'w+');
         if (! $stream) {
@@ -709,7 +709,6 @@ class ReconciliationExportController extends Controller
     }
 
     /**
-     * @param mixed $rawIds
      * @return list<int>
      */
     private function extractIdList(mixed $rawIds): array
@@ -750,7 +749,7 @@ class ReconciliationExportController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $filterPayload
+     * @param  array<string, mixed>  $filterPayload
      * @return list<int>
      */
     private function extractPayrollExportUserIds(array $filterPayload): array

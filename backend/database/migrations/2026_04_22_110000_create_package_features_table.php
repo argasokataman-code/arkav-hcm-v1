@@ -28,7 +28,7 @@ return new class extends Migration
             $table->integer('limit')->nullable(); // null = unlimited, 0 = not included, > 0 = specific limit
             $table->uuid()->nullable();
             $table->timestamps();
-            
+
             $table->unique(['package_uuid', 'feature_code']);
             $table->index('feature_code');
         });

@@ -209,6 +209,7 @@ class HcmSptMasaController extends Controller
             );
         } catch (\Throwable $e) {
             Log::error('SPT Masa generation failed', ['error' => $e->getMessage(), 'company_id' => $companyId, 'periode' => $periode]);
+
             return $this->errorResponse('GENERATION_FAILED', 'SPT Masa generation failed. Please try again.', 500);
         }
 
@@ -280,6 +281,7 @@ class HcmSptMasaController extends Controller
             );
         } catch (\Throwable $e) {
             Log::error('SPT Masa regeneration failed', ['error' => $e->getMessage(), 'uuid' => $sptRef]);
+
             return $this->errorResponse('GENERATION_FAILED', 'Regeneration failed. Please try again.', 500);
         }
 

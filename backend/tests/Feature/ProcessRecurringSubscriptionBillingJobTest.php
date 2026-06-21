@@ -10,7 +10,9 @@ use App\Models\Package;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\SubscriptionEvent;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -75,7 +77,7 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             ],
         ]);
 
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
 
         $invoice = Invoice::query()
             ->where('company_id', $company->id)
@@ -131,8 +133,8 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             ],
         ]);
 
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
 
         $invoices = Invoice::query()
             ->where('company_id', $company->id)
@@ -159,13 +161,13 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             'notes' => json_encode(['source' => 'recurring_subscription_renewal'], JSON_UNESCAPED_SLASHES),
         ]);
 
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
 
         $payment = Payment::query()->where('invoice_id', $invoice->id)->latest('id')->firstOrFail();
         $this->assertSame(1, (int) ($payment->metadata['attempt_count'] ?? 0));
         $this->assertNotNull($payment->metadata['next_attempt_at'] ?? null);
 
-        $nextAttempt = \Illuminate\Support\Carbon::parse((string) $payment->metadata['next_attempt_at']);
+        $nextAttempt = Carbon::parse((string) $payment->metadata['next_attempt_at']);
         $this->assertTrue($nextAttempt->greaterThan(now()->addMinutes(55)));
 
         $invoice->refresh();
@@ -196,8 +198,8 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
         ]);
 
         // Simulate two workers picking the same due invoice in a tight window.
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
 
         $payment = Payment::query()->where('invoice_id', $invoice->id)->latest('id')->firstOrFail();
         $this->assertSame(1, (int) ($payment->metadata['attempt_count'] ?? 0));
@@ -239,7 +241,7 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             ],
         ]);
 
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
 
         $subscription->refresh();
         $this->assertSame('grace_period', $subscription->status);
@@ -315,7 +317,7 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             ],
         ]);
 
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
 
         Log::shouldHaveReceived('warning')->withArgs(function (string $message, array $context): bool {
             return $message === 'renewal_monitoring.alert'
@@ -335,7 +337,7 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             'grace_ends_at' => now()->subDay(),
         ])->save();
 
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
 
         $subscription->refresh();
         $company->refresh();
@@ -356,7 +358,7 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
 
         [$company, $subscription] = $this->createRecurringFixture();
 
-        $user = \App\Models\User::query()->create([
+        $user = User::query()->create([
             'name' => 'Billing Contact',
             'email' => 'billing@testco.example',
             'password' => bcrypt('secret'),
@@ -389,7 +391,7 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             'metadata' => ['attempt_count' => 3],
         ]);
 
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
 
         $subscription->refresh();
         $this->assertSame('grace_period', $subscription->status);
@@ -405,7 +407,7 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
 
         [$company, $subscription] = $this->createRecurringFixture();
 
-        $user = \App\Models\User::query()->create([
+        $user = User::query()->create([
             'name' => 'Billing Contact Warn',
             'email' => 'billing.warn@testco.example',
             'password' => bcrypt('secret'),
@@ -419,14 +421,14 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             'grace_ends_at' => now()->addDay(),
         ])->save();
 
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
 
         Log::shouldHaveReceived('info')->withArgs(function ($message, $context = []): bool {
             return ($context['event_key'] ?? null) === 'billing.subscription.suspension_warning';
         })->once();
 
         // Guard: re-dispatch must not send duplicate warning.
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
 
         Log::shouldHaveReceived('info')->withArgs(function ($message, $context = []): bool {
             return ($context['event_key'] ?? null) === 'billing.subscription.suspension_warning';
@@ -439,7 +441,7 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
 
         [$company, $subscription] = $this->createRecurringFixture();
 
-        $user = \App\Models\User::query()->create([
+        $user = User::query()->create([
             'name' => 'Billing Contact Susp',
             'email' => 'billing.susp@testco.example',
             'password' => bcrypt('secret'),
@@ -453,7 +455,7 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             'grace_ends_at' => now()->subDay(),
         ])->save();
 
-        dispatch_sync(new ProcessRecurringSubscriptionBilling());
+        dispatch_sync(new ProcessRecurringSubscriptionBilling);
 
         $subscription->refresh();
         $company->refresh();
@@ -466,7 +468,7 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
     }
 
     /**
-     * @return array{0: \App\Models\Company, 1: \App\Models\Subscription}
+     * @return array{0: Company, 1: Subscription}
      */
     private function createRecurringFixture(): array
     {

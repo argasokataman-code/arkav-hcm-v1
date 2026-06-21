@@ -2,30 +2,13 @@
 
 namespace App\Http\Controllers\Api\Performance\Concerns;
 
-use App\Http\Controllers\Controller;
-use App\Models\CompanyUser;
-use App\Models\EmployeeProfile;
-use App\Models\LeaveRequest;
 use App\Models\PerformanceCycle;
-use App\Models\PerformanceIndicatorItem;
-use App\Models\PerformanceIndicatorTemplate;
-use App\Models\PerformanceGoal;
-use App\Models\PerformanceGoalType;
-use App\Models\PerformanceReview;
-use App\Models\PerformanceReviewScore;
-use App\Modelsser;
-use App\Notifications\PerformanceReviewCreatedNotification;
-use App\Notifications\PerformanceReviewSubmittedNotification;
-use App\Notifications\PerformanceReviewManagerReviewedNotification;
-use App\Notifications\PerformanceReviewFinalizedNotification;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 trait HandlesPerformanceCycles
-{    public function cycles(Request $request): JsonResponse
+{
+    public function cycles(Request $request): JsonResponse
     {
         if ($forbidden = $this->ensurePermission($request, 'performance.view')) {
             return $forbidden;
@@ -37,6 +20,7 @@ trait HandlesPerformanceCycles
             'periodEnd' => $c->period_end->toDateString(),
             'status' => $c->status,
         ])->values();
+
         return response()->json(['success' => true, 'data' => $rows]);
     }
 
@@ -56,6 +40,7 @@ trait HandlesPerformanceCycles
             'period_end' => $v['periodEnd'],
             'status' => 'draft',
         ]);
+
         return response()->json(['success' => true, 'data' => ['id' => $c->id]], 201);
     }
 
@@ -77,6 +62,7 @@ trait HandlesPerformanceCycles
             'period_end' => $v['periodEnd'],
             'status' => $v['status'],
         ]);
+
         return response()->json(['success' => true]);
     }
 
@@ -88,6 +74,7 @@ trait HandlesPerformanceCycles
         PerformanceCycle::query()->where('status', 'active')->update(['status' => 'closed']);
         $c = PerformanceCycle::query()->findOrFail($id);
         $c->update(['status' => 'active']);
+
         return response()->json(['success' => true]);
     }
 
@@ -98,6 +85,7 @@ trait HandlesPerformanceCycles
         }
         $c = PerformanceCycle::query()->findOrFail($id);
         $c->update(['status' => 'closed']);
+
         return response()->json(['success' => true]);
     }
 

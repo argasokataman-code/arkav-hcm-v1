@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Models\Domain;
 use App\Models\Company;
+use App\Models\Domain;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class DomainFactory extends Factory

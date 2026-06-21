@@ -2,14 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
-use App\Models\Company;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
-use App\Models\User;
 use App\Models\HcmTaxGovernancePolicy;
+use App\Models\HcmTermination;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
@@ -425,7 +426,7 @@ class HcmPayrollRunApiTest extends TestCase
         $this->assertSame('void', $run->status);
         $this->assertNotNull($run->voided_at);
         $this->assertNotNull($run->voided_by_user_id);
-        $this->assertSame('open', \App\Models\HcmPayrollPeriod::query()->findOrFail($data['periodId'])->status);
+        $this->assertSame('open', HcmPayrollPeriod::query()->findOrFail($data['periodId'])->status);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->getJson('/v1/hcm/payroll-runs/'.$data['runId'])
@@ -519,7 +520,7 @@ class HcmPayrollRunApiTest extends TestCase
         // Disburse only emp1
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-runs/'.$data['runId'].'/disburse', [
-                'userIds' => [(int)$emp1User->id],
+                'userIds' => [(int) $emp1User->id],
             ])
             ->assertOk();
 
@@ -936,7 +937,7 @@ class HcmPayrollRunApiTest extends TestCase
 
         // Create an approved termination with date inside the period and no settlement link.
         $terminatedUser = User::query()->where('email', 'employee@example.com')->firstOrFail();
-        \App\Models\HcmTermination::query()->create([
+        HcmTermination::query()->create([
             'company_id' => $this->company->id,
             'user_id' => $terminatedUser->id,
             'termination_type' => 'resignation',
@@ -965,7 +966,7 @@ class HcmPayrollRunApiTest extends TestCase
         $data = $this->createAndFinalizeDraft($admin, 2026, 8);
 
         $terminatedUser = User::query()->where('email', 'employee@example.com')->firstOrFail();
-        \App\Models\HcmTermination::query()->create([
+        HcmTermination::query()->create([
             'company_id' => $this->company->id,
             'user_id' => $terminatedUser->id,
             'termination_type' => 'resignation',
@@ -993,7 +994,7 @@ class HcmPayrollRunApiTest extends TestCase
         $data = $this->createAndFinalizeDraft($admin, 2026, 9);
 
         $terminatedUser = User::query()->where('email', 'employee@example.com')->firstOrFail();
-        \App\Models\HcmTermination::query()->create([
+        HcmTermination::query()->create([
             'company_id' => $this->company->id,
             'user_id' => $terminatedUser->id,
             'termination_type' => 'resignation',
@@ -1029,7 +1030,7 @@ class HcmPayrollRunApiTest extends TestCase
         ]);
 
         // Create a run in company B
-        $otherPeriod = \App\Models\HcmPayrollPeriod::query()->create([
+        $otherPeriod = HcmPayrollPeriod::query()->create([
             'company_id' => $otherCompany->id,
             'period_year' => 2026,
             'period_month' => 11,
@@ -1070,7 +1071,7 @@ class HcmPayrollRunApiTest extends TestCase
             'country_code' => 'ID',
         ]);
 
-        $otherPeriod = \App\Models\HcmPayrollPeriod::query()->create([
+        $otherPeriod = HcmPayrollPeriod::query()->create([
             'company_id' => $otherCompany->id,
             'period_year' => 2026,
             'period_month' => 12,

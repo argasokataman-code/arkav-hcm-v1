@@ -6,11 +6,10 @@ use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
 
 class Domain extends Model
 {
-    use HasFactory, AssignsUuid;
+    use AssignsUuid, HasFactory;
 
     protected $fillable = [
         'domain_name',

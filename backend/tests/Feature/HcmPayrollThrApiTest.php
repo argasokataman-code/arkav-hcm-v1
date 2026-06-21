@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\EmployeeProfile;
 use App\Models\Company;
+use App\Models\EmployeeProfile;
 use App\Models\ExportReconciliationEvidence;
 use App\Models\HcmResignation;
 use App\Models\HcmTermination;
@@ -365,10 +365,10 @@ class HcmPayrollThrApiTest extends TestCase
     public function test_resigned_employee_excluded_from_thr_batch(): void
     {
         $adminToken = $this->adminToken();
-        
+
         // Create an active employee (without using seed)
         $resignedUser = $this->createEmployeeWithProfile('Resign User', 'resign@test.com', '2024-01-15', 50_000_000);
-        
+
         // Verify resignation record is created and approved
         HcmResignation::query()->create([
             'user_id' => $resignedUser->id,
@@ -378,14 +378,14 @@ class HcmPayrollThrApiTest extends TestCase
             'resignation_date' => '2024-10-31',
             'status' => 'approved',
         ]);
-        
+
         // Verify the record exists in DB
         $resignationCount = HcmResignation::query()
             ->where('user_id', $resignedUser->id)
             ->where('status', 'approved')
             ->count();
         $this->assertEquals(1, $resignationCount, 'Resignation record should be created and approved');
-        
+
         // Set THR settings
         HcmThrYearlySetting::query()->updateOrCreate(
             ['calendar_year' => 2024],
@@ -395,19 +395,19 @@ class HcmPayrollThrApiTest extends TestCase
                 'calculation_cutoff_date' => '2024-12-31',
             ]
         );
-        
+
         // Generate THR batch
         $response = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
             ->postJson('/v1/hcm/payroll/thr-batch/generate', ['calendarYear' => 2024])
             ->assertOk();
-        
+
         $batchData = $response->json('data');
         $lines = $batchData['lines'] ?? [];
-        
+
         // Assert: resigned employee should NOT be in THR lines
         $hasResignedUser = collect($lines)
             ->contains(fn ($line) => $line['userId'] === $resignedUser->id);
-        
+
         $this->assertFalse($hasResignedUser,
             'Resigned employee should be completely excluded from THR batch');
     }
@@ -419,10 +419,10 @@ class HcmPayrollThrApiTest extends TestCase
     public function test_terminated_employee_excluded_from_thr_batch(): void
     {
         $adminToken = $this->adminToken();
-        
+
         // Create an active employee
         $terminatedUser = $this->createEmployeeWithProfile('Terminated User', 'terminated@test.com', '2024-01-15', 50_000_000);
-        
+
         // Create and approve termination (before cutoff)
         HcmTermination::query()->create([
             'user_id' => $terminatedUser->id,
@@ -433,14 +433,14 @@ class HcmPayrollThrApiTest extends TestCase
             'termination_date' => '2024-09-30',
             'status' => 'approved',
         ]);
-        
+
         // Verify the record exists
         $terminationCount = HcmTermination::query()
             ->where('user_id', $terminatedUser->id)
             ->where('status', 'approved')
             ->count();
         $this->assertEquals(1, $terminationCount, 'Termination record should be created and approved');
-        
+
         // Set THR settings
         HcmThrYearlySetting::query()->updateOrCreate(
             ['calendar_year' => 2024],
@@ -450,19 +450,19 @@ class HcmPayrollThrApiTest extends TestCase
                 'calculation_cutoff_date' => '2024-12-31',
             ]
         );
-        
+
         // Generate THR batch
         $response = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
             ->postJson('/v1/hcm/payroll/thr-batch/generate', ['calendarYear' => 2024])
             ->assertOk();
-        
+
         $batchData = $response->json('data');
         $lines = $batchData['lines'] ?? [];
-        
+
         // Assert: terminated employee should NOT be in THR lines
         $hasTerminatedUser = collect($lines)
             ->contains(fn ($line) => $line['userId'] === $terminatedUser->id);
-        
+
         $this->assertFalse($hasTerminatedUser,
             'Terminated employee should be completely excluded from THR batch');
     }
@@ -474,10 +474,10 @@ class HcmPayrollThrApiTest extends TestCase
     public function test_pending_resignation_does_not_block_thr(): void
     {
         $adminToken = $this->adminToken();
-        
+
         // Create an active employee
         $user = $this->createEmployeeWithProfile('Pending Resign User', 'pending@test.com', '2024-01-15', 50_000_000);
-        
+
         // Create resignation BUT do NOT approve it
         HcmResignation::query()->create([
             'user_id' => $user->id,
@@ -487,7 +487,7 @@ class HcmPayrollThrApiTest extends TestCase
             'resignation_date' => '2024-10-31',
             'status' => 'pending',  // Not approved
         ]);
-        
+
         // Set THR settings
         HcmThrYearlySetting::query()->updateOrCreate(
             ['calendar_year' => 2024],
@@ -497,19 +497,19 @@ class HcmPayrollThrApiTest extends TestCase
                 'calculation_cutoff_date' => '2024-12-31',
             ]
         );
-        
+
         // Generate THR batch
         $response = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
             ->postJson('/v1/hcm/payroll/thr-batch/generate', ['calendarYear' => 2024])
             ->assertOk();
-        
+
         $batchData = $response->json('data');
         $lines = $batchData['lines'] ?? [];
-        
+
         // Verify the user IS in the lines (because resignation is pending, not approved)
         $hasUser = collect($lines)
             ->contains(fn ($line) => $line['userId'] === $user->id);
-        
+
         $this->assertTrue($hasUser,
             'Employee with pending resignation should still appear in THR batch');
     }

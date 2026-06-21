@@ -6,52 +6,59 @@ use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Subscription;
+use App\Services\MidtransService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Stripe\Exception\SignatureVerificationException;
+use Stripe\Webhook;
 
 class PaymentWebhookController extends Controller
 {
     /**
      * Handle Stripe webhook
      * POST /api/webhooks/stripe
-     * 
+     *
      * CRITICAL: Validates webhook signature to prevent replay attacks
      */
     public function handleStripe(Request $request): JsonResponse
     {
         $signature = $request->header('Stripe-Signature');
-        if (!$signature) {
+        if (! $signature) {
             Log::warning('Stripe webhook: Missing signature header');
+
             return response()->json(['success' => false, 'error' => 'Missing signature'], 400);
         }
 
         $body = $request->getContent();
-        
+
         try {
             // Validate Stripe signature (prevents replay attacks)
-            $event = \Stripe\Webhook::constructEvent(
+            $event = Webhook::constructEvent(
                 $body,
                 $signature,
                 config('services.stripe.webhook_secret')
             );
         } catch (\UnexpectedValueException $e) {
             Log::warning('Stripe webhook: Invalid JSON payload', ['error' => $e->getMessage()]);
+
             return response()->json(['success' => false, 'error' => 'Invalid JSON'], 400);
-        } catch (\Stripe\Exception\SignatureVerificationException $e) {
+        } catch (SignatureVerificationException $e) {
             Log::warning('Stripe webhook: Invalid signature', ['error' => $e->getMessage()]);
+
             return response()->json(['success' => false, 'error' => 'Invalid signature'], 401);
         }
 
         // IMPORTANT: Idempotency - check if we already processed this event
         $eventType = $event['type'];
         $eventId = $event['id'];
-        
+
         // Use a simple cache key or DB record to track processed webhooks
         $cacheKey = "stripe_webhook:$eventId";
         if (cache()->get($cacheKey)) {
             Log::info('Stripe webhook: Already processed', ['event_id' => $eventId]);
+
             return response()->json(['success' => true, 'message' => 'Already processed']);
         }
 
@@ -79,6 +86,7 @@ class PaymentWebhookController extends Controller
                 'type' => $eventType,
                 'error' => $e->getMessage(),
             ]);
+
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
@@ -323,7 +331,6 @@ class PaymentWebhookController extends Controller
         }
     }
 
-
     private function markInvoicePaidForPayment(Payment $payment): bool
     {
         $invoice = $payment->invoice;
@@ -432,18 +439,20 @@ class PaymentWebhookController extends Controller
      */
     public function handleMidtrans(Request $request): JsonResponse
     {
-        $data    = $request->all();
+        $data = $request->all();
         $orderId = (string) ($data['order_id'] ?? '');
 
         if ($orderId === '') {
             Log::warning('Midtrans webhook: Missing order_id', ['payload' => $data]);
+
             return response()->json(['success' => true, 'message' => 'Skipped: no order_id']);
         }
 
-        $midtrans = app(\App\Services\MidtransService::class);
+        $midtrans = app(MidtransService::class);
 
         if (! $midtrans->verifySignature($data)) {
             Log::warning('Midtrans webhook: Invalid signature', ['order_id' => $orderId]);
+
             return response()->json(['success' => false, 'error' => 'Invalid signature'], 401);
         }
 
@@ -451,16 +460,17 @@ class PaymentWebhookController extends Controller
         $cacheKey = "midtrans_webhook:{$orderId}";
         if (cache()->get($cacheKey)) {
             Log::info('Midtrans webhook: Already processed', ['order_id' => $orderId]);
+
             return response()->json(['success' => true, 'message' => 'Already processed']);
         }
 
-        $txStatus    = strtolower((string) ($data['transaction_status'] ?? ''));
+        $txStatus = strtolower((string) ($data['transaction_status'] ?? ''));
         $fraudStatus = strtolower((string) ($data['fraud_status'] ?? ''));
 
         Log::info('Midtrans webhook received', [
-            'order_id'           => $orderId,
+            'order_id' => $orderId,
             'transaction_status' => $txStatus,
-            'fraud_status'       => $fraudStatus,
+            'fraud_status' => $fraudStatus,
         ]);
 
         try {
@@ -479,8 +489,9 @@ class PaymentWebhookController extends Controller
         } catch (\Exception $e) {
             Log::error('Midtrans webhook: Processing error', [
                 'order_id' => $orderId,
-                'error'    => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
@@ -490,17 +501,18 @@ class PaymentWebhookController extends Controller
         $payment = $this->findPaymentByMidtransIdentifiers($orderId);
         if (! $payment) {
             Log::warning('Midtrans webhook: No payment matched for paid notification', ['order_id' => $orderId]);
+
             return;
         }
 
         $payment->update([
-            'status'      => 'completed',
-            'paid_at'     => now(),
+            'status' => 'completed',
+            'paid_at' => now(),
             'verified_at' => now(),
-            'metadata'    => array_merge($payment->metadata ?? [], [
+            'metadata' => array_merge($payment->metadata ?? [], [
                 'midtrans_transaction_id' => (string) ($data['transaction_id'] ?? ''),
-                'midtrans_payment_type'   => (string) ($data['payment_type'] ?? ''),
-                'midtrans_fraud_status'   => (string) ($data['fraud_status'] ?? ''),
+                'midtrans_payment_type' => (string) ($data['payment_type'] ?? ''),
+                'midtrans_fraud_status' => (string) ($data['fraud_status'] ?? ''),
             ]),
         ]);
 
@@ -515,11 +527,11 @@ class PaymentWebhookController extends Controller
         }
 
         $payment->update([
-            'status'   => 'failed',
+            'status' => 'failed',
             'metadata' => array_merge($payment->metadata ?? [], [
                 'midtrans_transaction_status' => (string) ($data['transaction_status'] ?? ''),
-                'midtrans_fraud_status'       => (string) ($data['fraud_status'] ?? ''),
-                'failed_at'                   => now()->toIso8601String(),
+                'midtrans_fraud_status' => (string) ($data['fraud_status'] ?? ''),
+                'failed_at' => now()->toIso8601String(),
             ]),
         ]);
 
@@ -528,7 +540,7 @@ class PaymentWebhookController extends Controller
             $this->setRecurringRenewalReason(
                 $invoice,
                 'MIDTRANS_PAYMENT_FAILED',
-                'Midtrans notification: transaction_status=' . ($data['transaction_status'] ?? 'unknown')
+                'Midtrans notification: transaction_status='.($data['transaction_status'] ?? 'unknown')
             );
         }
     }
@@ -545,4 +557,3 @@ class PaymentWebhookController extends Controller
             ->first();
     }
 }
-

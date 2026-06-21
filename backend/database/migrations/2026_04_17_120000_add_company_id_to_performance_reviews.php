@@ -4,7 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         if (! Schema::hasTable('performance_reviews')) {
@@ -21,7 +22,7 @@ return new class extends Migration {
             Schema::table('performance_reviews', function (Blueprint $table): void {
                 $table->index(['company_id', 'status'], 'performance_reviews_company_id_status_idx');
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }
@@ -35,7 +36,7 @@ return new class extends Migration {
                         ->on('companies')
                         ->nullOnDelete();
                 });
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                     throw $e;
                 }
@@ -53,7 +54,7 @@ return new class extends Migration {
             Schema::table('performance_reviews', function (Blueprint $table): void {
                 $table->dropForeign('performance_reviews_company_id_foreign');
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'check that column/key exists') === false && stripos($e->getMessage(), 'cannot drop') === false) {
                 throw $e;
             }
@@ -63,7 +64,7 @@ return new class extends Migration {
             Schema::table('performance_reviews', function (Blueprint $table): void {
                 $table->dropIndex('performance_reviews_company_id_status_idx');
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'check that column/key exists') === false && stripos($e->getMessage(), 'cannot drop') === false) {
                 throw $e;
             }

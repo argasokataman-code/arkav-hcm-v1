@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Company;
 use App\Models\EmployeeLeaveBalance;
 use App\Models\EmployeeProfile;
 use App\Models\HcmLeaveCustomPolicy;
@@ -43,7 +44,7 @@ class HcmSeedLeaveTestingDataCommand extends Command
 
         // leave_requests.company_id is NOT NULL — auto-provision a seed company when none is provided.
         if ($companyId === null) {
-            $company = \App\Models\Company::query()->firstOrCreate(
+            $company = Company::query()->firstOrCreate(
                 ['code' => 'LEAVE_SEED_COMPANY'],
                 ['name' => 'Leave Seed Company', 'domain' => 'leave-seed.local']
             );

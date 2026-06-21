@@ -1,5 +1,6 @@
 <?php
 
+use Carbon\Carbon;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,7 @@ return new class extends Migration
             ->orderBy('id')
             ->get(['id', 'holiday_date', 'title'])
             ->mapWithKeys(function ($row) {
-                $date = \Carbon\Carbon::parse((string) $row->holiday_date)->toDateString();
+                $date = Carbon::parse((string) $row->holiday_date)->toDateString();
                 $key = $date.'|'.mb_strtolower((string) $row->title);
 
                 return [$key => (int) $row->id];
@@ -39,7 +40,7 @@ return new class extends Migration
                 if ((int) ($row->holiday_id ?? 0) > 0) {
                     return;
                 }
-                $date = \Carbon\Carbon::parse((string) $row->date)->toDateString();
+                $date = Carbon::parse((string) $row->date)->toDateString();
                 $key = $date.'|'.mb_strtolower((string) $row->name);
                 $holidayId = $holidayMap[$key] ?? null;
                 if ($holidayId) {

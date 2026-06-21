@@ -12,9 +12,7 @@ use Illuminate\Support\Facades\Log;
  */
 class SubscriptionActivationFromInvoiceService
 {
-    public function __construct(private readonly CompanyStatusSynchronizer $companyStatusSynchronizer)
-    {
-    }
+    public function __construct(private readonly CompanyStatusSynchronizer $companyStatusSynchronizer) {}
 
     /**
      * After an invoice is marked paid: if {@code subscription_id} points to a

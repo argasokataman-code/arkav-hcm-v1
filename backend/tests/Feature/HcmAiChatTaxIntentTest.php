@@ -15,7 +15,7 @@ class HcmAiChatTaxIntentTest extends TestCase
     private function headers(string $token, int $companyId): array
     {
         return $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
         ], $companyId);
     }
 
@@ -28,7 +28,7 @@ class HcmAiChatTaxIntentTest extends TestCase
 
     public function test_global_admin_can_ask_monthly_government_tax_summary(): void
     {
-        $email = 'ai-tax-global-' . time() . '@example.com';
+        $email = 'ai-tax-global-'.time().'@example.com';
         $auth = $this->createHcmAdminWithCompany(['email' => $email]);
         $this->elevateToGlobalAdmin($email);
 
@@ -44,7 +44,7 @@ class HcmAiChatTaxIntentTest extends TestCase
             'status' => PlatformRevenueTransaction::STATUS_POSTED,
             'clearing_status' => PlatformRevenueTransaction::CLEARING_CLEARED,
             'occurred_at' => now()->startOfMonth()->addDays(2),
-            'idempotency_key' => 'ai-tax-cleared-' . uniqid(),
+            'idempotency_key' => 'ai-tax-cleared-'.uniqid(),
         ]);
 
         Http::fake([
@@ -68,7 +68,7 @@ class HcmAiChatTaxIntentTest extends TestCase
 
     public function test_non_global_admin_cannot_access_monthly_government_tax_summary(): void
     {
-        $auth = $this->createHcmAdminWithCompany(['email' => 'ai-tax-tenant-' . time() . '@example.com']);
+        $auth = $this->createHcmAdminWithCompany(['email' => 'ai-tax-tenant-'.time().'@example.com']);
 
         $response = $this->postJson('/v1/hcm/ai/chat', [
             'message' => 'Berapa pajak yang kita bayarkan ke pemerintah bulan ini?',

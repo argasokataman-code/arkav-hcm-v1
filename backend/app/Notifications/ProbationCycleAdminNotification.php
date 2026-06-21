@@ -21,8 +21,7 @@ class ProbationCycleAdminNotification extends Notification
         public readonly string $companyUuid,
         public readonly string $contractType,
         public readonly string $employmentHistoryUuid,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -33,13 +32,13 @@ class ProbationCycleAdminNotification extends Notification
     {
         $contractLabel = match ($this->contractType) {
             'permanent' => 'pegawai tetap',
-            'contract'  => 'pegawai kontrak',
-            default     => $this->contractType,
+            'contract' => 'pegawai kontrak',
+            default => $this->contractType,
         };
 
         $message = "Masa probasi karyawan {$this->employeeName} di {$this->companyName} telah berakhir. "
-            . "Status yang direncanakan: {$contractLabel}. "
-            . "Silakan perbarui status kepegawaian sesuai keputusan manajemen.";
+            ."Status yang direncanakan: {$contractLabel}. "
+            .'Silakan perbarui status kepegawaian sesuai keputusan manajemen.';
 
         return NotificationPayloadFactory::make('employee.probation.ended.admin', [
             'companyUuid' => $this->companyUuid,
@@ -49,13 +48,13 @@ class ProbationCycleAdminNotification extends Notification
             'message' => $message,
             'occurredAt' => now(),
         ], [
-            'event'                  => 'employee.probation.ended.admin',
-            'employeeName'           => $this->employeeName,
-            'companyName'            => $this->companyName,
-            'companyUuid'            => $this->companyUuid,
-            'contractType'           => $this->contractType,
-            'contractLabel'          => $contractLabel,
-            'employmentHistoryUuid'  => $this->employmentHistoryUuid,
+            'event' => 'employee.probation.ended.admin',
+            'employeeName' => $this->employeeName,
+            'companyName' => $this->companyName,
+            'companyUuid' => $this->companyUuid,
+            'contractType' => $this->contractType,
+            'contractLabel' => $contractLabel,
+            'employmentHistoryUuid' => $this->employmentHistoryUuid,
         ]);
     }
 }

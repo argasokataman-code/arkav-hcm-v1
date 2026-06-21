@@ -11,7 +11,7 @@ class EmployeeProfileUpdated
     use Dispatchable, SerializesModels;
 
     /**
-     * @param list<string> $changedFields List of field names that changed
+     * @param  list<string>  $changedFields  List of field names that changed
      */
     public function __construct(
         public readonly EmployeeProfile $profile,

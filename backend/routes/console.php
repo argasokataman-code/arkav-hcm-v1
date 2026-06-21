@@ -1,21 +1,18 @@
 <?php
 
-use App\Models\HcmPayrollPeriod;
-use App\Models\HcmPayrollRun;
-use App\Services\Hcm\RefreshOpenPayrollDraftsService;
-use App\Support\CronjobSettings;
-use App\Support\PayrollDraftBuilder;
-use App\Jobs\SendPaymentReminder;
-use App\Jobs\TerminateExpiredSubscriptionsJob;
-use App\Jobs\SuspendServicesForOverdueInvoicesJob;
+use App\Jobs\ApplySubscriptionChangeJob;
 use App\Jobs\CheckEmployeeCountLimitsJob;
+use App\Jobs\ClearRevenueTransactionsJob;
+use App\Jobs\CloseMonthlyFinancialReportJob;
 use App\Jobs\ConvertExpiredTrialsToPendingPaymentJob;
 use App\Jobs\ProcessRecurringSubscriptionBilling;
 use App\Jobs\ReconcilePendingRenewalPayments;
-use App\Jobs\ApplySubscriptionChangeJob;
-use App\Jobs\ClearRevenueTransactionsJob;
-use App\Jobs\CloseMonthlyFinancialReportJob;
+use App\Jobs\SendPaymentReminder;
+use App\Jobs\SuspendServicesForOverdueInvoicesJob;
+use App\Jobs\TerminateExpiredSubscriptionsJob;
 use App\Models\HcmSubscriptionChangeRequest;
+use App\Services\Hcm\RefreshOpenPayrollDraftsService;
+use App\Support\CronjobSettings;
 use Illuminate\Foundation\Console\ClosureCommand;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -27,7 +24,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 $paymentReminder = CronjobSettings::get('payment_reminder');
-$paymentReminderTask = Schedule::job(new SendPaymentReminder())
+$paymentReminderTask = Schedule::job(new SendPaymentReminder)
     ->name('cronjob-send-payment-reminder')
     ->description('Dispatch SendPaymentReminder job.')
     ->timezone((string) ($paymentReminder['timezone'] ?? 'Asia/Jakarta'))
@@ -106,7 +103,7 @@ if (($probationCycle['enabled'] ?? true) !== true) {
 // Convert ended trials into pending_payment + invoice
 $convertTrials = CronjobSettings::get('saas_convert_ended_trials');
 $convertTrialsTask = Schedule::call(function () {
-    dispatch(new ConvertExpiredTrialsToPendingPaymentJob());
+    dispatch(new ConvertExpiredTrialsToPendingPaymentJob);
 })->name('saas-convert-ended-trials')
     ->description('Convert ended trials into pending_payment and generate invoices')
     ->timezone((string) ($convertTrials['timezone'] ?? 'Asia/Jakarta'))
@@ -118,41 +115,41 @@ if (($convertTrials['enabled'] ?? true) !== true) {
 // Auto-terminate subscriptions whose end_date has passed
 $terminateExpired = CronjobSettings::get('saas_terminate_expired_subscriptions');
 $terminateExpiredTask = Schedule::call(function () {
-    dispatch(new TerminateExpiredSubscriptionsJob());
+    dispatch(new TerminateExpiredSubscriptionsJob);
 })->name('saas-terminate-expired-subscriptions')
     ->description('Auto-terminate subscriptions with expired end_date')
     ->timezone((string) ($terminateExpired['timezone'] ?? 'Asia/Jakarta'))
     ->dailyAt((string) ($terminateExpired['time'] ?? '00:30'));
-if (!(config('app.saas.auto_termination_enabled', true)) || (($terminateExpired['enabled'] ?? true) !== true)) {
+if (! (config('app.saas.auto_termination_enabled', true)) || (($terminateExpired['enabled'] ?? true) !== true)) {
     $terminateExpiredTask->skip(fn (): bool => true);
 }
 
 // Suspend services for overdue invoices (grace window in job)
 $suspendOverdue = CronjobSettings::get('saas_suspend_overdue_services');
 $suspendOverdueTask = Schedule::call(function () {
-    dispatch(new SuspendServicesForOverdueInvoicesJob());
+    dispatch(new SuspendServicesForOverdueInvoicesJob);
 })->name('saas-suspend-overdue-services')
     ->description('Auto-suspend services with overdue unpaid invoices')
     ->timezone((string) ($suspendOverdue['timezone'] ?? 'Asia/Jakarta'))
     ->dailyAt((string) ($suspendOverdue['time'] ?? '06:00'));
-if (!(config('app.saas.auto_suspension_enabled', true)) || (($suspendOverdue['enabled'] ?? true) !== true)) {
+if (! (config('app.saas.auto_suspension_enabled', true)) || (($suspendOverdue['enabled'] ?? true) !== true)) {
     $suspendOverdueTask->skip(fn (): bool => true);
 }
 
 // Monitor employee count violations against plan limits
 $checkEmployeeCount = CronjobSettings::get('saas_check_employee_count_limits');
 $checkEmployeeCountTask = Schedule::call(function () {
-    dispatch(new CheckEmployeeCountLimitsJob());
+    dispatch(new CheckEmployeeCountLimitsJob);
 })->name('saas-check-employee-count-limits')
     ->description('Monitor and enforce employee count limits against subscription plans')
     ->timezone((string) ($checkEmployeeCount['timezone'] ?? 'Asia/Jakarta'))
     ->dailyAt((string) ($checkEmployeeCount['time'] ?? '01:00'));
-if (!(config('app.saas.employee_limit_enforcement_enabled', true)) || (($checkEmployeeCount['enabled'] ?? true) !== true)) {
+if (! (config('app.saas.employee_limit_enforcement_enabled', true)) || (($checkEmployeeCount['enabled'] ?? true) !== true)) {
     $checkEmployeeCountTask->skip(fn (): bool => true);
 }
 
 $recurringBilling = CronjobSettings::get('saas_recurring_billing');
-$recurringBillingTask = Schedule::job(new ProcessRecurringSubscriptionBilling())
+$recurringBillingTask = Schedule::job(new ProcessRecurringSubscriptionBilling)
     ->name('saas-recurring-billing')
     ->description('Process subscription renewals and recurring billing tasks')
     ->timezone((string) ($recurringBilling['timezone'] ?? 'Asia/Jakarta'))
@@ -163,7 +160,7 @@ if (($recurringBilling['enabled'] ?? true) !== true) {
 }
 
 $reconcileRenewal = CronjobSettings::get('saas_reconcile_pending_renewals');
-$reconcileRenewalTask = Schedule::job(new ReconcilePendingRenewalPayments())
+$reconcileRenewalTask = Schedule::job(new ReconcilePendingRenewalPayments)
     ->name('saas-reconcile-pending-renewals')
     ->description('Reconcile pending renewal payments against gateway status and surface anomalies')
     ->timezone((string) ($reconcileRenewal['timezone'] ?? 'Asia/Jakarta'))
@@ -201,7 +198,7 @@ if (($applyPlanChanges['enabled'] ?? true) !== true) {
 }
 
 $taxRevenueClearing = CronjobSettings::get('tax_revenue_clearing');
-$taxRevenueClearingTask = Schedule::job(new ClearRevenueTransactionsJob())
+$taxRevenueClearingTask = Schedule::job(new ClearRevenueTransactionsJob)
     ->name('tax-revenue-clearing')
     ->description('Mark posted uncleared platform revenue transactions as cleared after grace window')
     ->timezone((string) ($taxRevenueClearing['timezone'] ?? 'Asia/Jakarta'))

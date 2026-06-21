@@ -1,21 +1,23 @@
 <?php
 
-
-use App\Mail\AdminComposeMailable;
-use App\Models\NotificationDelivery;
-use App\Services\NotificationDeliveryRecorder;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ApiTokenController;
+use App\Http\Controllers\CronjobController;
 use App\Http\Controllers\CustomAuthController;
 use App\Http\Controllers\KnowledgebaseController;
-use App\Support\HcmKnowledgebase;
-use App\Http\Controllers\CronjobController;
+use App\Http\Controllers\PublicLandingController;
 use App\Http\Controllers\WilayahLocationController;
+use App\Mail\AdminComposeMailable;
 use App\Models\Company;
 use App\Models\CompanySetting;
+use App\Models\CompanyUser;
+use App\Models\HcmLeaveTypeSetting;
+use App\Models\Invoice;
+use App\Models\NotificationDelivery;
+use App\Services\NotificationDeliveryRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
-use App\Models\HcmLeaveTypeSetting;
-use App\Http\Controllers\PublicLandingController;
+use Illuminate\Support\Facades\Route;
+
 // Local dev helper: serve extensionless build JS module requests by appending
 // `.js` (or falling back to `index.js` in a directory). This fixes dynamic
 // import requests like `/build/js/employees/api` that don't include an
@@ -23,7 +25,7 @@ use App\Http\Controllers\PublicLandingController;
 if (app()->environment('local')) {
     Route::get('/build/js/{file}', function (Request $request, $file) {
         $publicBase = public_path('build/js/');
-        $candidate = $publicBase . $file;
+        $candidate = $publicBase.$file;
 
         // If the requested path already contains an extension, bail out.
         if (strpos(basename($file), '.') !== false) {
@@ -31,13 +33,13 @@ if (app()->environment('local')) {
         }
 
         // Try <path>.js
-        $js = $candidate . '.js';
+        $js = $candidate.'.js';
         if (is_file($js)) {
             return response()->file($js, ['Content-Type' => 'application/javascript']);
         }
 
         // Try <path>/index.js
-        $index = rtrim($candidate, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'index.js';
+        $index = rtrim($candidate, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'index.js';
         if (is_file($index)) {
             return response()->file($index, ['Content-Type' => 'application/javascript']);
         }
@@ -46,8 +48,8 @@ if (app()->environment('local')) {
     })->where('file', '.*');
 }
 
-Route::post('custom-login', [CustomAuthController::class, 'customLogin'])->name('login.custom'); 
-Route::post('custom-registration', [CustomAuthController::class, 'customRegistration'])->name('register.custom'); 
+Route::post('custom-login', [CustomAuthController::class, 'customLogin'])->name('login.custom');
+Route::post('custom-registration', [CustomAuthController::class, 'customRegistration'])->name('register.custom');
 Route::get('signout', [CustomAuthController::class, 'signOut'])->name('signout');
 
 // Web routes for file downloads (session-authenticated, not API token)
@@ -56,8 +58,6 @@ Route::get('/employees/bulk-template', function (Request $request) {
     // Browser cookie 'arcav_access_token' will be sent automatically
     return redirect('/v1/hcm/employees/bulk-template', 302);
 })->middleware('hcm.web.admin')->name('employees.bulk-template');
-
-
 
 Route::get('/', [PublicLandingController::class, 'index'])->name('root');
 
@@ -202,7 +202,7 @@ Route::match(['get', 'post'], '/email', function (Request $request) {
                     'senderEmail' => (string) ($request->user()?->email ?? ''),
                 ],
             ]);
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             report($exception);
 
             return redirect()
@@ -470,7 +470,7 @@ Route::get('/saas/billing-overview', function () {
     return view('saas.billing-overview');
 })->middleware('hcm.web.global-admin')->name('saas.billing-overview');
 
-Route::get('/saas/billing-overview/invoices/{invoice}', function (\App\Models\Invoice $invoice) {
+Route::get('/saas/billing-overview/invoices/{invoice}', function (Invoice $invoice) {
     return view('saas.billing-overview-invoice-detail', ['invoice' => $invoice]);
 })->middleware('hcm.web.global-admin')->name('saas.billing-overview.invoice-detail');
 
@@ -542,7 +542,7 @@ Route::get('/upgrade', function () {
     return view('upgrade');
 })->middleware('hcm.web.admin')->name('upgrade');
 
-Route::get('/api-token', [\App\Http\Controllers\ApiTokenController::class, 'getToken'])->name('api-token');
+Route::get('/api-token', [ApiTokenController::class, 'getToken'])->name('api-token');
 
 Route::get('/companies', function () {
     return view('companies');
@@ -555,24 +555,24 @@ Route::get('/subscription', function () {
 // Invoice checkout preview (display breakdown before redirect to payment gateway)
 Route::get('/company/invoices/{invoiceId}/checkout-preview', function (Request $request, $invoiceId) {
     $user = auth()->user();
-    if (!$user) {
+    if (! $user) {
         return redirect()->route('login');
     }
 
-    $invoice = \App\Models\Invoice::with(['company', 'subscription'])
+    $invoice = Invoice::with(['company', 'subscription'])
         ->where('id', (int) $invoiceId)
         ->first();
 
-    if (!$invoice) {
+    if (! $invoice) {
         abort(404);
     }
 
     // Check user has access to this company/invoice
-    $hasAccess = \App\Models\CompanyUser::where('user_id', $user->id)
+    $hasAccess = CompanyUser::where('user_id', $user->id)
         ->where('company_id', $invoice->company_id)
         ->exists();
 
-    if (!$hasAccess) {
+    if (! $hasAccess) {
         abort(403);
     }
 
@@ -996,26 +996,25 @@ Route::get('/blog-2', function () {
     return view(view: 'blog-2');
 })->name('blog-2');
 
-Route::get('/email-reply', function ()       {
+Route::get('/email-reply', function () {
     return view(view: 'email-reply');
 })->name('email-reply');
 
-Route::get('/experience-level', function ()       {
+Route::get('/experience-level', function () {
     return view(view: 'experience-level');
 })->name('experience-level');
 
-Route::get('/form-pickers', function ()       {
+Route::get('/form-pickers', function () {
     return view(view: 'form-pickers');
 })->name('form-pickers');
 
-Route::get('/group-video-call', function ()       {
+Route::get('/group-video-call', function () {
     return view(view: 'group-video-call');
 })->name('group-video-call');
 
-Route::get('/invoice', function ()       {
+Route::get('/invoice', function () {
     return view(view: 'invoice');
 })->name('invoice');
-
 
 Route::get('/ui-alerts', function () {
     return view('ui-alerts');
@@ -1183,19 +1182,19 @@ Route::get('/chart-apex', function () {
 
 Route::get('/chart-c3', function () {
     return view('chart-c3');
-})->name('chart-c3');  
+})->name('chart-c3');
 
 Route::get('/chart-flot', function () {
     return view('chart-flot');
-})->name('chart-flot'); 
+})->name('chart-flot');
 
 Route::get('/chart-js', function () {
     return view('chart-js');
-})->name('chart-js');    
+})->name('chart-js');
 
 Route::get('/chart-morris', function () {
     return view('chart-morris');
-})->name('chart-morris'); 
+})->name('chart-morris');
 
 Route::get('/chart-peity', function () {
     return view('chart-peity');
@@ -1518,11 +1517,11 @@ Route::middleware('hcm.web.admin')->group(function (): void {
     })->name('reports-hub');
 });
 
-Route::get('roles-permissions', function() {
+Route::get('roles-permissions', function () {
     return view('roles-permissions');
 })->middleware('hcm.web.admin')->name('roles-permissions');
 
-Route::get('permission', function() {
+Route::get('permission', function () {
     return view('permission');
 })->middleware('hcm.web.admin')->name('permission');
 
@@ -1548,21 +1547,21 @@ Route::get('knowledgebase-details', function (Request $request) {
     return redirect()->route('knowledgebase');
 })->name('knowledgebase-details');
 
-Route::get('users', function() {
+Route::get('users', function () {
     return view('users');
 })->middleware('hcm.web.admin')->name('users');
 
 Route::middleware(['hcm.web.admin', 'hcm.web.asset-management'])->group(function (): void {
-    Route::get('assets', function() {
+    Route::get('assets', function () {
         return view('assets');
     })->name('assets');
 
-    Route::get('asset-categories', function() {
+    Route::get('asset-categories', function () {
         return view('asset-categories');
     })->name('asset-categories');
 });
 
-Route::get('payslip', function() {
+Route::get('payslip', function () {
     return view('payslip');
 })->middleware(['hcm.web.admin', 'hcm.web.feature:payroll'])->name('payslip');
 
@@ -1594,13 +1593,13 @@ Route::get('/ai-settings', function () {
     return view('ai-settings');
 })->middleware('hcm.web.global-admin')->name('ai-settings');
 
-Route::get( '/salary-settings', function () {
+Route::get('/salary-settings', function () {
     return view('salary-settings');
 })->middleware('hcm.web.admin')->name('salary-settings');
 
-Route::get( '/approval-settings', function (\Illuminate\Http\Request $request) {
+Route::get('/approval-settings', function (Request $request) {
     $companyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
-    $company = $companyId > 0 ? \App\Models\Company::query()->find($companyId) : null;
+    $company = $companyId > 0 ? Company::query()->find($companyId) : null;
 
     $activeModules = [];
     if ($company) {
@@ -1620,7 +1619,7 @@ Route::get( '/approval-settings', function (\Illuminate\Http\Request $request) {
     return view('approval-settings', ['activeModules' => $activeModules]);
 })->middleware('hcm.web.admin', 'hcm.web.feature:hcm_approval_settings')->name('approval-settings');
 
-Route::get( '/invoice-settings', function () {
+Route::get('/invoice-settings', function () {
     return view('invoice-settings');
 })->middleware('hcm.web.admin')->name('invoice-settings');
 
@@ -1633,7 +1632,7 @@ Route::get('/leave-type', function () {
     return view('leave-type', ['leaveTypes' => $leaveTypes]);
 })->middleware(['hcm.web.admin', 'hcm.web.feature:leave_management'])->name('leave-type');
 
-Route::get( '/custom-fields', function () {
+Route::get('/custom-fields', function () {
     return view('custom-fields');
 })->middleware('hcm.web.admin')->name('custom-fields');
 
@@ -1641,29 +1640,29 @@ Route::get('/email-settings', function () {
     return view('settings.email-settings');
 })->middleware('hcm.web.global-admin')->name('email-settings');
 
-Route::get( '/tax-rates', function () {
-    return view( 'tax-rates');
-})->middleware('hcm.web.admin')->name( 'tax-rates');
+Route::get('/tax-rates', function () {
+    return view('tax-rates');
+})->middleware('hcm.web.admin')->name('tax-rates');
 
-Route::get( '/pages', function () {
-    return view( 'pages');
-})->middleware('hcm.web.primary-super-admin')->name( 'pages');
+Route::get('/pages', function () {
+    return view('pages');
+})->middleware('hcm.web.primary-super-admin')->name('pages');
 
-Route::get( '/blogs', function () {
-    return view( 'blogs');
-})->middleware('hcm.web.primary-super-admin')->name( 'blogs');
+Route::get('/blogs', function () {
+    return view('blogs');
+})->middleware('hcm.web.primary-super-admin')->name('blogs');
 
-Route::get( '/blog-categories', function () {
-    return view( 'blog-categories');
-})->name( 'blog-categories');
+Route::get('/blog-categories', function () {
+    return view('blog-categories');
+})->name('blog-categories');
 
-Route::get( '/blog-comments', function () {
-    return view( 'blog-comments');
-})->name( 'blog-comments');
+Route::get('/blog-comments', function () {
+    return view('blog-comments');
+})->name('blog-comments');
 
-Route::get( '/blog-tags',  function () {
-    return view( 'blog-tags');
-})->name( 'blog-tags');
+Route::get('/blog-tags', function () {
+    return view('blog-tags');
+})->name('blog-tags');
 
 Route::get('/countries', [WilayahLocationController::class, 'countries'])->name('countries');
 
@@ -1677,53 +1676,53 @@ Route::get('/cities', [WilayahLocationController::class, 'cities'])->name('citie
 
 Route::get('/villages', [WilayahLocationController::class, 'villages'])->name('villages');
 
-Route::get( '/testimonials', function () {
-    return view( 'testimonials');
-})->middleware('hcm.web.primary-super-admin')->name( 'testimonials');
+Route::get('/testimonials', function () {
+    return view('testimonials');
+})->middleware('hcm.web.primary-super-admin')->name('testimonials');
 
 Route::get('/activity', function () {
     return view('activity');
 })->middleware('hcm.web.primary-super-admin')->name('activity');
 
-Route::get( '/faq', function () {
-    return view( 'faq');
-})->name( 'faq');
+Route::get('/faq', function () {
+    return view('faq');
+})->name('faq');
 
-Route::get( '/budget-expenses', function () {
-    return view( 'budget-expenses');
-})->name( 'budget-expenses');
+Route::get('/budget-expenses', function () {
+    return view('budget-expenses');
+})->name('budget-expenses');
 
-Route::get( '/budget-revenues', function () {
-    return view( 'budget-revenues');
-})->name( 'budget-revenues');
+Route::get('/budget-revenues', function () {
+    return view('budget-revenues');
+})->name('budget-revenues');
 
-Route::get( '/budgets', function () {
-    return view( 'budgets');
-})->name( 'budgets');
+Route::get('/budgets', function () {
+    return view('budgets');
+})->name('budgets');
 
-Route::get( '/categories', function () {
-    return view( 'categories');
-})->name( 'categories');
+Route::get('/categories', function () {
+    return view('categories');
+})->name('categories');
 
-Route::get( '/taxes', function () {
-    return view( 'taxes');
-})->name( 'taxes');
+Route::get('/taxes', function () {
+    return view('taxes');
+})->name('taxes');
 
-Route::get( '/provident-fund', function () {
-    return view( 'provident-fund');
-})->name( 'provident-fund');
+Route::get('/provident-fund', function () {
+    return view('provident-fund');
+})->name('provident-fund');
 
-Route::get( '/expenses', function () {
-    return view( 'expenses');
-})->name( 'expenses');
+Route::get('/expenses', function () {
+    return view('expenses');
+})->name('expenses');
 
-Route::get( '/shortlist-candidates', function () {
-    return view( 'shortlist-candidates');
-})->name( 'shortlist-candidates');
+Route::get('/shortlist-candidates', function () {
+    return view('shortlist-candidates');
+})->name('shortlist-candidates');
 
-Route::get( '/offer-approvals', function () {
-    return view( 'offer-approvals');
-})->name( 'offer-approvals');
+Route::get('/offer-approvals', function () {
+    return view('offer-approvals');
+})->name('offer-approvals');
 
 Route::get('/terms-condition', function () {
     return view('terms-condition');
@@ -1785,6 +1784,3 @@ Route::get('/success-2', function () {
 Route::get('/success-3', function () {
     return view('success-3');
 })->name('success-3');
-
-
-

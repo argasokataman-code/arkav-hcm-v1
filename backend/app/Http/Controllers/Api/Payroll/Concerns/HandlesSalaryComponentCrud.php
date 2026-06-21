@@ -2,16 +2,9 @@
 
 namespace App\Http\Controllers\Api\Payroll\Concerns;
 
-use App\Models\EmployeeBenefit;
-use App\Models\EmployeeTaxProfile;
 use App\Models\HcmBpjsGovernancePolicy;
-use App\Models\HcmEmployeeAllowancePolicy;
-use App\Models\HcmEmployeePayrollItemAssignment;
-use App\Models\HcmPayrollItem;
 use App\Models\HcmSalaryComponent;
-use App\Models\HcmSalaryComponentCategory;
 use App\Models\HcmTaxGovernancePolicy;
-use App\Modelsser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +13,7 @@ use Illuminate\Validation\Rule;
 
 trait HandlesSalaryComponentCrud
 {
-public function index(Request $request): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $forbidden = $this->ensurePermission($request, 'payroll.view');
         if ($forbidden) {
@@ -72,7 +65,7 @@ public function index(Request $request): JsonResponse
         if ($forbidden) {
             return $forbidden;
         }
-        
+
         return response()->json([
             'success' => false,
             'error' => [
@@ -174,7 +167,7 @@ public function index(Request $request): JsonResponse
                 'success' => false,
                 'error' => [
                     'code' => 'SYSTEM_LOCKED',
-                    'message' => 'Komponen ini dikunci oleh modul governance (' . ($c->source_module ?? 'system') . ') dan tidak dapat diubah secara manual. Gunakan modul governance yang bersangkutan untuk mengubah kebijakan terkait.',
+                    'message' => 'Komponen ini dikunci oleh modul governance ('.($c->source_module ?? 'system').') dan tidak dapat diubah secara manual. Gunakan modul governance yang bersangkutan untuk mengubah kebijakan terkait.',
                 ],
             ], 403);
         }
@@ -270,7 +263,7 @@ public function index(Request $request): JsonResponse
                 'success' => false,
                 'error' => [
                     'code' => 'SYSTEM_LOCKED',
-                    'message' => 'Komponen ini dikunci oleh modul governance (' . ($c->source_module ?? 'system') . ') dan tidak dapat dihapus. Nonaktifkan melalui modul governance yang bersangkutan jika tidak lagi diperlukan.',
+                    'message' => 'Komponen ini dikunci oleh modul governance ('.($c->source_module ?? 'system').') dan tidak dapat dihapus. Nonaktifkan melalui modul governance yang bersangkutan jika tidak lagi diperlukan.',
                 ],
             ], 403);
         }

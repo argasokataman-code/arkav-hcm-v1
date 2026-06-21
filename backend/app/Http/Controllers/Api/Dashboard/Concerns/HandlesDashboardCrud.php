@@ -2,39 +2,29 @@
 
 namespace App\Http\Controllers\Api\Dashboard\Concerns;
 
-use App\Http\Controllers\Api\Concerns\ChecksPermissions;
-use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
-use App\Models\Department;
+use App\Models\Company;
 use App\Models\EmployeeProfile;
 use App\Models\HcmLeaveTypeSetting;
-use App\Models\HcmManualActivity;
 use App\Models\HcmPayrollLine;
-use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
-use App\Models\HcmPromotion;
-use App\Models\HcmResignation;
-use App\Models\HcmTermination;
 use App\Models\HcmTraining;
 use App\Models\Holiday;
-use App\Models\Company;
-use App\Models\Invoice;
 use App\Models\LeaveRequest;
-use App\Models\Subscription;
 use App\Models\OvertimeRequest;
 use App\Models\PerformanceReview;
-use App\Modelsser;
+use App\Models\Subscription;
 use App\Support\Exports\TabularExportResponse;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 trait HandlesDashboardCrud
 {
-
     private function applyAttendanceTenantScope(Builder $query, ?int $companyId): Builder
     {
         if (! $companyId) {
@@ -215,6 +205,7 @@ trait HandlesDashboardCrud
 
             $paymentStates = $lineRows->map(function (HcmPayrollLine $line): string {
                 $meta = is_array($line->meta) ? $line->meta : [];
+
                 return strtolower((string) ($meta['paymentStatus'] ?? 'unpaid'));
             });
 
@@ -433,6 +424,7 @@ trait HandlesDashboardCrud
 
                 $row['birthdayLabel'] = $next->format('d M');
                 $row['birthdayDaysLeft'] = $referenceDate->diffInDays($next, false);
+
                 return $row;
             })
             ->sortBy('birthdayDaysLeft')
@@ -477,6 +469,7 @@ trait HandlesDashboardCrud
 
         $scores = $reviews->map(function (PerformanceReview $row): array {
             $score = (float) ($row->final_total_score ?? $row->manager_total_score ?? $row->self_total_score ?? 0);
+
             return [
                 'label' => (string) ($row->cycle?->name ?: optional($row->cycle?->period_end)->format('M Y') ?: ('Review #'.$row->id)),
                 'score' => round($score, 2),
@@ -510,7 +503,7 @@ trait HandlesDashboardCrud
         });
 
         return $grouped->map(function ($rows, string $skillName): array {
-            /** @var \Illuminate\Support\Collection $rows */
+            /** @var Collection $rows */
             $latest = $rows->sortByDesc('end_date')->first();
             $count = $rows->count();
             $level = (int) min(95, 45 + ($count * 10));
@@ -530,6 +523,7 @@ trait HandlesDashboardCrud
         }
 
         $normalized = ltrim(str_replace('\\', '/', $path), '/');
+
         return '/storage/'.$normalized;
     }
 
@@ -548,6 +542,7 @@ trait HandlesDashboardCrud
         }
 
         $mins = (int) $checkIn->diffInMinutes($end);
+
         return max(0, $mins - $breakMinutes);
     }
 
@@ -610,10 +605,10 @@ trait HandlesDashboardCrud
 
         $now = Carbon::now('Asia/Jakarta');
         $monthStart = $now->copy()->startOfMonth()->toDateString();
-        $monthEnd   = $now->copy()->endOfMonth()->toDateString();
+        $monthEnd = $now->copy()->endOfMonth()->toDateString();
 
         // Aggregate employee counts grouped by company
-        $companyCounts = \App\Models\Company::query()
+        $companyCounts = Company::query()
             ->select([
                 'companies.id',
                 'companies.code',
@@ -624,21 +619,21 @@ trait HandlesDashboardCrud
             ->selectRaw("SUM(CASE WHEN ep.employment_status IN ('active','probation') THEN 1 ELSE 0 END) as active_employees")
             ->selectRaw("SUM(CASE WHEN ep.employment_status = 'probation' THEN 1 ELSE 0 END) as probation_employees")
             ->selectRaw("SUM(CASE WHEN ep.employment_status IN ('resigned','terminated','inactive') THEN 1 ELSE 0 END) as inactive_employees")
-            ->selectRaw("SUM(CASE WHEN ep.hire_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as new_hires_this_month", [$monthStart, $monthEnd])
-            ->selectRaw("SUM(CASE WHEN ep.contract_end_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as expiring_contracts_30d", [$now->toDateString(), $now->copy()->addDays(30)->toDateString()])
+            ->selectRaw('SUM(CASE WHEN ep.hire_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as new_hires_this_month', [$monthStart, $monthEnd])
+            ->selectRaw('SUM(CASE WHEN ep.contract_end_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as expiring_contracts_30d', [$now->toDateString(), $now->copy()->addDays(30)->toDateString()])
             ->leftJoin('employee_profiles as ep', 'ep.company_id', '=', 'companies.id')
             ->groupBy('companies.id', 'companies.code', 'companies.name', 'companies.status')
             ->orderBy('companies.name')
             ->get();
 
         // Global summary
-        $totalEmployees      = $companyCounts->sum('total_employees');
-        $totalActive         = $companyCounts->sum('active_employees');
-        $totalProbation      = $companyCounts->sum('probation_employees');
-        $totalInactive       = $companyCounts->sum('inactive_employees');
-        $totalNewHires       = $companyCounts->sum('new_hires_this_month');
+        $totalEmployees = $companyCounts->sum('total_employees');
+        $totalActive = $companyCounts->sum('active_employees');
+        $totalProbation = $companyCounts->sum('probation_employees');
+        $totalInactive = $companyCounts->sum('inactive_employees');
+        $totalNewHires = $companyCounts->sum('new_hires_this_month');
         $totalExpiringContracts = $companyCounts->sum('expiring_contracts_30d');
-        $totalCompanies      = $companyCounts->count();
+        $totalCompanies = $companyCounts->count();
         $totalActiveCompanies = $companyCounts->where('status', 'active')->count();
 
         // Global employment_status breakdown
@@ -651,10 +646,10 @@ trait HandlesDashboardCrud
         // New hires trend (last 6 months)
         $hireTrend = [];
         for ($i = 5; $i >= 0; $i--) {
-            $monthRef   = $now->copy()->subMonths($i);
-            $mStart     = $monthRef->copy()->startOfMonth()->toDateString();
-            $mEnd       = $monthRef->copy()->endOfMonth()->toDateString();
-            $count      = EmployeeProfile::query()
+            $monthRef = $now->copy()->subMonths($i);
+            $mStart = $monthRef->copy()->startOfMonth()->toDateString();
+            $mEnd = $monthRef->copy()->endOfMonth()->toDateString();
+            $count = EmployeeProfile::query()
                 ->whereBetween('hire_date', [$mStart, $mEnd])
                 ->count();
             $hireTrend[] = [
@@ -667,28 +662,28 @@ trait HandlesDashboardCrud
             'success' => true,
             'data' => [
                 'summary' => [
-                    'total_companies'          => $totalCompanies,
-                    'total_active_companies'   => $totalActiveCompanies,
-                    'total_employees'          => $totalEmployees,
-                    'total_active'             => $totalActive,
-                    'total_probation'          => $totalProbation,
-                    'total_inactive'           => $totalInactive,
-                    'new_hires_this_month'     => $totalNewHires,
-                    'expiring_contracts_30d'   => $totalExpiringContracts,
-                    'month_label'              => $now->format('F Y'),
+                    'total_companies' => $totalCompanies,
+                    'total_active_companies' => $totalActiveCompanies,
+                    'total_employees' => $totalEmployees,
+                    'total_active' => $totalActive,
+                    'total_probation' => $totalProbation,
+                    'total_inactive' => $totalInactive,
+                    'new_hires_this_month' => $totalNewHires,
+                    'expiring_contracts_30d' => $totalExpiringContracts,
+                    'month_label' => $now->format('F Y'),
                 ],
-                'status_breakdown'   => $statusBreakdown,
-                'hire_trend'         => $hireTrend,
-                'companies'          => $companyCounts->map(fn ($c) => [
-                    'id'                     => $c->id,
-                    'code'                   => $c->code,
-                    'name'                   => $c->name,
-                    'status'                 => $c->status,
-                    'total_employees'        => (int) $c->total_employees,
-                    'active_employees'       => (int) $c->active_employees,
-                    'probation_employees'    => (int) $c->probation_employees,
-                    'inactive_employees'     => (int) $c->inactive_employees,
-                    'new_hires_this_month'   => (int) $c->new_hires_this_month,
+                'status_breakdown' => $statusBreakdown,
+                'hire_trend' => $hireTrend,
+                'companies' => $companyCounts->map(fn ($c) => [
+                    'id' => $c->id,
+                    'code' => $c->code,
+                    'name' => $c->name,
+                    'status' => $c->status,
+                    'total_employees' => (int) $c->total_employees,
+                    'active_employees' => (int) $c->active_employees,
+                    'probation_employees' => (int) $c->probation_employees,
+                    'inactive_employees' => (int) $c->inactive_employees,
+                    'new_hires_this_month' => (int) $c->new_hires_this_month,
                     'expiring_contracts_30d' => (int) $c->expiring_contracts_30d,
                 ])->values()->all(),
             ],
@@ -717,7 +712,7 @@ trait HandlesDashboardCrud
             }
 
             $feature = $sub->package->features->firstWhere('feature_code', 'max_employees');
-            $limit   = $feature ? ($feature->limit === null ? null : (int) $feature->limit) : null;
+            $limit = $feature ? ($feature->limit === null ? null : (int) $feature->limit) : null;
 
             $actual = EmployeeProfile::query()
                 ->where('company_id', $sub->company_id)
@@ -726,7 +721,7 @@ trait HandlesDashboardCrud
 
             if ($limit === null) {
                 $usagePct = 0;
-                $status   = 'unlimited';
+                $status = 'unlimited';
                 $summary['unlimited']++;
             } else {
                 $usagePct = $limit > 0 ? round(($actual / $limit) * 100, 1) : ($actual > 0 ? 999 : 0);
@@ -744,18 +739,18 @@ trait HandlesDashboardCrud
             $summary['total']++;
 
             $rows[] = [
-                'company_id'        => $sub->company_id,
-                'company_name'      => $sub->company->name,
-                'company_code'      => $sub->company->code,
-                'company_status'    => $sub->company->status,
-                'package_name'      => $sub->package->name,
-                'plan_code'         => $sub->plan_code,
-                'sub_status'        => $sub->status,
-                'sub_ends_at'       => $sub->ends_at ? $sub->ends_at->toDateString() : null,
-                'limit'             => $limit,
-                'actual'            => $actual,
-                'excess'            => max(0, $actual - ($limit ?? $actual)),
-                'usage_pct'         => $usagePct,
+                'company_id' => $sub->company_id,
+                'company_name' => $sub->company->name,
+                'company_code' => $sub->company->code,
+                'company_status' => $sub->company->status,
+                'package_name' => $sub->package->name,
+                'plan_code' => $sub->plan_code,
+                'sub_status' => $sub->status,
+                'sub_ends_at' => $sub->ends_at ? $sub->ends_at->toDateString() : null,
+                'limit' => $limit,
+                'actual' => $actual,
+                'excess' => max(0, $actual - ($limit ?? $actual)),
+                'usage_pct' => $usagePct,
                 'compliance_status' => $status,
             ];
         }
@@ -763,6 +758,7 @@ trait HandlesDashboardCrud
         // Sort: violations first, then warnings, then compliant, then unlimited
         usort($rows, function ($a, $b) {
             $order = ['violation' => 0, 'warning' => 1, 'compliant' => 2, 'unlimited' => 3];
+
             return ($order[$a['compliance_status']] ?? 9) <=> ($order[$b['compliance_status']] ?? 9);
         });
 
@@ -867,9 +863,9 @@ trait HandlesDashboardCrud
         }
 
         if (function_exists('mb_substr')) {
-            return mb_substr($normalized, 0, 1, 'UTF-8') . '***';
+            return mb_substr($normalized, 0, 1, 'UTF-8').'***';
         }
 
-        return substr($normalized, 0, 1) . '***';
+        return substr($normalized, 0, 1).'***';
     }
 }

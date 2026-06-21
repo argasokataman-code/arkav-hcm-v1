@@ -32,7 +32,7 @@ return new class extends Migration
                 Schema::table('hcm_payroll_runs', function (Blueprint $table): void {
                     $table->index('voided_by_user_uuid', 'hcm_payroll_runs_voided_by_user_uuid_idx');
                 });
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                     throw $e;
                 }
@@ -45,7 +45,7 @@ return new class extends Migration
                         ->on('users')
                         ->nullOnDelete();
                 });
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                     throw $e;
                 }
@@ -92,11 +92,11 @@ return new class extends Migration
             if (Schema::hasColumn('hcm_payroll_runs', 'voided_by_user_uuid')) {
                 try {
                     $table->dropForeign('hcm_payroll_runs_voided_by_user_uuid_fk');
-                } catch (\Throwable) {
+                } catch (Throwable) {
                 }
                 try {
                     $table->dropIndex('hcm_payroll_runs_voided_by_user_uuid_idx');
-                } catch (\Throwable) {
+                } catch (Throwable) {
                 }
                 $table->dropColumn('voided_by_user_uuid');
             }

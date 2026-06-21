@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\UserManagement;
 
 use App\Http\Controllers\Controller;
 use App\Models\HcmPermission;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class HcmPermissionController extends Controller
 {

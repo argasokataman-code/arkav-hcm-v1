@@ -19,7 +19,7 @@ class HcmAiClassifierNoiseTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->classifier = new AiIntentClassifier();
+        $this->classifier = new AiIntentClassifier;
     }
 
     // ─── leave.balance.self ────────────────────────────────────────────────

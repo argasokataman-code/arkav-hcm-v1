@@ -14,9 +14,7 @@ class HcmAssetCategoryController extends Controller
 {
     use ChecksPermissions;
 
-    public function __construct(private readonly AssetService $assetService)
-    {
-    }
+    public function __construct(private readonly AssetService $assetService) {}
 
     public function index(Request $request): JsonResponse
     {

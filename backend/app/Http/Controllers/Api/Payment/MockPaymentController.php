@@ -12,15 +12,15 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Mock Payment Controller
- * 
+ *
  * Development-only endpoints for testing payment flows without actual gateway integration.
- * 
+ *
  * Routes (NOTE: apiPrefix is empty, so routes are /v1/... not /api/v1/...):
  * POST   /v1/mock/payments/create          - Create mock payment
  * POST   /v1/mock/invoices/create-and-pay  - Create invoice and process mock payment
  * GET    /v1/mock/test-cards               - Get test card numbers
  * POST   /v1/mock/webhook/charge-succeeded - Simulate charge.succeeded webhook
- * 
+ *
  * SECURITY: These endpoints should ONLY be available in development (config gate)
  */
 class MockPaymentController extends Controller
@@ -31,7 +31,7 @@ class MockPaymentController extends Controller
      */
     public function createPayment(Request $request): JsonResponse
     {
-        if (!$this->isMockModeEnabled()) {
+        if (! $this->isMockModeEnabled()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'MOCK_DISABLED', 'message' => 'Mock payments are disabled.'],
@@ -58,7 +58,7 @@ class MockPaymentController extends Controller
             ], 403);
         }
 
-        $service = new MockPaymentGatewayService();
+        $service = new MockPaymentGatewayService;
         $paymentMethod = (string) ($validated['payment_method'] ?? 'mock_card');
         $storedPaymentMethod = match ($paymentMethod) {
             'mock_bank' => 'bank_transfer',
@@ -146,7 +146,7 @@ class MockPaymentController extends Controller
      */
     public function createInvoiceAndPay(Request $request): JsonResponse
     {
-        if (!$this->isMockModeEnabled()) {
+        if (! $this->isMockModeEnabled()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'MOCK_DISABLED', 'message' => 'Mock payments are disabled.'],
@@ -171,8 +171,8 @@ class MockPaymentController extends Controller
             'failure_url' => 'nullable|url|max:2048',
         ]);
 
-        $service = new MockPaymentGatewayService();
-        
+        $service = new MockPaymentGatewayService;
+
         $result = $service->createInvoiceAndPay([
             'company_id' => $activeCompanyId,
             'amount' => $validated['amount'],
@@ -204,7 +204,7 @@ class MockPaymentController extends Controller
      */
     public function getTestCards(): JsonResponse
     {
-        if (!$this->isMockModeEnabled()) {
+        if (! $this->isMockModeEnabled()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'MOCK_DISABLED', 'message' => 'Mock payments are disabled.'],
@@ -224,7 +224,7 @@ class MockPaymentController extends Controller
      */
     public function simulateChargeSucceeded(Request $request): JsonResponse
     {
-        if (!$this->isMockModeEnabled()) {
+        if (! $this->isMockModeEnabled()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'MOCK_DISABLED', 'message' => 'Mock payments are disabled.'],
@@ -252,7 +252,7 @@ class MockPaymentController extends Controller
                 ], 403);
             }
         }
-        
+
         // Mark as completed if pending
         if ($payment->status === 'pending') {
             $payment->update([
@@ -260,7 +260,7 @@ class MockPaymentController extends Controller
                 'paid_at' => now(),
                 'verified_at' => now(),
             ]);
-            
+
             if ($payment->invoice) {
                 $payment->invoice->markAsPaid();
             }
@@ -291,9 +291,10 @@ class MockPaymentController extends Controller
     private function isMockModeEnabled(): bool
     {
         // Only allow in development or if explicitly enabled
-        if (!app()->isLocal() && !config('app.mock_payments_enabled')) {
+        if (! app()->isLocal() && ! config('app.mock_payments_enabled')) {
             return false;
         }
+
         return true;
     }
 }

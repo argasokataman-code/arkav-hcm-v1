@@ -144,7 +144,8 @@ return new class extends Migration
         }
 
         if (DB::getDriverName() === 'mysql') {
-            DB::statement("UPDATE hcm_leave_custom_policies p JOIN leave_types t ON p.leave_type_code = t.code SET p.leave_type_uuid = t.uuid WHERE p.leave_type_uuid IS NULL AND p.leave_type_code IS NOT NULL");
+            DB::statement('UPDATE hcm_leave_custom_policies p JOIN leave_types t ON p.leave_type_code = t.code SET p.leave_type_uuid = t.uuid WHERE p.leave_type_uuid IS NULL AND p.leave_type_code IS NOT NULL');
+
             return;
         }
 
@@ -174,6 +175,7 @@ return new class extends Migration
 
         if (DB::getDriverName() === 'mysql') {
             DB::statement("UPDATE {$table} t JOIN {$parentTable} p ON t.{$legacyColumn} = p.id SET t.{$uuidColumn} = p.uuid WHERE t.{$legacyColumn} IS NOT NULL AND t.{$uuidColumn} IS NULL");
+
             return;
         }
 
@@ -232,7 +234,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $tableBlueprint) use ($column, $name): void {
                 $tableBlueprint->index($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }
@@ -257,7 +259,7 @@ return new class extends Migration
                     $foreign->restrictOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }

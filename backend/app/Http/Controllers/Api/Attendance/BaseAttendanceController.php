@@ -7,7 +7,6 @@ use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\Company;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -21,14 +20,17 @@ abstract class BaseAttendanceController extends Controller
     use EnsuresHcmAdmin;
 
     protected const TARGET_DAILY_MINUTES = 8 * 60;
+
     protected const OVERTIME_THRESHOLD_MINUTES = 8 * 60;
+
     protected const EARLY_PUNCH_OUT_REVIEW_MINUTES = 4 * 60;
+
     protected const SELFIE_MAX_BYTES = 5 * 1024 * 1024;
 
     /** @var array<string, string> */
     protected const SELFIE_ALLOWED_MIME_TO_EXT = [
         'image/jpeg' => 'jpg',
-        'image/png'  => 'png',
+        'image/png' => 'png',
         'image/webp' => 'webp',
     ];
 
@@ -97,7 +99,7 @@ abstract class BaseAttendanceController extends Controller
 
     protected function expectedCheckIn(string $dateYmd): Carbon
     {
-        return Carbon::parse($dateYmd . ' 09:00:00', $this->tz());
+        return Carbon::parse($dateYmd.' 09:00:00', $this->tz());
     }
 
     protected function netProductionMinutes(
@@ -158,7 +160,7 @@ abstract class BaseAttendanceController extends Controller
             return [0, '-', 'secondary'];
         }
 
-        return [$ot, $ot . ' Min', 'success'];
+        return [$ot, $ot.' Min', 'success'];
     }
 
     /**
@@ -199,7 +201,7 @@ abstract class BaseAttendanceController extends Controller
         return response()->json([
             'success' => false,
             'error' => [
-                'code'    => 'USER_NOT_IN_COMPANY',
+                'code' => 'USER_NOT_IN_COMPANY',
                 'message' => 'User not found in active company context.',
             ],
         ], 404);

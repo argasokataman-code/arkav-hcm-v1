@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class HcmRolesSeeder extends Seeder
 {
@@ -30,7 +31,7 @@ class HcmRolesSeeder extends Seeder
         foreach ($platformRoles as $role) {
             DB::table('hcm_roles')->updateOrInsert(
                 ['code' => $role['code'], 'company_id' => null],
-                array_merge($role, ['uuid' => (string) \Illuminate\Support\Str::uuid()])
+                array_merge($role, ['uuid' => (string) Str::uuid()])
             );
         }
 

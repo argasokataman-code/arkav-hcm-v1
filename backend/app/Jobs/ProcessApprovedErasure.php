@@ -41,6 +41,7 @@ class ProcessApprovedErasure implements ShouldQueue
         $user = User::query()->where('uuid', $subjectUuid)->first();
         if (! $user) {
             $this->markCompleted($req);
+
             return;
         }
 
@@ -54,23 +55,23 @@ class ProcessApprovedErasure implements ShouldQueue
             if ($profile) {
                 // Anonymize sensitive PII before soft delete (pseudonymization)
                 $profile->fill([
-                    'nik'                => null,
-                    'phone'              => null,
-                    'address'            => null,
-                    'place_of_birth'     => null,
-                    'date_of_birth'      => null,
-                    'gender'             => null,
-                    'marital_status'     => null,
-                    'religion'           => null,
-                    'nationality'        => null,
-                    'bank_name'          => null,
-                    'bank_account_no'    => null,
-                    'bank_ifsc_code'     => null,
-                    'bank_branch'        => null,
+                    'nik' => null,
+                    'phone' => null,
+                    'address' => null,
+                    'place_of_birth' => null,
+                    'date_of_birth' => null,
+                    'gender' => null,
+                    'marital_status' => null,
+                    'religion' => null,
+                    'nationality' => null,
+                    'bank_name' => null,
+                    'bank_account_no' => null,
+                    'bank_ifsc_code' => null,
+                    'bank_branch' => null,
                     'emergency_contacts' => null,
-                    'education_items'    => null,
-                    'experience_items'   => null,
-                    'bio'                => null,
+                    'education_items' => null,
+                    'experience_items' => null,
+                    'bio' => null,
                 ])->save();
 
                 // Soft-delete tax profiles and benefits
@@ -100,16 +101,16 @@ class ProcessApprovedErasure implements ShouldQueue
 
             // Anonymize user's PII (do not hard-delete the user record for audit trail integrity)
             $user->update([
-                'name'  => 'Anonymized User',
-                'email' => 'anonymized_' . $user->id . '@erased.local',
+                'name' => 'Anonymized User',
+                'email' => 'anonymized_'.$user->id.'@erased.local',
             ]);
 
             $this->markCompleted($req);
 
             Log::info('PDP erasure completed', [
                 'erasure_request_id' => $req->id,
-                'subject_uuid'       => $req->subject_uuid,
-                'company_id'         => $companyId,
+                'subject_uuid' => $req->subject_uuid,
+                'company_id' => $companyId,
             ]);
         });
     }
@@ -117,7 +118,7 @@ class ProcessApprovedErasure implements ShouldQueue
     private function markCompleted(ErasureRequest $req): void
     {
         $req->update([
-            'status'       => 'completed',
+            'status' => 'completed',
             'completed_at' => now(),
         ]);
     }

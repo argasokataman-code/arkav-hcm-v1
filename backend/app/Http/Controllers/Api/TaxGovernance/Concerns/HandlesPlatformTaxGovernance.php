@@ -7,6 +7,7 @@ use App\Models\HcmBillingTaxPolicy;
 use App\Services\BillingTaxCalculationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -19,7 +20,7 @@ trait HandlesPlatformTaxGovernance
             return $response;
         }
 
-        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+        if (! ($request->user()?->isGlobalHcmAdmin() ?? false)) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
@@ -33,11 +34,11 @@ trait HandlesPlatformTaxGovernance
 
         $query = HcmBillingTaxPolicy::query()->with('company')->orderByDesc('effective_from')->orderByDesc('created_at');
 
-        if (!empty($validated['billing_month'])) {
+        if (! empty($validated['billing_month'])) {
             $query->where('billing_month', $validated['billing_month']);
         }
 
-        if (!empty($validated['status'])) {
+        if (! empty($validated['status'])) {
             $query->where('status', $validated['status']);
         }
 
@@ -84,7 +85,7 @@ trait HandlesPlatformTaxGovernance
             return $response;
         }
 
-        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+        if (! ($request->user()?->isGlobalHcmAdmin() ?? false)) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
@@ -208,7 +209,7 @@ trait HandlesPlatformTaxGovernance
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'version' => 'v' . now()->format('YmdHis'),
+                    'version' => 'v'.now()->format('YmdHis'),
                     'billing_month' => $billingMonth,
                     'billing_cycle_type' => $billingCycleType,
                     'effective_from' => $effectiveFrom,
@@ -234,7 +235,7 @@ trait HandlesPlatformTaxGovernance
         ]);
 
         $service = app(BillingTaxCalculationService::class);
-        if (!$service->validateBillingTaxPolicy($validated)) {
+        if (! $service->validateBillingTaxPolicy($validated)) {
             return $this->errorResponse('BILLING_TAX_POLICY_INVALID', 'Billing tax policy validation failed.', 422);
         }
 
@@ -247,7 +248,7 @@ trait HandlesPlatformTaxGovernance
             ->first();
 
         if (! $policy) {
-            $policy = new HcmBillingTaxPolicy();
+            $policy = new HcmBillingTaxPolicy;
             $policy->id = (string) Str::uuid();
             $policy->company_id = (int) $validated['company_id'];
             $policy->billing_month = $validated['billing_month'];
@@ -286,7 +287,7 @@ trait HandlesPlatformTaxGovernance
             return $response;
         }
 
-        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+        if (! ($request->user()?->isGlobalHcmAdmin() ?? false)) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
@@ -338,7 +339,7 @@ trait HandlesPlatformTaxGovernance
             return $response;
         }
 
-        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+        if (! ($request->user()?->isGlobalHcmAdmin() ?? false)) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
@@ -404,7 +405,7 @@ trait HandlesPlatformTaxGovernance
             return $response;
         }
 
-        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+        if (! ($request->user()?->isGlobalHcmAdmin() ?? false)) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
@@ -423,7 +424,7 @@ trait HandlesPlatformTaxGovernance
             return $response;
         }
 
-        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+        if (! ($request->user()?->isGlobalHcmAdmin() ?? false)) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
@@ -532,7 +533,7 @@ trait HandlesPlatformTaxGovernance
             return $response;
         }
 
-        if (!($request->user()?->isGlobalHcmAdmin() ?? false)) {
+        if (! ($request->user()?->isGlobalHcmAdmin() ?? false)) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Access denied for this operation.', 403);
         }
 
@@ -552,7 +553,7 @@ trait HandlesPlatformTaxGovernance
     }
 
     /**
-     * @param \Illuminate\Support\Collection<int, HcmBillingTaxPolicy> $policies
+     * @param  Collection<int, HcmBillingTaxPolicy>  $policies
      * @return array<int, array<string, mixed>>
      */
     private function buildGlobalPlatformPolicyItems($policies): array
@@ -583,7 +584,7 @@ trait HandlesPlatformTaxGovernance
             $seen[$key] = true;
 
             $items[] = [
-                'version' => 'v' . optional($policy->created_at)->format('YmdHis'),
+                'version' => 'v'.optional($policy->created_at)->format('YmdHis'),
                 'billing_month' => (string) ($policy->billing_month ?? ''),
                 'billing_cycle_type' => (string) ($policy->billing_cycle_type ?? ''),
                 'subscription_tax_rate' => $rates['subscription_tax_rate'],
@@ -666,7 +667,7 @@ trait HandlesPlatformTaxGovernance
     }
 
     /**
-     * @param array<int, list<array{effective_from:?string, created_at:?string, transaction_tax_rate:float}>> $policySnapshotsByCompany
+     * @param  array<int, list<array{effective_from:?string, created_at:?string, transaction_tax_rate:float}>>  $policySnapshotsByCompany
      */
     private function resolveGovernmentTransactionTaxRateForInvoice(int $companyId, ?string $issueDate, array $policySnapshotsByCompany): float
     {

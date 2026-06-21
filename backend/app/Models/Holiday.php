@@ -3,12 +3,12 @@
 namespace App\Models;
 
 use App\Models\Concerns\AssignsUuid;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * @property \Carbon\Carbon|null $holiday_date
+ * @property Carbon|null $holiday_date
  */
 class Holiday extends Model
 {

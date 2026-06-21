@@ -95,6 +95,7 @@ class CleanupOwnerEmployeeProfilesCommand extends Command
             $profile = EmployeeProfile::query()->where('user_id', $user->id)->first();
             if (! $profile) {
                 $this->line(sprintf('No employee profile for owner user #%d (%s) in company #%d.', $user->id, $user->email, $company->id));
+
                 continue;
             }
 
@@ -139,12 +140,13 @@ class CleanupOwnerEmployeeProfilesCommand extends Command
 
             if ($dryRun) {
                 $this->info('[dry-run] '.$summary);
+
                 continue;
             }
 
             DB::transaction(function () use ($company, $profile): void {
                 $this->backfillOwnerSettingsFromProfile($company->id, $profile);
-                 $profile->forceDelete();
+                $profile->forceDelete();
             });
 
             $cleaned++;

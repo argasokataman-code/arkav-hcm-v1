@@ -5,14 +5,14 @@ namespace App\Providers;
 use App\Events\AddonPurchased;
 use App\Events\EmployeeProfileUpdated;
 use App\Events\SubscriptionCreated;
-use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Illuminate\Notifications\Events\NotificationSending;
 use App\Events\TaxGovernancePolicyTransitioned;
 use App\Listeners\CaptureAddonRevenue;
 use App\Listeners\CaptureSubscriptionRevenue;
 use App\Listeners\EnforceNotificationPreference;
 use App\Listeners\SendProfileUpdateNotification;
 use App\Listeners\TaxGovernancePolicyEventListener;
+use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Illuminate\Notifications\Events\NotificationSending;
 
 class EventServiceProvider extends ServiceProvider
 {

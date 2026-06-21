@@ -28,22 +28,22 @@ return [
          * PKWT contract ended — compensation via PkwtCompensationService; no UP/UPMK.
          */
         'pkwt_end_of_contract' => [
-            'up_multiplier'   => 0.0,
+            'up_multiplier' => 0.0,
             'upmk_applicable' => false,
-            'uph_applicable'  => false,
-            'up_label'        => 'PKWT End-of-Contract (N/A)',
-            'formula_notes'   => 'PKWT termination uses separate PKWT compensation formula (PP 35/2021 Pasal 16). No pesangon.',
+            'uph_applicable' => false,
+            'up_label' => 'PKWT End-of-Contract (N/A)',
+            'formula_notes' => 'PKWT termination uses separate PKWT compensation formula (PP 35/2021 Pasal 16). No pesangon.',
         ],
 
         /**
          * Normal retirement — UP × 1.75, UPMK, UPH.
          */
         'retirement' => [
-            'up_multiplier'   => 1.75,
+            'up_multiplier' => 1.75,
             'upmk_applicable' => true,
-            'uph_applicable'  => true,
-            'up_label'        => 'Severance Pay (Pensiunan)',
-            'formula_notes'   => 'UU 13/2003 Pasal 167 — pensiun normal mendapat 1.75× pesangon, UPMK, dan penggantian hak.',
+            'uph_applicable' => true,
+            'up_label' => 'Severance Pay (Pensiunan)',
+            'formula_notes' => 'UU 13/2003 Pasal 167 — pensiun normal mendapat 1.75× pesangon, UPMK, dan penggantian hak.',
         ],
 
         /**
@@ -52,44 +52,44 @@ return [
          * companies commonly pay 1× as a policy decision — review with HR before deploy).
          */
         'company_termination' => [
-            'up_multiplier'   => 1.0,
+            'up_multiplier' => 1.0,
             'upmk_applicable' => true,
-            'uph_applicable'  => true,
-            'up_label'        => 'Severance Pay (PHK Perusahaan)',
-            'formula_notes'   => 'UU 13/2003 Pasal 156 / PP 35/2021 — PHK oleh perusahaan. Minimal 0.5× menurut PP 35/2021; ditetapkan 1× sesuai kebijakan internal. Konfirmasi HR.',
+            'uph_applicable' => true,
+            'up_label' => 'Severance Pay (PHK Perusahaan)',
+            'formula_notes' => 'UU 13/2003 Pasal 156 / PP 35/2021 — PHK oleh perusahaan. Minimal 0.5× menurut PP 35/2021; ditetapkan 1× sesuai kebijakan internal. Konfirmasi HR.',
         ],
 
         /**
          * Disciplinary or court order — no pesangon, UPMK still applies per policy.
          */
         'disciplinary_or_court' => [
-            'up_multiplier'   => 0.0,
+            'up_multiplier' => 0.0,
             'upmk_applicable' => false,
-            'uph_applicable'  => false,
-            'up_label'        => 'Severance Pay (N/A — Disiplin)',
-            'formula_notes'   => 'UU 13/2003 Pasal 158/160 — PHK karena pelanggaran berat tidak mendapat pesangon. Verifikasi dengan kuasa hukum HR.',
+            'uph_applicable' => false,
+            'up_label' => 'Severance Pay (N/A — Disiplin)',
+            'formula_notes' => 'UU 13/2003 Pasal 158/160 — PHK karena pelanggaran berat tidak mendapat pesangon. Verifikasi dengan kuasa hukum HR.',
         ],
 
         /**
          * Employee death — UP × 2, UPMK, UPH paid to legal heirs.
          */
         'deceased_employee' => [
-            'up_multiplier'   => 2.0,
+            'up_multiplier' => 2.0,
             'upmk_applicable' => true,
-            'uph_applicable'  => true,
-            'up_label'        => 'Severance Pay (Meninggal Dunia)',
-            'formula_notes'   => 'UU 13/2003 Pasal 166 — meninggal dunia: 2× pesangon, UPMK, UPH dibayarkan kepada ahli waris.',
+            'uph_applicable' => true,
+            'up_label' => 'Severance Pay (Meninggal Dunia)',
+            'formula_notes' => 'UU 13/2003 Pasal 166 — meninggal dunia: 2× pesangon, UPMK, UPH dibayarkan kepada ahli waris.',
         ],
 
         /**
          * Long-term illness / medical termination — UP × 2, UPMK, UPH.
          */
         'medical_termination' => [
-            'up_multiplier'   => 2.0,
+            'up_multiplier' => 2.0,
             'upmk_applicable' => true,
-            'uph_applicable'  => true,
-            'up_label'        => 'Severance Pay (Sakit/Cacat Permanen)',
-            'formula_notes'   => 'UU 13/2003 Pasal 172 — sakit berkepanjangan/cacat: 2× pesangon, UPMK, UPH.',
+            'uph_applicable' => true,
+            'up_label' => 'Severance Pay (Sakit/Cacat Permanen)',
+            'formula_notes' => 'UU 13/2003 Pasal 172 — sakit berkepanjangan/cacat: 2× pesangon, UPMK, UPH.',
         ],
 
         /**
@@ -97,11 +97,11 @@ return [
          * is not entitled to pesangon under Indonesian law); leave payout only.
          */
         'general_other' => [
-            'up_multiplier'   => 0.0,
+            'up_multiplier' => 0.0,
             'upmk_applicable' => false,
-            'uph_applicable'  => false,
-            'up_label'        => 'Severance Pay (N/A — Pengunduran Diri)',
-            'formula_notes'   => 'Pengunduran diri sukarela umumnya tidak mendapat pesangon per UU 13/2003 kecuali ada kebijakan perusahaan berbeda. Payout utama adalah sisa cuti.',
+            'uph_applicable' => false,
+            'up_label' => 'Severance Pay (N/A — Pengunduran Diri)',
+            'formula_notes' => 'Pengunduran diri sukarela umumnya tidak mendapat pesangon per UU 13/2003 kecuali ada kebijakan perusahaan berbeda. Payout utama adalah sisa cuti.',
         ],
     ],
 

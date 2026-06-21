@@ -11,6 +11,5 @@ final readonly class StoredFileResult
         public int $sizeBytes,
         public ?int $width = null,
         public ?int $height = null,
-    ) {
-    }
+    ) {}
 }

@@ -16,8 +16,7 @@ class ThrBatchGeneratedNotification extends Notification
 
     public function __construct(
         public readonly HcmThrBatch $batch,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -31,7 +30,7 @@ class ThrBatchGeneratedNotification extends Notification
             'entityType' => 'payroll_thr',
             'entityUuid' => (string) ($this->batch->uuid ?? ''),
             'title' => 'THR batch generated',
-            'message' => 'Batch for year ' . $this->batch->calendar_year,
+            'message' => 'Batch for year '.$this->batch->calendar_year,
             'occurredAt' => $this->batch->created_at,
         ], [
             'event' => 'payroll.thr.batch_generated',

@@ -20,7 +20,7 @@ return new class extends Migration
         $ticketCategoryMap = DB::table('ticket_categories')
             ->pluck('id', 'name')
             ->toArray();
-        
+
         foreach ($ticketCategoryMap as $categoryName => $categoryId) {
             DB::table('tickets')
                 ->where('category', $categoryName)
@@ -39,7 +39,7 @@ return new class extends Migration
         $trainerNameMap = DB::table('hcm_trainers')
             ->pluck('id', 'name')
             ->toArray();
-        
+
         foreach ($trainerNameMap as $trainerName => $trainerId) {
             DB::table('hcm_trainings')
                 ->where('trainer_name', $trainerName)

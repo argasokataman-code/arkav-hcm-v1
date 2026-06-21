@@ -4,8 +4,9 @@ namespace App\Http\Controllers\Api\Training;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
-use App\Models\HcmTraining;
+use App\Models\CompanyUser;
 use App\Models\HcmTrainer;
+use App\Models\HcmTraining;
 use App\Models\HcmTrainingType;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -381,7 +382,7 @@ class HcmTrainingController extends Controller
             return $this->forbidden();
         }
 
-        $isCompanyMember = \App\Models\CompanyUser::query()
+        $isCompanyMember = CompanyUser::query()
             ->where('company_id', $companyId)
             ->where('user_id', $userId)
             ->where('status', 'active')
@@ -630,4 +631,3 @@ class HcmTrainingController extends Controller
         return $this->hasPermission($request, 'training.view') || $this->canManageTraining($request);
     }
 }
-

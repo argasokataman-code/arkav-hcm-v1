@@ -6,7 +6,6 @@ use App\Mail\MonthlyPayslipMail;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
-use App\Modelsser;
 use App\Support\Exports\TabularExportResponse;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -191,12 +190,14 @@ trait HandlesPayrollRunReadEndpoints
             $user = $users->get((int) $userId);
             if (! $user) {
                 $skipped[] = ['userId' => (int) $userId, 'reason' => 'USER_NOT_FOUND'];
+
                 continue;
             }
 
             $email = trim((string) ($user->email ?? ''));
             if ($email === '') {
                 $skipped[] = ['userId' => (int) $userId, 'reason' => 'EMAIL_EMPTY'];
+
                 continue;
             }
 
@@ -209,6 +210,7 @@ trait HandlesPayrollRunReadEndpoints
 
             if (($slip['run'] ?? null) === null) {
                 $skipped[] = ['userId' => (int) $userId, 'reason' => 'SLIP_NOT_FOUND'];
+
                 continue;
             }
 
@@ -327,7 +329,7 @@ trait HandlesPayrollRunReadEndpoints
         }
 
         $validated = $request->validate([
-            'periodYear'  => ['required', 'integer', 'min:2000', 'max:2100'],
+            'periodYear' => ['required', 'integer', 'min:2000', 'max:2100'],
             'periodMonth' => ['required', 'integer', 'min:1', 'max:12'],
         ]);
 
@@ -472,6 +474,7 @@ trait HandlesPayrollRunReadEndpoints
                     $lineMeta = is_array($line->meta)
                         ? $line->meta
                         : (json_decode((string) ($line->meta ?? '{}'), true) ?: []);
+
                     return strtolower((string) ($lineMeta['paymentStatus'] ?? ''));
                 })->filter(fn ($state) => $state !== '')->values();
                 $paidCount = $linePaymentStates->filter(fn ($state) => $state === 'paid')->count();

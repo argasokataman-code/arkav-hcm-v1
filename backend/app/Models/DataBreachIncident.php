@@ -10,7 +10,9 @@ class DataBreachIncident extends Model
     use AssignsUuid;
 
     public const STATUS_DETECTED = 'detected';
+
     public const STATUS_NOTIFIED = 'notified';
+
     public const STATUS_RESOLVED = 'resolved';
 
     protected $fillable = [

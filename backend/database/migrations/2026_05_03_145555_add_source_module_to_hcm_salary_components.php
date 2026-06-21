@@ -21,8 +21,8 @@ return new class extends Migration
         });
 
         // Backfill source_module based on known codes
-        $bpjsCodes = ['iuran_bpjs_kes_pk','iuran_jht_pk','iuran_jp_pk','premi_jkk_pk','premi_jkm_pk',
-                      'iuran_bpjs_kes_pekerja','iuran_jht_pekerja','iuran_jp_pekerja'];
+        $bpjsCodes = ['iuran_bpjs_kes_pk', 'iuran_jht_pk', 'iuran_jp_pk', 'premi_jkk_pk', 'premi_jkm_pk',
+            'iuran_bpjs_kes_pekerja', 'iuran_jht_pekerja', 'iuran_jp_pekerja'];
         // NOTE: legacy template codes (tunjangan_tetap, tunjangan_tetap_jabatan,
         // tunjangan_tetap_transport, tunjangan_tidak_tetap, uang_makan_tetap)
         // are intentionally NOT tagged as source_module='allowance'. They are
@@ -30,11 +30,11 @@ return new class extends Migration
         // Tagging them as 'allowance' caused them to leak into employee-salary
         // assignment dropdown alongside real governance items.
         $allowanceCodes = [];
-        $pph21Codes = ['pph21_ter','pph21_rekonsiliasi'];
+        $pph21Codes = ['pph21_ter', 'pph21_rekonsiliasi'];
         $overtimeCodes = ['upah_lembur'];
         $thrCodes = ['thr'];
         $pkwtCodes = ['kompensasi_pkwt'];
-        $systemCodes = ['upah_pokok','bonus'];
+        $systemCodes = ['upah_pokok', 'bonus'];
 
         DB::table('hcm_salary_components')
             ->whereIn('code', $bpjsCodes)

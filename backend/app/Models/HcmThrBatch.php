@@ -10,10 +10,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class HcmThrBatch extends Model
 {
     use AssignsUuid;
+
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_ASSIGNED = 'assigned';
-
 
     protected $fillable = [
         'company_id',
@@ -64,7 +64,7 @@ class HcmThrBatch extends Model
         return $this->belongsTo(HcmPayrollRun::class, 'hcm_payroll_run_id');
     }
 
-    public function disbursements(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function disbursements(): HasMany
     {
         return $this->hasMany(HcmThrDisbursement::class, 'hcm_thr_batch_id');
     }

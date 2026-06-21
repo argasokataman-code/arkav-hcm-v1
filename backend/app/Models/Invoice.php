@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Mail;
 
 class Invoice extends Model
 {
-    use HasFactory, AssignsUuid;
+    use AssignsUuid, HasFactory;
 
     protected $fillable = [
         'invoice_number',
@@ -164,7 +164,7 @@ class Invoice extends Model
      */
     public function isOverdue(): bool
     {
-        return !$this->is_paid && $this->due_date?->isPast();
+        return ! $this->is_paid && $this->due_date?->isPast();
     }
 
     /**
@@ -172,7 +172,7 @@ class Invoice extends Model
      */
     public function isDueSoon(): bool
     {
-        return !$this->is_paid && $this->due_date?->isBetween(now(), now()->addDays(7));
+        return ! $this->is_paid && $this->due_date?->isBetween(now(), now()->addDays(7));
     }
 
     /**
@@ -190,13 +190,13 @@ class Invoice extends Model
 
         // Loop until a unique invoice number is found (handles race conditions / gaps)
         for ($i = 0; $i < 100; $i++) {
-            $candidate = "{$prefix}{$year}{$month}-" . str_pad($base + $i, 4, '0', STR_PAD_LEFT);
+            $candidate = "{$prefix}{$year}{$month}-".str_pad($base + $i, 4, '0', STR_PAD_LEFT);
             if (! static::where('invoice_number', $candidate)->exists()) {
                 return $candidate;
             }
         }
 
         // Last-resort fallback: timestamp suffix guarantees uniqueness
-        return "{$prefix}{$year}{$month}-" . str_pad($base, 4, '0', STR_PAD_LEFT) . '-' . substr((string) time(), -4);
+        return "{$prefix}{$year}{$month}-".str_pad($base, 4, '0', STR_PAD_LEFT).'-'.substr((string) time(), -4);
     }
 }

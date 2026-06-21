@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class WilayahVillage extends Model
 {
     use AssignsUuid;
+
     protected $fillable = [
         'district_id',
         'code',

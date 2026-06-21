@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\Invoice;
 use App\Models\HcmSubscriptionChangeRequest;
+use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\Subscription;
 use App\Services\BillingTaxCalculationService;
@@ -31,8 +31,7 @@ class ApplySubscriptionChangeJob implements ShouldQueue
 
     public function __construct(
         public readonly string $changeRequestId,
-    ) {
-    }
+    ) {}
 
     public function handle(): void
     {
@@ -76,7 +75,7 @@ class ApplySubscriptionChangeJob implements ShouldQueue
                     'status' => 'cancelled',
                     'auto_renew' => false,
                     'terminated_at' => now(),
-                    'termination_reason' => 'Tenant-initiated cancellation request ' . $record->id,
+                    'termination_reason' => 'Tenant-initiated cancellation request '.$record->id,
                 ]);
             } elseif ($record->to_package_uuid) {
                 $target = Package::query()->where('uuid', $record->to_package_uuid)->first();
@@ -119,15 +118,14 @@ class ApplySubscriptionChangeJob implements ShouldQueue
         Subscription $subscription,
         HcmSubscriptionChangeRequest $record,
         float $amount
-    ): Invoice
-    {
-        $marker = '[downgrade_request:' . $record->id . ']';
+    ): Invoice {
+        $marker = '[downgrade_request:'.$record->id.']';
 
         $existing = Invoice::query()
             ->where('company_id', $subscription->company_id)
             ->where('subscription_id', $subscription->id)
             ->where('is_paid', false)
-            ->where('notes', 'like', '%' . $marker . '%')
+            ->where('notes', 'like', '%'.$marker.'%')
             ->latest('id')
             ->first();
 
@@ -147,7 +145,7 @@ class ApplySubscriptionChangeJob implements ShouldQueue
             'amount_due' => $amount,
             'billing_tax_rate_snapshot' => $taxRateSnapshot > 0 ? $taxRateSnapshot : null,
             'status' => 'draft',
-            'notes' => $marker . ' Auto-generated invoice for approved downgrade to package ' . ($subscription->plan_code ?? '-'),
+            'notes' => $marker.' Auto-generated invoice for approved downgrade to package '.($subscription->plan_code ?? '-'),
         ]);
     }
 }

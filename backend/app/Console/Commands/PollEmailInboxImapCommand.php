@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\NotificationDelivery;
 use Illuminate\Console\Command;
+use IMAP\Connection;
 
 class PollEmailInboxImapCommand extends Command
 {
@@ -42,7 +43,7 @@ class PollEmailInboxImapCommand extends Command
 
         $mailbox = sprintf('{%s:%d/imap/%s}'.$folder, $host, $port, $encryption === 'tls' ? 'tls' : 'ssl');
         $stream = @imap_open($mailbox, $username, $password);
-        if (! is_resource($stream) && ! ($stream instanceof \IMAP\Connection)) {
+        if (! is_resource($stream) && ! ($stream instanceof Connection)) {
             $this->error('Gagal membuka koneksi IMAP.');
 
             return self::FAILURE;

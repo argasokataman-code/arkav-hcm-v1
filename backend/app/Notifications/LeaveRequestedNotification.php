@@ -18,8 +18,7 @@ class LeaveRequestedNotification extends Notification
 
     public function __construct(
         public readonly LeaveRequest $leaveRequest,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {

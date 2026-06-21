@@ -35,7 +35,6 @@ use Illuminate\Support\Facades\DB;
  */
 class AiIntentResolver
 {
-
     /**
      * Resolve intent to data.
      *
@@ -44,31 +43,31 @@ class AiIntentResolver
     public function resolve(string $intent, User $user, ?int $companyId, string $bearerToken): ?array
     {
         return match ($intent) {
-            'leave.balance.self'         => $this->leaveBalanceSelf($user, $companyId),
-            'leave.history.self'         => $this->leaveHistorySelf($user, $companyId),
-            'attendance.today.self'      => $this->attendanceTodaySelf($user, $companyId),
-            'attendance.history.self'    => $this->attendanceHistorySelf($user, $companyId),
-            'payslip.latest.self'        => $this->payslipLatestSelf($user, $companyId),
-            'payslip.history.self'       => $this->payslipHistorySelf($user, $companyId),
+            'leave.balance.self' => $this->leaveBalanceSelf($user, $companyId),
+            'leave.history.self' => $this->leaveHistorySelf($user, $companyId),
+            'attendance.today.self' => $this->attendanceTodaySelf($user, $companyId),
+            'attendance.history.self' => $this->attendanceHistorySelf($user, $companyId),
+            'payslip.latest.self' => $this->payslipLatestSelf($user, $companyId),
+            'payslip.history.self' => $this->payslipHistorySelf($user, $companyId),
             'ticket.status.self',
-            'ticket.list.self'           => $this->ticketListSelf($user, $companyId),
-            'profile.info.self'          => $this->profileInfoSelf($user, $companyId),
+            'ticket.list.self' => $this->ticketListSelf($user, $companyId),
+            'profile.info.self' => $this->profileInfoSelf($user, $companyId),
             'subscription.features.current' => $this->subscriptionFeaturesCurrent($companyId),
             'payroll.run.status',
-            'payroll.run.summary'        => $this->payrollRunStatus($companyId),
-            'leave.summary.company'      => $this->leaveSummaryCompany($companyId),
+            'payroll.run.summary' => $this->payrollRunStatus($companyId),
+            'leave.summary.company' => $this->leaveSummaryCompany($companyId),
             'attendance.summary.company' => $this->attendanceSummaryCompany($companyId),
-            'employee.list.company'      => $this->employeeListCompany($companyId),
-            'saas.company.summary'       => $this->saasCompanySummary(),
-            'saas.billing.summary'       => $this->saasBillingSummary(),
-            'saas.tax.monthly'           => $this->saasTaxMonthlySummary(),
-            'leave.balance.other'        => $this->leaveBalanceOther($companyId),
-            'leave.history.other'        => $this->leaveHistoryOther($companyId),
-            'department.info'            => $this->departmentInfo($companyId),
-            'ticket.list.all'            => $this->ticketListAll($companyId),
-            'general.fallback.global'    => $this->generalFallbackGlobal(),
-            'general.fallback.company'   => $this->generalFallbackCompany($companyId),
-            default                      => null,
+            'employee.list.company' => $this->employeeListCompany($companyId),
+            'saas.company.summary' => $this->saasCompanySummary(),
+            'saas.billing.summary' => $this->saasBillingSummary(),
+            'saas.tax.monthly' => $this->saasTaxMonthlySummary(),
+            'leave.balance.other' => $this->leaveBalanceOther($companyId),
+            'leave.history.other' => $this->leaveHistoryOther($companyId),
+            'department.info' => $this->departmentInfo($companyId),
+            'ticket.list.all' => $this->ticketListAll($companyId),
+            'general.fallback.global' => $this->generalFallbackGlobal(),
+            'general.fallback.company' => $this->generalFallbackCompany($companyId),
+            default => null,
         };
     }
 
@@ -99,10 +98,10 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => ['balances' => $balances],
+            'data' => ['balances' => $balances],
             'source' => [
-                'label'        => 'Leave Balance',
-                'endpoint'     => 'local:EmployeeLeaveBalance',
+                'label' => 'Leave Balance',
+                'endpoint' => 'local:EmployeeLeaveBalance',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -123,10 +122,10 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => ['recent_leaves' => $leaves],
+            'data' => ['recent_leaves' => $leaves],
             'source' => [
-                'label'        => 'Leave History',
-                'endpoint'     => 'local:LeaveRequest',
+                'label' => 'Leave History',
+                'endpoint' => 'local:LeaveRequest',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -142,20 +141,20 @@ class AiIntentResolver
 
         if ($record === null) {
             return [
-                'data'   => ['status' => 'no_record', 'date' => today()->toDateString()],
+                'data' => ['status' => 'no_record', 'date' => today()->toDateString()],
                 'source' => [
-                    'label'        => 'Attendance Today',
-                    'endpoint'     => 'local:AttendanceRecord',
+                    'label' => 'Attendance Today',
+                    'endpoint' => 'local:AttendanceRecord',
                     'retrieved_at' => $this->now(),
                 ],
             ];
         }
 
         return [
-            'data'   => $record->toArray(),
+            'data' => $record->toArray(),
             'source' => [
-                'label'        => 'Attendance Today',
-                'endpoint'     => 'local:AttendanceRecord',
+                'label' => 'Attendance Today',
+                'endpoint' => 'local:AttendanceRecord',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -176,10 +175,10 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => ['history' => $records],
+            'data' => ['history' => $records],
             'source' => [
-                'label'        => 'Attendance History',
-                'endpoint'     => 'local:AttendanceRecord',
+                'label' => 'Attendance History',
+                'endpoint' => 'local:AttendanceRecord',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -210,15 +209,15 @@ class AiIntentResolver
              - collect($lines)->where('kind', 'deduction')->sum('amount');
 
         return [
-            'data'   => [
+            'data' => [
                 'run_status' => $run->status,
-                'period'     => $run->created_at?->format('Y-m'),
-                'lines'      => $lines,
-                'net_pay'    => $net,
+                'period' => $run->created_at?->format('Y-m'),
+                'lines' => $lines,
+                'net_pay' => $net,
             ],
             'source' => [
-                'label'        => 'Payslip Latest',
-                'endpoint'     => 'local:HcmPayrollLine',
+                'label' => 'Payslip Latest',
+                'endpoint' => 'local:HcmPayrollLine',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -244,7 +243,7 @@ class AiIntentResolver
             ->get()
             ->groupBy('hcm_payroll_run_id')
             ->map(fn ($g) => [
-                'run_id'   => $g->first()->hcm_payroll_run_id,
+                'run_id' => $g->first()->hcm_payroll_run_id,
                 'earnings' => $g->where('kind', 'earning')->sum('total'),
                 'deductions' => $g->where('kind', 'deduction')->sum('total'),
             ])
@@ -256,10 +255,10 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => ['payslips' => $summary],
+            'data' => ['payslips' => $summary],
             'source' => [
-                'label'        => 'Payslip History',
-                'endpoint'     => 'local:HcmPayrollLine',
+                'label' => 'Payslip History',
+                'endpoint' => 'local:HcmPayrollLine',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -280,10 +279,10 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => ['tickets' => $tickets],
+            'data' => ['tickets' => $tickets],
             'source' => [
-                'label'        => 'My Tickets',
-                'endpoint'     => 'local:Ticket',
+                'label' => 'My Tickets',
+                'endpoint' => 'local:Ticket',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -300,13 +299,13 @@ class AiIntentResolver
             ]);
 
         return [
-            'data'   => array_merge(
+            'data' => array_merge(
                 ['name' => $user->name],
                 $profile ? $profile->toArray() : [],
             ),
             'source' => [
-                'label'        => 'Employee Profile',
-                'endpoint'     => 'local:EmployeeProfile',
+                'label' => 'Employee Profile',
+                'endpoint' => 'local:EmployeeProfile',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -418,10 +417,10 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => ['runs' => $runs],
+            'data' => ['runs' => $runs],
             'source' => [
-                'label'        => 'Payroll Run Status',
-                'endpoint'     => 'local:HcmPayrollRun',
+                'label' => 'Payroll Run Status',
+                'endpoint' => 'local:HcmPayrollRun',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -443,12 +442,12 @@ class AiIntentResolver
             ->limit(10)
             ->get(['id', 'user_id', 'leave_type', 'date_from', 'date_to', 'days', 'status'])
             ->map(fn ($r) => [
-                'user_name'  => $r->user?->name ?? 'Unknown',
+                'user_name' => $r->user?->name ?? 'Unknown',
                 'leave_type' => $r->leave_type,
-                'date_from'  => $r->date_from,
-                'date_to'    => $r->date_to,
-                'days'       => $r->days,
-                'status'     => $r->status,
+                'date_from' => $r->date_from,
+                'date_to' => $r->date_to,
+                'days' => $r->days,
+                'status' => $r->status,
             ])
             ->toArray();
 
@@ -460,23 +459,23 @@ class AiIntentResolver
             ->limit(20)
             ->get(['id', 'user_id', 'leave_type', 'date_from', 'date_to', 'days'])
             ->map(fn ($r) => [
-                'user_name'  => $r->user?->name ?? 'Unknown',
+                'user_name' => $r->user?->name ?? 'Unknown',
                 'leave_type' => $r->leave_type,
-                'date_from'  => $r->date_from,
-                'date_to'    => $r->date_to,
-                'days'       => $r->days,
+                'date_from' => $r->date_from,
+                'date_to' => $r->date_to,
+                'days' => $r->days,
             ])
             ->toArray();
 
         return [
-            'data'   => [
-                'status_counts'   => $counts,
+            'data' => [
+                'status_counts' => $counts,
                 'pending_requests' => $recent,
-                'on_leave_today'  => $todayActive,
+                'on_leave_today' => $todayActive,
             ],
             'source' => [
-                'label'        => 'Company Leave Summary',
-                'endpoint'     => 'local:LeaveRequest',
+                'label' => 'Company Leave Summary',
+                'endpoint' => 'local:LeaveRequest',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -493,10 +492,10 @@ class AiIntentResolver
             ->toArray();
 
         return [
-            'data'   => ['date' => today()->toDateString(), 'status_counts' => $today],
+            'data' => ['date' => today()->toDateString(), 'status_counts' => $today],
             'source' => [
-                'label'        => 'Company Attendance Summary',
-                'endpoint'     => 'local:AttendanceRecord',
+                'label' => 'Company Attendance Summary',
+                'endpoint' => 'local:AttendanceRecord',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -520,10 +519,10 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => ['total_active' => $total, 'sample' => $sample],
+            'data' => ['total_active' => $total, 'sample' => $sample],
             'source' => [
-                'label'        => 'Employee List',
-                'endpoint'     => 'local:EmployeeProfile',
+                'label' => 'Employee List',
+                'endpoint' => 'local:EmployeeProfile',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -536,9 +535,9 @@ class AiIntentResolver
     /** @return array{data: array<string, mixed>, source: array<string, string>}|null */
     private function saasCompanySummary(): ?array
     {
-        $total    = Company::count();
-        $active   = Company::where('status', 'active')->count();
-        $trial    = Company::where('status', 'trial')->count();
+        $total = Company::count();
+        $active = Company::where('status', 'active')->count();
+        $trial = Company::where('status', 'trial')->count();
         $inactive = Company::whereNotIn('status', ['active', 'trial'])->count();
 
         $recent = Company::latest()
@@ -547,16 +546,16 @@ class AiIntentResolver
             ->toArray();
 
         return [
-            'data'   => [
-                'total_companies'    => $total,
-                'active_companies'   => $active,
-                'trial_companies'    => $trial,
+            'data' => [
+                'total_companies' => $total,
+                'active_companies' => $active,
+                'trial_companies' => $trial,
                 'inactive_companies' => $inactive,
-                'recent'             => $recent,
+                'recent' => $recent,
             ],
             'source' => [
-                'label'        => 'SaaS Company Summary',
-                'endpoint'     => 'local:Company',
+                'label' => 'SaaS Company Summary',
+                'endpoint' => 'local:Company',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -565,12 +564,12 @@ class AiIntentResolver
     /** @return array{data: array<string, mixed>, source: array<string, string>}|null */
     private function saasBillingSummary(): ?array
     {
-        $totalRevenue  = Invoice::where('is_paid', true)->sum('amount_due');
-        $unpaidCount   = Invoice::where('is_paid', false)->count();
-        $unpaidAmount  = Invoice::where('is_paid', false)->sum('amount_due');
+        $totalRevenue = Invoice::where('is_paid', true)->sum('amount_due');
+        $unpaidCount = Invoice::where('is_paid', false)->count();
+        $unpaidAmount = Invoice::where('is_paid', false)->sum('amount_due');
 
-        $activeSubs    = Subscription::where('status', 'active')->count();
-        $trialSubs     = Subscription::where('status', 'trial')->count();
+        $activeSubs = Subscription::where('status', 'active')->count();
+        $trialSubs = Subscription::where('status', 'trial')->count();
 
         $monthlyRev = Invoice::where('is_paid', true)
             ->whereYear('paid_date', now()->year)
@@ -580,18 +579,18 @@ class AiIntentResolver
         $taxMonthly = $this->saasTaxMonthlySummary();
 
         return [
-            'data'   => [
-                'total_revenue_paid'   => $totalRevenue,
-                'monthly_revenue'      => $monthlyRev,
+            'data' => [
+                'total_revenue_paid' => $totalRevenue,
+                'monthly_revenue' => $monthlyRev,
                 'unpaid_invoice_count' => $unpaidCount,
                 'unpaid_invoice_amount' => $unpaidAmount,
                 'active_subscriptions' => $activeSubs,
-                'trial_subscriptions'  => $trialSubs,
-                'tax_monthly_summary'  => $taxMonthly['data'] ?? [],
+                'trial_subscriptions' => $trialSubs,
+                'tax_monthly_summary' => $taxMonthly['data'] ?? [],
             ],
             'source' => [
-                'label'        => 'SaaS Billing Summary',
-                'endpoint'     => 'local:Invoice + local:Subscription',
+                'label' => 'SaaS Billing Summary',
+                'endpoint' => 'local:Invoice + local:Subscription',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -629,7 +628,7 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => [
+            'data' => [
                 'month' => $month,
                 'government_tax_paid_this_month' => round($taxCleared, 2),
                 'government_tax_due_this_month' => round($taxDueFromComplianceReport, 2),
@@ -639,8 +638,8 @@ class AiIntentResolver
                 'reversed_tax_amount_this_month' => round($taxReversed, 2),
             ],
             'source' => [
-                'label'        => 'SaaS Government Tax Summary',
-                'endpoint'     => 'local:PlatformRevenueTransaction + local:BillingTaxCalculationService',
+                'label' => 'SaaS Government Tax Summary',
+                'endpoint' => 'local:PlatformRevenueTransaction + local:BillingTaxCalculationService',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -665,10 +664,10 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => ['year' => now()->year, 'summary_by_type' => $summary],
+            'data' => ['year' => now()->year, 'summary_by_type' => $summary],
             'source' => [
-                'label'        => 'Company Leave Balance Summary',
-                'endpoint'     => 'local:EmployeeLeaveBalance',
+                'label' => 'Company Leave Balance Summary',
+                'endpoint' => 'local:EmployeeLeaveBalance',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -756,10 +755,10 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => [
-                'by_status'  => $byStatus,
+            'data' => [
+                'by_status' => $byStatus,
                 'by_type_this_year' => $byType,
-                'recent'     => $recent,
+                'recent' => $recent,
                 'previous_period' => [
                     'from' => $previousPeriodStart->toDateString(),
                     'to' => $previousPeriodEnd->toDateString(),
@@ -768,8 +767,8 @@ class AiIntentResolver
                 ],
             ],
             'source' => [
-                'label'        => 'Company Leave History',
-                'endpoint'     => 'local:LeaveRequest',
+                'label' => 'Company Leave History',
+                'endpoint' => 'local:LeaveRequest',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -788,10 +787,10 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => ['total' => count($departments), 'departments' => $departments],
+            'data' => ['total' => count($departments), 'departments' => $departments],
             'source' => [
-                'label'        => 'Department Info',
-                'endpoint'     => 'local:Department',
+                'label' => 'Department Info',
+                'endpoint' => 'local:Department',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -817,10 +816,10 @@ class AiIntentResolver
         }
 
         return [
-            'data'   => ['summary_by_status' => $summary, 'recent' => $tickets],
+            'data' => ['summary_by_status' => $summary, 'recent' => $tickets],
             'source' => [
-                'label'        => 'All Tickets',
-                'endpoint'     => 'local:Ticket',
+                'label' => 'All Tickets',
+                'endpoint' => 'local:Ticket',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -833,21 +832,21 @@ class AiIntentResolver
     /** @return array{data: array<string, mixed>, source: array<string, string>}|null */
     private function generalFallbackGlobal(): ?array
     {
-        $companySummary  = $this->saasCompanySummary();
-        $billingSummary  = $this->saasBillingSummary();
-        $totalEmployees  = EmployeeProfile::count();
+        $companySummary = $this->saasCompanySummary();
+        $billingSummary = $this->saasBillingSummary();
+        $totalEmployees = EmployeeProfile::count();
         $activeEmployees = EmployeeProfile::where('employment_status', 'active')->count();
 
         return [
-            'data'   => [
-                'companies'       => $companySummary['data'] ?? [],
-                'billing'         => $billingSummary['data'] ?? [],
+            'data' => [
+                'companies' => $companySummary['data'] ?? [],
+                'billing' => $billingSummary['data'] ?? [],
                 'total_employees' => $totalEmployees,
                 'active_employees' => $activeEmployees,
             ],
             'source' => [
-                'label'        => 'Global Admin Context',
-                'endpoint'     => 'local:Company + local:Invoice + local:EmployeeProfile',
+                'label' => 'Global Admin Context',
+                'endpoint' => 'local:Company + local:Invoice + local:EmployeeProfile',
                 'retrieved_at' => $this->now(),
             ],
         ];
@@ -856,26 +855,25 @@ class AiIntentResolver
     /** @return array{data: array<string, mixed>, source: array<string, string>}|null */
     private function generalFallbackCompany(?int $companyId): ?array
     {
-        $employees    = $this->employeeListCompany($companyId);
+        $employees = $this->employeeListCompany($companyId);
         $leaveSummary = $this->leaveSummaryCompany($companyId);
-        $payroll      = $this->payrollRunStatus($companyId);
-        $attendance   = $this->attendanceSummaryCompany($companyId);
-        $departments  = $this->departmentInfo($companyId);
+        $payroll = $this->payrollRunStatus($companyId);
+        $attendance = $this->attendanceSummaryCompany($companyId);
+        $departments = $this->departmentInfo($companyId);
 
         return [
-            'data'   => [
-                'employees'   => $employees['data'] ?? [],
-                'leave'       => $leaveSummary['data'] ?? [],
-                'payroll'     => $payroll['data'] ?? [],
-                'attendance'  => $attendance['data'] ?? [],
+            'data' => [
+                'employees' => $employees['data'] ?? [],
+                'leave' => $leaveSummary['data'] ?? [],
+                'payroll' => $payroll['data'] ?? [],
+                'attendance' => $attendance['data'] ?? [],
                 'departments' => $departments['data'] ?? [],
             ],
             'source' => [
-                'label'        => 'Company Admin Context',
-                'endpoint'     => 'local:EmployeeProfile + local:LeaveRequest + local:HcmPayrollRun + local:AttendanceRecord + local:Department',
+                'label' => 'Company Admin Context',
+                'endpoint' => 'local:EmployeeProfile + local:LeaveRequest + local:HcmPayrollRun + local:AttendanceRecord + local:Department',
                 'retrieved_at' => $this->now(),
             ],
         ];
     }
 }
-

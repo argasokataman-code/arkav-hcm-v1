@@ -22,8 +22,7 @@ class AssetAssignedNotification extends Notification
     public function __construct(
         public readonly Asset $asset,
         public readonly AssetAssignment $assignment,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {

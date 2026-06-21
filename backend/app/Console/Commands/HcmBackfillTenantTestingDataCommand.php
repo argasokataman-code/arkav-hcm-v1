@@ -29,6 +29,7 @@ class HcmBackfillTenantTestingDataCommand extends Command
         $companyId = $this->resolveCompanyId();
         if (! $companyId) {
             $this->error('No company found.');
+
             return self::FAILURE;
         }
 
@@ -43,6 +44,7 @@ class HcmBackfillTenantTestingDataCommand extends Command
         $this->backfillScheduleTables($companyId, $dryRun);
 
         $this->info('Done.');
+
         return self::SUCCESS;
     }
 
@@ -72,6 +74,7 @@ class HcmBackfillTenantTestingDataCommand extends Command
         $userIds = $this->userIdsForCompany($companyId);
         if ($userIds === []) {
             $this->warn('No active company members found in company_users for company_id='.$companyId);
+
             return;
         }
 
@@ -106,6 +109,7 @@ class HcmBackfillTenantTestingDataCommand extends Command
 
             if ($dryRun) {
                 $count++;
+
                 continue;
             }
 
@@ -179,4 +183,3 @@ class HcmBackfillTenantTestingDataCommand extends Command
         HcmScheduleTiming::query()->whereNull('company_id')->update(['company_id' => $companyId]);
     }
 }
-

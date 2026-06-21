@@ -38,7 +38,7 @@ class HcmAuditLogTest extends TestCase
 
         return array_merge([
             'name' => 'Karyawan Audit',
-            'email' => 'karyawan.audit.' . uniqid() . '@example.com',
+            'email' => 'karyawan.audit.'.uniqid().'@example.com',
             'password' => 'StrongPass1',
             'confirmPassword' => 'StrongPass1',
             'data_disclosure_acknowledged' => true,
@@ -82,7 +82,7 @@ class HcmAuditLogTest extends TestCase
         $companyId = $ctx['company_id'];
 
         $res = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $companyId,
         ])->postJson('/v1/hcm/employees', $this->validEmployeePayload($companyId));
 
@@ -105,7 +105,7 @@ class HcmAuditLogTest extends TestCase
         $ctx2 = $this->createHcmAdminWithCompany(['email' => 'audit.iso2@example.com']);
 
         $this->withHeaders([
-            'Authorization' => 'Bearer ' . $ctx1['token'],
+            'Authorization' => 'Bearer '.$ctx1['token'],
             'X-Company-Id' => (string) $ctx1['company_id'],
         ])->postJson('/v1/hcm/employees', $this->validEmployeePayload($ctx1['company_id']))
             ->assertStatus(201);

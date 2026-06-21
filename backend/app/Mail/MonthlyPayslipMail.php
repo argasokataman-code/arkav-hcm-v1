@@ -5,6 +5,7 @@ namespace App\Mail;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -15,15 +16,14 @@ class MonthlyPayslipMail extends Mailable
     use SerializesModels;
 
     /**
-     * @param array<string, mixed> $slip
+     * @param  array<string, mixed>  $slip
      */
     public function __construct(
         public User $user,
         public array $slip,
         public string $pdfContent,
         public string $companyName = '',
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {
@@ -56,7 +56,7 @@ class MonthlyPayslipMail extends Mailable
         $slipNumber = (string) ($this->slip['slipNumber'] ?? 'payslip');
 
         return [
-            \Illuminate\Mail\Mailables\Attachment::fromData(fn () => $this->pdfContent, $slipNumber.'.pdf')
+            Attachment::fromData(fn () => $this->pdfContent, $slipNumber.'.pdf')
                 ->withMime('application/pdf'),
         ];
     }

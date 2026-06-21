@@ -9,11 +9,10 @@ use App\Models\HcmPayrollRun;
 use App\Models\HcmTaxGovernancePolicy;
 use App\Services\BillingTaxCalculationService;
 use App\Services\TaxGovernanceReportingService;
+use App\Support\PayrollDraftBuilder;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -42,24 +41,24 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
         // Create a published tax governance policy for this company
         $policy = HcmTaxGovernancePolicy::factory()->create([
             'company_id' => $company->id,
-            'status'     => HcmTaxGovernancePolicy::STATUS_PUBLISHED,
-            'version'    => 3,
+            'status' => HcmTaxGovernancePolicy::STATUS_PUBLISHED,
+            'version' => 3,
             'effective_start_date' => '2026-05-01',
             'effective_end_date' => null,
         ]);
 
         $periodId = DB::table('hcm_payroll_periods')->insertGetId([
-            'uuid'         => (string) Str::uuid(),
-            'company_id'   => $company->id,
-            'period_year'  => 2026,
+            'uuid' => (string) Str::uuid(),
+            'company_id' => $company->id,
+            'period_year' => 2026,
             'period_month' => 5,
-            'status'       => 'open',
-            'created_at'   => now(),
-            'updated_at'   => now(),
+            'status' => 'open',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
         $period = HcmPayrollPeriod::find($periodId);
 
-        $run = \App\Support\PayrollDraftBuilder::rebuildDraftRun($period, (int) $company->id);
+        $run = PayrollDraftBuilder::rebuildDraftRun($period, (int) $company->id);
 
         $this->assertSame($policy->id, $run->hcm_tax_governance_policy_id);
         $this->assertSame(3, $run->hcm_tax_governance_policy_version);
@@ -75,17 +74,17 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
 
         // No published policy for this company
         $periodId = DB::table('hcm_payroll_periods')->insertGetId([
-            'uuid'         => (string) Str::uuid(),
-            'company_id'   => $company->id,
-            'period_year'  => 2026,
+            'uuid' => (string) Str::uuid(),
+            'company_id' => $company->id,
+            'period_year' => 2026,
             'period_month' => 5,
-            'status'       => 'open',
-            'created_at'   => now(),
-            'updated_at'   => now(),
+            'status' => 'open',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
         $period = HcmPayrollPeriod::find($periodId);
 
-        $run = \App\Support\PayrollDraftBuilder::rebuildDraftRun($period, (int) $company->id);
+        $run = PayrollDraftBuilder::rebuildDraftRun($period, (int) $company->id);
 
         $this->assertNull($run->hcm_tax_governance_policy_id, 'Policy ID should be null when no published policy exists');
         $this->assertNull($run->hcm_tax_governance_policy_version);
@@ -130,8 +129,8 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $runApril = \App\Support\PayrollDraftBuilder::rebuildDraftRun(HcmPayrollPeriod::findOrFail($periodAprilId), (int) $company->id);
-        $runMay = \App\Support\PayrollDraftBuilder::rebuildDraftRun(HcmPayrollPeriod::findOrFail($periodMayId), (int) $company->id);
+        $runApril = PayrollDraftBuilder::rebuildDraftRun(HcmPayrollPeriod::findOrFail($periodAprilId), (int) $company->id);
+        $runMay = PayrollDraftBuilder::rebuildDraftRun(HcmPayrollPeriod::findOrFail($periodMayId), (int) $company->id);
 
         $this->assertSame($policyApril->id, $runApril->hcm_tax_governance_policy_id);
         $this->assertSame(1, $runApril->hcm_tax_governance_policy_version);
@@ -153,12 +152,12 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
 
         $policy = HcmTaxGovernancePolicy::factory()->create([
             'company_id' => $company->id,
-            'status'     => HcmTaxGovernancePolicy::STATUS_PUBLISHED,
-            'version'    => 1,
+            'status' => HcmTaxGovernancePolicy::STATUS_PUBLISHED,
+            'version' => 1,
         ]);
 
         $periodStart = Carbon::create(2026, 1, 1)->startOfDay();
-        $periodEnd   = Carbon::create(2026, 1, 31)->endOfDay();
+        $periodEnd = Carbon::create(2026, 1, 31)->endOfDay();
 
         $periodId = DB::table('hcm_payroll_periods')->insertGetId([
             'company_id' => $company->id,
@@ -194,7 +193,7 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
         $company = Company::factory()->create();
 
         $periodStart = Carbon::create(2026, 6, 1)->startOfDay();
-        $periodEnd   = Carbon::create(2026, 6, 30)->endOfDay();
+        $periodEnd = Carbon::create(2026, 6, 30)->endOfDay();
 
         $service = app(TaxGovernanceReportingService::class);
         $method = new \ReflectionMethod($service, 'getPayrollCoverageStats');
@@ -225,7 +224,7 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
     {
         Queue::fake();
 
-        $year  = (int) now()->format('Y');
+        $year = (int) now()->format('Y');
         $month = (int) now()->format('n');
 
         // Simulate: running immediately on last day of month (still within grace)
@@ -243,19 +242,19 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
     {
         // Pre-insert a locked summary for this period
         DB::table('platform_monthly_financial_summaries')->insert([
-            'report_year'   => 2026,
-            'report_month'  => 3,
+            'report_year' => 2026,
+            'report_month' => 3,
             'report_status' => 'locked',
-            'locked_at'     => now()->toDateTimeString(),
+            'locked_at' => now()->toDateTimeString(),
             'gross_revenue' => 500000,
             'cleared_revenue' => 400000,
             'uncleared_revenue' => 100000,
             'disputed_revenue' => 0,
             'reversed_revenue' => 0,
-            'tax_amount'    => 50000,
-            'net_revenue'   => 450000,
-            'created_at'    => now()->toDateTimeString(),
-            'updated_at'    => now()->toDateTimeString(),
+            'tax_amount' => 50000,
+            'net_revenue' => 450000,
+            'created_at' => now()->toDateTimeString(),
+            'updated_at' => now()->toDateTimeString(),
         ]);
 
         // Run the job well past grace window (April)
@@ -274,8 +273,8 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
     {
         // Seed some revenue transactions for Jan 2026
         DB::table('platform_revenue_transactions')->insert([
-            ['company_id' => 1, 'uuid' => \Illuminate\Support\Str::uuid(), 'source_event_type' => 'test', 'transaction_type' => 'subscription', 'amount' => 1000000, 'tax_amount' => 100000, 'net_amount' => 900000, 'status' => 'posted', 'clearing_status' => 'cleared', 'occurred_at' => '2026-01-15 00:00:00', 'created_at' => now(), 'updated_at' => now()],
-            ['company_id' => 1, 'uuid' => \Illuminate\Support\Str::uuid(), 'source_event_type' => 'test', 'transaction_type' => 'subscription', 'amount' => 500000, 'tax_amount' => 50000, 'net_amount' => 450000, 'status' => 'posted', 'clearing_status' => 'uncleared', 'occurred_at' => '2026-01-28 00:00:00', 'created_at' => now(), 'updated_at' => now()],
+            ['company_id' => 1, 'uuid' => Str::uuid(), 'source_event_type' => 'test', 'transaction_type' => 'subscription', 'amount' => 1000000, 'tax_amount' => 100000, 'net_amount' => 900000, 'status' => 'posted', 'clearing_status' => 'cleared', 'occurred_at' => '2026-01-15 00:00:00', 'created_at' => now(), 'updated_at' => now()],
+            ['company_id' => 1, 'uuid' => Str::uuid(), 'source_event_type' => 'test', 'transaction_type' => 'subscription', 'amount' => 500000, 'tax_amount' => 50000, 'net_amount' => 450000, 'status' => 'posted', 'clearing_status' => 'uncleared', 'occurred_at' => '2026-01-28 00:00:00', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         // Run the close job past grace period (Feb 2)
@@ -285,8 +284,8 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
         $job->handle();
 
         $this->assertDatabaseHas('platform_monthly_financial_summaries', [
-            'report_year'   => 2026,
-            'report_month'  => 1,
+            'report_year' => 2026,
+            'report_month' => 1,
             'report_status' => 'locked',
         ]);
 
@@ -317,8 +316,8 @@ class TaxGovernancePhase3Phase4AnomalyFixTest extends TestCase
 
         // Job should not have thrown — period should be locked
         $this->assertDatabaseHas('platform_monthly_financial_summaries', [
-            'report_year'   => 2026,
-            'report_month'  => 3,
+            'report_year' => 2026,
+            'report_month' => 3,
             'report_status' => 'locked',
         ]);
 

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Company;
 use App\Models\EmployeeProfile;
 use App\Models\PayrollSettingsAuditLog;
 use App\Models\PayrollSettingsSnapshot;

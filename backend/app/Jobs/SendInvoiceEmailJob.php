@@ -71,4 +71,3 @@ class SendInvoiceEmailJob implements ShouldQueue
         }
     }
 }
-

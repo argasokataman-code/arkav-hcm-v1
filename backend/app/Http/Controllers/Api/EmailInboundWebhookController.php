@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\NotificationDelivery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class EmailInboundWebhookController extends Controller
 {
@@ -108,7 +109,7 @@ class EmailInboundWebhookController extends Controller
     /**
      * @param  array<string, mixed>  $payload
      */
-    private function resolveReceivedAt(array $payload): ?\Illuminate\Support\Carbon
+    private function resolveReceivedAt(array $payload): ?Carbon
     {
         $raw = trim((string) ($payload['received_at'] ?? $payload['date'] ?? $payload['created_at'] ?? ''));
         if ($raw === '') {

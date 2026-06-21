@@ -22,9 +22,13 @@ class AttendanceCorrectionNotificationTest extends TestCase
     use RefreshDatabase;
 
     private ?Company $company = null;
+
     private ?User $adminUser = null;
+
     private ?User $employeeUser = null;
+
     private string $adminToken = '';
+
     private string $employeeToken = '';
 
     protected function setUp(): void
@@ -37,7 +41,7 @@ class AttendanceCorrectionNotificationTest extends TestCase
             'email' => 'hcmadmin@test.local',
             'password' => 'StrongPass1',
         ]);
-        $this->company   = $result['company'];
+        $this->company = $result['company'];
         $this->adminUser = $result['user'];
         $this->adminToken = $result['token'];
 
@@ -48,15 +52,15 @@ class AttendanceCorrectionNotificationTest extends TestCase
 
         // Employee
         $employee = User::factory()->create([
-            'name'     => 'Test Employee',
-            'email'    => 'employee@test.local',
+            'name' => 'Test Employee',
+            'email' => 'employee@test.local',
             'password' => bcrypt('StrongPass1'),
         ]);
         CompanyUser::query()->create([
             'company_id' => $this->company->id,
-            'user_id'    => $employee->id,
-            'role'       => 'employee',
-            'status'     => 'active',
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
         ]);
         EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $employee->id],
@@ -65,8 +69,8 @@ class AttendanceCorrectionNotificationTest extends TestCase
         $this->employeeUser = $employee;
 
         $login = $this->postJson('/v1/identity/auth/login', [
-            'email'       => 'employee@test.local',
-            'password'    => 'StrongPass1',
+            'email' => 'employee@test.local',
+            'password' => 'StrongPass1',
             'companyCode' => $this->company->code,
         ]);
         $this->employeeToken = $login->json('data.accessToken');
@@ -75,30 +79,31 @@ class AttendanceCorrectionNotificationTest extends TestCase
     private function makeAttendanceRecord(array $attrs = []): AttendanceRecord
     {
         $defaults = [
-            'company_id'      => $this->company->id,
-            'user_id'         => $this->employeeUser->id,
-            'work_date'       => Carbon::today()->toDateString(),
-            'check_in_at'     => Carbon::now()->subHours(4),
-            'check_out_at'    => Carbon::now()->subHour(),
-            'status'          => 'needs_review',
+            'company_id' => $this->company->id,
+            'user_id' => $this->employeeUser->id,
+            'work_date' => Carbon::today()->toDateString(),
+            'check_in_at' => Carbon::now()->subHours(4),
+            'check_out_at' => Carbon::now()->subHour(),
+            'status' => 'needs_review',
             'correction_status' => 'none',
         ];
+
         return AttendanceRecord::query()->create(array_merge($defaults, $attrs));
     }
 
     private function adminHeaders(): array
     {
         return [
-            'Authorization' => 'Bearer ' . $this->adminToken,
-            'X-Company-Id'  => (string) $this->company->id,
+            'Authorization' => 'Bearer '.$this->adminToken,
+            'X-Company-Id' => (string) $this->company->id,
         ];
     }
 
     private function employeeHeaders(): array
     {
         return [
-            'Authorization' => 'Bearer ' . $this->employeeToken,
-            'X-Company-Id'  => (string) $this->company->id,
+            'Authorization' => 'Bearer '.$this->employeeToken,
+            'X-Company-Id' => (string) $this->company->id,
         ];
     }
 
@@ -114,9 +119,9 @@ class AttendanceCorrectionNotificationTest extends TestCase
         $this->withHeaders($this->employeeHeaders())
             ->postJson('/v1/hcm/attendance/me/correction-request', [
                 'workDate' => Carbon::today()->toDateString(),
-                'reason'   => 'Lupa absen keluar karena server down',
+                'reason' => 'Lupa absen keluar karena server down',
             ])->assertOk()
-              ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true);
 
         Notification::assertSentTo($this->adminUser, AttendanceCorrectionRequestedNotification::class);
     }
@@ -133,9 +138,9 @@ class AttendanceCorrectionNotificationTest extends TestCase
         $this->withHeaders($this->employeeHeaders())
             ->postJson('/v1/hcm/attendance/me/correction-request', [
                 'workDate' => Carbon::today()->toDateString(),
-                'reason'   => 'Attempting duplicate request',
+                'reason' => 'Attempting duplicate request',
             ])->assertStatus(422)
-              ->assertJsonPath('error.code', 'CORRECTION_ALREADY_PENDING');
+            ->assertJsonPath('error.code', 'CORRECTION_ALREADY_PENDING');
 
         Notification::assertNothingSent();
     }
@@ -160,9 +165,9 @@ class AttendanceCorrectionNotificationTest extends TestCase
         $this->withHeaders($this->employeeHeaders())
             ->postJson('/v1/hcm/attendance/me/correction-request', [
                 'workDate' => $oldDate,
-                'reason'   => 'Old record correction',
+                'reason' => 'Old record correction',
             ])->assertStatus(422)
-              ->assertJsonPath('error.code', 'CORRECTION_WINDOW_EXCEEDED');
+            ->assertJsonPath('error.code', 'CORRECTION_WINDOW_EXCEEDED');
 
         Notification::assertNothingSent();
     }
@@ -186,9 +191,9 @@ class AttendanceCorrectionNotificationTest extends TestCase
         $this->withHeaders($this->employeeHeaders())
             ->postJson('/v1/hcm/attendance/me/correction-request', [
                 'workDate' => $oldDate,
-                'reason'   => 'Very old correction with unlimited window',
+                'reason' => 'Very old correction with unlimited window',
             ])->assertOk()
-              ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true);
     }
 
     // -------------------------------------------------------------------------
@@ -202,14 +207,14 @@ class AttendanceCorrectionNotificationTest extends TestCase
 
         $this->withHeaders($this->adminHeaders())
             ->putJson('/v1/hcm/attendance/admin/record', [
-                'userId'        => $this->employeeUser->id,
-                'workDate'      => $rec->work_date->toDateString(),
-                'checkInTime'   => '08:00',
-                'checkOutTime'  => '17:00',
-                'breakMinutes'  => 60,
-                'lateMinutes'   => 0,
+                'userId' => $this->employeeUser->id,
+                'workDate' => $rec->work_date->toDateString(),
+                'checkInTime' => '08:00',
+                'checkOutTime' => '17:00',
+                'breakMinutes' => 60,
+                'lateMinutes' => 0,
             ])->assertOk()
-              ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true);
 
         Notification::assertSentTo($this->employeeUser, AttendanceCorrectionApprovedNotification::class);
     }
@@ -225,14 +230,14 @@ class AttendanceCorrectionNotificationTest extends TestCase
 
         $this->withHeaders($this->adminHeaders())
             ->putJson('/v1/hcm/attendance/admin/record', [
-                'userId'        => $this->employeeUser->id,
-                'workDate'      => Carbon::today()->toDateString(),
-                'checkInTime'   => '',
-                'checkOutTime'  => '',
-                'breakMinutes'  => 0,
-                'lateMinutes'   => 0,
+                'userId' => $this->employeeUser->id,
+                'workDate' => Carbon::today()->toDateString(),
+                'checkInTime' => '',
+                'checkOutTime' => '',
+                'breakMinutes' => 0,
+                'lateMinutes' => 0,
             ])->assertOk()
-              ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true);
 
         Notification::assertSentTo($this->employeeUser, AttendanceCorrectionApprovedNotification::class);
     }
@@ -247,8 +252,8 @@ class AttendanceCorrectionNotificationTest extends TestCase
 
         // Create a second company + admin
         $otherResult = $this->createHcmAdminWithCompany([
-            'name'     => 'Other Admin',
-            'email'    => 'otheradmin@test.local',
+            'name' => 'Other Admin',
+            'email' => 'otheradmin@test.local',
             'password' => 'StrongPass1',
         ]);
         $otherAdmin = $otherResult['user'];
@@ -258,7 +263,7 @@ class AttendanceCorrectionNotificationTest extends TestCase
         $this->withHeaders($this->employeeHeaders())
             ->postJson('/v1/hcm/attendance/me/correction-request', [
                 'workDate' => Carbon::today()->toDateString(),
-                'reason'   => 'Tenant isolation test reason',
+                'reason' => 'Tenant isolation test reason',
             ])->assertOk();
 
         Notification::assertNotSentTo($otherAdmin, AttendanceCorrectionRequestedNotification::class);

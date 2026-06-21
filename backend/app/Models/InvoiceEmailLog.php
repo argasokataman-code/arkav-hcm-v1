@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InvoiceEmailLog extends Model
 {
-    use HasFactory, AssignsUuid;
+    use AssignsUuid, HasFactory;
 
     protected $fillable = [
         'invoice_id',
@@ -25,4 +25,3 @@ class InvoiceEmailLog extends Model
         return $this->belongsTo(Invoice::class);
     }
 }
-

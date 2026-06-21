@@ -288,6 +288,7 @@ class HcmPayrollPeriodController extends Controller
         $missingTaxProfileUserIds = $lines
             ->filter(function (HcmPayrollLine $line): bool {
                 $meta = is_array($line->meta) ? $line->meta : [];
+
                 return ($line->component_code === 'pph21_ter' || $line->category === 'pph21_ter')
                     && (($meta['missingTaxProfile'] ?? false) === true);
             })

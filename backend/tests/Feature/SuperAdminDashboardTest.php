@@ -17,7 +17,9 @@ class SuperAdminDashboardTest extends TestCase
     use RefreshDatabase;
 
     private string $adminToken;
+
     private string $userToken;
+
     private Company $company;
 
     protected function setUp(): void
@@ -67,12 +69,12 @@ class SuperAdminDashboardTest extends TestCase
 
     private function adminRequest()
     {
-        return $this->withHeader('Authorization', 'Bearer ' . $this->adminToken);
+        return $this->withHeader('Authorization', 'Bearer '.$this->adminToken);
     }
 
     private function userRequest()
     {
-        return $this->withHeader('Authorization', 'Bearer ' . $this->userToken);
+        return $this->withHeader('Authorization', 'Bearer '.$this->userToken);
     }
 
     public function test_admin_can_get_kpi()
@@ -590,7 +592,7 @@ class SuperAdminDashboardTest extends TestCase
         $response = $this->adminRequest()->getJson('/v1/saas/dashboard/kpi');
 
         $data = $response->json('data');
-        
+
         $this->assertArrayHasKey('totalCompanies', $data);
         $this->assertArrayHasKey('totalUsers', $data);
         $this->assertArrayHasKey('mrr', $data);
@@ -621,9 +623,9 @@ class SuperAdminDashboardTest extends TestCase
         // Create 20 companies with unique codes
         for ($i = 1; $i <= 20; $i++) {
             Company::create([
-                'code' => 'COMP' . str_pad($i, 4, '0', STR_PAD_LEFT),
-                'name' => 'Company ' . $i,
-                'email' => 'company' . $i . '@test.com',
+                'code' => 'COMP'.str_pad($i, 4, '0', STR_PAD_LEFT),
+                'name' => 'Company '.$i,
+                'email' => 'company'.$i.'@test.com',
                 'country' => 'US',
                 'industry' => 'Tech',
                 'currency' => 'USD',
@@ -642,9 +644,9 @@ class SuperAdminDashboardTest extends TestCase
     {
         for ($i = 1; $i <= 12; $i++) {
             Company::create([
-                'code' => 'PERPAGE' . str_pad($i, 4, '0', STR_PAD_LEFT),
-                'name' => 'Per Page Company ' . $i,
-                'email' => 'perpage' . $i . '@test.com',
+                'code' => 'PERPAGE'.str_pad($i, 4, '0', STR_PAD_LEFT),
+                'name' => 'Per Page Company '.$i,
+                'email' => 'perpage'.$i.'@test.com',
                 'country' => 'US',
                 'industry' => 'Tech',
                 'currency' => 'USD',

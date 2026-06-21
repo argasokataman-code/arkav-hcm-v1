@@ -28,7 +28,7 @@ class MailtrapAccountApiServiceTest extends TestCase
             ], 200),
         ]);
 
-        $service = new MailtrapAccountApiService();
+        $service = new MailtrapAccountApiService;
         $tokens = $service->listApiTokens();
 
         $this->assertCount(1, $tokens);
@@ -48,7 +48,7 @@ class MailtrapAccountApiServiceTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('MAILTRAP_API_TOKEN is not configured.');
 
-        (new MailtrapAccountApiService())->listApiTokens();
+        (new MailtrapAccountApiService)->listApiTokens();
     }
 
     public function test_test_connection_returns_connected_summary(): void
@@ -64,7 +64,7 @@ class MailtrapAccountApiServiceTest extends TestCase
             ], 200),
         ]);
 
-        $result = (new MailtrapAccountApiService())->testConnection('mt_test_token', 3229, 5);
+        $result = (new MailtrapAccountApiService)->testConnection('mt_test_token', 3229, 5);
 
         $this->assertTrue($result['connected']);
         $this->assertSame(1, $result['visibleTokenCount']);
@@ -79,7 +79,7 @@ class MailtrapAccountApiServiceTest extends TestCase
             ], 401),
         ]);
 
-        $result = (new MailtrapAccountApiService())->testConnection('bad-token', 3229, 5);
+        $result = (new MailtrapAccountApiService)->testConnection('bad-token', 3229, 5);
 
         $this->assertFalse($result['connected']);
         $this->assertSame('AUTH_FAILED', $result['error']['code']);

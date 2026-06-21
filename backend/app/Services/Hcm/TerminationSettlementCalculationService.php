@@ -6,6 +6,7 @@ use App\DataClasses\TerminationSettlementBreakdown;
 use App\Models\EmployeeLeaveBalance;
 use App\Models\EmployeeProfile;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -36,20 +37,19 @@ final class TerminationSettlementCalculationService
      * UPH, and leave payout items and returns them together with an evidence
      * snapshot for storage.
      *
-     * @param  int              $companyId       Multi-tenant company scope (Anomaly #6)
-     * @param  int              $userId          Employee user_id
-     * @param  string           $terminationDate ISO date (YYYY-MM-DD)
-     * @param  string|null      $policyProfileKey  Resolved policy profile key
-     * @return TerminationSettlementBreakdown
+     * @param  int  $companyId  Multi-tenant company scope (Anomaly #6)
+     * @param  int  $userId  Employee user_id
+     * @param  string  $terminationDate  ISO date (YYYY-MM-DD)
+     * @param  string|null  $policyProfileKey  Resolved policy profile key
      */
     public function calculate(
-        int     $companyId,
-        int     $userId,
-        string  $terminationDate,
+        int $companyId,
+        int $userId,
+        string $terminationDate,
         ?string $policyProfileKey,
     ): TerminationSettlementBreakdown {
-        $profileConfig  = $this->resolveProfileConfig($policyProfileKey);
-        $policyKey      = $policyProfileKey ?? 'general_other';
+        $profileConfig = $this->resolveProfileConfig($policyProfileKey);
+        $policyKey = $policyProfileKey ?? 'general_other';
 
         // --- Employee profile (multi-tenant scoped, Anomaly #6) ---
         $profile = EmployeeProfile::query()
@@ -57,41 +57,41 @@ final class TerminationSettlementCalculationService
             ->where('user_id', $userId)
             ->first();
 
-        $baseSalary     = (float) ($profile?->base_salary ?? 0);
+        $baseSalary = (float) ($profile?->base_salary ?? 0);
         $fixedAllowance = (float) ($profile?->fixed_allowance ?? 0);
-        $referenceWage  = $baseSalary;   // pesangon reference = base salary only
+        $referenceWage = $baseSalary;   // pesangon reference = base salary only
 
-        $terminationAt  = Carbon::parse($terminationDate)->startOfDay();
-        $hireDate       = $profile?->hire_date
+        $terminationAt = Carbon::parse($terminationDate)->startOfDay();
+        $hireDate = $profile?->hire_date
             ? Carbon::parse($profile->hire_date)->startOfDay()
             : null;
 
-        $serviceYears   = $hireDate ? $hireDate->diffInYears($terminationAt) : 0;
-        $serviceMonths  = $hireDate ? $hireDate->diffInMonths($terminationAt) : 0;
+        $serviceYears = $hireDate ? $hireDate->diffInYears($terminationAt) : 0;
+        $serviceMonths = $hireDate ? $hireDate->diffInMonths($terminationAt) : 0;
 
         // --- Severance (UP) ---
-        $upMonths       = $profileConfig['up_multiplier'] > 0
+        $upMonths = $profileConfig['up_multiplier'] > 0
             ? $this->upMonthsByServiceYear($serviceYears)
             : 0;
-        $upAmount       = round($upMonths * $profileConfig['up_multiplier'] * $referenceWage, 2);
+        $upAmount = round($upMonths * $profileConfig['up_multiplier'] * $referenceWage, 2);
 
         // --- Service Award (UPMK) ---
-        $upmkMonths     = $profileConfig['upmk_applicable']
+        $upmkMonths = $profileConfig['upmk_applicable']
             ? $this->upmkMonthsByServiceYear($serviceYears)
             : 0;
-        $upmkAmount     = round($upmkMonths * $referenceWage, 2);
+        $upmkAmount = round($upmkMonths * $referenceWage, 2);
 
         // --- Benefit Substitution (UPH) ---
-        $uphRate        = (float) config('termination-policy-profiles.uph_rate', 0.15);
-        $uphAmount      = $profileConfig['uph_applicable']
+        $uphRate = (float) config('termination-policy-profiles.uph_rate', 0.15);
+        $uphAmount = $profileConfig['uph_applicable']
             ? round($uphRate * ($upAmount + $upmkAmount), 2)
             : 0.0;
 
         // --- Leave Payout (graceful fallback — Anomaly #4) ---
         [$leavePayoutResult, $leaveBalanceAvailable, $leaveRemainingDays] = $this->calculateLeavePayoutSafe(
-            companyId:   $companyId,
-            userId:      $userId,
-            baseSalary:  $baseSalary,
+            companyId: $companyId,
+            userId: $userId,
+            baseSalary: $baseSalary,
         );
 
         // --- Build line items ---
@@ -101,17 +101,17 @@ final class TerminationSettlementCalculationService
             $items[] = [
                 'componentCode' => 'termination_up_severance',
                 'componentName' => $profileConfig['up_label'],
-                'kind'          => 'addition',
-                'category'      => 'termination_severance',
-                'amount'        => number_format($upAmount, 2, '.', ''),
-                'bucket'        => 'severance',
-                'source'        => 'termination_settlement_calculator',
-                'meta'          => [
-                    'serviceYears'    => $serviceYears,
-                    'upBaseMonths'    => $upMonths,
-                    'upMultiplier'    => $profileConfig['up_multiplier'],
-                    'referenceWage'   => number_format($referenceWage, 2, '.', ''),
-                    'regulationRef'   => $profileConfig['formula_notes'],
+                'kind' => 'addition',
+                'category' => 'termination_severance',
+                'amount' => number_format($upAmount, 2, '.', ''),
+                'bucket' => 'severance',
+                'source' => 'termination_settlement_calculator',
+                'meta' => [
+                    'serviceYears' => $serviceYears,
+                    'upBaseMonths' => $upMonths,
+                    'upMultiplier' => $profileConfig['up_multiplier'],
+                    'referenceWage' => number_format($referenceWage, 2, '.', ''),
+                    'regulationRef' => $profileConfig['formula_notes'],
                 ],
             ];
         }
@@ -120,14 +120,14 @@ final class TerminationSettlementCalculationService
             $items[] = [
                 'componentCode' => 'termination_upmk_service_award',
                 'componentName' => 'Service Award (UPMK)',
-                'kind'          => 'addition',
-                'category'      => 'termination_service_award',
-                'amount'        => number_format($upmkAmount, 2, '.', ''),
-                'bucket'        => 'severance',
-                'source'        => 'termination_settlement_calculator',
-                'meta'          => [
-                    'serviceYears'  => $serviceYears,
-                    'upmkMonths'    => $upmkMonths,
+                'kind' => 'addition',
+                'category' => 'termination_service_award',
+                'amount' => number_format($upmkAmount, 2, '.', ''),
+                'bucket' => 'severance',
+                'source' => 'termination_settlement_calculator',
+                'meta' => [
+                    'serviceYears' => $serviceYears,
+                    'upmkMonths' => $upmkMonths,
                     'referenceWage' => number_format($referenceWage, 2, '.', ''),
                     'regulationRef' => 'UU 13/2003 Pasal 156 ayat 3 — UPMK',
                 ],
@@ -138,15 +138,15 @@ final class TerminationSettlementCalculationService
             $items[] = [
                 'componentCode' => 'termination_uph_benefit_substitution',
                 'componentName' => 'Benefit Substitution / Penggantian Hak (UPH)',
-                'kind'          => 'addition',
-                'category'      => 'termination_rights_substitution',
-                'amount'        => number_format($uphAmount, 2, '.', ''),
-                'bucket'        => 'severance',
-                'source'        => 'termination_settlement_calculator',
-                'meta'          => [
-                    'uphRate'       => $uphRate,
-                    'upBase'        => number_format($upAmount, 2, '.', ''),
-                    'upmkBase'      => number_format($upmkAmount, 2, '.', ''),
+                'kind' => 'addition',
+                'category' => 'termination_rights_substitution',
+                'amount' => number_format($uphAmount, 2, '.', ''),
+                'bucket' => 'severance',
+                'source' => 'termination_settlement_calculator',
+                'meta' => [
+                    'uphRate' => $uphRate,
+                    'upBase' => number_format($upAmount, 2, '.', ''),
+                    'upmkBase' => number_format($upmkAmount, 2, '.', ''),
                     'regulationRef' => 'UU 13/2003 Pasal 156 ayat 4 — UPH = 15% × (UP + UPMK)',
                 ],
             ];
@@ -156,14 +156,14 @@ final class TerminationSettlementCalculationService
             $items[] = [
                 'componentCode' => 'termination_leave_payout',
                 'componentName' => 'Leave Payout (Sisa Cuti)',
-                'kind'          => 'addition',
-                'category'      => 'termination_leave_payout',
-                'amount'        => number_format($leavePayoutResult, 2, '.', ''),
-                'bucket'        => 'leave',
-                'source'        => 'termination_settlement_calculator',
-                'meta'          => [
+                'kind' => 'addition',
+                'category' => 'termination_leave_payout',
+                'amount' => number_format($leavePayoutResult, 2, '.', ''),
+                'bucket' => 'leave',
+                'source' => 'termination_settlement_calculator',
+                'meta' => [
                     'remainingDays' => $leaveRemainingDays,
-                    'dailyRate'     => $referenceWage > 0
+                    'dailyRate' => $referenceWage > 0
                         ? number_format(
                             $referenceWage / config('termination-policy-profiles.leave_payout_working_days_per_month', 25),
                             2, '.', ''
@@ -177,12 +177,12 @@ final class TerminationSettlementCalculationService
             $items[] = [
                 'componentCode' => 'termination_leave_payout_unavailable',
                 'componentName' => 'Leave Payout — Balance Unavailable',
-                'kind'          => 'addition',
-                'category'      => 'termination_leave_payout',
-                'amount'        => '0.00',
-                'bucket'        => 'leave',
-                'source'        => 'termination_settlement_calculator',
-                'meta'          => [
+                'kind' => 'addition',
+                'category' => 'termination_leave_payout',
+                'amount' => '0.00',
+                'bucket' => 'leave',
+                'source' => 'termination_settlement_calculator',
+                'meta' => [
                     'warning' => 'Leave balance could not be fetched from the leave service. Manual confirmation required before finalization.',
                 ],
             ];
@@ -193,7 +193,7 @@ final class TerminationSettlementCalculationService
         //   (the same service used by payroll runs) once that service is available.
         //   Currently totalDeduction sums only the manually-supplied finalDeductionAmount line items.
         //   Tracking: docs/features/termination/tracker.md — "Pending: PayrollTaxCalculationService integration"
-        $totalGross     = 0.0;
+        $totalGross = 0.0;
         $totalDeduction = 0.0;
         foreach ($items as $item) {
             $amt = (float) ($item['amount'] ?? 0);
@@ -207,35 +207,35 @@ final class TerminationSettlementCalculationService
 
         // --- Evidence snapshot (Anomaly #1 — immutable source data) ---
         $evidenceSnapshot = [
-            'snapshot_at'       => now()->toIso8601String(),
-            'company_id'        => $companyId,
-            'user_id'           => $userId,
-            'hire_date'         => $hireDate?->toDateString(),
-            'termination_date'  => $terminationAt->toDateString(),
-            'service_years'     => $serviceYears,
-            'service_months'    => $serviceMonths,
-            'base_salary'       => number_format($baseSalary, 2, '.', ''),
-            'fixed_allowance'   => number_format($fixedAllowance, 2, '.', ''),
-            'reference_wage'    => number_format($referenceWage, 2, '.', ''),
-            'policy_profile_key'  => $policyKey,
-            'formula_version'   => config('termination-policy-profiles.formula_version', '2026-05'),
-            'up_months'         => $upMonths,
-            'up_multiplier'     => $profileConfig['up_multiplier'],
-            'upmk_months'       => $upmkMonths,
-            'leave_balance_days'  => $leaveRemainingDays,
+            'snapshot_at' => now()->toIso8601String(),
+            'company_id' => $companyId,
+            'user_id' => $userId,
+            'hire_date' => $hireDate?->toDateString(),
+            'termination_date' => $terminationAt->toDateString(),
+            'service_years' => $serviceYears,
+            'service_months' => $serviceMonths,
+            'base_salary' => number_format($baseSalary, 2, '.', ''),
+            'fixed_allowance' => number_format($fixedAllowance, 2, '.', ''),
+            'reference_wage' => number_format($referenceWage, 2, '.', ''),
+            'policy_profile_key' => $policyKey,
+            'formula_version' => config('termination-policy-profiles.formula_version', '2026-05'),
+            'up_months' => $upMonths,
+            'up_multiplier' => $profileConfig['up_multiplier'],
+            'upmk_months' => $upmkMonths,
+            'leave_balance_days' => $leaveRemainingDays,
             'leave_balance_available' => $leaveBalanceAvailable,
         ];
 
         return new TerminationSettlementBreakdown(
-            lineItems:             $items,
-            evidenceSnapshot:      $evidenceSnapshot,
+            lineItems: $items,
+            evidenceSnapshot: $evidenceSnapshot,
             leaveBalanceAvailable: $leaveBalanceAvailable,
-            leavePayout:           $leavePayoutResult,
-            totalGross:            $totalGross,
-            totalDeduction:        $totalDeduction,
-            netPayable:            $netPayable,
-            calculationMethod:     'policy_based',
-            policyProfileKey:      $policyKey,
+            leavePayout: $leavePayoutResult,
+            totalGross: $totalGross,
+            totalDeduction: $totalDeduction,
+            netPayable: $netPayable,
+            calculationMethod: 'policy_based',
+            policyProfileKey: $policyKey,
         );
     }
 
@@ -246,7 +246,7 @@ final class TerminationSettlementCalculationService
      * Used during finalization to block approval of stale settlement data (Anomaly #1).
      *
      * @param  array<string, mixed>  $storedSnapshot  Value from settlement_evidence_snapshot column
-     * @return array<string, mixed>|null  ['drifted' => bool, 'fields' => []] or null if no snapshot
+     * @return array<string, mixed>|null ['drifted' => bool, 'fields' => []] or null if no snapshot
      */
     public function detectDrift(array $storedSnapshot, int $companyId, int $userId): ?array
     {
@@ -270,24 +270,24 @@ final class TerminationSettlementCalculationService
             : null;
         if (($storedSnapshot['hire_date'] ?? null) !== $currentHireDate) {
             $driftedFields[] = [
-                'field'    => 'hire_date',
+                'field' => 'hire_date',
                 'snapshot' => $storedSnapshot['hire_date'] ?? null,
-                'current'  => $currentHireDate,
+                'current' => $currentHireDate,
             ];
         }
 
         $currentBaseSalary = number_format((float) ($profile->base_salary ?? 0), 2, '.', '');
         if (($storedSnapshot['base_salary'] ?? null) !== $currentBaseSalary) {
             $driftedFields[] = [
-                'field'    => 'base_salary',
+                'field' => 'base_salary',
                 'snapshot' => $storedSnapshot['base_salary'] ?? null,
-                'current'  => $currentBaseSalary,
+                'current' => $currentBaseSalary,
             ];
         }
 
         return [
             'drifted' => count($driftedFields) > 0,
-            'fields'  => $driftedFields,
+            'fields' => $driftedFields,
         ];
     }
 
@@ -325,7 +325,7 @@ final class TerminationSettlementCalculationService
                 ->where('employee_id', $profileId)
                 ->where('year', $currentYear)
                 ->sum(
-                    \Illuminate\Support\Facades\DB::raw('GREATEST(0, balance - used)')
+                    DB::raw('GREATEST(0, balance - used)')
                 );
 
             $remainingDays = max(0.0, (float) $balance);
@@ -335,16 +335,16 @@ final class TerminationSettlementCalculationService
             }
 
             $workingDaysPerMonth = (int) config('termination-policy-profiles.leave_payout_working_days_per_month', 25);
-            $dailyRate           = $baseSalary / $workingDaysPerMonth;
-            $leavePayout         = round($remainingDays * $dailyRate, 2);
+            $dailyRate = $baseSalary / $workingDaysPerMonth;
+            $leavePayout = round($remainingDays * $dailyRate, 2);
 
             return [$leavePayout, true, $remainingDays];
         } catch (\Throwable $e) {
             // Anomaly #4: do NOT fall back to silent zero — return null so finalization is blocked
             Log::warning('TerminationSettlementCalculationService: leave balance unavailable', [
                 'company_id' => $companyId,
-                'user_id'    => $userId,
-                'error'      => $e->getMessage(),
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
             ]);
 
             return [null, false, 0.0];
@@ -358,15 +358,15 @@ final class TerminationSettlementCalculationService
      */
     private function resolveProfileConfig(?string $policyProfileKey): array
     {
-        $key      = $policyProfileKey ?? 'general_other';
+        $key = $policyProfileKey ?? 'general_other';
         $profiles = config('termination-policy-profiles.profiles', []);
 
         return $profiles[$key] ?? $profiles['general_other'] ?? [
-            'up_multiplier'   => 0.0,
+            'up_multiplier' => 0.0,
             'upmk_applicable' => false,
-            'uph_applicable'  => false,
-            'up_label'        => 'Severance Pay',
-            'formula_notes'   => 'Unknown policy profile.',
+            'uph_applicable' => false,
+            'up_label' => 'Severance Pay',
+            'formula_notes' => 'Unknown policy profile.',
         ];
     }
 
@@ -378,7 +378,7 @@ final class TerminationSettlementCalculationService
     private function upMonthsByServiceYear(int $serviceYears): int
     {
         return match (true) {
-            $serviceYears < 1  => 1,   // < 1 year: 1 month
+            $serviceYears < 1 => 1,   // < 1 year: 1 month
             $serviceYears === 1 => 1,
             $serviceYears === 2 => 2,
             $serviceYears === 3 => 3,
@@ -386,7 +386,7 @@ final class TerminationSettlementCalculationService
             $serviceYears === 5 => 5,
             $serviceYears === 6 => 6,
             $serviceYears === 7 => 7,
-            default             => 9,  // ≥ 8 years: 9 months (capped)
+            default => 9,  // ≥ 8 years: 9 months (capped)
         };
     }
 
@@ -396,15 +396,15 @@ final class TerminationSettlementCalculationService
     private function upmkMonthsByServiceYear(int $serviceYears): int
     {
         return match (true) {
-            $serviceYears < 3   => 0,
-            $serviceYears < 6   => 2,
-            $serviceYears < 9   => 3,
-            $serviceYears < 12  => 4,
-            $serviceYears < 15  => 5,
-            $serviceYears < 18  => 6,
-            $serviceYears < 21  => 7,
-            $serviceYears < 24  => 8,
-            default             => 10, // ≥ 24 years: 10 months
+            $serviceYears < 3 => 0,
+            $serviceYears < 6 => 2,
+            $serviceYears < 9 => 3,
+            $serviceYears < 12 => 4,
+            $serviceYears < 15 => 5,
+            $serviceYears < 18 => 6,
+            $serviceYears < 21 => 7,
+            $serviceYears < 24 => 8,
+            default => 10, // ≥ 24 years: 10 months
         };
     }
 }

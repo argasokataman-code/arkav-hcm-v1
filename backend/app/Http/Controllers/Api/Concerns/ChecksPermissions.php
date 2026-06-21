@@ -13,7 +13,7 @@ trait ChecksPermissions
     protected function hasPermission(Request $request, string $permissionCode): bool
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -23,7 +23,7 @@ trait ChecksPermissions
         }
 
         $companyId = $this->activeCompanyId($request);
-        if (!$companyId) {
+        if (! $companyId) {
             return $user->isHcmAdmin();
         }
 
@@ -45,6 +45,7 @@ trait ChecksPermissions
                 return true;
             }
         }
+
         return false;
     }
 
@@ -54,10 +55,11 @@ trait ChecksPermissions
     protected function hasAllPermissions(Request $request, array $permissionCodes): bool
     {
         foreach ($permissionCodes as $permissionCode) {
-            if (!$this->hasPermission($request, $permissionCode)) {
+            if (! $this->hasPermission($request, $permissionCode)) {
                 return false;
             }
         }
+
         return true;
     }
 
@@ -66,7 +68,7 @@ trait ChecksPermissions
      */
     protected function ensurePermission(Request $request, string $permissionCode): ?JsonResponse
     {
-        if (!$this->hasPermission($request, $permissionCode)) {
+        if (! $this->hasPermission($request, $permissionCode)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -75,6 +77,7 @@ trait ChecksPermissions
                 ],
             ], 403);
         }
+
         return null;
     }
 
@@ -83,7 +86,7 @@ trait ChecksPermissions
      */
     protected function ensureAnyPermission(Request $request, array $permissionCodes): ?JsonResponse
     {
-        if (!$this->hasAnyPermission($request, $permissionCodes)) {
+        if (! $this->hasAnyPermission($request, $permissionCodes)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -92,6 +95,7 @@ trait ChecksPermissions
                 ],
             ], 403);
         }
+
         return null;
     }
 
@@ -100,7 +104,7 @@ trait ChecksPermissions
      */
     protected function ensureAllPermissions(Request $request, array $permissionCodes): ?JsonResponse
     {
-        if (!$this->hasAllPermissions($request, $permissionCodes)) {
+        if (! $this->hasAllPermissions($request, $permissionCodes)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -109,6 +113,7 @@ trait ChecksPermissions
                 ],
             ], 403);
         }
+
         return null;
     }
 

@@ -84,8 +84,8 @@ class SuperAdminDeveloperSeeder extends Seeder
         ];
 
         foreach ($testData as $data) {
-            $companyCode = $data['code_base'] . '_' . substr(bin2hex(random_bytes(2)), 0, 4);
-            
+            $companyCode = $data['code_base'].'_'.substr(bin2hex(random_bytes(2)), 0, 4);
+
             $company = Company::firstOrCreate(
                 ['code' => $companyCode],
                 [
@@ -141,7 +141,7 @@ class SuperAdminDeveloperSeeder extends Seeder
                     'notes' => 'Test invoice - QA seeding',
                 ]
             );
-            $this->command->info("  → Subscription & Invoice created");
+            $this->command->info('  → Subscription & Invoice created');
 
             // Create activities for each test company
             foreach ($data['activities'] as $activityTitle) {

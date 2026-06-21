@@ -3,9 +3,9 @@
 namespace App\Listeners;
 
 use App\Events\TaxGovernancePolicyTransitioned;
+use App\Models\HcmTaxGovernanceAnomaly;
 use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTaxGovernanceProjection;
-use App\Models\HcmTaxGovernanceAnomaly;
 use Illuminate\Support\Str;
 
 class TaxGovernancePolicyEventListener
@@ -26,7 +26,7 @@ class TaxGovernancePolicyEventListener
 
         $action = $actionMap[$event->newStatus] ?? HcmTaxGovernanceProjection::ACTION_CREATED;
 
-        // Update or create projection  
+        // Update or create projection
         $projection = HcmTaxGovernanceProjection::firstOrCreate(
             ['policy_uuid' => $policy->uuid],
             [
@@ -81,7 +81,7 @@ class TaxGovernancePolicyEventListener
         if ($policy->status === HcmTaxGovernancePolicy::STATUS_DRAFT) {
             if ($policy->created_at->diffInDays(now()) > 30) {
                 $anomalies[] = [
-                    'id' => \Illuminate\Support\Str::uuid(),
+                    'id' => Str::uuid(),
                     'company_id' => $policy->company_id,
                     'anomaly_type' => HcmTaxGovernanceAnomaly::TYPE_POLICY_DRAFT_STALE,
                     'severity' => HcmTaxGovernanceAnomaly::SEVERITY_INFO,
@@ -105,7 +105,7 @@ class TaxGovernancePolicyEventListener
         if ($policy->status === HcmTaxGovernancePolicy::STATUS_PUBLISHED) {
             if ($policy->published_at && $policy->published_at->diffInDays(now()) > 90) {
                 $anomalies[] = [
-                    'id' => \Illuminate\Support\Str::uuid(),
+                    'id' => Str::uuid(),
                     'company_id' => $policy->company_id,
                     'anomaly_type' => HcmTaxGovernanceAnomaly::TYPE_DRIFT_DETECTED,
                     'severity' => HcmTaxGovernanceAnomaly::SEVERITY_WARNING,
@@ -128,14 +128,14 @@ class TaxGovernancePolicyEventListener
         }
 
         // Batch insert anomalies
-        if (!empty($anomalies)) {
+        if (! empty($anomalies)) {
             HcmTaxGovernanceAnomaly::insert($anomalies);
         }
 
         // Update projection anomaly flags
         $flags = [];
-        if (!empty($anomalies)) {
-            $flags = array_unique(array_map(fn($a) => $a['anomaly_type'], $anomalies));
+        if (! empty($anomalies)) {
+            $flags = array_unique(array_map(fn ($a) => $a['anomaly_type'], $anomalies));
         }
         $projection->anomaly_flags = $flags;
         $projection->save();

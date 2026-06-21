@@ -25,8 +25,7 @@ class CaptureSubscriptionRevenue implements ShouldQueue
     public function __construct(
         private readonly RevenueSourceReferenceValidator $referenceValidator,
         private readonly QueueBackpressureGuard $backpressureGuard,
-    ) {
-    }
+    ) {}
 
     public function handle(SubscriptionCreated $event): void
     {
@@ -37,7 +36,7 @@ class CaptureSubscriptionRevenue implements ShouldQueue
             throw new RuntimeException('Subscription source entity not found for revenue capture.');
         }
 
-        $idempotencyKey = 'subscription_created:' . $subscription->id;
+        $idempotencyKey = 'subscription_created:'.$subscription->id;
 
         $this->referenceValidator->assertValid(
             'subscriptions',

@@ -45,7 +45,7 @@ return new class extends Migration
                 Schema::table('hcm_tax_governance_policy_events', function (Blueprint $table): void {
                     $table->dropForeign('fk_tax_policy_event_policy');
                 });
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // FK may not exist if migration was partial
             }
         }

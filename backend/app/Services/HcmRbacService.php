@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Company;
-use App\Models\HcmRole;
 use App\Models\HcmPermission;
+use App\Models\HcmRole;
 use App\Models\HcmRolePermission;
 use App\Models\HcmUserRole;
 use App\Models\User;
@@ -29,7 +29,7 @@ class HcmRbacService
             $companyId = $this->getUserCompanyId($user);
         }
 
-        if (!$companyId) {
+        if (! $companyId) {
             return false;
         }
 
@@ -39,7 +39,7 @@ class HcmRbacService
             ->where('status', 'active')
             ->where(function ($query) {
                 $query->whereNull('effective_until')
-                      ->orWhere('effective_until', '>=', now()->toDateString());
+                    ->orWhere('effective_until', '>=', now()->toDateString());
             })
             ->pluck('role_id');
 
@@ -70,7 +70,7 @@ class HcmRbacService
             $companyId = $this->getUserCompanyId($user);
         }
 
-        if (!$companyId) {
+        if (! $companyId) {
             return collect();
         }
 
@@ -180,7 +180,7 @@ class HcmRbacService
                 ->delete();
 
             // Add new mappings
-            if (!empty($mappings)) {
+            if (! empty($mappings)) {
                 HcmRolePermission::insert($mappings);
             }
         });

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // Projection table for cross-tenant observability
-        if (!Schema::hasTable('hcm_tax_governance_projections')) {
+        if (! Schema::hasTable('hcm_tax_governance_projections')) {
             Schema::create('hcm_tax_governance_projections', function (Blueprint $table) {
                 $table->uuid('id')->primary();
                 $table->unsignedBigInteger('company_id');
@@ -40,7 +40,7 @@ return new class extends Migration
         }
 
         // Anomaly registry for detected issues
-        if (!Schema::hasTable('hcm_tax_governance_anomalies')) {
+        if (! Schema::hasTable('hcm_tax_governance_anomalies')) {
             Schema::create('hcm_tax_governance_anomalies', function (Blueprint $table) {
                 $table->uuid('id')->primary();
                 $table->unsignedBigInteger('company_id');

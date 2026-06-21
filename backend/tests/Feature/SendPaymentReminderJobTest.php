@@ -50,7 +50,7 @@ class SendPaymentReminderJobTest extends TestCase
             'notes' => null,
         ]);
 
-        (new SendPaymentReminder())->handle();
+        (new SendPaymentReminder)->handle();
 
         Mail::assertSent(PaymentReminderMailable::class);
 
@@ -112,7 +112,7 @@ class SendPaymentReminderJobTest extends TestCase
             'notes' => null,
         ]);
 
-        (new SendPaymentReminder())->handle();
+        (new SendPaymentReminder)->handle();
 
         Mail::assertSent(PaymentReminderMailable::class, 1);
         Mail::assertSent(PaymentReminderMailable::class, function (PaymentReminderMailable $mail) use ($invoice): bool {

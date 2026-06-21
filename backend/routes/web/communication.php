@@ -44,7 +44,7 @@ Route::match(['get', 'post'], '/email', function (Request $request) {
 
     if ($request->isMethod('post')) {
         // POST (compose email) is global admin only
-        if (!$isGlobalAdmin) {
+        if (! $isGlobalAdmin) {
             return redirect()
                 ->route('email', $redirectParameters)
                 ->withErrors([
@@ -73,7 +73,7 @@ Route::match(['get', 'post'], '/email', function (Request $request) {
                     'senderEmail' => (string) ($request->user()?->email ?? ''),
                 ],
             ]);
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             report($exception);
 
             return redirect()

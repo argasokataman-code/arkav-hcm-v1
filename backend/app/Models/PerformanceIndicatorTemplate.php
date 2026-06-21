@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 class PerformanceIndicatorTemplate extends Model
 {
@@ -30,4 +29,3 @@ class PerformanceIndicatorTemplate extends Model
         return $this->hasMany(PerformanceIndicatorItem::class, 'template_id');
     }
 }
-

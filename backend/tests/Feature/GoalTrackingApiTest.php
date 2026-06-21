@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\EmployeeProfile;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
@@ -21,7 +22,7 @@ class GoalTrackingApiTest extends TestCase
             'confirmPassword' => 'StrongPass1',
         ])->assertStatus(201);
 
-        $user = \App\Models\User::query()->where('email', $email)->firstOrFail();
+        $user = User::query()->where('email', $email)->firstOrFail();
         if ($designation !== null) {
             EmployeeProfile::query()->updateOrCreate(
                 ['user_id' => $user->id],
@@ -154,4 +155,3 @@ class GoalTrackingApiTest extends TestCase
         $this->assertTrue(collect($all->json('data'))->pluck('id')->contains($goalId));
     }
 }
-

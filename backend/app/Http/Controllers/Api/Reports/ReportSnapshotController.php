@@ -24,8 +24,7 @@ class ReportSnapshotController extends Controller
 
     public function __construct(
         protected ReportSnapshotService $snapshotService,
-    ) {
-    }
+    ) {}
 
     /**
      * Create and queue a new snapshot generation.
@@ -82,7 +81,7 @@ class ReportSnapshotController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'message' => 'Snapshot generation ' . ($async ? 'queued' : 'completed'),
+                'message' => 'Snapshot generation '.($async ? 'queued' : 'completed'),
                 'async' => $async,
             ],
         ], 202);
@@ -360,7 +359,7 @@ class ReportSnapshotController extends Controller
 
     private function buildExcelContent(array $rows): string
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Snapshot');
 
@@ -368,9 +367,9 @@ class ReportSnapshotController extends Controller
 
         $rowIndex = 2;
         foreach ($rows as $row) {
-            $sheet->setCellValue('A' . $rowIndex, (string) ($row['module'] ?? ''));
-            $sheet->setCellValue('B' . $rowIndex, (string) ($row['dataKey'] ?? ''));
-            $sheet->setCellValue('C' . $rowIndex, (string) ($row['payload'] ?? ''));
+            $sheet->setCellValue('A'.$rowIndex, (string) ($row['module'] ?? ''));
+            $sheet->setCellValue('B'.$rowIndex, (string) ($row['dataKey'] ?? ''));
+            $sheet->setCellValue('C'.$rowIndex, (string) ($row['payload'] ?? ''));
             $rowIndex++;
         }
 
@@ -437,7 +436,7 @@ class ReportSnapshotController extends Controller
             .'<tbody>'.$bodyRows.'</tbody></table>'
             .'</body></html>';
 
-        $options = new Options();
+        $options = new Options;
         $options->set('isRemoteEnabled', false);
         $options->set('isHtml5ParserEnabled', true);
 

@@ -16,6 +16,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
 
@@ -29,7 +30,7 @@ class AuthApiTest extends TestCase
         return (string) config('auth.api_token_cookie.name', 'arcav_access_token');
     }
 
-    private function readCookieValueFromLoginResponse(\Illuminate\Testing\TestResponse $response): string
+    private function readCookieValueFromLoginResponse(TestResponse $response): string
     {
         $setCookies = $response->headers->getCookies();
         foreach ($setCookies as $cookie) {
@@ -1424,4 +1425,3 @@ class AuthApiTest extends TestCase
         ]);
     }
 }
-

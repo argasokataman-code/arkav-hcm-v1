@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Services\Wilayah\WilayahSyncService;
 use App\Models\User;
+use App\Services\Wilayah\WilayahSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;

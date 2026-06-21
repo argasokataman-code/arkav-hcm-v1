@@ -8,7 +8,6 @@ use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\Payment;
 use App\Models\Subscription;
-use App\Models\SubscriptionEvent;
 use App\Services\MidtransService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -63,7 +62,7 @@ class ReconcilePendingRenewalPaymentsJobTest extends TestCase
                 ->andReturn('paid');
         });
 
-        dispatch_sync(new ReconcilePendingRenewalPayments());
+        dispatch_sync(new ReconcilePendingRenewalPayments);
 
         $payment->refresh();
         $invoice->refresh();
@@ -113,7 +112,7 @@ class ReconcilePendingRenewalPaymentsJobTest extends TestCase
             ],
         ]);
 
-        dispatch_sync(new ReconcilePendingRenewalPayments());
+        dispatch_sync(new ReconcilePendingRenewalPayments);
 
         $invoice->refresh();
         $this->assertSame('STALE_INVOICE_DETECTED', $invoice->renewal_reason_code);
@@ -168,7 +167,7 @@ class ReconcilePendingRenewalPaymentsJobTest extends TestCase
                 ->andThrow(new \RuntimeException('gateway timeout'));
         });
 
-        dispatch_sync(new ReconcilePendingRenewalPayments());
+        dispatch_sync(new ReconcilePendingRenewalPayments);
 
         $invoice->refresh();
         $this->assertSame('MIDTRANS_DOWN', $invoice->renewal_reason_code);

@@ -1,8 +1,8 @@
 <?php
 
 namespace App\Models;
-use App\Models\Concerns\AssignsUuid;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -11,7 +11,6 @@ class EmployeeEducation extends Model
     use AssignsUuid;
 
     protected $table = 'employee_educations';
-
 
     protected $fillable = [
         'employee_id',

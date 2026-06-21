@@ -49,11 +49,11 @@ class HcmEmployeeDocumentController extends Controller
     private function formatCategory(HcmEmployeeDocumentCategory $cat): array
     {
         return [
-            'id'          => $cat->id,
-            'uuid'        => $cat->uuid,
-            'name'        => $cat->name,
+            'id' => $cat->id,
+            'uuid' => $cat->uuid,
+            'name' => $cat->name,
             'description' => $cat->description ?? '',
-            'isActive'    => (bool) $cat->is_active,
+            'isActive' => (bool) $cat->is_active,
         ];
     }
 
@@ -63,30 +63,30 @@ class HcmEmployeeDocumentController extends Controller
         $uploader = $doc->relationLoaded('uploadedBy') ? $doc->uploadedBy : null;
 
         return [
-            'id'                 => $doc->id,
-            'uuid'               => $doc->uuid,
-            'title'              => $doc->title,
-            'description'        => $doc->description ?? '',
-            'originalName'       => $doc->original_name,
-            'mimeType'           => $doc->mime_type ?? '',
-            'sizeBytes'          => $doc->size_bytes,
-            'visibility'         => $doc->visibility,
-            'expiresAt'          => $doc->expires_at?->format('Y-m-d'),
-            'createdAt'          => $doc->created_at?->toIso8601String(),
-            'category'           => $doc->category_id ? [
-                'id'   => $doc->category_id,
+            'id' => $doc->id,
+            'uuid' => $doc->uuid,
+            'title' => $doc->title,
+            'description' => $doc->description ?? '',
+            'originalName' => $doc->original_name,
+            'mimeType' => $doc->mime_type ?? '',
+            'sizeBytes' => $doc->size_bytes,
+            'visibility' => $doc->visibility,
+            'expiresAt' => $doc->expires_at?->format('Y-m-d'),
+            'createdAt' => $doc->created_at?->toIso8601String(),
+            'category' => $doc->category_id ? [
+                'id' => $doc->category_id,
                 'name' => $doc->relationLoaded('category') ? ($doc->category->name ?? '') : '',
             ] : null,
-            'employee'           => $profile ? [
-                'id'       => $profile->id,
-                'uuid'     => $profile->uuid ?? null,
-                'fullName' => trim(($profile->first_name ?? '') . ' ' . ($profile->last_name ?? '')),
+            'employee' => $profile ? [
+                'id' => $profile->id,
+                'uuid' => $profile->uuid ?? null,
+                'fullName' => trim(($profile->first_name ?? '').' '.($profile->last_name ?? '')),
             ] : ['id' => $doc->employee_profile_id, 'uuid' => $doc->employee_profile_uuid, 'fullName' => ''],
-            'uploadedBy'         => $uploader ? [
-                'id'   => $uploader->id,
+            'uploadedBy' => $uploader ? [
+                'id' => $uploader->id,
                 'name' => $uploader->name ?? '',
             ] : null,
-            'downloadUrl'        => route('api.document-center.download', ['id' => $doc->id]),
+            'downloadUrl' => route('api.document-center.download', ['id' => $doc->id]),
         ];
     }
 
@@ -115,7 +115,7 @@ class HcmEmployeeDocumentController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $query->get()->map(fn ($c) => $this->formatCategory($c))->values(),
+            'data' => $query->get()->map(fn ($c) => $this->formatCategory($c))->values(),
         ]);
     }
 
@@ -131,18 +131,18 @@ class HcmEmployeeDocumentController extends Controller
         }
 
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:200',
+            'name' => ['required', 'string', 'max:200',
                 Rule::unique('hcm_employee_document_categories')->where('company_id', $companyId),
             ],
             'description' => ['nullable', 'string', 'max:5000'],
-            'isActive'    => ['nullable', 'boolean'],
+            'isActive' => ['nullable', 'boolean'],
         ]);
 
         $cat = HcmEmployeeDocumentCategory::query()->create([
-            'company_id'  => $companyId,
-            'name'        => $validated['name'],
+            'company_id' => $companyId,
+            'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'is_active'   => $validated['isActive'] ?? true,
+            'is_active' => $validated['isActive'] ?? true,
         ]);
 
         return response()->json(['success' => true, 'data' => $this->formatCategory($cat)], 201);
@@ -165,17 +165,17 @@ class HcmEmployeeDocumentController extends Controller
             ->firstOrFail();
 
         $validated = $request->validate([
-            'name'        => ['sometimes', 'string', 'max:200',
+            'name' => ['sometimes', 'string', 'max:200',
                 Rule::unique('hcm_employee_document_categories')->where('company_id', $companyId)->ignore($cat->id),
             ],
             'description' => ['nullable', 'string', 'max:5000'],
-            'isActive'    => ['nullable', 'boolean'],
+            'isActive' => ['nullable', 'boolean'],
         ]);
 
         $cat->fill(array_filter([
-            'name'        => $validated['name'] ?? null,
+            'name' => $validated['name'] ?? null,
             'description' => array_key_exists('description', $validated) ? $validated['description'] : null,
-            'is_active'   => array_key_exists('isActive', $validated) ? $validated['isActive'] : null,
+            'is_active' => array_key_exists('isActive', $validated) ? $validated['isActive'] : null,
         ], fn ($v) => $v !== null));
 
         if (array_key_exists('isActive', $validated)) {
@@ -256,17 +256,17 @@ class HcmEmployeeDocumentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data'    => $rows->getCollection()->map(fn ($d) => $this->formatDocument($d))->values(),
-                'meta'    => ['currentPage' => $rows->currentPage(), 'lastPage' => $rows->lastPage(), 'total' => $rows->total()],
+                'data' => $rows->getCollection()->map(fn ($d) => $this->formatDocument($d))->values(),
+                'meta' => ['currentPage' => $rows->currentPage(), 'lastPage' => $rows->lastPage(), 'total' => $rows->total()],
             ]);
         }
 
         $validated = $request->validate([
             'employeeProfileId' => ['nullable', 'integer'],
-            'categoryId'        => ['nullable', 'integer'],
-            'visibility'        => ['nullable', 'in:hr_only,employee_visible'],
-            'q'                 => ['nullable', 'string', 'max:120'],
-            'perPage'           => ['nullable', 'integer', 'min:1', 'max:100'],
+            'categoryId' => ['nullable', 'integer'],
+            'visibility' => ['nullable', 'in:hr_only,employee_visible'],
+            'q' => ['nullable', 'string', 'max:120'],
+            'perPage' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $query = HcmEmployeeDocument::query()
@@ -295,12 +295,12 @@ class HcmEmployeeDocumentController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $rows->getCollection()->map(fn ($d) => $this->formatDocument($d))->values(),
-            'meta'    => [
+            'data' => $rows->getCollection()->map(fn ($d) => $this->formatDocument($d))->values(),
+            'meta' => [
                 'currentPage' => $rows->currentPage(),
-                'lastPage'    => $rows->lastPage(),
-                'perPage'     => $rows->perPage(),
-                'total'       => $rows->total(),
+                'lastPage' => $rows->lastPage(),
+                'perPage' => $rows->perPage(),
+                'total' => $rows->total(),
             ],
         ]);
     }
@@ -320,14 +320,14 @@ class HcmEmployeeDocumentController extends Controller
             'employeeProfileId' => ['required', 'integer',
                 Rule::exists('employee_profiles', 'id')->where('company_id', $companyId),
             ],
-            'categoryId'        => ['nullable', 'integer',
+            'categoryId' => ['nullable', 'integer',
                 Rule::exists('hcm_employee_document_categories', 'id')->where('company_id', $companyId),
             ],
-            'title'             => ['required', 'string', 'max:255'],
-            'description'       => ['nullable', 'string', 'max:5000'],
-            'visibility'        => ['nullable', 'in:hr_only,employee_visible'],
-            'expiresAt'         => ['nullable', 'date'],
-            'file'              => ['required', 'file', 'max:20480',
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'visibility' => ['nullable', 'in:hr_only,employee_visible'],
+            'expiresAt' => ['nullable', 'date'],
+            'file' => ['required', 'file', 'max:20480',
                 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,zip,txt,csv',
             ],
         ]);
@@ -339,19 +339,19 @@ class HcmEmployeeDocumentController extends Controller
         );
 
         $doc = HcmEmployeeDocument::query()->create([
-            'company_id'         => $companyId,
+            'company_id' => $companyId,
             'employee_profile_id' => (int) $validated['employeeProfileId'],
-            'category_id'        => isset($validated['categoryId']) && $validated['categoryId'] ? (int) $validated['categoryId'] : null,
-            'title'              => $validated['title'],
-            'description'        => $validated['description'] ?? null,
-            'file_path'          => $storedPath,
-            'original_name'      => $file->getClientOriginalName(),
-            'mime_type'          => $file->getMimeType(),
-            'size_bytes'         => (int) $file->getSize(),
-            'disk'               => 'public',
-            'visibility'         => $validated['visibility'] ?? 'hr_only',
-            'expires_at'         => $validated['expiresAt'] ?? null,
-            'uploaded_by'        => (int) $request->user()->id,
+            'category_id' => isset($validated['categoryId']) && $validated['categoryId'] ? (int) $validated['categoryId'] : null,
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'file_path' => $storedPath,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getMimeType(),
+            'size_bytes' => (int) $file->getSize(),
+            'disk' => 'public',
+            'visibility' => $validated['visibility'] ?? 'hr_only',
+            'expires_at' => $validated['expiresAt'] ?? null,
+            'uploaded_by' => (int) $request->user()->id,
         ]);
 
         $doc->load(['category', 'employeeProfile.user', 'uploadedBy']);
@@ -376,13 +376,13 @@ class HcmEmployeeDocumentController extends Controller
             ->firstOrFail();
 
         $validated = $request->validate([
-            'categoryId'  => ['nullable', 'integer',
+            'categoryId' => ['nullable', 'integer',
                 Rule::exists('hcm_employee_document_categories', 'id')->where('company_id', $companyId),
             ],
-            'title'       => ['sometimes', 'string', 'max:255'],
+            'title' => ['sometimes', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'visibility'  => ['nullable', 'in:hr_only,employee_visible'],
-            'expiresAt'   => ['nullable', 'date'],
+            'visibility' => ['nullable', 'in:hr_only,employee_visible'],
+            'expiresAt' => ['nullable', 'date'],
         ]);
 
         if (array_key_exists('categoryId', $validated)) {
@@ -468,7 +468,7 @@ class HcmEmployeeDocumentController extends Controller
         if (! Storage::disk($disk)->exists($doc->file_path)) {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'FILE_NOT_FOUND', 'message' => 'File not found on server.'],
+                'error' => ['code' => 'FILE_NOT_FOUND', 'message' => 'File not found on server.'],
             ], 404);
         }
 

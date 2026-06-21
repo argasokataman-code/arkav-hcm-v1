@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class HcmPromotion extends Model
 {
     use AssignsUuid;
+
     protected $table = 'hcm_promotions';
 
     protected $fillable = [
@@ -35,4 +36,3 @@ class HcmPromotion extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 }
-

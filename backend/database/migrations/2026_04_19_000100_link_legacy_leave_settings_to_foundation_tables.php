@@ -44,7 +44,7 @@ return new class extends Migration
         }
 
         if (Schema::hasTable('hcm_leave_custom_policies')) {
-            Schema::table('hcm_leave_custom_policies', function (Blueprint $table) use ($isSqlite): void {
+            Schema::table('hcm_leave_custom_policies', function (Blueprint $table): void {
                 if (! Schema::hasColumn('hcm_leave_custom_policies', 'leave_type_id')) {
                     $table->unsignedBigInteger('leave_type_id')->nullable()->after('leave_type_code');
                     $table->index('leave_type_id', 'hcm_leave_custom_policies_leave_type_id_idx');

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Models\Department;
 use App\Models\EmployeeAssignment;
 use App\Models\EmployeeProfile;
@@ -12,7 +13,6 @@ use App\Models\HcmRolePermission;
 use App\Models\HcmUserRole;
 use App\Models\Team;
 use App\Models\User;
-use App\Models\CompanyUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
@@ -23,6 +23,7 @@ class HcmTeamApiTest extends TestCase
     use RefreshDatabase;
 
     private ?Company $company = null;
+
     private string $token = '';
 
     protected function setUp(): void
@@ -78,7 +79,7 @@ class HcmTeamApiTest extends TestCase
     public function test_list_teams_empty(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
         ])->getJson('/v1/hcm/teams');
 
@@ -98,7 +99,7 @@ class HcmTeamApiTest extends TestCase
         ], ['code' => 'ENG']);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
         ])->postJson('/v1/hcm/teams', [
             'name' => 'Backend Team',
@@ -129,9 +130,9 @@ class HcmTeamApiTest extends TestCase
         ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
-        ])->getJson('/v1/hcm/teams/' . $team->id);
+        ])->getJson('/v1/hcm/teams/'.$team->id);
 
         $response->assertOk();
         $this->assertEquals('Sales Team A', $response->json('data.name'));
@@ -155,9 +156,9 @@ class HcmTeamApiTest extends TestCase
         ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
-        ])->putJson('/v1/hcm/teams/' . $team->id, [
+        ])->putJson('/v1/hcm/teams/'.$team->id, [
             'name' => 'Marketing Team Updated',
             'is_active' => false,
         ]);
@@ -185,9 +186,9 @@ class HcmTeamApiTest extends TestCase
         ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
-        ])->deleteJson('/v1/hcm/teams/' . $team->id, []);
+        ])->deleteJson('/v1/hcm/teams/'.$team->id, []);
 
         $response->assertNoContent();
         $this->assertModelMissing($team);
@@ -199,7 +200,7 @@ class HcmTeamApiTest extends TestCase
     public function test_create_team_validation_error(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
         ])->postJson('/v1/hcm/teams', [
             'name' => '',  // Empty name
@@ -215,7 +216,7 @@ class HcmTeamApiTest extends TestCase
     public function test_team_not_found(): void
     {
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
         ])->getJson('/v1/hcm/teams/99999');
 
@@ -242,13 +243,14 @@ class HcmTeamApiTest extends TestCase
 
         if ($login->status() !== 200) {
             $this->markTestSkipped('Auth setup failed');
+
             return;
         }
 
         $userToken = $login->json('data.accessToken');
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $userToken,
+            'Authorization' => 'Bearer '.$userToken,
             'X-Company-Id' => (string) $this->company->id,
         ])->getJson('/v1/hcm/teams');
 
@@ -270,13 +272,13 @@ class HcmTeamApiTest extends TestCase
             Team::create([
                 'company_id' => $this->company->id,
                 'department_id' => $dept->id,
-                'name' => 'Team ' . $i,
+                'name' => 'Team '.$i,
                 'is_active' => true,
             ]);
         }
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
         ])->getJson('/v1/hcm/teams?page=1&perPage=3');
 
@@ -316,9 +318,9 @@ class HcmTeamApiTest extends TestCase
         ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
-        ])->getJson('/v1/hcm/teams/' . $team->id . '/members');
+        ])->getJson('/v1/hcm/teams/'.$team->id.'/members');
 
         $response->assertOk();
         $this->assertTrue($response->json('success'));
@@ -386,9 +388,9 @@ class HcmTeamApiTest extends TestCase
         $leadToken = $login->json('data.accessToken');
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $leadToken,
+            'Authorization' => 'Bearer '.$leadToken,
             'X-Company-Id' => (string) $this->company->id,
-        ])->getJson('/v1/hcm/teams/' . $team->id . '/members');
+        ])->getJson('/v1/hcm/teams/'.$team->id.'/members');
 
         $response->assertOk();
         $this->assertEquals(1, $response->json('meta.total'));
@@ -426,9 +428,9 @@ class HcmTeamApiTest extends TestCase
         $leadToken = $login->json('data.accessToken');
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $leadToken,
+            'Authorization' => 'Bearer '.$leadToken,
             'X-Company-Id' => (string) $this->company->id,
-        ])->getJson('/v1/hcm/teams/' . $team->id . '/members');
+        ])->getJson('/v1/hcm/teams/'.$team->id.'/members');
 
         $response->assertForbidden();
     }
@@ -470,9 +472,9 @@ class HcmTeamApiTest extends TestCase
         $outsiderToken = $login->json('data.accessToken');
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $outsiderToken,
+            'Authorization' => 'Bearer '.$outsiderToken,
             'X-Company-Id' => (string) $this->company->id,
-        ])->getJson('/v1/hcm/teams/' . $team->id . '/members');
+        ])->getJson('/v1/hcm/teams/'.$team->id.'/members');
 
         $response->assertForbidden();
     }
@@ -538,7 +540,7 @@ class HcmTeamApiTest extends TestCase
         ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
         ])->postJson('/v1/hcm/teams/reassign-members', [
             'employee_ids' => [$employeeOne->id, $employeeTwo->id],
@@ -600,7 +602,7 @@ class HcmTeamApiTest extends TestCase
         ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
         ])->postJson('/v1/hcm/teams/reassign-members', [
             'employee_ids' => [$employee->id],
@@ -646,7 +648,7 @@ class HcmTeamApiTest extends TestCase
         ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
+            'Authorization' => 'Bearer '.$this->token,
             'X-Company-Id' => (string) $this->company->id,
         ])->postJson('/v1/hcm/teams/reassign-members', [
             'employee_ids' => [$employee->id],
@@ -676,7 +678,7 @@ class HcmTeamApiTest extends TestCase
         $userToken = $login->json('data.accessToken');
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $userToken,
+            'Authorization' => 'Bearer '.$userToken,
             'X-Company-Id' => (string) $this->company->id,
         ])->postJson('/v1/hcm/teams/reassign-members', [
             'employee_ids' => [1],
@@ -686,4 +688,3 @@ class HcmTeamApiTest extends TestCase
         $response->assertForbidden();
     }
 }
-

@@ -2,12 +2,12 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Subscription;
 use App\Models\Invoice;
+use App\Models\Subscription;
 use App\Models\User;
+use App\Services\CompanyStatusSynchronizer;
 use App\Support\ArcavAccessTokenResolver;
 use App\Support\TenantContextResolver;
-use App\Services\CompanyStatusSynchronizer;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,9 +18,7 @@ class EnsureHcmWebPagesAuthenticated
     public function __construct(
         private readonly TenantContextResolver $tenantContextResolver,
         private readonly CompanyStatusSynchronizer $companyStatusSynchronizer,
-    )
-    {
-    }
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -33,7 +31,7 @@ class EnsureHcmWebPagesAuthenticated
             'path' => $request->path(),
             'token_found' => $token ? 'yes' : 'no',
             'bearer' => $request->bearerToken() ? 'yes' : 'no',
-            'auth_check' => Auth::check() ? 'yes' : 'no'
+            'auth_check' => Auth::check() ? 'yes' : 'no',
         ];
 
         if ($token && $token->user) {
@@ -42,15 +40,18 @@ class EnsureHcmWebPagesAuthenticated
 
             if ($redirect = $this->primarySuperAdminCodeOneGuard($request, $token->user)) {
                 \Log::info('EnsureHcmWebPages_REDIRECT', array_merge($tokenCheckInfo, ['reason' => 'primary_super_admin']));
+
                 return $redirect;
             }
 
             if ($redirect = $this->subscriptionLockRedirectResponse($request)) {
                 \Log::info('EnsureHcmWebPages_REDIRECT', array_merge($tokenCheckInfo, ['reason' => 'subscription_lock']));
+
                 return $redirect;
             }
 
             \Log::info('EnsureHcmWebPages_PASS_TOKEN', $tokenCheckInfo);
+
             return $next($request);
         }
 
@@ -63,20 +64,24 @@ class EnsureHcmWebPagesAuthenticated
 
                 if ($redirect = $this->primarySuperAdminCodeOneGuard($request, $sessionUser)) {
                     \Log::info('EnsureHcmWebPages_REDIRECT', array_merge($tokenCheckInfo, ['reason' => 'primary_super_admin_session']));
+
                     return $redirect;
                 }
 
                 if ($redirect = $this->subscriptionLockRedirectResponse($request)) {
                     \Log::info('EnsureHcmWebPages_REDIRECT', array_merge($tokenCheckInfo, ['reason' => 'subscription_lock_session']));
+
                     return $redirect;
                 }
             }
 
             \Log::info('EnsureHcmWebPages_PASS_SESSION', $tokenCheckInfo);
+
             return $next($request);
         }
 
         \Log::info('EnsureHcmWebPages_FAIL', $tokenCheckInfo);
+
         return redirect()
             ->guest(url('lock-screen'))
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');

@@ -5,14 +5,14 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use InvalidArgumentException;
 
 class HcmTermination extends Model
 {
-    use SoftDeletes;
     use AssignsUuid;
-
+    use SoftDeletes;
 
     protected $table = 'hcm_terminations';
 
@@ -159,7 +159,7 @@ class HcmTermination extends Model
     /**
      * Slice C — Checklist items stored in the dedicated table.
      */
-    public function checklistItems(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function checklistItems(): HasMany
     {
         return $this->hasMany(HcmTerminationChecklistItem::class, 'termination_id');
     }
@@ -169,9 +169,9 @@ class HcmTermination extends Model
      */
     protected function setStatusAttribute($value): void
     {
-        if ($value && !in_array($value, self::VALID_STATUSES, true)) {
+        if ($value && ! in_array($value, self::VALID_STATUSES, true)) {
             throw new InvalidArgumentException(
-                "Invalid termination status: {$value}. Must be one of: " . implode(', ', self::VALID_STATUSES)
+                "Invalid termination status: {$value}. Must be one of: ".implode(', ', self::VALID_STATUSES)
             );
         }
         $this->attributes['status'] = $value;

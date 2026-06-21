@@ -92,6 +92,7 @@ class AiIntentGate
             if ($companyId !== null) {
                 return $user->isHcmAdminForCompany($companyId);
             }
+
             return $user->isHcmAdmin();
         }
 

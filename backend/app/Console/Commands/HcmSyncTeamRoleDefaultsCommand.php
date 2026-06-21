@@ -60,6 +60,7 @@ class HcmSyncTeamRoleDefaultsCommand extends Command
 
         if ($companies->isEmpty()) {
             $this->warn('No companies found for the requested scope.');
+
             return self::SUCCESS;
         }
 

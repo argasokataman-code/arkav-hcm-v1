@@ -3,15 +3,15 @@
 namespace App\Services;
 
 use App\Mail\InvoiceMailable;
-use App\Models\Invoice;
 use App\Models\CompanySetting;
+use App\Models\Invoice;
 use App\Support\WebsiteSettings;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Str;
 
 class InvoiceService
 {
@@ -81,9 +81,10 @@ class InvoiceService
         foreach ($invoiceIds as $invoiceId) {
             $invoice = Invoice::find($invoiceId);
 
-            if (!$invoice) {
+            if (! $invoice) {
                 $results['failed']++;
                 $results['errors'][] = "Invoice $invoiceId not found";
+
                 continue;
             }
 
@@ -126,9 +127,10 @@ class InvoiceService
 
             return $filename;
         } catch (\Exception $e) {
-            \Log::error('Failed to generate PDF for invoice ' . $invoice->id, [
+            \Log::error('Failed to generate PDF for invoice '.$invoice->id, [
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }

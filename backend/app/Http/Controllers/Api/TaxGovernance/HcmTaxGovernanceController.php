@@ -10,22 +10,22 @@ use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\EmployeeTaxProfile;
-use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmSalaryComponent;
+use App\Models\HcmTaxGovernanceAnomaly;
 use App\Models\HcmTaxGovernanceBreakGlassRequest;
 use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTaxGovernancePolicyEvent;
 use App\Models\HcmTaxGovernanceProjection;
-use App\Models\HcmTaxGovernanceAnomaly;
 use App\Models\User;
 use App\Services\BillingTaxCalculationService;
+use App\Services\TaxGovernanceReportingService;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
@@ -419,7 +419,7 @@ class HcmTaxGovernanceController extends Controller
         if (! in_array($policy->status, $allowedFromStatuses, true)) {
             return $this->errorResponse(
                 'TAX_POLICY_INVALID_STATE_TRANSITION',
-                'Policy cannot be published from its current status: ' . $policy->status,
+                'Policy cannot be published from its current status: '.$policy->status,
                 422
             );
         }
@@ -510,7 +510,7 @@ class HcmTaxGovernanceController extends Controller
             ->with(['company:id,name', 'lastActor:id,email'])
             ->orderByDesc('updated_at');
 
-        if (!empty($validated['risk_level_filter'])) {
+        if (! empty($validated['risk_level_filter'])) {
             $query->where('tenant_risk_level', $validated['risk_level_filter']);
         }
 
@@ -685,11 +685,11 @@ class HcmTaxGovernanceController extends Controller
         $query = HcmTaxGovernanceAnomaly::query()
             ->orderByDesc('detected_at');
 
-        if (!empty($validated['severity_filter'])) {
+        if (! empty($validated['severity_filter'])) {
             $query->where('severity', $validated['severity_filter']);
         }
 
-        if (!empty($validated['anomaly_type_filter'])) {
+        if (! empty($validated['anomaly_type_filter'])) {
             $query->where('anomaly_type', $validated['anomaly_type_filter']);
         }
 
@@ -738,14 +738,14 @@ class HcmTaxGovernanceController extends Controller
         }
 
         $anomaly = HcmTaxGovernanceAnomaly::find($anomalyId);
-        if (!$anomaly) {
+        if (! $anomaly) {
             return $this->errorResponse('ANOMALY_NOT_FOUND', 'Anomaly not found.', 404);
         }
 
         // Verify tenant access (global admin can resolve any, tenant user can only resolve own)
         $userCompanyId = $this->activeCompanyId($request);
         $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
-        if (!$isGlobalAdmin && $anomaly->company_id !== $userCompanyId) {
+        if (! $isGlobalAdmin && $anomaly->company_id !== $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot resolve anomaly in other tenant.', 403);
         }
 
@@ -795,14 +795,14 @@ class HcmTaxGovernanceController extends Controller
         }
 
         $anomaly = HcmTaxGovernanceAnomaly::find($anomalyId);
-        if (!$anomaly) {
+        if (! $anomaly) {
             return $this->errorResponse('ANOMALY_NOT_FOUND', 'Anomaly not found.', 404);
         }
 
         // Verify tenant access
         $userCompanyId = $this->activeCompanyId($request);
         $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
-        if (!$isGlobalAdmin && (int) $anomaly->company_id !== (int) $userCompanyId) {
+        if (! $isGlobalAdmin && (int) $anomaly->company_id !== (int) $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot acknowledge anomaly in other tenant.', 403);
         }
 
@@ -834,22 +834,22 @@ class HcmTaxGovernanceController extends Controller
 
         // Authorization: tenant user can only view own tenant; global admin can view any
         $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
-        if (!$isGlobalAdmin && $companyId && (int) $companyId !== (int) $userCompanyId) {
+        if (! $isGlobalAdmin && $companyId && (int) $companyId !== (int) $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot view other tenant self-audit report.', 403);
         }
 
-        if (!$companyId && $userCompanyId) {
+        if (! $companyId && $userCompanyId) {
             $companyId = $userCompanyId;
         }
 
-        if (!$companyId) {
+        if (! $companyId) {
             return $this->errorResponse('TENANT_REQUIRED', 'Company context is required.', 400);
         }
 
         $this->ensureDefaultTenantPolicyTemplate((int) $companyId, (int) ($request->user()?->id ?? 0) ?: null);
 
         $company = Company::find((int) $companyId);
-        if (!$company) {
+        if (! $company) {
             return $this->errorResponse('COMPANY_NOT_FOUND', 'Company not found.', 404);
         }
 
@@ -858,8 +858,8 @@ class HcmTaxGovernanceController extends Controller
             'period_end' => ['nullable', 'date'],
         ]);
 
-        $periodStart = !empty($validated['period_start']) ? Carbon::parse($validated['period_start']) : now()->subDays(90);
-        $periodEnd = !empty($validated['period_end']) ? Carbon::parse($validated['period_end']) : now();
+        $periodStart = ! empty($validated['period_start']) ? Carbon::parse($validated['period_start']) : now()->subDays(90);
+        $periodEnd = ! empty($validated['period_end']) ? Carbon::parse($validated['period_end']) : now();
 
         $policies = HcmTaxGovernancePolicy::where('company_id', (int) $companyId)->get();
         $currentPublishedPolicy = $policies->where('status', 'published')->first();
@@ -887,8 +887,8 @@ class HcmTaxGovernanceController extends Controller
         $payrollRunsInPeriod = 0;
         $payrollRunsUsingPolicy = 0;
         $allPayrollRunsCovered = true;
-        if (\Illuminate\Support\Facades\Schema::hasTable('hcm_payroll_runs')) {
-            $payrollRuns = \Illuminate\Support\Facades\DB::table('hcm_payroll_runs')
+        if (Schema::hasTable('hcm_payroll_runs')) {
+            $payrollRuns = DB::table('hcm_payroll_runs')
                 ->where('company_id', (int) $companyId)
                 ->whereBetween('finalized_at', [$periodStart->toDateTimeString(), $periodEnd->toDateTimeString()])
                 ->where('status', 'finalized')
@@ -963,22 +963,22 @@ class HcmTaxGovernanceController extends Controller
         $userCompanyId = $this->activeCompanyId($request);
         $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
 
-        if (!$isGlobalAdmin && $companyId && (int) $companyId !== (int) $userCompanyId) {
+        if (! $isGlobalAdmin && $companyId && (int) $companyId !== (int) $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot view other tenant compliance status.', 403);
         }
 
-        if (!$companyId && $userCompanyId) {
+        if (! $companyId && $userCompanyId) {
             $companyId = $userCompanyId;
         }
 
-        if (!$companyId) {
+        if (! $companyId) {
             return $this->errorResponse('TENANT_REQUIRED', 'Company context is required.', 400);
         }
 
         $this->ensureDefaultTenantPolicyTemplate((int) $companyId, (int) ($request->user()?->id ?? 0) ?: null);
 
         $company = Company::find((int) $companyId);
-        if (!$company) {
+        if (! $company) {
             return $this->errorResponse('COMPANY_NOT_FOUND', 'Company not found.', 404);
         }
 
@@ -1010,7 +1010,7 @@ class HcmTaxGovernanceController extends Controller
             : 'attention_required';
 
         $recommendedActions = [];
-        if (!$currentPolicy) {
+        if (! $currentPolicy) {
             $recommendedActions[] = [
                 'priority' => 'high',
                 'action' => 'Publish active statutory tax policy.',
@@ -1058,7 +1058,7 @@ class HcmTaxGovernanceController extends Controller
             'data' => [
                 'company_id' => (int) $companyId,
                 'company_name' => $company->name,
-                'reporting_period' => now()->year . '-Q' . now()->quarter,
+                'reporting_period' => now()->year.'-Q'.now()->quarter,
                 'compliance_status' => [
                     'statutory_tax_compliance' => [
                         'has_active_policy' => (bool) $currentPolicy,
@@ -1067,10 +1067,10 @@ class HcmTaxGovernanceController extends Controller
                         'anomalies_unresolved' => $unresolvedAnomalies,
                     ],
                     'billing_tax_compliance' => [
-                        'billing_cycle_active' => !empty($billingCompliance['policy_uuid']),
-                        'invoices_issued' => !empty($billingCompliance['policy_uuid']) ? (int) ($billingCompliance['unpaid_invoice_count'] ?? 0) : 0,
-                        'invoices_paid' => !empty($billingCompliance['policy_uuid']) ? (int) ($billingCompliance['paid_invoice_count'] ?? 0) : 0,
-                        'amount_outstanding' => !empty($billingCompliance['policy_uuid']) ? (float) ($billingCompliance['outstanding_invoice_amount'] ?? 0) : 0,
+                        'billing_cycle_active' => ! empty($billingCompliance['policy_uuid']),
+                        'invoices_issued' => ! empty($billingCompliance['policy_uuid']) ? (int) ($billingCompliance['unpaid_invoice_count'] ?? 0) : 0,
+                        'invoices_paid' => ! empty($billingCompliance['policy_uuid']) ? (int) ($billingCompliance['paid_invoice_count'] ?? 0) : 0,
+                        'amount_outstanding' => ! empty($billingCompliance['policy_uuid']) ? (float) ($billingCompliance['outstanding_invoice_amount'] ?? 0) : 0,
                         'taxable_revenue_amount' => (float) ($billingCompliance['taxable_revenue_amount'] ?? 0),
                         'cleared_revenue_amount' => (float) ($billingCompliance['cleared_revenue_amount'] ?? 0),
                         'uncleared_revenue_amount' => (float) ($billingCompliance['uncleared_revenue_amount'] ?? 0),
@@ -1168,6 +1168,7 @@ class HcmTaxGovernanceController extends Controller
                     'email' => $user?->email,
                     'issues' => $issues,
                 ];
+
                 continue;
             }
 
@@ -1190,6 +1191,7 @@ class HcmTaxGovernanceController extends Controller
                     'email' => $user?->email,
                     'issues' => $issues,
                 ];
+
                 continue;
             }
 
@@ -1258,6 +1260,7 @@ class HcmTaxGovernanceController extends Controller
     private function allowedPtkpStatuses(): array
     {
         $statuses = (array) config('hcm.tax_statuses', ['TK0', 'TK1', 'TK2', 'TK3', 'K0', 'K1', 'K2', 'K3']);
+
         return array_values(array_unique(array_map(fn ($item): string => strtoupper(trim((string) $item)), $statuses)));
     }
 
@@ -1578,6 +1581,7 @@ class HcmTaxGovernanceController extends Controller
 
         return $schedules;
     }
+
     public function tenantSelfAuditReportExport(Request $request): JsonResponse|Response
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.report.export')) {
@@ -1605,7 +1609,7 @@ class HcmTaxGovernanceController extends Controller
 
         // Validate company exists
         $company = Company::find($companyId);
-        if (!$company) {
+        if (! $company) {
             return $this->errorResponse('COMPANY_NOT_FOUND', 'Company not found.', 404);
         }
 
@@ -1614,8 +1618,8 @@ class HcmTaxGovernanceController extends Controller
             'period_end' => ['nullable', 'date'],
         ]);
 
-        $periodStart = $validated['period_start'] ? \Carbon\Carbon::parse($validated['period_start']) : now()->subDays(90);
-        $periodEnd = $validated['period_end'] ? \Carbon\Carbon::parse($validated['period_end']) : now();
+        $periodStart = $validated['period_start'] ? Carbon::parse($validated['period_start']) : now()->subDays(90);
+        $periodEnd = $validated['period_end'] ? Carbon::parse($validated['period_end']) : now();
 
         // Validate period is within last 2 years
         if ($periodStart->diffInYears($periodEnd) > 2) {
@@ -1623,7 +1627,7 @@ class HcmTaxGovernanceController extends Controller
         }
 
         // Generate report data
-        $reportService = app(\App\Services\TaxGovernanceReportingService::class);
+        $reportService = app(TaxGovernanceReportingService::class);
         $reportData = $reportService->generateTenantSelfAuditReport($companyId, $periodStart, $periodEnd);
 
         if ($format === 'pdf') {
@@ -1631,7 +1635,7 @@ class HcmTaxGovernanceController extends Controller
 
             return response($pdfBinary, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="tenant-self-audit-' . ((string) $companyId) . '-' . now()->format('Ymd-His') . '.pdf"',
+                'Content-Disposition' => 'attachment; filename="tenant-self-audit-'.((string) $companyId).'-'.now()->format('Ymd-His').'.pdf"',
             ]);
         }
 
@@ -1641,7 +1645,6 @@ class HcmTaxGovernanceController extends Controller
         ]);
     }
 
-
     public function policyEventHistory(Request $request, string $policyRef): JsonResponse
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.policy.view')) {
@@ -1650,7 +1653,7 @@ class HcmTaxGovernanceController extends Controller
 
         $usedNumericLegacy = false;
         $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
-        if (!$policy) {
+        if (! $policy) {
             return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
         }
 
@@ -1704,7 +1707,7 @@ class HcmTaxGovernanceController extends Controller
 
     private function renderTenantSelfAuditPdf(array $reportData): string
     {
-        $options = new Options();
+        $options = new Options;
         $options->set('isRemoteEnabled', false);
 
         $dompdf = new Dompdf($options);
@@ -1719,9 +1722,9 @@ class HcmTaxGovernanceController extends Controller
 
         $html = '<html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;font-size:12px;}h1{font-size:18px;}table{width:100%;border-collapse:collapse;}td,th{border:1px solid #ccc;padding:6px;vertical-align:top;}th{background:#f5f5f5;text-align:left;}</style></head><body>';
         $html .= '<h1>Tenant Self-Audit Report</h1>';
-        $html .= '<p><strong>Company:</strong> ' . e($companyName) . '<br><strong>Generated At:</strong> ' . e($generatedAt) . '</p>';
+        $html .= '<p><strong>Company:</strong> '.e($companyName).'<br><strong>Generated At:</strong> '.e($generatedAt).'</p>';
         $html .= '<table><tr><th>Period Start</th><th>Period End</th><th>Current Policy Version</th><th>Readiness Score</th><th>Unresolved Anomalies</th></tr>';
-        $html .= '<tr><td>' . e($periodStart) . '</td><td>' . e($periodEnd) . '</td><td>' . e($policyVersion) . '</td><td>' . e($readinessScore) . '</td><td>' . e((string) $anomalyCount) . '</td></tr>';
+        $html .= '<tr><td>'.e($periodStart).'</td><td>'.e($periodEnd).'</td><td>'.e($policyVersion).'</td><td>'.e($readinessScore).'</td><td>'.e((string) $anomalyCount).'</td></tr>';
         $html .= '</table>';
         $html .= '<p>Generated by Arkav Tax Governance Reporting.</p>';
         $html .= '</body></html>';
@@ -1732,6 +1735,7 @@ class HcmTaxGovernanceController extends Controller
 
         return $dompdf->output();
     }
+
     private function policyStateSnapshot(HcmTaxGovernancePolicy $policy): array
     {
         return [

@@ -17,7 +17,7 @@ class CreateTestAttendanceData extends Command
     {
         $date = $this->option('date');
         $tz = 'Asia/Jakarta';
-        
+
         // Test coordinates in Jakarta area
         $testLocations = [
             [
@@ -72,10 +72,10 @@ class CreateTestAttendanceData extends Command
                 ->where('work_date', $date)
                 ->first();
 
-            if (!$existing) {
-                $checkInTime = Carbon::parse($date . ' 09:00:00', $tz);
-                $checkOutTime = Carbon::parse($date . ' 17:30:00', $tz);
-                
+            if (! $existing) {
+                $checkInTime = Carbon::parse($date.' 09:00:00', $tz);
+                $checkOutTime = Carbon::parse($date.' 17:30:00', $tz);
+
                 // Get location names via reverse geocoding
                 $checkInLocation = LocationService::reverseGeocode($loc['check_in_lat'], $loc['check_in_lng']);
                 $checkOutLocation = LocationService::reverseGeocode($loc['check_out_lat'], $loc['check_out_lng']);
@@ -108,6 +108,6 @@ class CreateTestAttendanceData extends Command
         $bar->finish();
         $this->newLine(2);
         $this->info("✓ Created {$countCreated} test attendance records for {$date}");
-        $this->info("You can now see location data in the attendance report for this date!");
+        $this->info('You can now see location data in the attendance report for this date!');
     }
 }

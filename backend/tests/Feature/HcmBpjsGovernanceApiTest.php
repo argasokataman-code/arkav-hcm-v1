@@ -2,9 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\HcmBpjsGovernancePolicy;
-use App\Models\HcmBpjsGovernancePolicyHistory;
 use App\Models\CompanyUser;
+use App\Models\HcmBpjsGovernancePolicy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -18,7 +17,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'bpjs-gov-admin@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         $policy = HcmBpjsGovernancePolicy::query()->create([
@@ -38,7 +37,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         $policyUuid = (string) $policy->uuid;
 
         $this->withHeaders($headers)
-            ->putJson('/v1/hcm/bpjs-governance/policies/' . $policyUuid, [
+            ->putJson('/v1/hcm/bpjs-governance/policies/'.$policyUuid, [
                 'ratePercent' => 1,
                 'notes' => 'Adjusted by compliance review',
             ])
@@ -88,7 +87,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'bpjs-gov-invalid-policy@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         $policy = HcmBpjsGovernancePolicy::query()->create([
@@ -106,7 +105,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         ]);
 
         $this->withHeaders($headers)
-            ->putJson('/v1/hcm/bpjs-governance/policies/' . $policy->uuid, [
+            ->putJson('/v1/hcm/bpjs-governance/policies/'.$policy->uuid, [
                 'ratePercent' => 3,
                 'wageBase' => 'fixed_nominal',
             ])
@@ -117,7 +116,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
             ]);
 
         $this->withHeaders($headers)
-            ->putJson('/v1/hcm/bpjs-governance/policies/' . $policy->uuid, [
+            ->putJson('/v1/hcm/bpjs-governance/policies/'.$policy->uuid, [
                 'ratePercent' => 3,
             ])
             ->assertStatus(422)
@@ -132,7 +131,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'bpjs-gov-create-disabled@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         $this->withHeaders($headers)
@@ -155,7 +154,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'bpjs-gov-delete-enabled@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         $policy = HcmBpjsGovernancePolicy::query()->create([
@@ -173,7 +172,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         ]);
 
         $this->withHeaders($headers)
-            ->deleteJson('/v1/hcm/bpjs-governance/policies/' . $policy->uuid)
+            ->deleteJson('/v1/hcm/bpjs-governance/policies/'.$policy->uuid)
             ->assertStatus(200)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.deleted', true);
@@ -194,7 +193,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'bpjs-gov-history@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         $create = $this->withHeaders($headers)
@@ -213,7 +212,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         $this->assertNotSame('', $policyUuid);
 
         $this->withHeaders($headers)
-            ->putJson('/v1/hcm/bpjs-governance/policies/' . $policyUuid, [
+            ->putJson('/v1/hcm/bpjs-governance/policies/'.$policyUuid, [
                 'ratePercent' => 1,
                 'notes' => 'updated-from-test',
             ])
@@ -258,7 +257,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'bpjs-membership-admin@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         $membershipList = $this->withHeaders($headers)
@@ -278,7 +277,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         $this->assertGreaterThan(0, $firstUserId);
 
         $update = $this->withHeaders($headers)
-            ->putJson('/v1/hcm/bpjs-governance/employee-membership/' . $firstUserId, [
+            ->putJson('/v1/hcm/bpjs-governance/employee-membership/'.$firstUserId, [
                 'bpjsKesehatanNo' => 'KES-TEST-001',
                 'bpjsKetenagakerjaanNo' => 'TK-TEST-001',
                 'effectiveDate' => now()->toDateString(),
@@ -293,7 +292,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
     public function test_membership_update_always_creates_new_history_record(): void
     {
         $admin = $this->createHcmAdminWithCompany(['email' => 'bpjs-membership-history@example.com']);
-        $headers = $this->withCompanyContext(['Authorization' => 'Bearer ' . $admin['token']], $admin['company_id']);
+        $headers = $this->withCompanyContext(['Authorization' => 'Bearer '.$admin['token']], $admin['company_id']);
 
         $membershipList = $this->withHeaders($headers)->getJson('/v1/hcm/bpjs-governance/employee-membership?page=1&perPage=20');
         $membershipList->assertStatus(200);
@@ -302,7 +301,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
 
         // First update
         $this->withHeaders($headers)
-            ->putJson('/v1/hcm/bpjs-governance/employee-membership/' . $firstUserId, [
+            ->putJson('/v1/hcm/bpjs-governance/employee-membership/'.$firstUserId, [
                 'bpjsKesehatanNo' => 'KES-V1-001',
                 'bpjsKetenagakerjaanNo' => 'TK-V1-001',
                 'effectiveDate' => now()->subMonth()->toDateString(),
@@ -310,7 +309,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
 
         // Second update (different date) — must create new record, not mutate
         $this->withHeaders($headers)
-            ->putJson('/v1/hcm/bpjs-governance/employee-membership/' . $firstUserId, [
+            ->putJson('/v1/hcm/bpjs-governance/employee-membership/'.$firstUserId, [
                 'bpjsKesehatanNo' => 'KES-V2-001',
                 'bpjsKetenagakerjaanNo' => 'TK-V2-001',
                 'effectiveDate' => now()->toDateString(),
@@ -326,7 +325,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
     public function test_reports_export_returns_json_attachment(): void
     {
         $admin = $this->createHcmAdminWithCompany(['email' => 'bpjs-export-admin@example.com']);
-        $headers = $this->withCompanyContext(['Authorization' => 'Bearer ' . $admin['token']], $admin['company_id']);
+        $headers = $this->withCompanyContext(['Authorization' => 'Bearer '.$admin['token']], $admin['company_id']);
 
         $response = $this->withHeaders($headers)->get('/v1/hcm/bpjs-governance/reports/export');
         $response->assertStatus(200);
@@ -340,7 +339,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
     public function test_rate_baselines_list_returns_system_defaults_when_no_tenant_config(): void
     {
         $admin = $this->createHcmAdminWithCompany(['email' => 'bpjs-rate-baselines@example.com']);
-        $headers = $this->withCompanyContext(['Authorization' => 'Bearer ' . $admin['token']], $admin['company_id']);
+        $headers = $this->withCompanyContext(['Authorization' => 'Bearer '.$admin['token']], $admin['company_id']);
 
         $response = $this->withHeaders($headers)->getJson('/v1/hcm/bpjs-governance/rate-baselines');
         $response->assertStatus(200)->assertJsonPath('success', true);
@@ -362,7 +361,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
     public function test_rate_baseline_update_overrides_system_default(): void
     {
         $admin = $this->createHcmAdminWithCompany(['email' => 'bpjs-rate-baseline-update@example.com']);
-        $headers = $this->withCompanyContext(['Authorization' => 'Bearer ' . $admin['token']], $admin['company_id']);
+        $headers = $this->withCompanyContext(['Authorization' => 'Bearer '.$admin['token']], $admin['company_id']);
 
         // Override jkk employer baseline (variable rate — good test case)
         $this->withHeaders($headers)
@@ -417,7 +416,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
         ])->assertStatus(200);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . (string) $login->json('data.accessToken'),
+            'Authorization' => 'Bearer '.(string) $login->json('data.accessToken'),
         ], $company->id);
 
         $this->withHeaders($headers)

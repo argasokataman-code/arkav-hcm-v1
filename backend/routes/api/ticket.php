@@ -6,12 +6,12 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
     Route::get('/tickets/assignable-users', [HcmTicketController::class, 'assignableUsers']);
     Route::get('/tickets/category-options', [HcmTicketController::class, 'categoryOptions']);
-    
+
     Route::get('/tickets/categories', [HcmTicketController::class, 'categories']);
     Route::post('/tickets/categories', [HcmTicketController::class, 'storeCategory']);
     Route::put('/tickets/categories/{id}', [HcmTicketController::class, 'updateCategory'])->whereNumber('id');
     Route::delete('/tickets/categories/{id}', [HcmTicketController::class, 'destroyCategory'])->whereNumber('id');
-    
+
     Route::get('/tickets', [HcmTicketController::class, 'index']);
     Route::post('/tickets', [HcmTicketController::class, 'store']);
     Route::get('/tickets/{id}', [HcmTicketController::class, 'show'])->whereNumber('id');

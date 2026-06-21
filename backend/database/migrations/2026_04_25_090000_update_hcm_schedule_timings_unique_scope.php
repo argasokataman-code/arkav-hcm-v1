@@ -37,7 +37,7 @@ return new class extends Migration
         Schema::table('hcm_schedule_timings', function (Blueprint $table) {
             try {
                 $table->dropUnique('hcm_schedule_timings_user_id_unique');
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // no-op when the legacy unique key does not exist
             }
         });
@@ -45,7 +45,7 @@ return new class extends Migration
         Schema::table('hcm_schedule_timings', function (Blueprint $table) {
             try {
                 $table->unique(['company_id', 'user_id'], 'hcm_schedule_timings_company_user_unique');
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // no-op when unique key already exists
             }
         });
@@ -67,7 +67,7 @@ return new class extends Migration
             Schema::table('hcm_schedule_timings', function (Blueprint $table) {
                 try {
                     $table->dropIndex('hcm_schedule_timings_user_id_idx');
-                } catch (\Throwable) {
+                } catch (Throwable) {
                     // no-op when helper index is already absent
                 }
             });
@@ -76,7 +76,7 @@ return new class extends Migration
         Schema::table('hcm_schedule_timings', function (Blueprint $table) {
             try {
                 $table->dropUnique('hcm_schedule_timings_company_user_unique');
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // no-op when key does not exist
             }
         });
@@ -84,7 +84,7 @@ return new class extends Migration
         Schema::table('hcm_schedule_timings', function (Blueprint $table) {
             try {
                 $table->unique('user_id', 'hcm_schedule_timings_user_id_unique');
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // no-op when unique key already exists
             }
         });

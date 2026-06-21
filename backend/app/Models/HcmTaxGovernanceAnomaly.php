@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Concerns\AssignsUuid;
 use Illuminate\Support\Str;
 
 class HcmTaxGovernanceAnomaly extends Model
@@ -42,20 +42,27 @@ class HcmTaxGovernanceAnomaly extends Model
     ];
 
     const TYPE_MISSING_TAX_PROFILE = 'MISSING_TAX_PROFILE';
+
     const TYPE_POLICY_DRAFT_STALE = 'POLICY_DRAFT_STALE';
+
     const TYPE_POLICY_SUPERSEDED_ACTIVE = 'POLICY_SUPERSEDED_ACTIVE';
+
     const TYPE_POLICY_VERSION_CONFLICT = 'POLICY_VERSION_CONFLICT';
+
     const TYPE_PUBLISH_FAILURE = 'PUBLISH_FAILURE';
+
     const TYPE_DRIFT_DETECTED = 'DRIFT_DETECTED';
 
     const SEVERITY_INFO = 'info';
+
     const SEVERITY_WARNING = 'warning';
+
     const SEVERITY_CRITICAL = 'critical';
 
     protected static function booted(): void
     {
         static::creating(function (self $model): void {
-            if (!is_string($model->id) || $model->id === '') {
+            if (! is_string($model->id) || $model->id === '') {
                 $model->id = (string) Str::uuid();
             }
         });

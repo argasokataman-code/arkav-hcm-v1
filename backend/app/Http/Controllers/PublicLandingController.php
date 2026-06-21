@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Package;
+use App\Models\Subscription;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -40,7 +41,7 @@ class PublicLandingController extends Controller
         }
 
         // Check if any subscription with trial status exists (indicates trial is available)
-        $hasActiveTrialPackages = \App\Models\Subscription::where('status', 'trial')->exists();
+        $hasActiveTrialPackages = Subscription::where('status', 'trial')->exists();
 
         // Get all unique features from first package for display
         $allFeatures = collect();

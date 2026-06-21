@@ -12,7 +12,9 @@ class CustomDomainServiceTest extends TestCase
     use RefreshDatabase;
 
     private string $adminToken;
+
     private string $userToken;
+
     private Company $company;
 
     protected function setUp(): void
@@ -61,12 +63,12 @@ class CustomDomainServiceTest extends TestCase
 
     private function adminRequest()
     {
-        return $this->withHeader('Authorization', 'Bearer ' . $this->adminToken);
+        return $this->withHeader('Authorization', 'Bearer '.$this->adminToken);
     }
 
     private function userRequest()
     {
-        return $this->withHeader('Authorization', 'Bearer ' . $this->userToken);
+        return $this->withHeader('Authorization', 'Bearer '.$this->userToken);
     }
 
     public function test_can_list_domains_with_pagination()

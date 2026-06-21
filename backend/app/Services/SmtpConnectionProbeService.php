@@ -20,7 +20,7 @@ class SmtpConnectionProbeService
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      * @return array<string, mixed>
      */
     public function probe(array $config): array
@@ -70,7 +70,7 @@ class SmtpConnectionProbeService
     }
 
     /**
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed>  $config
      */
     protected function makeTransport(array $config): object
     {
@@ -81,7 +81,7 @@ class SmtpConnectionProbeService
         $encryption = $this->normalizeEncryption($config['encryption'] ?? null);
         $tls = $encryption === 'ssl';
 
-        $stream = (new SocketStream())
+        $stream = (new SocketStream)
             ->setTimeout($this->normalizeTimeout($config['timeout'] ?? null));
 
         $transport = new EsmtpTransport(

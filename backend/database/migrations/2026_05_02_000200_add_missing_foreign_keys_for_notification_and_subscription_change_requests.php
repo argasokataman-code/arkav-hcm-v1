@@ -68,7 +68,7 @@ return new class extends Migration
                     $foreign->restrictOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $msg = strtolower($e->getMessage());
             if (
                 str_contains($msg, 'duplicate')
@@ -92,9 +92,9 @@ return new class extends Migration
         }
 
         $query = "SELECT COUNT(*) AS total\n"
-            . "FROM {$table} t\n"
-            . "LEFT JOIN {$parentTable} p ON t.{$column} = p.{$parentColumn}\n"
-            . "WHERE t.{$column} IS NOT NULL AND p.{$parentColumn} IS NULL";
+            ."FROM {$table} t\n"
+            ."LEFT JOIN {$parentTable} p ON t.{$column} = p.{$parentColumn}\n"
+            ."WHERE t.{$column} IS NOT NULL AND p.{$parentColumn} IS NULL";
 
         $result = DB::selectOne($query);
         $count = (int) ($result->total ?? 0);
@@ -157,11 +157,11 @@ return new class extends Migration
 
     private function fkName(string $table, string $column): string
     {
-        $base = $table . '_' . $column . '_fk';
+        $base = $table.'_'.$column.'_fk';
         if (strlen($base) <= 64) {
             return $base;
         }
 
-        return substr($table, 0, 24) . '_' . substr($column, 0, 24) . '_' . substr(md5($base), 0, 10);
+        return substr($table, 0, 24).'_'.substr($column, 0, 24).'_'.substr(md5($base), 0, 10);
     }
 };

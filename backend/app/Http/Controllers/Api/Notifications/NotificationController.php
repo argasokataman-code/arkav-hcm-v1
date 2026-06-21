@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\Notifications;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Controller;
 use App\Mail\AdminComposeMailable;
 use App\Services\NotificationDeliveryRecorder;
 use Illuminate\Http\JsonResponse;
@@ -74,7 +74,7 @@ class NotificationController extends Controller
                     'subject' => $validated['subject'],
                     'sentAt' => now()->toIso8601String(),
                 ],
-                'message' => 'Email berhasil dikirim ke ' . $validated['to'] . '.',
+                'message' => 'Email berhasil dikirim ke '.$validated['to'].'.',
             ]);
         } catch (\Throwable $exception) {
             report($exception);

@@ -237,7 +237,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $tableBlueprint) use ($column, $name): void {
                 $tableBlueprint->index($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }
@@ -254,7 +254,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $tableBlueprint) use ($column, $name): void {
                 $tableBlueprint->unique($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }
@@ -277,7 +277,7 @@ return new class extends Migration
                     $foreign->nullOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }
@@ -297,6 +297,7 @@ return new class extends Migration
         $driver = DB::getDriverName();
         if ($driver === 'mysql') {
             DB::statement("UPDATE {$table} t JOIN users u ON t.{$legacyIdColumn} = u.id SET t.{$uuidColumn} = u.uuid WHERE t.{$legacyIdColumn} IS NOT NULL AND t.{$uuidColumn} IS NULL");
+
             return;
         }
 
@@ -325,6 +326,7 @@ return new class extends Migration
         $driver = DB::getDriverName();
         if ($driver === 'mysql') {
             DB::statement("UPDATE {$table} t JOIN companies c ON t.{$legacyIdColumn} = c.id SET t.{$uuidColumn} = c.uuid WHERE t.{$legacyIdColumn} IS NOT NULL AND t.{$uuidColumn} IS NULL");
+
             return;
         }
 

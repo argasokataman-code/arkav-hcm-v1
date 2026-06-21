@@ -171,7 +171,7 @@ return new class extends Migration
                     $foreign->restrictOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }

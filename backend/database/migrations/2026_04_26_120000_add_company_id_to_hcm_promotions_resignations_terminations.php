@@ -14,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         // Add company_id to hcm_promotions
-        if (Schema::hasTable('hcm_promotions') && !Schema::hasColumn('hcm_promotions', 'company_id')) {
+        if (Schema::hasTable('hcm_promotions') && ! Schema::hasColumn('hcm_promotions', 'company_id')) {
             Schema::table('hcm_promotions', function (Blueprint $table): void {
                 $table->unsignedBigInteger('company_id')->nullable()->after('id');
                 $table->foreign('company_id')->references('id')->on('companies')->cascadeOnDelete();
@@ -27,7 +27,7 @@ return new class extends Migration
         }
 
         // Add company_id to hcm_resignations
-        if (Schema::hasTable('hcm_resignations') && !Schema::hasColumn('hcm_resignations', 'company_id')) {
+        if (Schema::hasTable('hcm_resignations') && ! Schema::hasColumn('hcm_resignations', 'company_id')) {
             Schema::table('hcm_resignations', function (Blueprint $table): void {
                 $table->unsignedBigInteger('company_id')->nullable()->after('id');
                 $table->foreign('company_id')->references('id')->on('companies')->cascadeOnDelete();
@@ -40,7 +40,7 @@ return new class extends Migration
         }
 
         // Add company_id to hcm_terminations
-        if (Schema::hasTable('hcm_terminations') && !Schema::hasColumn('hcm_terminations', 'company_id')) {
+        if (Schema::hasTable('hcm_terminations') && ! Schema::hasColumn('hcm_terminations', 'company_id')) {
             Schema::table('hcm_terminations', function (Blueprint $table): void {
                 $table->unsignedBigInteger('company_id')->nullable()->after('id');
                 $table->foreign('company_id')->references('id')->on('companies')->cascadeOnDelete();
@@ -114,7 +114,7 @@ return new class extends Migration
      */
     private function backfillTableCompanyId(string $table): void
     {
-        \DB::table($table)
+        DB::table($table)
             ->select('id', 'user_id')
             ->whereNull('company_id')
             ->orderBy('id')
@@ -125,7 +125,7 @@ return new class extends Migration
                         continue;
                     }
 
-                    \DB::table($table)
+                    DB::table($table)
                         ->where('id', (int) $row->id)
                         ->whereNull('company_id')
                         ->update(['company_id' => $companyId]);
@@ -139,7 +139,7 @@ return new class extends Migration
             return null;
         }
 
-        $activeCompanyId = \DB::table('company_users')
+        $activeCompanyId = DB::table('company_users')
             ->where('user_id', $userId)
             ->where('status', 'active')
             ->orderBy('company_id')
@@ -149,7 +149,7 @@ return new class extends Migration
             return (int) $activeCompanyId;
         }
 
-        $anyCompanyId = \DB::table('company_users')
+        $anyCompanyId = DB::table('company_users')
             ->where('user_id', $userId)
             ->orderBy('company_id')
             ->value('company_id');

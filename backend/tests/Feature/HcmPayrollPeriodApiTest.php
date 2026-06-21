@@ -2,31 +2,30 @@
 
 namespace Tests\Feature;
 
-use App\Models\EmployeeProfile;
 use App\Models\Company;
-use App\Models\HolidayCalendar;
-use App\Models\HcmPayrollLine;
+use App\Models\EmployeeProfile;
+use App\Models\HcmEmployeePayrollItemAssignment;
+use App\Models\HcmPayrollItem;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
-use App\Models\HcmPayrollItem;
 use App\Models\HcmSalaryComponent;
-use App\Models\HcmEmployeePayrollItemAssignment;
-use App\Models\User;
+use App\Models\HolidayCalendar;
 use App\Models\OvertimeRequest;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
 
 /**
  * Comprehensive test suite for Payroll Period operations.
- * 
+ *
  * Covers:
  * - index: List payroll periods
  * - store: Create new payroll period
  * - show: Display period details including latest run
  * - active: Resolve current active period or create default
  * - calculateDraft: Rebuild or create draft run for period
- * 
+ *
  * Also tests:
  * - Duplicate period prevention
  * - Draft recalculation and line rebuilding

@@ -12,8 +12,6 @@ class LocationService
      * Uses Nominatim (OpenStreetMap) API - free & no authentication needed
      * Results are cached for 30 days to minimize API calls
      *
-     * @param float $latitude
-     * @param float $longitude
      * @return array{name: string, address: string, source: string}
      */
     public static function reverseGeocode(float $latitude, float $longitude): array
@@ -65,7 +63,7 @@ class LocationService
     private static function parseNominatimResponse(array $data): array
     {
         $address = $data['address'] ?? [];
-        
+
         // Try to build a hierarchical location name: Building/Street > Village/Subdistrict > District > City
         $locationName = self::buildLocationName($address);
         $locationAddress = $data['display_name'] ?? '';
@@ -105,13 +103,13 @@ class LocationService
         foreach ($hierarchyPriority as $component) {
             if (! empty($address[$component])) {
                 $primaryLocation = $address[$component];
-                
+
                 // Build secondary location (parent administrative area)
                 $secondaryLocation = null;
                 if (in_array($component, ['village', 'suburb', 'town'])) {
                     // If we have village/suburb/town, try to add municipality/district
                     $secondaryLocation = $address['municipality'] ?? $address['county'] ?? null;
-                } elseif (!empty($address['municipality'])) {
+                } elseif (! empty($address['municipality'])) {
                     $secondaryLocation = $address['municipality'];
                 }
 

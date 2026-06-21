@@ -12,6 +12,5 @@ class PayrollFinalized
     public function __construct(
         public int $payrollRunId,
         public ?int $actorUserId = null,
-    ) {
-    }
+    ) {}
 }

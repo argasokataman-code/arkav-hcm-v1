@@ -20,6 +20,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class HcmAssetApiTest extends TestCase
@@ -27,7 +28,9 @@ class HcmAssetApiTest extends TestCase
     use RefreshDatabase;
 
     private string $token;
+
     private Company $company;
+
     private EmployeeProfile $employeeProfile;
 
     protected function setUp(): void
@@ -205,7 +208,7 @@ class HcmAssetApiTest extends TestCase
             'permission_id' => $permission->id,
             'company_id' => $this->company->id,
             'company_uuid' => $this->company->uuid,
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
         ]);
 
         HcmUserRole::query()->create([

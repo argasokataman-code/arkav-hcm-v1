@@ -13,7 +13,7 @@ return new class extends Migration
         }
 
         // Check if invoices table exists first
-        if (!Schema::hasTable('invoices')) {
+        if (! Schema::hasTable('invoices')) {
             return;
         }
 
@@ -35,4 +35,3 @@ return new class extends Migration
         Schema::dropIfExists('invoice_email_logs');
     }
 };
-

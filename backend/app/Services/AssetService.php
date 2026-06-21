@@ -16,19 +16,25 @@ use App\Notifications\AssetAssignedNotification;
 use App\Notifications\AssetReturnedNotification;
 use App\Support\WebsiteSettings;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Support\Carbon;
 use RuntimeException;
 
 class AssetService
 {
     public const FEATURE_ASSET_MANAGEMENT = 'asset_management';
+
     public const FEATURE_ASSET_LOGS = 'asset_logs';
+
     public const FEATURE_ASSET_ATTACHMENTS = 'asset_attachments';
+
     public const FEATURE_ASSET_WARRANTY = 'asset_warranty';
+
     public const FEATURE_ASSET_MAINTENANCE = 'asset_maintenance';
+
     public const FEATURE_ASSET_REPORTING = 'asset_reporting';
+
     public const FEATURE_ASSET_DEPRECIATION = 'asset_depreciation';
 
     public function companyHasFeature(int $companyId, string $featureCode): bool

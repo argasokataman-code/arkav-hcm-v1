@@ -5,8 +5,6 @@ namespace App\Jobs;
 use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Services\BillingTaxCalculationService;
-use App\Services\InvoiceService;
-use App\Jobs\SendInvoiceEmailJob;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -113,7 +111,7 @@ class ConvertExpiredTrialsToPendingPaymentJob implements ShouldQueue
         ];
 
         $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE);
+
         return is_string($encoded) ? $encoded : $fallbackMessage;
     }
 }
-

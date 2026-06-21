@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\EmployeeProfile;
 use App\Models\Company;
 use App\Models\CompanyUser;
+use App\Models\EmployeeProfile;
 use App\Models\ExportReconciliationEvidence;
 use App\Models\HcmPayrollRun;
 use App\Models\User;

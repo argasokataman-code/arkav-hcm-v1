@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\EmployeeProfile;
 use App\Models\LeaveType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,7 +24,7 @@ class LeaveIndonesiaCatalogCommandTest extends TestCase
         ])->assertStatus(201);
 
         $user = User::query()->where('email', $email)->firstOrFail();
-        \App\Models\EmployeeProfile::query()->updateOrCreate(
+        EmployeeProfile::query()->updateOrCreate(
             ['user_id' => $user->id],
             ['designation' => $designation]
         );

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Invoice;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/saas/packages', function () {
@@ -18,7 +19,7 @@ Route::get('/saas/renewal-monitoring', function () {
     return view('saas.renewal-monitoring');
 })->middleware('hcm.web.global-admin')->name('saas.renewal-monitoring');
 
-Route::get('/saas/billing-overview/invoices/{invoice}', function (\App\Models\Invoice $invoice) {
+Route::get('/saas/billing-overview/invoices/{invoice}', function (Invoice $invoice) {
     return view('saas.billing-overview-invoice-detail', ['invoice' => $invoice]);
 })->middleware('hcm.web.global-admin')->name('saas.billing-overview.invoice-detail');
 
@@ -77,4 +78,3 @@ Route::get('/domain', function () {
 Route::get('/purchase-transaction', function () {
     return view('saas.transactions');
 })->middleware('hcm.web.global-admin')->name('purchase-transaction');
-

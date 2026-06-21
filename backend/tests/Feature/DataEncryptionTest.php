@@ -3,11 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
-use App\Models\EmployeeBenefit;
 use App\Models\EmployeeProfile;
-use App\Models\EmployeeTaxProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class DataEncryptionTest extends TestCase
@@ -26,7 +25,7 @@ class DataEncryptionTest extends TestCase
 
         // Create an employee with sensitive data
         $employee = EmployeeProfile::create([
-            'uuid' => \Illuminate\Support\Str::uuid(),
+            'uuid' => Str::uuid(),
             'company_id' => $company->id,
             'company_uuid' => $company->uuid,
             'user_id' => $user->id,
@@ -58,7 +57,7 @@ class DataEncryptionTest extends TestCase
         $company = Company::factory()->create();
 
         $plaintext = [
-            'uuid' => \Illuminate\Support\Str::uuid(),
+            'uuid' => Str::uuid(),
             'company_id' => $company->id,
             'company_uuid' => $company->uuid,
             'user_id' => $user->id,
@@ -84,7 +83,7 @@ class DataEncryptionTest extends TestCase
         $company = Company::factory()->create();
 
         $employee = EmployeeProfile::create([
-            'uuid' => \Illuminate\Support\Str::uuid(),
+            'uuid' => Str::uuid(),
             'company_id' => $company->id,
             'company_uuid' => $company->uuid,
             'user_id' => $user->id,
@@ -100,4 +99,3 @@ class DataEncryptionTest extends TestCase
         $this->assertEquals($found->nik, '3201234567890001');
     }
 }
-

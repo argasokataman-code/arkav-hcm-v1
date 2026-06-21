@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\Payroll;
 
-use Closure;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Api\Payroll\Concerns\BuildsMonthlyPayrollReports;
 use App\Http\Controllers\Api\Payroll\Concerns\BuildsPayrollRunPayloads;
@@ -12,23 +11,21 @@ use App\Http\Controllers\Controller;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
-use App\Models\HcmSalaryComponent;
 use App\Models\User;
-use App\Services\Hcm\PayrollLateArrivalMigrationService;
 use App\Services\Hcm\MonthlyPayslipService;
+use App\Services\Hcm\PayrollLateArrivalMigrationService;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Str;
 
 class HcmPayrollRunController extends Controller
 {
-    use ChecksPermissions;
     use BuildsMonthlyPayrollReports;
     use BuildsPayrollRunPayloads;
+    use ChecksPermissions;
     use HandlesPayrollRunReadEndpoints;
     use HandlesPayrollRunRuntimeUtilities;
 
@@ -105,6 +102,7 @@ class HcmPayrollRunController extends Controller
 
         $items = collect($paginator->items())->map(function (HcmPayrollRun $run): array {
             $summary = $this->serializeRun($run);
+
             return array_merge($summary, [
                 'auditTrail' => $this->auditTrailForRun($run),
             ]);
@@ -478,7 +476,7 @@ class HcmPayrollRunController extends Controller
                 $gatewayReference = 'MANUAL-'.now()->format('YmdHis').'-'.$run->id.'-'.strtoupper(Str::random(4));
                 $paidAt = now()->toIso8601String();
                 $markedBy = $request->user();
-                
+
                 // Export-only payroll: mark selected lines as paid after the tenant
                 // confirms settlement outside the application.
                 foreach ($linesToMark as $line) {
@@ -496,13 +494,13 @@ class HcmPayrollRunController extends Controller
                     $line->meta = $meta;
                     $line->save();
                 }
-                
+
                 // Post-save consistency check: Reload lines to verify payment metadata persisted
                 $verifyLines = HcmPayrollLine::query()
                     ->where('hcm_payroll_run_id', $run->id)
                     ->whereIn('id', $linesToMark->pluck('id')->all())
                     ->get();
-                
+
                 foreach ($verifyLines as $verifyLine) {
                     $verifyStatus = strtolower((string) ($verifyLine->meta['paymentStatus'] ?? 'unpaid'));
                     if ($verifyStatus !== 'paid') {
@@ -608,7 +606,7 @@ class HcmPayrollRunController extends Controller
         }
 
         $companyId = $this->activeCompanyId($request);
-        $result = DB::transaction(function () use ($id, $companyId, $request): array {
+        $result = DB::transaction(function () use ($id, $companyId): array {
             $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
             $this->applyTenantScope($runQuery, $companyId);
             $run = $runQuery->firstOrFail();
@@ -618,19 +616,19 @@ class HcmPayrollRunController extends Controller
             $primaryAdminUser = User::query()
                 ->whereRaw('LOWER(email) = ?', [$primaryAdminEmail])
                 ->first();
-            
+
             $primaryAdminUserId = $primaryAdminUser?->id;
 
             // Build query to get only primary super admin's payroll lines
             $linesQuery = HcmPayrollLine::query()
                 ->where('hcm_payroll_run_id', $run->id)
                 ->lockForUpdate();
-            
+
             // Filter to only primary super admin if they exist
             if ($primaryAdminUserId) {
                 $linesQuery->where('user_id', $primaryAdminUserId);
             }
-            
+
             $lines = $linesQuery->get();
 
             $resetLineCount = 0;
@@ -675,5 +673,4 @@ class HcmPayrollRunController extends Controller
             ],
         ]);
     }
-
 }

@@ -168,5 +168,4 @@ class NotificationDeliverySummaryApiTest extends TestCase
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
     }
-
 }

@@ -18,7 +18,7 @@ class ApplyLocalizationSettingsTest extends TestCase
         Setting::set('localization_timezone', 'Asia/Jakarta', 'localization');
         Setting::set('localization_language', 'id', 'localization');
 
-        $middleware = new ApplyLocalizationSettings();
+        $middleware = new ApplyLocalizationSettings;
         $request = Request::create('/health', 'GET');
 
         $response = $middleware->handle($request, function () {
@@ -37,7 +37,7 @@ class ApplyLocalizationSettingsTest extends TestCase
         Setting::set('localization_timezone', 'GMT+7', 'localization');
         Setting::set('localization_language', 'en', 'localization');
 
-        $middleware = new ApplyLocalizationSettings();
+        $middleware = new ApplyLocalizationSettings;
         $request = Request::create('/health', 'GET');
 
         $response = $middleware->handle($request, function () {

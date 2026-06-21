@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Api\DataPrivacy\HcmDataPrivacyController;
 use App\Http\Controllers\Api\DataPrivacy\HcmDataPrivacyAiController;
+use App\Http\Controllers\Api\DataPrivacy\HcmDataPrivacyController;
 use App\Http\Controllers\Api\DataPrivacy\HcmSecurityIncidentController;
 use Illuminate\Support\Facades\Route;
 

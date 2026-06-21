@@ -80,10 +80,10 @@ class HcmProbationCycleCommand extends Command
         }
 
         $employeeName = (string) ($user->name ?? '');
-        $companyName  = (string) ($company->name ?? '');
-        $companyUuid  = (string) ($profile->company_uuid ?? (string) $company->id);
+        $companyName = (string) ($company->name ?? '');
+        $companyUuid = (string) ($profile->company_uuid ?? (string) $company->id);
         $contractType = (string) ($profile->contract_type ?? 'permanent');
-        $entityUuid   = (string) ($record->uuid ?? (string) $record->id);
+        $entityUuid = (string) ($record->uuid ?? (string) $record->id);
 
         // Notify the employee
         $user->notify(new ProbationEndedNotification(

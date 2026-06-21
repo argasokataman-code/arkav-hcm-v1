@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Schema;
 
 class AssetCategory extends Model
 {
-    use HasFactory, AssignsUuid;
+    use AssignsUuid, HasFactory;
 
     protected static function booted(): void
     {

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Department extends Model
 {
-    use SoftDeletes, AssignsUuid;
+    use AssignsUuid, SoftDeletes;
 
     protected $fillable = [
         'company_id',

@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Models\Transaction;
 use App\Models\Subscription;
+use App\Models\Transaction;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class TransactionFactory extends Factory
@@ -14,7 +14,7 @@ class TransactionFactory extends Factory
     {
         return [
             'subscription_id' => Subscription::factory(),
-            'invoice_number' => 'INV-' . $this->faker->unique()->bothify('########'),
+            'invoice_number' => 'INV-'.$this->faker->unique()->bothify('########'),
             'amount' => $this->faker->numberBetween(50000, 5000000),
             'status' => $this->faker->randomElement(['pending', 'completed', 'failed', 'refunded']),
             'payment_method' => $this->faker->randomElement(['credit_card', 'bank_transfer', 'e_wallet', 'other']),

@@ -2,35 +2,29 @@
 
 namespace App\Http\Controllers\Api\TaxGovernance\Concerns;
 
-use App\Events\TaxGovernancePolicyTransitioned;
 use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\EmployeeTaxProfile;
-use App\Models\HcmBillingTaxPolicy;
-use App\Models\HcmSalaryComponent;
-use App\Models\HcmTaxGovernanceBreakGlassRequest;
+use App\Models\HcmTaxGovernanceAnomaly;
 use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTaxGovernancePolicyEvent;
 use App\Models\HcmTaxGovernanceProjection;
-use App\Models\HcmTaxGovernanceAnomaly;
-use App\Modelsser;
 use App\Services\BillingTaxCalculationService;
+use App\Services\TaxGovernanceReportingService;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
-use HandlesPlatformTaxGovernance;
 
 trait HandlesTaxAuditReports
 {
-public function tenantSelfAuditReport(Request $request): JsonResponse
+    public function tenantSelfAuditReport(Request $request): JsonResponse
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.report.export')) {
             return $response;
@@ -87,7 +81,7 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
             ->with(['company:id,name', 'lastActor:id,email'])
             ->orderByDesc('updated_at');
 
-        if (!empty($validated['risk_level_filter'])) {
+        if (! empty($validated['risk_level_filter'])) {
             $query->where('tenant_risk_level', $validated['risk_level_filter']);
         }
 
@@ -180,22 +174,22 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
 
         // Authorization: tenant user can only view own tenant; global admin can view any
         $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
-        if (!$isGlobalAdmin && $companyId && (int) $companyId !== (int) $userCompanyId) {
+        if (! $isGlobalAdmin && $companyId && (int) $companyId !== (int) $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot view other tenant self-audit report.', 403);
         }
 
-        if (!$companyId && $userCompanyId) {
+        if (! $companyId && $userCompanyId) {
             $companyId = $userCompanyId;
         }
 
-        if (!$companyId) {
+        if (! $companyId) {
             return $this->errorResponse('TENANT_REQUIRED', 'Company context is required.', 400);
         }
 
         $this->ensureDefaultTenantPolicyTemplate((int) $companyId, (int) ($request->user()?->id ?? 0) ?: null);
 
         $company = Company::find((int) $companyId);
-        if (!$company) {
+        if (! $company) {
             return $this->errorResponse('COMPANY_NOT_FOUND', 'Company not found.', 404);
         }
 
@@ -204,8 +198,8 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
             'period_end' => ['nullable', 'date'],
         ]);
 
-        $periodStart = !empty($validated['period_start']) ? Carbon::parse($validated['period_start']) : now()->subDays(90);
-        $periodEnd = !empty($validated['period_end']) ? Carbon::parse($validated['period_end']) : now();
+        $periodStart = ! empty($validated['period_start']) ? Carbon::parse($validated['period_start']) : now()->subDays(90);
+        $periodEnd = ! empty($validated['period_end']) ? Carbon::parse($validated['period_end']) : now();
 
         $policies = HcmTaxGovernancePolicy::where('company_id', (int) $companyId)->get();
         $currentPublishedPolicy = $policies->where('status', 'published')->first();
@@ -233,8 +227,8 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
         $payrollRunsInPeriod = 0;
         $payrollRunsUsingPolicy = 0;
         $allPayrollRunsCovered = true;
-        if (\Illuminate\Support\Facades\Schema::hasTable('hcm_payroll_runs')) {
-            $payrollRuns = \Illuminate\Support\Facades\DB::table('hcm_payroll_runs')
+        if (Schema::hasTable('hcm_payroll_runs')) {
+            $payrollRuns = DB::table('hcm_payroll_runs')
                 ->where('company_id', (int) $companyId)
                 ->whereBetween('finalized_at', [$periodStart->toDateTimeString(), $periodEnd->toDateTimeString()])
                 ->where('status', 'finalized')
@@ -309,22 +303,22 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
         $userCompanyId = $this->activeCompanyId($request);
         $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
 
-        if (!$isGlobalAdmin && $companyId && (int) $companyId !== (int) $userCompanyId) {
+        if (! $isGlobalAdmin && $companyId && (int) $companyId !== (int) $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot view other tenant compliance status.', 403);
         }
 
-        if (!$companyId && $userCompanyId) {
+        if (! $companyId && $userCompanyId) {
             $companyId = $userCompanyId;
         }
 
-        if (!$companyId) {
+        if (! $companyId) {
             return $this->errorResponse('TENANT_REQUIRED', 'Company context is required.', 400);
         }
 
         $this->ensureDefaultTenantPolicyTemplate((int) $companyId, (int) ($request->user()?->id ?? 0) ?: null);
 
         $company = Company::find((int) $companyId);
-        if (!$company) {
+        if (! $company) {
             return $this->errorResponse('COMPANY_NOT_FOUND', 'Company not found.', 404);
         }
 
@@ -356,7 +350,7 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
             : 'attention_required';
 
         $recommendedActions = [];
-        if (!$currentPolicy) {
+        if (! $currentPolicy) {
             $recommendedActions[] = [
                 'priority' => 'high',
                 'action' => 'Publish active statutory tax policy.',
@@ -404,7 +398,7 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
             'data' => [
                 'company_id' => (int) $companyId,
                 'company_name' => $company->name,
-                'reporting_period' => now()->year . '-Q' . now()->quarter,
+                'reporting_period' => now()->year.'-Q'.now()->quarter,
                 'compliance_status' => [
                     'statutory_tax_compliance' => [
                         'has_active_policy' => (bool) $currentPolicy,
@@ -413,10 +407,10 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
                         'anomalies_unresolved' => $unresolvedAnomalies,
                     ],
                     'billing_tax_compliance' => [
-                        'billing_cycle_active' => !empty($billingCompliance['policy_uuid']),
-                        'invoices_issued' => !empty($billingCompliance['policy_uuid']) ? (int) ($billingCompliance['unpaid_invoice_count'] ?? 0) : 0,
-                        'invoices_paid' => !empty($billingCompliance['policy_uuid']) ? (int) ($billingCompliance['paid_invoice_count'] ?? 0) : 0,
-                        'amount_outstanding' => !empty($billingCompliance['policy_uuid']) ? (float) ($billingCompliance['outstanding_invoice_amount'] ?? 0) : 0,
+                        'billing_cycle_active' => ! empty($billingCompliance['policy_uuid']),
+                        'invoices_issued' => ! empty($billingCompliance['policy_uuid']) ? (int) ($billingCompliance['unpaid_invoice_count'] ?? 0) : 0,
+                        'invoices_paid' => ! empty($billingCompliance['policy_uuid']) ? (int) ($billingCompliance['paid_invoice_count'] ?? 0) : 0,
+                        'amount_outstanding' => ! empty($billingCompliance['policy_uuid']) ? (float) ($billingCompliance['outstanding_invoice_amount'] ?? 0) : 0,
                         'taxable_revenue_amount' => (float) ($billingCompliance['taxable_revenue_amount'] ?? 0),
                         'cleared_revenue_amount' => (float) ($billingCompliance['cleared_revenue_amount'] ?? 0),
                         'uncleared_revenue_amount' => (float) ($billingCompliance['uncleared_revenue_amount'] ?? 0),
@@ -514,6 +508,7 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
                     'email' => $user?->email,
                     'issues' => $issues,
                 ];
+
                 continue;
             }
 
@@ -536,6 +531,7 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
                     'email' => $user?->email,
                     'issues' => $issues,
                 ];
+
                 continue;
             }
 
@@ -604,6 +600,7 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
     private function allowedPtkpStatuses(): array
     {
         $statuses = (array) config('hcm.tax_statuses', ['TK0', 'TK1', 'TK2', 'TK3', 'K0', 'K1', 'K2', 'K3']);
+
         return array_values(array_unique(array_map(fn ($item): string => strtoupper(trim((string) $item)), $statuses)));
     }
 
@@ -653,6 +650,7 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
 
         return $schedules;
     }
+
     public function tenantSelfAuditReportExport(Request $request): JsonResponse|Response
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.report.export')) {
@@ -680,7 +678,7 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
 
         // Validate company exists
         $company = Company::find($companyId);
-        if (!$company) {
+        if (! $company) {
             return $this->errorResponse('COMPANY_NOT_FOUND', 'Company not found.', 404);
         }
 
@@ -689,8 +687,8 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
             'period_end' => ['nullable', 'date'],
         ]);
 
-        $periodStart = $validated['period_start'] ? \Carbon\Carbon::parse($validated['period_start']) : now()->subDays(90);
-        $periodEnd = $validated['period_end'] ? \Carbon\Carbon::parse($validated['period_end']) : now();
+        $periodStart = $validated['period_start'] ? Carbon::parse($validated['period_start']) : now()->subDays(90);
+        $periodEnd = $validated['period_end'] ? Carbon::parse($validated['period_end']) : now();
 
         // Validate period is within last 2 years
         if ($periodStart->diffInYears($periodEnd) > 2) {
@@ -698,7 +696,7 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
         }
 
         // Generate report data
-        $reportService = app(\App\Services\TaxGovernanceReportingService::class);
+        $reportService = app(TaxGovernanceReportingService::class);
         $reportData = $reportService->generateTenantSelfAuditReport($companyId, $periodStart, $periodEnd);
 
         if ($format === 'pdf') {
@@ -706,7 +704,7 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
 
             return response($pdfBinary, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="tenant-self-audit-' . ((string) $companyId) . '-' . now()->format('Ymd-His') . '.pdf"',
+                'Content-Disposition' => 'attachment; filename="tenant-self-audit-'.((string) $companyId).'-'.now()->format('Ymd-His').'.pdf"',
             ]);
         }
 
@@ -716,10 +714,9 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
         ]);
     }
 
-
     private function renderTenantSelfAuditPdf(array $reportData): string
     {
-        $options = new Options();
+        $options = new Options;
         $options->set('isRemoteEnabled', false);
 
         $dompdf = new Dompdf($options);
@@ -734,9 +731,9 @@ public function tenantSelfAuditReport(Request $request): JsonResponse
 
         $html = '<html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;font-size:12px;}h1{font-size:18px;}table{width:100%;border-collapse:collapse;}td,th{border:1px solid #ccc;padding:6px;vertical-align:top;}th{background:#f5f5f5;text-align:left;}</style></head><body>';
         $html .= '<h1>Tenant Self-Audit Report</h1>';
-        $html .= '<p><strong>Company:</strong> ' . e($companyName) . '<br><strong>Generated At:</strong> ' . e($generatedAt) . '</p>';
+        $html .= '<p><strong>Company:</strong> '.e($companyName).'<br><strong>Generated At:</strong> '.e($generatedAt).'</p>';
         $html .= '<table><tr><th>Period Start</th><th>Period End</th><th>Current Policy Version</th><th>Readiness Score</th><th>Unresolved Anomalies</th></tr>';
-        $html .= '<tr><td>' . e($periodStart) . '</td><td>' . e($periodEnd) . '</td><td>' . e($policyVersion) . '</td><td>' . e($readinessScore) . '</td><td>' . e((string) $anomalyCount) . '</td></tr>';
+        $html .= '<tr><td>'.e($periodStart).'</td><td>'.e($periodEnd).'</td><td>'.e($policyVersion).'</td><td>'.e($readinessScore).'</td><td>'.e((string) $anomalyCount).'</td></tr>';
         $html .= '</table>';
         $html .= '<p>Generated by Arkav Tax Governance Reporting.</p>';
         $html .= '</body></html>';

@@ -40,9 +40,9 @@ return new class extends Migration
             // Safety: abort if any NULL exists (should not happen, but guard anyway)
             $nullCount = DB::table($table)->whereNull('company_id')->count();
             if ($nullCount > 0) {
-                throw new \RuntimeException(
+                throw new RuntimeException(
                     "Migration aborted: table '{$table}' has {$nullCount} NULL company_id row(s). "
-                    . 'Backfill or delete these rows before running this migration.'
+                    .'Backfill or delete these rows before running this migration.'
                 );
             }
 
@@ -63,8 +63,8 @@ return new class extends Migration
             if (DB::getDriverName() !== 'sqlite') {
                 DB::statement(
                     'ALTER TABLE `employee_leave_balances` '
-                    . 'ADD UNIQUE INDEX `employee_leave_balances_company_unique` '
-                    . '(`company_id`, `employee_id`, `leave_type_id`, `year`)'
+                    .'ADD UNIQUE INDEX `employee_leave_balances_company_unique` '
+                    .'(`company_id`, `employee_id`, `leave_type_id`, `year`)'
                 );
             }
         }
@@ -92,8 +92,8 @@ return new class extends Migration
 
             DB::statement(
                 'ALTER TABLE `employee_leave_balances` '
-                . 'ADD UNIQUE INDEX `employee_leave_balances_unique` '
-                . '(`employee_id`, `leave_type_id`, `year`)'
+                .'ADD UNIQUE INDEX `employee_leave_balances_unique` '
+                .'(`employee_id`, `leave_type_id`, `year`)'
             );
         }
     }
@@ -105,8 +105,8 @@ return new class extends Migration
         }
 
         $exists = DB::selectOne(
-            "SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.STATISTICS "
-            . "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?",
+            'SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.STATISTICS '
+            .'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?',
             [$table, $index]
         );
 

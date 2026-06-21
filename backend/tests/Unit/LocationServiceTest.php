@@ -61,11 +61,11 @@ class LocationServiceTest extends TestCase
 
         // Second call should use cache - verify cache hit
         $cached = LocationService::reverseGeocode(-6.2088, 106.8456);
-        
+
         // Both should return same result
         $first = LocationService::reverseGeocode(-6.2089, 106.8457);
         $second = LocationService::reverseGeocode(-6.2089, 106.8457);
-        
+
         $this->assertEquals($first['name'], $second['name']);
         $this->assertEquals('gps', $cached['source']);
     }

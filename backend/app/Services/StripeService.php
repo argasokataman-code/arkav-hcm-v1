@@ -4,8 +4,12 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
 use Stripe\Customer;
-use Stripe\Stripe;
 use Stripe\Invoice;
+use Stripe\InvoiceLineItem;
+use Stripe\PaymentIntent;
+use Stripe\Refund;
+use Stripe\Stripe;
+use Stripe\Subscription;
 use Stripe\SubscriptionSchedule;
 
 class StripeService
@@ -17,26 +21,27 @@ class StripeService
 
     /**
      * Create or get a customer in Stripe
-     * 
-     * @param array $params Customer parameters
+     *
+     * @param  array  $params  Customer parameters
      * @return string Stripe customer ID
      */
     public function getOrCreateCustomer(array $params): string
     {
         $externalId = $params['external_id'] ?? null;
-        
+
         // Search for existing customer with this email
-        if (!empty($params['email'])) {
+        if (! empty($params['email'])) {
             $customers = Customer::all([
                 'email' => $params['email'],
                 'limit' => 1,
             ]);
 
-            if (!empty($customers->data)) {
+            if (! empty($customers->data)) {
                 Log::info('Found existing Stripe customer', [
                     'email' => $params['email'],
                     'customer_id' => $customers->data[0]->id,
                 ]);
+
                 return $customers->data[0]->id;
             }
         }
@@ -62,16 +67,16 @@ class StripeService
 
     /**
      * Create a payment intent (one-time payment)
-     * 
-     * @param array $params Payment parameters
+     *
+     * @param  array  $params  Payment parameters
      * @return array Payment intent data
      */
     public function createPaymentIntent(array $params): array
     {
         $customerId = $params['customer_id'];
         $amount = (int) ($params['amount'] * 100); // Convert to cents
-        
-        $intent = \Stripe\PaymentIntent::create([
+
+        $intent = PaymentIntent::create([
             'customer' => $customerId,
             'amount' => $amount,
             'currency' => strtolower($params['currency'] ?? 'usd'),
@@ -99,14 +104,14 @@ class StripeService
 
     /**
      * Create an invoice in Stripe
-     * 
-     * @param array $params Invoice parameters
+     *
+     * @param  array  $params  Invoice parameters
      * @return array Invoice data
      */
     public function createInvoice(array $params): array
     {
         $customerId = $params['customer_id'];
-        
+
         $invoice = Invoice::create([
             'customer' => $customerId,
             'currency' => strtolower($params['currency'] ?? 'usd'),
@@ -118,9 +123,9 @@ class StripeService
         ]);
 
         // Add line items if provided
-        if (!empty($params['items'])) {
+        if (! empty($params['items'])) {
             foreach ($params['items'] as $item) {
-                \Stripe\InvoiceLineItem::create([
+                InvoiceLineItem::create([
                     'invoice' => $invoice->id,
                     'amount' => (int) ($item['amount'] * 100),
                     'currency' => strtolower($params['currency'] ?? 'usd'),
@@ -152,16 +157,16 @@ class StripeService
 
     /**
      * Create a subscription
-     * 
-     * @param array $params Subscription parameters
+     *
+     * @param  array  $params  Subscription parameters
      * @return array Subscription data
      */
     public function createSubscription(array $params): array
     {
         $customerId = $params['customer_id'];
         $priceId = $params['price_id'];
-        
-        $subscription = \Stripe\Subscription::create([
+
+        $subscription = Subscription::create([
             'customer' => $customerId,
             'items' => [
                 [
@@ -194,15 +199,15 @@ class StripeService
 
     /**
      * Create a subscription schedule for recurring billing
-     * 
-     * @param array $params Schedule parameters
+     *
+     * @param  array  $params  Schedule parameters
      * @return array Schedule data
      */
     public function createSubscriptionSchedule(array $params): array
     {
         $customerId = $params['customer_id'];
         $phases = $params['phases']; // Array of billing phases
-        
+
         $schedule = SubscriptionSchedule::create([
             'customer' => $customerId,
             'phases' => $phases,
@@ -226,16 +231,16 @@ class StripeService
 
     /**
      * Cancel a subscription
-     * 
-     * @param string $subscriptionId Stripe subscription ID
-     * @param bool $atPeriodEnd Cancel at end of current period if true
+     *
+     * @param  string  $subscriptionId  Stripe subscription ID
+     * @param  bool  $atPeriodEnd  Cancel at end of current period if true
      * @return bool Success status
      */
     public function cancelSubscription(string $subscriptionId, bool $atPeriodEnd = false): bool
     {
         try {
-            $sub = \Stripe\Subscription::retrieve($subscriptionId);
-            
+            $sub = Subscription::retrieve($subscriptionId);
+
             if ($atPeriodEnd) {
                 $sub->cancel_at_period_end = true;
                 $sub->save();
@@ -254,20 +259,22 @@ class StripeService
                 'subscription_id' => $subscriptionId,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
 
     /**
      * Retrieve subscription details
-     * 
-     * @param string $subscriptionId Stripe subscription ID
+     *
+     * @param  string  $subscriptionId  Stripe subscription ID
      * @return array|null Subscription data
      */
     public function getSubscription(string $subscriptionId): ?array
     {
         try {
-            $sub = \Stripe\Subscription::retrieve($subscriptionId);
+            $sub = Subscription::retrieve($subscriptionId);
+
             return [
                 'id' => $sub->id,
                 'status' => $sub->status,
@@ -281,21 +288,22 @@ class StripeService
                 'subscription_id' => $subscriptionId,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
 
     /**
      * Refund a charge
-     * 
-     * @param string $chargeId Stripe charge ID
-     * @param int|null $amount Optional refund amount in cents (partial refund)
+     *
+     * @param  string  $chargeId  Stripe charge ID
+     * @param  int|null  $amount  Optional refund amount in cents (partial refund)
      * @return bool Success status
      */
     public function refundCharge(string $chargeId, ?int $amount = null): bool
     {
         try {
-            $refund = \Stripe\Refund::create([
+            $refund = Refund::create([
                 'charge' => $chargeId,
                 'amount' => $amount,
             ]);
@@ -312,8 +320,8 @@ class StripeService
                 'charge_id' => $chargeId,
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
-
 }

@@ -21,8 +21,7 @@ class GenerateReportSnapshot implements ShouldQueue
         protected array $filters,
         protected int $userId,
         protected int $companyId,
-    ) {
-    }
+    ) {}
 
     /**
      * Execute the job.

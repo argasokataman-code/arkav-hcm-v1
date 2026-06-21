@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class WilayahRegency extends Model
 {
     use AssignsUuid;
+
     protected $fillable = [
         'province_id',
         'code',

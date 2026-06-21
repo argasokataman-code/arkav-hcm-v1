@@ -34,6 +34,7 @@ class HcmBackfillTrialInvoicesCommand extends Command
 
         if ($subscriptions->isEmpty()) {
             $this->info('No trial subscriptions found for backfill.');
+
             return self::SUCCESS;
         }
 
@@ -48,6 +49,7 @@ class HcmBackfillTrialInvoicesCommand extends Command
 
             if ($existingInvoice) {
                 $skippedExisting++;
+
                 continue;
             }
 
@@ -70,6 +72,7 @@ class HcmBackfillTrialInvoicesCommand extends Command
                     $amountDue
                 ));
                 $created++;
+
                 continue;
             }
 

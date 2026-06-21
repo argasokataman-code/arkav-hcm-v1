@@ -16,113 +16,113 @@
 */
 
 // Core Authentication & Identity
-require __DIR__ . '/api/auth.php';
+require __DIR__.'/api/auth.php';
 
 // Public (Guest) Routes
-require __DIR__ . '/api/onboarding.php';
+require __DIR__.'/api/onboarding.php';
 
 // Company Management
-require __DIR__ . '/api/company.php';
+require __DIR__.'/api/company.php';
 
 // Dashboard & Notifications
-require __DIR__ . '/api/dashboard.php';
-require __DIR__ . '/api/notification-preferences.php';
+require __DIR__.'/api/dashboard.php';
+require __DIR__.'/api/notification-preferences.php';
 
 // Employee Management
-require __DIR__ . '/api/employee.php';
+require __DIR__.'/api/employee.php';
 
 // Attendance & Shifts
-require __DIR__ . '/api/attendance.php';
+require __DIR__.'/api/attendance.php';
 
 // Payroll (Feature-Gated)
-require __DIR__ . '/api/payroll.php';
+require __DIR__.'/api/payroll.php';
 
 // Overtime
-require __DIR__ . '/api/overtime.php';
+require __DIR__.'/api/overtime.php';
 
 // Leave & Holidays
-require __DIR__ . '/api/leave.php';
+require __DIR__.'/api/leave.php';
 
 // Salary Components
-require __DIR__ . '/api/salary-component.php';
+require __DIR__.'/api/salary-component.php';
 
 // Tax Governance
-require __DIR__ . '/api/tax-governance.php';
-require __DIR__ . '/api/spt-masa.php';
+require __DIR__.'/api/tax-governance.php';
+require __DIR__.'/api/spt-masa.php';
 
 // BPJS Governance
-require __DIR__ . '/api/bpjs-governance.php';
+require __DIR__.'/api/bpjs-governance.php';
 
 // Employee Allowance Governance
-require __DIR__ . '/api/allowance-governance.php';
+require __DIR__.'/api/allowance-governance.php';
 
 // Asset Management
-require __DIR__ . '/api/asset.php';
+require __DIR__.'/api/asset.php';
 
 // Performance Management (Feature-Gated)
-require __DIR__ . '/api/performance.php';
+require __DIR__.'/api/performance.php';
 
 // Training (Feature-Gated)
-require __DIR__ . '/api/training.php';
+require __DIR__.'/api/training.php';
 
 // Document Center (Feature-Gated)
-require __DIR__ . '/api/document-center.php';
+require __DIR__.'/api/document-center.php';
 
 // Helpdesk / Tickets
-require __DIR__ . '/api/ticket.php';
+require __DIR__.'/api/ticket.php';
 
 // Notes
-require __DIR__ . '/api/notes.php';
+require __DIR__.'/api/notes.php';
 
 // FAQ
-require __DIR__ . '/api/faq.php';
+require __DIR__.'/api/faq.php';
 
 // Calendar Events
-require __DIR__ . '/api/calendar.php';
+require __DIR__.'/api/calendar.php';
 
 // Employee Lifecycle: Promotions
-require __DIR__ . '/api/promotion.php';
+require __DIR__.'/api/promotion.php';
 
 // Employee Lifecycle: Resignations
-require __DIR__ . '/api/resignation.php';
+require __DIR__.'/api/resignation.php';
 
 // Employee Lifecycle: Terminations
-require __DIR__ . '/api/termination.php';
+require __DIR__.'/api/termination.php';
 
 // User & Role Management
-require __DIR__ . '/api/user-management.php';
+require __DIR__.'/api/user-management.php';
 
 // Data Privacy & Erasure (UU PDP compliance)
-require __DIR__ . '/api/data-privacy.php';
+require __DIR__.'/api/data-privacy.php';
 
 // Settings
-require __DIR__ . '/api/settings.php';
-require __DIR__ . '/api/approval-settings.php';
-require __DIR__ . '/api/email-settings.php';
+require __DIR__.'/api/settings.php';
+require __DIR__.'/api/approval-settings.php';
+require __DIR__.'/api/email-settings.php';
 
 // Notifications (Compose Email)
-require __DIR__ . '/api/notifications.php';
+require __DIR__.'/api/notifications.php';
 
 // Billing & Subscriptions
-require __DIR__ . '/api/billing.php';
+require __DIR__.'/api/billing.php';
 
 // Reports & Snapshots
-require __DIR__ . '/api/reports.php';
+require __DIR__.'/api/reports.php';
 
 // Reconciliation
-require __DIR__ . '/api/reconciliation.php';
+require __DIR__.'/api/reconciliation.php';
 
 // SaaS Platform Management
-require __DIR__ . '/api/saas.php';
+require __DIR__.'/api/saas.php';
 
 // Webhooks (External, Outside Auth)
-require __DIR__ . '/api/webhooks.php';
+require __DIR__.'/api/webhooks.php';
 
 // Health Check
-require __DIR__ . '/api/health.php';
+require __DIR__.'/api/health.php';
 
 // Mock Payments (Development Only)
-require __DIR__ . '/api/mock-payments.php';
+require __DIR__.'/api/mock-payments.php';
 
 // Invoice Management
-require __DIR__ . '/api/invoice.php';
+require __DIR__.'/api/invoice.php';

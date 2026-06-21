@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class HcmPermissionsSeeder extends Seeder
 {
@@ -61,7 +62,7 @@ class HcmPermissionsSeeder extends Seeder
         foreach ($permissions as $permission) {
             DB::table('hcm_permissions')->updateOrInsert(
                 ['code' => $permission['code']],
-                array_merge($permission, ['uuid' => (string) \Illuminate\Support\Str::uuid()])
+                array_merge($permission, ['uuid' => (string) Str::uuid()])
             );
         }
     }

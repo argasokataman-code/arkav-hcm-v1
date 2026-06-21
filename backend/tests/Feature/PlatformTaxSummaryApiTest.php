@@ -16,21 +16,21 @@ class PlatformTaxSummaryApiTest extends TestCase
 
     private function extractXlsxXml(string $binaryContent): string
     {
-        if (!class_exists(\ZipArchive::class)) {
+        if (! class_exists(\ZipArchive::class)) {
             $this->markTestSkipped('ZipArchive extension is not available.');
         }
 
         $tmpFile = tempnam(sys_get_temp_dir(), 'platform-tax-xlsx-');
         file_put_contents($tmpFile, $binaryContent);
 
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $opened = $zip->open($tmpFile);
         $this->assertTrue($opened === true, 'Failed to open generated XLSX archive.');
 
         $xml = '';
         for ($index = 0; $index < $zip->numFiles; $index++) {
             $name = (string) $zip->getNameIndex($index);
-            if (!str_starts_with($name, 'xl/')) {
+            if (! str_starts_with($name, 'xl/')) {
                 continue;
             }
 

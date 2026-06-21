@@ -28,7 +28,7 @@ return new class extends Migration
                             ->on('users')
                             ->nullOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -44,7 +44,7 @@ return new class extends Migration
                             ->on('users')
                             ->nullOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -59,7 +59,7 @@ return new class extends Migration
                             ->on('users')
                             ->nullOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -106,11 +106,11 @@ return new class extends Migration
             return false;
         }
 
-        $constraints = \DB::select("
+        $constraints = \DB::select('
             SELECT CONSTRAINT_NAME
             FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND CONSTRAINT_NAME = ?
-        ", [env('DB_DATABASE'), $tableName, $constraintName]);
+        ', [env('DB_DATABASE'), $tableName, $constraintName]);
 
         return count($constraints) > 0;
     }

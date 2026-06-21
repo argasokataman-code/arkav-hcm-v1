@@ -22,7 +22,7 @@ class HcmTaxGovernancePhase7Test extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'tax-phase7-pdf@example.com']);
 
         $response = $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']))->get('/v1/hcm/tax-governance/reports/tenant-self-audit-export?format=pdf&period_start=2026-01-01&period_end=2026-01-31');
 
         $response->assertStatus(200);
@@ -45,8 +45,8 @@ class HcmTaxGovernancePhase7Test extends TestCase
         ]);
 
         $response = $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
-        ], $admin['company_id']))->patchJson('/v1/hcm/tax-governance/governance/anomalies/' . $anomaly->id . '/resolve', [
+            'Authorization' => 'Bearer '.$admin['token'],
+        ], $admin['company_id']))->patchJson('/v1/hcm/tax-governance/governance/anomalies/'.$anomaly->id.'/resolve', [
             'resolution_note' => 'Validated and fixed in payroll profile sync.',
         ]);
 
@@ -67,7 +67,7 @@ class HcmTaxGovernancePhase7Test extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'tax-phase7-compliance@example.com']);
 
         $response = $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']))->getJson('/v1/hcm/tax-governance/reports/tenant-compliance-status');
 
         $response->assertStatus(200)
@@ -108,7 +108,7 @@ class HcmTaxGovernancePhase7Test extends TestCase
         ]);
 
         $response = $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']))->getJson('/v1/hcm/tax-governance/reports/tenant-compliance-status');
 
         $response->assertStatus(200)
@@ -169,7 +169,7 @@ class HcmTaxGovernancePhase7Test extends TestCase
         ]);
 
         $response = $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']))->getJson('/v1/hcm/tax-governance/reports/tenant-compliance-status');
 
         $response->assertStatus(200)
@@ -228,7 +228,7 @@ class HcmTaxGovernancePhase7Test extends TestCase
         ]);
 
         $response = $this->withHeaders($this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']))->getJson('/v1/hcm/tax-governance/reports/tenant-compliance-status');
 
         $response->assertStatus(200)

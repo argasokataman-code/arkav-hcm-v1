@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Company;
 use App\Models\HcmBillingTaxPolicy;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 class HcmBillingTaxPolicyFactory extends Factory
 {
@@ -13,7 +14,7 @@ class HcmBillingTaxPolicyFactory extends Factory
     public function definition(): array
     {
         return [
-            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'id' => (string) Str::uuid(),
             'company_id' => Company::factory(),
             'billing_month' => now()->format('Y-m'),
             'billing_cycle_type' => $this->faker->randomElement(['monthly', 'yearly', 'custom']),

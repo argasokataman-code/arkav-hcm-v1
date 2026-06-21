@@ -9,18 +9,18 @@ use Illuminate\Support\Facades\Crypt;
 
 /**
  * Custom encryption cast that gracefully handles both encrypted and plaintext values.
- * 
+ *
  * Used for migration period where existing plaintext data coexists with new encrypted fields.
- * Once all data is encrypted (via EncryptExistingSensitiveData command), can safely use 
+ * Once all data is encrypted (via EncryptExistingSensitiveData command), can safely use
  * Laravel's built-in 'encrypted' cast.
- * 
+ *
  * UU PDP Compliance: C5 (Encryption at-rest)
  */
 class EncryptedOrPlaintext implements CastsAttributes
 {
     /**
      * Cast the given value when reading from model.
-     * 
+     *
      * Attempts to decrypt; if decryption fails, returns value as-is (assuming plaintext).
      *
      * @param  array<string, mixed>  $attributes

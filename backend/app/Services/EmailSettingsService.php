@@ -49,8 +49,7 @@ class EmailSettingsService
     }
 
     /**
-     * @param array<string, mixed> $data
-     * @param mixed $user
+     * @param  array<string, mixed>  $data
      * @return array{data: array<string, mixed>, meta: array<string, mixed>}
      */
     public function updateProfile(array $data, mixed $user = null): array
@@ -101,8 +100,7 @@ class EmailSettingsService
     }
 
     /**
-     * @param array<string, mixed> $result
-     * @param mixed $user
+     * @param  array<string, mixed>  $result
      * @return array<string, mixed>
      */
     public function persistTestConnectionSnapshot(array $result, mixed $user = null): array
@@ -322,7 +320,7 @@ class EmailSettingsService
     }
 
     /**
-     * @param array<string, mixed> $details
+     * @param  array<string, mixed>  $details
      * @return array<string, mixed>
      */
     private function sanitizeSnapshotDetails(array $details): array

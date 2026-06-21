@@ -300,6 +300,7 @@ class HcmPromotionController extends Controller
             ->where('company_id', $activeCompanyId)
             ->whereKey($id)
             ->delete();
+
         return response()->json(['success' => true]);
     }
 
@@ -351,4 +352,3 @@ class HcmPromotionController extends Controller
         ], 422);
     }
 }
-

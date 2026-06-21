@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api\Settings;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
+use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
 use App\Services\ApprovalConfigService;
 use Illuminate\Http\JsonResponse;

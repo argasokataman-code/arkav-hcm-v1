@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
-use App\Models\CompanySetting;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\HcmPayrollLine;

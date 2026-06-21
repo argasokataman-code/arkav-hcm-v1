@@ -230,7 +230,7 @@ final class HcmKnowledgebase
     }
 
     /**
-     * @param list<string> $audience
+     * @param  list<string>  $audience
      */
     private static function userCanAccessAudience(?object $user, array $audience): bool
     {

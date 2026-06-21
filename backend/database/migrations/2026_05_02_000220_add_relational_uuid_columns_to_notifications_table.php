@@ -28,24 +28,24 @@ return new class extends Migration
 
         if (DB::getDriverName() === 'mysql') {
             DB::statement(
-                "UPDATE notifications n "
-                . "JOIN users u ON CAST(n.notifiable_id AS CHAR(36)) = CAST(u.id AS CHAR(36)) "
-                . "SET n.user_uuid = u.uuid "
-                . "WHERE n.user_uuid IS NULL AND n.notifiable_type = '" . addslashes(User::class) . "'"
+                'UPDATE notifications n '
+                .'JOIN users u ON CAST(n.notifiable_id AS CHAR(36)) = CAST(u.id AS CHAR(36)) '
+                .'SET n.user_uuid = u.uuid '
+                ."WHERE n.user_uuid IS NULL AND n.notifiable_type = '".addslashes(User::class)."'"
             );
 
             DB::statement(
-                "UPDATE notifications n "
-                . "SET n.company_uuid = JSON_UNQUOTE(JSON_EXTRACT(n.data, '$.companyUuid')) "
-                . "WHERE n.company_uuid IS NULL "
-                . "AND JSON_EXTRACT(n.data, '$.companyUuid') IS NOT NULL"
+                'UPDATE notifications n '
+                ."SET n.company_uuid = JSON_UNQUOTE(JSON_EXTRACT(n.data, '$.companyUuid')) "
+                .'WHERE n.company_uuid IS NULL '
+                ."AND JSON_EXTRACT(n.data, '$.companyUuid') IS NOT NULL"
             );
 
             DB::statement(
-                "UPDATE notifications n "
-                . "JOIN company_users cu ON cu.user_uuid = n.user_uuid AND cu.status = 'active' "
-                . "SET n.company_uuid = cu.company_uuid "
-                . "WHERE n.user_uuid IS NOT NULL AND n.company_uuid IS NULL"
+                'UPDATE notifications n '
+                ."JOIN company_users cu ON cu.user_uuid = n.user_uuid AND cu.status = 'active' "
+                .'SET n.company_uuid = cu.company_uuid '
+                .'WHERE n.user_uuid IS NOT NULL AND n.company_uuid IS NULL'
             );
         }
 
@@ -90,7 +90,7 @@ return new class extends Migration
                     $foreign->restrictOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $msg = strtolower($e->getMessage());
             if (
                 str_contains($msg, 'duplicate')
@@ -124,11 +124,11 @@ return new class extends Migration
 
     private function fkName(string $table, string $column): string
     {
-        $base = $table . '_' . $column . '_fk';
+        $base = $table.'_'.$column.'_fk';
         if (strlen($base) <= 64) {
             return $base;
         }
 
-        return substr($table, 0, 24) . '_' . substr($column, 0, 24) . '_' . substr(md5($base), 0, 10);
+        return substr($table, 0, 24).'_'.substr($column, 0, 24).'_'.substr(md5($base), 0, 10);
     }
 };

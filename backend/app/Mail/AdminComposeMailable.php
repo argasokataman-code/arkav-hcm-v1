@@ -42,7 +42,7 @@ class AdminComposeMailable extends Mailable
     public function headers(): Headers
     {
         if ($this->deliveryUuid === null || trim($this->deliveryUuid) === '') {
-            return new Headers();
+            return new Headers;
         }
 
         $uuid = trim($this->deliveryUuid);

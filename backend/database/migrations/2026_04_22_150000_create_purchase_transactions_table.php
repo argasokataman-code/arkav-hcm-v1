@@ -11,8 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasTable('purchase_transactions')) return;
-        if (!Schema::hasTable('companies')) return; // Skip if companies table doesn't exist yet
+        if (Schema::hasTable('purchase_transactions')) {
+            return;
+        }
+        if (! Schema::hasTable('companies')) {
+            return;
+        } // Skip if companies table doesn't exist yet
 
         Schema::create('purchase_transactions', function (Blueprint $table) {
             $table->id();

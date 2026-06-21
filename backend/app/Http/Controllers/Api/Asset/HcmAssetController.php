@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api\Asset;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
-use App\Models\AssetAttachment;
 use App\Models\AssetAssignment;
+use App\Models\AssetAttachment;
 use App\Models\EmployeeProfile;
 use App\Services\AssetService;
 use Illuminate\Http\JsonResponse;
@@ -17,9 +17,7 @@ class HcmAssetController extends Controller
 {
     use ChecksPermissions;
 
-    public function __construct(private readonly AssetService $assetService)
-    {
-    }
+    public function __construct(private readonly AssetService $assetService) {}
 
     public function index(Request $request): JsonResponse
     {

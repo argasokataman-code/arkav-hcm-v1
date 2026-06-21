@@ -5,16 +5,16 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Schema;
 
 class Asset extends Model
 {
-    use HasFactory, SoftDeletes, AssignsUuid;
+    use AssignsUuid, HasFactory, SoftDeletes;
 
     protected static function booted(): void
     {
@@ -103,6 +103,6 @@ class Asset extends Model
             return $this->newQuery()->whereKey((int) $value)->first();
         }
 
-        throw (new ModelNotFoundException())->setModel(static::class, [$value]);
+        throw (new ModelNotFoundException)->setModel(static::class, [$value]);
     }
 }

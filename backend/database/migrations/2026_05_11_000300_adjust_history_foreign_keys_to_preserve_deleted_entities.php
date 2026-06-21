@@ -76,5 +76,4 @@ return new class extends Migration
 
         return ((int) ($row->aggregate ?? 0)) > 0;
     }
-
 };

@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Api\Overtime\HcmOvertimeTypeController;
 use App\Http\Controllers\Api\Overtime\HcmOvertimeRequestController;
+use App\Http\Controllers\Api\Overtime\HcmOvertimeTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:overtime'])->group(function () {

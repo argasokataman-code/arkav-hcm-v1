@@ -14,7 +14,9 @@ use App\Models\HcmSalaryComponent;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -191,7 +193,7 @@ class HcmBpjsGovernanceController extends Controller
 
         $this->appendPolicyHistory($policy, 'created', $user);
 
-    $this->ensureBpjsSalaryComponents($companyId);
+        $this->ensureBpjsSalaryComponents($companyId);
 
         return response()->json([
             'success' => true,
@@ -317,7 +319,7 @@ class HcmBpjsGovernanceController extends Controller
             ->orderBy('name');
 
         if (! empty($validated['search'])) {
-            $search = '%' . trim((string) $validated['search']) . '%';
+            $search = '%'.trim((string) $validated['search']).'%';
             $usersQuery->where(function ($query) use ($search): void {
                 $query->where('name', 'like', $search)
                     ->orWhere('email', 'like', $search);
@@ -373,7 +375,7 @@ class HcmBpjsGovernanceController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, int|string>  $companyUserIds
+     * @param  Collection<int, int|string>  $companyUserIds
      * @return array{total:int, complete:int, partial:int, missing:int}
      */
     private function membershipCoverageSummary($companyUserIds): array
@@ -596,6 +598,7 @@ class HcmBpjsGovernanceController extends Controller
                         ['code' => 'employee_profile_missing', 'label' => 'Profil karyawan belum tersedia untuk evaluasi membership BPJS.'],
                     ],
                 ];
+
                 continue;
             }
 
@@ -613,6 +616,7 @@ class HcmBpjsGovernanceController extends Controller
                         ['code' => 'bpjs_membership_missing', 'label' => 'Nomor BPJS Kesehatan dan BPJS Ketenagakerjaan belum diisi.'],
                     ],
                 ];
+
                 continue;
             }
 
@@ -707,7 +711,7 @@ class HcmBpjsGovernanceController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'reportingPeriod' => now()->year . '-Q' . now()->quarter,
+                'reportingPeriod' => now()->year.'-Q'.now()->quarter,
                 'generatedAt' => now()->toIso8601String(),
                 'policyActiveCount' => $policyRows->count(),
                 'employeeMembership' => [
@@ -728,7 +732,7 @@ class HcmBpjsGovernanceController extends Controller
         ]);
     }
 
-    public function exportReports(Request $request): \Illuminate\Http\Response
+    public function exportReports(Request $request): Response
     {
         if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             abort(403);
@@ -804,6 +808,7 @@ class HcmBpjsGovernanceController extends Controller
                         ['code' => 'employee_profile_missing', 'label' => 'Profil karyawan belum tersedia untuk evaluasi membership BPJS.'],
                     ],
                 ];
+
                 continue;
             }
             $benefit = $latestMembership->get((int) $profile->id);
@@ -819,6 +824,7 @@ class HcmBpjsGovernanceController extends Controller
                         ['code' => 'bpjs_membership_missing', 'label' => 'Nomor BPJS Kesehatan dan BPJS Ketenagakerjaan belum diisi.'],
                     ],
                 ];
+
                 continue;
             }
             $bpjsKes = trim((string) ($benefit->bpjs_kesehatan_no ?? ''));
@@ -875,7 +881,7 @@ class HcmBpjsGovernanceController extends Controller
         $payload = json_encode([
             'success' => true,
             'data' => [
-                'reportingPeriod' => now()->year . '-Q' . now()->quarter,
+                'reportingPeriod' => now()->year.'-Q'.now()->quarter,
                 'generatedAt' => now()->toIso8601String(),
                 'policyActiveCount' => $policyRows->count(),
                 'employeeMembership' => ['totalEmployees' => $totalEmployees, 'complete' => $completeMembership, 'partial' => (int) $membershipCounts['partial'], 'missing' => (int) $membershipCounts['missing'], 'completionRate' => $membershipRate],
@@ -886,11 +892,11 @@ class HcmBpjsGovernanceController extends Controller
             ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
-        $filename = 'bpjs-compliance-report-' . now()->format('Y-m-d') . '.json';
+        $filename = 'bpjs-compliance-report-'.now()->format('Y-m-d').'.json';
 
         return response((string) $payload, 200, [
             'Content-Type' => 'application/json',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
@@ -908,27 +914,27 @@ class HcmBpjsGovernanceController extends Controller
         $tenantConfigs = HcmBpjsGovernanceRateBaseline::query()
             ->where('company_id', $companyId)
             ->get()
-            ->keyBy(fn ($row) => $row->program_code . '_' . $row->contribution_party);
+            ->keyBy(fn ($row) => $row->program_code.'_'.$row->contribution_party);
 
         $systemDefaults = $this->systemRegulatoryMatrix();
 
         $items = [];
         foreach ($systemDefaults as $programCode => $parties) {
             foreach ($parties as $contributionParty => $defaults) {
-                $key = $programCode . '_' . $contributionParty;
+                $key = $programCode.'_'.$contributionParty;
                 $tenantConfig = $tenantConfigs->get($key);
                 $items[] = [
-                    'programCode'       => $programCode,
+                    'programCode' => $programCode,
                     'contributionParty' => $contributionParty,
-                    'minRate'           => $tenantConfig ? (float) $tenantConfig->min_rate : (float) $defaults['minRate'],
-                    'maxRate'           => $tenantConfig ? (float) $tenantConfig->max_rate : (float) $defaults['maxRate'],
-                    'wageBase'          => $tenantConfig ? $tenantConfig->wage_base : $defaults['wageBase'],
-                    'riskCategory'      => $tenantConfig?->risk_category,
-                    'jpSalaryCap'       => $tenantConfig?->jp_salary_cap,
-                    'bpjsKesSalaryCap'  => $tenantConfig?->bpjs_kes_salary_cap,
-                    'notes'             => $tenantConfig?->notes,
-                    'source'            => $tenantConfig ? 'tenant' : 'system_default',
-                    'updatedAt'         => $tenantConfig ? optional($tenantConfig->updated_at)->toIso8601String() : null,
+                    'minRate' => $tenantConfig ? (float) $tenantConfig->min_rate : (float) $defaults['minRate'],
+                    'maxRate' => $tenantConfig ? (float) $tenantConfig->max_rate : (float) $defaults['maxRate'],
+                    'wageBase' => $tenantConfig ? $tenantConfig->wage_base : $defaults['wageBase'],
+                    'riskCategory' => $tenantConfig?->risk_category,
+                    'jpSalaryCap' => $tenantConfig?->jp_salary_cap,
+                    'bpjsKesSalaryCap' => $tenantConfig?->bpjs_kes_salary_cap,
+                    'notes' => $tenantConfig?->notes,
+                    'source' => $tenantConfig ? 'tenant' : 'system_default',
+                    'updatedAt' => $tenantConfig ? optional($tenantConfig->updated_at)->toIso8601String() : null,
                 ];
             }
         }
@@ -958,16 +964,16 @@ class HcmBpjsGovernanceController extends Controller
         }
 
         $validated = $request->validate([
-            'minRate'         => ['required', 'numeric', 'min:0', 'max:100'],
-            'maxRate'         => ['required', 'numeric', 'min:0', 'max:100', 'gte:minRate'],
+            'minRate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'maxRate' => ['required', 'numeric', 'min:0', 'max:100', 'gte:minRate'],
             // Backward-compatible: payload boleh mengirim wageBase, namun nilai
             // tetap dipaksa mengikuti matrix regulasi saat disimpan.
-            'wageBase'        => ['sometimes', 'nullable', 'string'],
-            'notes'           => ['nullable', 'string', 'max:2000'],
+            'wageBase' => ['sometimes', 'nullable', 'string'],
+            'notes' => ['nullable', 'string', 'max:2000'],
             // JKK: risk category 1–5 (hanya relevan untuk jkk/employer)
-            'riskCategory'    => ['nullable', 'integer', 'min:1', 'max:5'],
+            'riskCategory' => ['nullable', 'integer', 'min:1', 'max:5'],
             // JP salary cap (Rupiah, opsional — null berarti pakai default sistem)
-            'jpSalaryCap'     => ['nullable', 'integer', 'min:0'],
+            'jpSalaryCap' => ['nullable', 'integer', 'min:0'],
             // BPJS Kesehatan salary cap (Rupiah, opsional)
             'bpjsKesSalaryCap' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -980,12 +986,12 @@ class HcmBpjsGovernanceController extends Controller
         $baseline = HcmBpjsGovernanceRateBaseline::query()->updateOrCreate(
             ['company_id' => $companyId, 'program_code' => $programCode, 'contribution_party' => $contributionParty],
             [
-                'min_rate'           => number_format((float) $validated['minRate'], 4, '.', ''),
-                'max_rate'           => number_format((float) $validated['maxRate'], 4, '.', ''),
-                'wage_base'          => $regulatoryWageBase,
-                'notes'              => $validated['notes'] ?? null,
-                'risk_category'      => isset($validated['riskCategory']) ? (int) $validated['riskCategory'] : null,
-                'jp_salary_cap'      => isset($validated['jpSalaryCap']) ? (int) $validated['jpSalaryCap'] : null,
+                'min_rate' => number_format((float) $validated['minRate'], 4, '.', ''),
+                'max_rate' => number_format((float) $validated['maxRate'], 4, '.', ''),
+                'wage_base' => $regulatoryWageBase,
+                'notes' => $validated['notes'] ?? null,
+                'risk_category' => isset($validated['riskCategory']) ? (int) $validated['riskCategory'] : null,
+                'jp_salary_cap' => isset($validated['jpSalaryCap']) ? (int) $validated['jpSalaryCap'] : null,
                 'bpjs_kes_salary_cap' => isset($validated['bpjsKesSalaryCap']) ? (int) $validated['bpjsKesSalaryCap'] : null,
                 'updated_by_user_id' => $user?->id,
                 'updated_by_user_uuid' => $user?->uuid,
@@ -995,17 +1001,17 @@ class HcmBpjsGovernanceController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'programCode'       => $programCode,
+                'programCode' => $programCode,
                 'contributionParty' => $contributionParty,
-                'minRate'           => (float) $baseline->min_rate,
-                'maxRate'           => (float) $baseline->max_rate,
-                'wageBase'          => $baseline->wage_base,
-                'riskCategory'      => $baseline->risk_category,
-                'jpSalaryCap'       => $baseline->jp_salary_cap,
-                'bpjsKesSalaryCap'  => $baseline->bpjs_kes_salary_cap,
-                'notes'             => $baseline->notes,
-                'source'            => 'tenant',
-                'updatedAt'         => optional($baseline->updated_at)->toIso8601String(),
+                'minRate' => (float) $baseline->min_rate,
+                'maxRate' => (float) $baseline->max_rate,
+                'wageBase' => $baseline->wage_base,
+                'riskCategory' => $baseline->risk_category,
+                'jpSalaryCap' => $baseline->jp_salary_cap,
+                'bpjsKesSalaryCap' => $baseline->bpjs_kes_salary_cap,
+                'notes' => $baseline->notes,
+                'source' => 'tenant',
+                'updatedAt' => optional($baseline->updated_at)->toIso8601String(),
             ],
         ]);
     }
@@ -1068,7 +1074,7 @@ class HcmBpjsGovernanceController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $validated
+     * @param  array<string, mixed>  $validated
      */
     private function enforcePolicyBusinessRules(array $validated, int $companyId, ?HcmBpjsGovernancePolicy $existingPolicy): void
     {

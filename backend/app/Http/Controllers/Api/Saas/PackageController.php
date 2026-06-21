@@ -11,9 +11,10 @@ use App\Services\PackageFeatureCatalogRuntimeService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class PackageController extends Controller
 {
@@ -57,8 +58,9 @@ class PackageController extends Controller
     private function readFeatureClassificationOverrides(): array
     {
         try {
-            $rows = \App\Models\FeatureClassification::all(['feature_code', 'tier']);
-            return $rows->mapWithKeys(fn($r) => [trim($r->feature_code) => trim($r->tier)])->toArray();
+            $rows = FeatureClassification::all(['feature_code', 'tier']);
+
+            return $rows->mapWithKeys(fn ($r) => [trim($r->feature_code) => trim($r->tier)])->toArray();
         } catch (\Throwable $e) {
             return [];
         }
@@ -169,13 +171,13 @@ class PackageController extends Controller
             ])
             ->paginate($perPage);
 
-        $items = collect($packages->items())->map(fn($pkg) => [
+        $items = collect($packages->items())->map(fn ($pkg) => [
             'id' => $pkg->uuid,
             'code' => $pkg->code,
             'name' => $pkg->name,
             'description' => $pkg->description,
-            'monthlyPrice' => (float)$pkg->monthly_price,
-            'yearlyPrice' => (float)$pkg->yearly_price,
+            'monthlyPrice' => (float) $pkg->monthly_price,
+            'yearlyPrice' => (float) $pkg->yearly_price,
             'billingUnit' => $pkg->billing_unit,
             'status' => $pkg->status,
             'isGlobalAdminOnly' => (bool) $pkg->is_global_admin_only,
@@ -184,7 +186,7 @@ class PackageController extends Controller
             'activeSubscriptionsCount' => (int) ($pkg->active_subscriptions_count ?? 0),
             'totalSubscriptionsCount' => (int) ($pkg->total_subscriptions_count ?? 0),
             'purchasableAddonsCount' => (int) ($pkg->purchasable_addons_count ?? 0),
-            'features' => $pkg->features->map(fn($f) => [
+            'features' => $pkg->features->map(fn ($f) => [
                 'id' => $f->id,
                 'code' => $f->feature_code,
                 'name' => $f->feature_name,
@@ -329,8 +331,8 @@ class PackageController extends Controller
                 'code' => $package->code,
                 'name' => $package->name,
                 'description' => $package->description,
-                'monthlyPrice' => (float)$package->monthly_price,
-                'yearlyPrice' => (float)$package->yearly_price,
+                'monthlyPrice' => (float) $package->monthly_price,
+                'yearlyPrice' => (float) $package->yearly_price,
                 'billingUnit' => $package->billing_unit,
                 'status' => $package->status,
                 'isGlobalAdminOnly' => (bool) $package->is_global_admin_only,
@@ -338,7 +340,7 @@ class PackageController extends Controller
                 'sortOrder' => $package->sort_order,
                 'activeSubscriptionsCount' => (int) ($package->active_subscriptions_count ?? 0),
                 'totalSubscriptionsCount' => (int) ($package->total_subscriptions_count ?? 0),
-                'features' => $package->features->map(fn($f) => [
+                'features' => $package->features->map(fn ($f) => [
                     'id' => $f->id,
                     'code' => $f->feature_code,
                     'name' => $f->feature_name,
@@ -359,7 +361,7 @@ class PackageController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -388,8 +390,8 @@ class PackageController extends Controller
                 'code' => $package->code,
                 'name' => $package->name,
                 'description' => $package->description,
-                'monthlyPrice' => (float)$package->monthly_price,
-                'yearlyPrice' => (float)$package->yearly_price,
+                'monthlyPrice' => (float) $package->monthly_price,
+                'yearlyPrice' => (float) $package->yearly_price,
                 'billingUnit' => $package->billing_unit,
                 'isGlobalAdminOnly' => (bool) $package->is_global_admin_only,
                 'color' => $package->color,
@@ -405,7 +407,7 @@ class PackageController extends Controller
      */
     public function update(Request $request, Package $package): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -434,8 +436,8 @@ class PackageController extends Controller
                 'code' => $package->code,
                 'name' => $package->name,
                 'description' => $package->description,
-                'monthlyPrice' => (float)$package->monthly_price,
-                'yearlyPrice' => (float)$package->yearly_price,
+                'monthlyPrice' => (float) $package->monthly_price,
+                'yearlyPrice' => (float) $package->yearly_price,
                 'billingUnit' => $package->billing_unit,
                 'status' => $package->status,
                 'isGlobalAdminOnly' => (bool) $package->is_global_admin_only,
@@ -452,7 +454,7 @@ class PackageController extends Controller
      */
     public function destroy(Request $request, Package $package): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -487,7 +489,7 @@ class PackageController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $features->map(fn($f) => [
+            'data' => $features->map(fn ($f) => [
                 'id' => $f->id,
                 'code' => $f->feature_code,
                 'name' => $f->feature_name,
@@ -504,7 +506,7 @@ class PackageController extends Controller
      */
     public function addFeature(Request $request, Package $package): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -540,7 +542,7 @@ class PackageController extends Controller
      */
     public function updateFeature(Request $request, PackageFeature $feature): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -575,7 +577,7 @@ class PackageController extends Controller
      */
     public function deleteFeature(Request $request, PackageFeature $feature): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -637,7 +639,7 @@ class PackageController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, mixed>  $catalogGroups
+     * @param  Collection<int, mixed>  $catalogGroups
      * @param  array<int, string>  $runtimeMvpFeatureCodes
      * @return array{
      *   all_feature_codes: array<int, string>,
@@ -692,7 +694,7 @@ class PackageController extends Controller
      */
     public function storeAddon(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -725,8 +727,8 @@ class PackageController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => [
-                    'code'    => 'FEATURE_CODE_NAMESPACE_CONFLICT',
-                    'message' => 'Add-on code "' . $validated['code'] . '" already exists in package feature catalog. Use a dedicated add-on SKU code to avoid baseline/add-on double entries.',
+                    'code' => 'FEATURE_CODE_NAMESPACE_CONFLICT',
+                    'message' => 'Add-on code "'.$validated['code'].'" already exists in package feature catalog. Use a dedicated add-on SKU code to avoid baseline/add-on double entries.',
                 ],
             ], 422);
         }
@@ -745,7 +747,7 @@ class PackageController extends Controller
      */
     public function updateAddon(Request $request, string $addon): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -797,7 +799,7 @@ class PackageController extends Controller
      */
     public function destroyAddon(Request $request, string $addon): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -837,6 +839,7 @@ class PackageController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
+
         return $user ? $user->isGlobalHcmAdmin() : false;
     }
 

@@ -2,20 +2,15 @@
 
 namespace App\Http\Controllers\Api\Saas\Concerns;
 
-use App\Models\FeatureClassification;
 use App\Models\Package;
 use App\Models\PackageAddon;
-use App\Models\PackageFeature;
-use App\Services\PackageFeatureCatalogRuntimeService;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 
 trait HandlesPackageAddons
-{    public function addons(Request $request): JsonResponse
+{
+    public function addons(Request $request): JsonResponse
     {
         $status = (string) $request->get('status', 'active');
         $search = trim((string) $request->get('search', ''));
@@ -100,7 +95,7 @@ trait HandlesPackageAddons
      */
     public function storeAddon(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -133,8 +128,8 @@ trait HandlesPackageAddons
             return response()->json([
                 'success' => false,
                 'error' => [
-                    'code'    => 'FEATURE_CODE_NAMESPACE_CONFLICT',
-                    'message' => 'Add-on code "' . $validated['code'] . '" already exists in package feature catalog. Use a dedicated add-on SKU code to avoid baseline/add-on double entries.',
+                    'code' => 'FEATURE_CODE_NAMESPACE_CONFLICT',
+                    'message' => 'Add-on code "'.$validated['code'].'" already exists in package feature catalog. Use a dedicated add-on SKU code to avoid baseline/add-on double entries.',
                 ],
             ], 422);
         }
@@ -153,7 +148,7 @@ trait HandlesPackageAddons
      */
     public function updateAddon(Request $request, string $addon): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -205,7 +200,7 @@ trait HandlesPackageAddons
      */
     public function destroyAddon(Request $request, string $addon): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],

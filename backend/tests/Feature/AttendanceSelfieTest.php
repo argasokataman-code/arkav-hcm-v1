@@ -6,8 +6,8 @@ use App\Models\AttendanceRecord;
 use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\User;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AttendanceSelfieTest extends TestCase
@@ -15,8 +15,11 @@ class AttendanceSelfieTest extends TestCase
     use RefreshDatabase;
 
     private Company $company;
+
     private User $user;
+
     private string $baseUrl = '/v1/hcm';
+
     private string $token;
 
     protected function setUp(): void
@@ -212,5 +215,3 @@ class AttendanceSelfieTest extends TestCase
             ->assertJsonPath('data.selfie.is_encrypted', true);
     }
 }
-
-

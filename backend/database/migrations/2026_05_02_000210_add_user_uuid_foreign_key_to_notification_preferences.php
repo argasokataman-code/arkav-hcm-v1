@@ -22,9 +22,9 @@ return new class extends Migration
         if (DB::getDriverName() === 'mysql') {
             DB::statement(
                 'UPDATE notification_preferences np '
-                . 'JOIN users u ON np.user_id = u.id '
-                . 'SET np.user_uuid = u.uuid '
-                . 'WHERE np.user_uuid IS NULL AND np.user_id IS NOT NULL'
+                .'JOIN users u ON np.user_id = u.id '
+                .'SET np.user_uuid = u.uuid '
+                .'WHERE np.user_uuid IS NULL AND np.user_id IS NOT NULL'
             );
         }
 
@@ -68,7 +68,7 @@ return new class extends Migration
                     $foreign->restrictOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $msg = strtolower($e->getMessage());
             if (
                 str_contains($msg, 'duplicate')
@@ -102,11 +102,11 @@ return new class extends Migration
 
     private function fkName(string $table, string $column): string
     {
-        $base = $table . '_' . $column . '_fk';
+        $base = $table.'_'.$column.'_fk';
         if (strlen($base) <= 64) {
             return $base;
         }
 
-        return substr($table, 0, 24) . '_' . substr($column, 0, 24) . '_' . substr(md5($base), 0, 10);
+        return substr($table, 0, 24).'_'.substr($column, 0, 24).'_'.substr(md5($base), 0, 10);
     }
 };

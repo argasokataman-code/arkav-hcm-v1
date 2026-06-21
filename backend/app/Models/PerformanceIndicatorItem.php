@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
 
 class PerformanceIndicatorItem extends Model
 {
@@ -37,4 +36,3 @@ class PerformanceIndicatorItem extends Model
         return $this->belongsTo(PerformanceIndicatorTemplate::class, 'template_id');
     }
 }
-

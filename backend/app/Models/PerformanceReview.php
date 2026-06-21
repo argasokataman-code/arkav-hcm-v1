@@ -1,11 +1,11 @@
 <?php
+
 namespace App\Models;
 
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 class PerformanceReview extends Model
 {
@@ -25,6 +25,7 @@ class PerformanceReview extends Model
         'manager_total_score',
         'final_total_score',
     ];
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class, 'company_id');
@@ -64,4 +65,3 @@ class PerformanceReview extends Model
         return $this->hasMany(PerformanceReviewScore::class, 'review_id');
     }
 }
-

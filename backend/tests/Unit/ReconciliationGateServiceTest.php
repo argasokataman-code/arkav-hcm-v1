@@ -16,7 +16,7 @@ class ReconciliationGateServiceTest extends TestCase
 
     public function test_it_throws_required_when_evidence_is_missing(): void
     {
-        $service = new ReconciliationGateService();
+        $service = new ReconciliationGateService;
 
         try {
             $service->assertCanProceed(
@@ -52,7 +52,7 @@ class ReconciliationGateServiceTest extends TestCase
             'expires_at' => now()->subMinute(),
         ]);
 
-        $service = new ReconciliationGateService();
+        $service = new ReconciliationGateService;
 
         $this->expectException(ExportReconciliationException::class);
         $this->expectExceptionMessage('Export reconciliation evidence has expired. Please export latest data.');
@@ -89,7 +89,7 @@ class ReconciliationGateServiceTest extends TestCase
             'expires_at' => now()->addMinutes(30),
         ]);
 
-        $service = new ReconciliationGateService();
+        $service = new ReconciliationGateService;
 
         try {
             $service->assertCanProceed(
@@ -126,7 +126,7 @@ class ReconciliationGateServiceTest extends TestCase
             'expires_at' => now()->addMinutes(10),
         ]);
 
-        $service = new ReconciliationGateService();
+        $service = new ReconciliationGateService;
         $evidence = $service->assertCanProceed(
             companyId: (int) $company->id,
             featureKey: ExportReconciliationEvidence::FEATURE_PAYMENT,

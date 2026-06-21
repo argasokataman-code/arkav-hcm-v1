@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\SubscriptionValidationException;
 use App\Models\Company;
 use App\Models\EmployeeProfile;
 use App\Models\Subscription;
@@ -41,7 +42,7 @@ class EmployeeCountValidator
 
         $subscription = $company->activeSubscription();
 
-        if (!$subscription || !$subscription->package) {
+        if (! $subscription || ! $subscription->package) {
             $hasAnySubscription = Subscription::query()
                 ->where('company_id', $company->id)
                 ->exists();
@@ -67,7 +68,7 @@ class EmployeeCountValidator
             ->firstWhere('feature_code', 'max_employees');
 
         // No employee limit on this plan = unlimited
-        if (!$employeeFeature || $employeeFeature->limit === null) {
+        if (! $employeeFeature || $employeeFeature->limit === null) {
             return [
                 'canAdd' => true,
                 'remaining' => null,
@@ -99,13 +100,13 @@ class EmployeeCountValidator
      * Validate that company doesn't exceed employee limit.
      * Throws exception if validation fails.
      *
-     * @throws \App\Exceptions\SubscriptionValidationException
+     * @throws SubscriptionValidationException
      */
     public function validateCanAddEmployees(Company $company, int $countToAdd = 1): void
     {
         $result = $this->canAddEmployees($company, $countToAdd);
 
-        if (!$result['canAdd']) {
+        if (! $result['canAdd']) {
             Log::warning('Employee count validation failed', [
                 'company_id' => $company->id,
                 'current_count' => $result['current'] ?? 0,
@@ -113,7 +114,7 @@ class EmployeeCountValidator
                 'plan_limit' => $result['limit'],
             ]);
 
-            throw new \App\Exceptions\SubscriptionValidationException(
+            throw new SubscriptionValidationException(
                 'EMPLOYEE_COUNT_EXCEEDED',
                 $result['message'],
                 422
@@ -149,7 +150,7 @@ class EmployeeCountValidator
 
         $subscription = $company->activeSubscription();
 
-        if (!$subscription || !$subscription->package) {
+        if (! $subscription || ! $subscription->package) {
             return null;
         }
 

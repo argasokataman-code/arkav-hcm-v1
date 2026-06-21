@@ -122,4 +122,3 @@ class AttendanceAdminTenantScopeTest extends TestCase
         $this->assertSame('10:02', (string) ($rowB['checkInTime24'] ?? ''), 'Expected company B record to be joined.');
     }
 }
-

@@ -19,7 +19,6 @@ Route::middleware('hcm.web.admin')->group(function (): void {
             return view('finance.payroll-overtime');
         })->name('payroll-overtime');
 
-
         Route::get('/payroll-thr', function () {
             return view('finance.payroll-thr');
         })->name('payroll-thr');

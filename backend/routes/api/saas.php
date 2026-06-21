@@ -1,18 +1,19 @@
 <?php
 
-use App\Http\Controllers\Api\Saas\PackageController;
-use App\Http\Controllers\Api\Saas\SubscriptionController;
 use App\Http\Controllers\Api\Billing\HcmSubscriptionChangeController;
-use App\Http\Controllers\Api\Saas\TransactionController;
 use App\Http\Controllers\Api\Billing\InvoiceController;
+use App\Http\Controllers\Api\Domain\DomainController;
 use App\Http\Controllers\Api\Payment\PaymentController;
-use App\Http\Controllers\Api\Saas\SuperAdminDashboardController;
 use App\Http\Controllers\Api\Reports\ReportController;
-use App\Http\Controllers\Api\Saas\SaasCompanyBillingOverviewController;
-use App\Http\Controllers\Api\Saas\RenewalMonitoringController;
-use App\Http\Controllers\Api\TaxGovernance\PlatformTaxSummaryController;
-use App\Http\Controllers\Api\Domain\DomainController; // Added this line for completeness
 use App\Http\Controllers\Api\Saas\BulkPaymentImportController;
+use App\Http\Controllers\Api\Saas\FeatureClassificationController;
+use App\Http\Controllers\Api\Saas\PackageController;
+use App\Http\Controllers\Api\Saas\RenewalMonitoringController;
+use App\Http\Controllers\Api\Saas\SaasCompanyBillingOverviewController;
+use App\Http\Controllers\Api\Saas\SubscriptionController;
+use App\Http\Controllers\Api\Saas\SuperAdminDashboardController; // Added this line for completeness
+use App\Http\Controllers\Api\Saas\TransactionController;
+use App\Http\Controllers\Api\TaxGovernance\PlatformTaxSummaryController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
@@ -142,13 +143,13 @@ Route::prefix('v1/saas')->middleware(['api.token'])->group(function () {
             Route::get('/reports/custom', [SuperAdminDashboardController::class, 'getCustomReport']);
             Route::get('/audit-logs', [SuperAdminDashboardController::class, 'getAuditLogs']);
             Route::get('/audit-logs/{auditLog}', [SuperAdminDashboardController::class, 'getAuditLogDetail']);
-            });
-
-            // Feature classification management (DB overrides)
-            Route::get('/feature-classifications', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'index']);
-            Route::post('/feature-classifications', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'store']);
-            Route::post('/feature-classifications/backfill', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'backfill']);
-            Route::put('/feature-classifications/{featureClassification}', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'update']);
-            Route::delete('/feature-classifications/{featureClassification}', [\App\Http\Controllers\Api\Saas\FeatureClassificationController::class, 'destroy']);
         });
+
+        // Feature classification management (DB overrides)
+        Route::get('/feature-classifications', [FeatureClassificationController::class, 'index']);
+        Route::post('/feature-classifications', [FeatureClassificationController::class, 'store']);
+        Route::post('/feature-classifications/backfill', [FeatureClassificationController::class, 'backfill']);
+        Route::put('/feature-classifications/{featureClassification}', [FeatureClassificationController::class, 'update']);
+        Route::delete('/feature-classifications/{featureClassification}', [FeatureClassificationController::class, 'destroy']);
     });
+});

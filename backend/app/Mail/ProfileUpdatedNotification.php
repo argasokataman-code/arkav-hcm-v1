@@ -14,7 +14,7 @@ class ProfileUpdatedNotification extends Mailable
     use Queueable, SerializesModels;
 
     /**
-     * @param array<int,string> $changedFields
+     * @param  array<int,string>  $changedFields
      */
     public function __construct(
         public readonly User $employee,
@@ -33,9 +33,9 @@ class ProfileUpdatedNotification extends Mailable
         return new Content(
             markdown: 'emails.employee.profile-updated',
             with: [
-                'employeeName'  => $this->employee->name,
+                'employeeName' => $this->employee->name,
                 'changedFields' => $this->changedFields,
-                'updatedAt'     => now()->format('d M Y H:i'),
+                'updatedAt' => now()->format('d M Y H:i'),
             ],
         );
     }

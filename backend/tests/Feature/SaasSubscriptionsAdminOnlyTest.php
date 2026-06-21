@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\Package;
 use App\Models\Subscription;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -52,7 +53,7 @@ class SaasSubscriptionsAdminOnlyTest extends TestCase
             ]);
         }
 
-        $userId = (int) \App\Models\User::query()->where('email', 'trial.user@example.com')->value('id');
+        $userId = (int) User::query()->where('email', 'trial.user@example.com')->value('id');
         CompanyUser::query()->updateOrCreate(
             ['company_id' => $company->id, 'user_id' => $userId],
             ['role' => 'owner', 'status' => 'active', 'joined_at' => now()]
@@ -84,4 +85,3 @@ class SaasSubscriptionsAdminOnlyTest extends TestCase
         $this->withHeader('Cookie', $cookieHeader)->getJson('/v1/saas/subscriptions/'.$subscription->uuid)->assertStatus(403);
     }
 }
-

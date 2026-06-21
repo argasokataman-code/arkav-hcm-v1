@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
 
 class PerformanceReviewScore extends Model
 {
@@ -41,4 +40,3 @@ class PerformanceReviewScore extends Model
         return $this->belongsTo(PerformanceIndicatorItem::class, 'item_id');
     }
 }
-

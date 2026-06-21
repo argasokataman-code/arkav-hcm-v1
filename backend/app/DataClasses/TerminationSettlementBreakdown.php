@@ -15,24 +15,24 @@ namespace App\DataClasses;
 final class TerminationSettlementBreakdown
 {
     /**
-     * @param list<array<string, mixed>> $lineItems   Individual settlement line items (pesangon, UPMK, UPH, leave, etc.)
-     * @param array<string, mixed>       $evidenceSnapshot  Immutable data snapshot (hire_date, base_salary, leave_balance, etc.)
-     * @param bool                       $leaveBalanceAvailable  false = leave service unavailable, null-safe payout
-     * @param float|null                 $leavePayout   NULL when service unavailable (Anomaly #4)
-     * @param float                      $totalGross    Sum of all addition items
-     * @param float                      $totalDeduction  Sum of all deduction items
-     * @param float                      $netPayable    totalGross - totalDeduction
-     * @param string                     $calculationMethod  'policy_based' | 'manual_override'
-     * @param string                     $policyProfileKey  Resolved policy profile used
+     * @param  list<array<string, mixed>>  $lineItems  Individual settlement line items (pesangon, UPMK, UPH, leave, etc.)
+     * @param  array<string, mixed>  $evidenceSnapshot  Immutable data snapshot (hire_date, base_salary, leave_balance, etc.)
+     * @param  bool  $leaveBalanceAvailable  false = leave service unavailable, null-safe payout
+     * @param  float|null  $leavePayout  NULL when service unavailable (Anomaly #4)
+     * @param  float  $totalGross  Sum of all addition items
+     * @param  float  $totalDeduction  Sum of all deduction items
+     * @param  float  $netPayable  totalGross - totalDeduction
+     * @param  string  $calculationMethod  'policy_based' | 'manual_override'
+     * @param  string  $policyProfileKey  Resolved policy profile used
      */
     public function __construct(
-        public readonly array  $lineItems,
-        public readonly array  $evidenceSnapshot,
-        public readonly bool   $leaveBalanceAvailable,
+        public readonly array $lineItems,
+        public readonly array $evidenceSnapshot,
+        public readonly bool $leaveBalanceAvailable,
         public readonly ?float $leavePayout,
-        public readonly float  $totalGross,
-        public readonly float  $totalDeduction,
-        public readonly float  $netPayable,
+        public readonly float $totalGross,
+        public readonly float $totalDeduction,
+        public readonly float $netPayable,
         public readonly string $calculationMethod,
         public readonly string $policyProfileKey,
     ) {}
@@ -45,14 +45,14 @@ final class TerminationSettlementBreakdown
     public function toStorageArray(): array
     {
         return [
-            'items'                  => $this->lineItems,
-            'totalGross'             => number_format($this->totalGross, 2, '.', ''),
-            'totalDeduction'         => number_format($this->totalDeduction, 2, '.', ''),
-            'netPayable'             => number_format($this->netPayable, 2, '.', ''),
-            'calculationMethod'      => $this->calculationMethod,
-            'policyProfileKey'       => $this->policyProfileKey,
-            'leaveBalanceAvailable'  => $this->leaveBalanceAvailable,
-            'leavePayout'            => $this->leavePayout !== null
+            'items' => $this->lineItems,
+            'totalGross' => number_format($this->totalGross, 2, '.', ''),
+            'totalDeduction' => number_format($this->totalDeduction, 2, '.', ''),
+            'netPayable' => number_format($this->netPayable, 2, '.', ''),
+            'calculationMethod' => $this->calculationMethod,
+            'policyProfileKey' => $this->policyProfileKey,
+            'leaveBalanceAvailable' => $this->leaveBalanceAvailable,
+            'leavePayout' => $this->leavePayout !== null
                 ? number_format($this->leavePayout, 2, '.', '')
                 : null,
         ];

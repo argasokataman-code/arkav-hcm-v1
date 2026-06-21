@@ -22,6 +22,7 @@ class HcmAttendanceSettingsController extends Controller
     use EnsuresHcmAdmin;
 
     private const CORRECTION_WINDOW_KEY = 'attendance_correction_window_days';
+
     private const CORRECTION_WINDOW_DEFAULT = 30;
 
     /**
@@ -34,7 +35,8 @@ class HcmAttendanceSettingsController extends Controller
             return $forbidden;
         }
 
-        $companyId = $this->activeCompanyId($request);        if (! $companyId) {
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'TENANT_REQUIRED', 'message' => 'Active company context is required.'],

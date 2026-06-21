@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\User;
-use App\Models\Payment;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Subscription;
+use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 
 class NotificationService
@@ -20,7 +20,7 @@ class NotificationService
 
             if ($admin && $admin->email) {
                 $subject = "Payment Received - {$invoice->invoice_number}";
-                $message = "Payment of " . number_format($payment->amount, 2) . 
+                $message = 'Payment of '.number_format($payment->amount, 2).
                           " received for invoice {$invoice->invoice_number} from {$invoice->company->name}";
 
                 Mail::raw($message, function ($mail) use ($subject, $admin) {
@@ -28,14 +28,14 @@ class NotificationService
                         ->subject($subject);
                 });
 
-                \Log::info("Payment received notification sent", [
+                \Log::info('Payment received notification sent', [
                     'event_key' => 'billing.payment_received',
                     'payment_id' => $payment->id,
                     'admin_email' => $admin->email,
                 ]);
             }
         } catch (\Exception $e) {
-            \Log::error("Failed to send payment received notification", [
+            \Log::error('Failed to send payment received notification', [
                 'event_key' => 'billing.payment_received',
                 'error' => $e->getMessage(),
             ]);
@@ -53,7 +53,7 @@ class NotificationService
             if ($admin && $admin->email) {
                 $subject = "Overdue Invoice Alert - {$invoice->invoice_number}";
                 $daysOverdue = abs($invoice->due_date->diffInDays(now()));
-                $message = "Invoice {$invoice->invoice_number} from {$invoice->company->name} is now {$daysOverdue} days overdue. Amount due: " . 
+                $message = "Invoice {$invoice->invoice_number} from {$invoice->company->name} is now {$daysOverdue} days overdue. Amount due: ".
                           number_format($invoice->amount_due, 2);
 
                 Mail::raw($message, function ($mail) use ($subject, $admin) {
@@ -61,14 +61,14 @@ class NotificationService
                         ->subject($subject);
                 });
 
-                \Log::info("Overdue invoice notification sent", [
+                \Log::info('Overdue invoice notification sent', [
                     'event_key' => 'billing.invoice.overdue',
                     'invoice_id' => $invoice->id,
                     'admin_email' => $admin->email,
                 ]);
             }
         } catch (\Exception $e) {
-            \Log::error("Failed to send overdue invoice notification", [
+            \Log::error('Failed to send overdue invoice notification', [
                 'event_key' => 'billing.invoice.overdue',
                 'error' => $e->getMessage(),
             ]);
@@ -85,22 +85,22 @@ class NotificationService
 
             if ($admin && $admin->email) {
                 $subject = "Subscription Cancelled - {$subscription->code}";
-                $message = "Subscription {$subscription->code} from {$subscription->company->name} has been cancelled. " .
-                          "Monthly value: " . number_format($subscription->amount, 2);
+                $message = "Subscription {$subscription->code} from {$subscription->company->name} has been cancelled. ".
+                          'Monthly value: '.number_format($subscription->amount, 2);
 
                 Mail::raw($message, function ($mail) use ($subject, $admin) {
                     $mail->to($admin->email)
                         ->subject($subject);
                 });
 
-                \Log::info("Subscription cancelled notification sent", [
+                \Log::info('Subscription cancelled notification sent', [
                     'event_key' => 'billing.subscription.cancelled',
                     'subscription_id' => $subscription->id,
                     'admin_email' => $admin->email,
                 ]);
             }
         } catch (\Exception $e) {
-            \Log::error("Failed to send subscription cancelled notification", [
+            \Log::error('Failed to send subscription cancelled notification', [
                 'event_key' => 'billing.subscription.cancelled',
                 'error' => $e->getMessage(),
             ]);
@@ -117,22 +117,22 @@ class NotificationService
 
             if ($admin && $admin->email) {
                 $subject = "Invoice Sent - {$invoice->invoice_number}";
-                $message = "Invoice {$invoice->invoice_number} has been sent to {$invoice->company->name}. " .
-                          "Amount due: " . number_format($invoice->amount_due, 2);
+                $message = "Invoice {$invoice->invoice_number} has been sent to {$invoice->company->name}. ".
+                          'Amount due: '.number_format($invoice->amount_due, 2);
 
                 Mail::raw($message, function ($mail) use ($subject, $admin) {
                     $mail->to($admin->email)
                         ->subject($subject);
                 });
 
-                \Log::info("Invoice sent notification sent", [
+                \Log::info('Invoice sent notification sent', [
                     'event_key' => 'billing.invoice.email_sent',
                     'invoice_id' => $invoice->id,
                     'admin_email' => $admin->email,
                 ]);
             }
         } catch (\Exception $e) {
-            \Log::error("Failed to send invoice sent notification", [
+            \Log::error('Failed to send invoice sent notification', [
                 'event_key' => 'billing.invoice.email_failed',
                 'error' => $e->getMessage(),
             ]);
@@ -156,9 +156,9 @@ class NotificationService
                 }
             }
 
-            \Log::info("Bulk notification sent to " . $admins->count() . " admins");
+            \Log::info('Bulk notification sent to '.$admins->count().' admins');
         } catch (\Exception $e) {
-            \Log::error("Failed to send bulk notifications", [
+            \Log::error('Failed to send bulk notifications', [
                 'event_key' => 'billing.bulk_admin_notification',
                 'error' => $e->getMessage(),
             ]);
@@ -174,19 +174,20 @@ class NotificationService
             $company = $invoice->company;
             $billingContact = $company->owner;
 
-            if (!$billingContact || !$billingContact->email) {
-                \Log::warning("No billing contact found for invoice notification", [
+            if (! $billingContact || ! $billingContact->email) {
+                \Log::warning('No billing contact found for invoice notification', [
                     'invoice_id' => $invoice->id,
                     'company_id' => $company->id,
                 ]);
+
                 return;
             }
 
-            $subject = "Invoice #{$invoice->invoice_number} - " . config('app.name');
+            $subject = "Invoice #{$invoice->invoice_number} - ".config('app.name');
             $amount = number_format((float) $invoice->amount_due, 2);
             $currency = $company->currency ?? 'IDR';
             $dueDate = $invoice->due_date->format('d/m/Y');
-            
+
             $message = <<<EOT
 Dear {$billingContact->name},
 
@@ -208,14 +209,14 @@ EOT;
                     ->subject($subject);
             });
 
-            \Log::info("Invoice issued notification sent", [
+            \Log::info('Invoice issued notification sent', [
                 'event_key' => 'billing.invoice.issued',
                 'invoice_id' => $invoice->id,
                 'company_id' => $company->id,
                 'recipient_email' => $billingContact->email,
             ]);
         } catch (\Exception $e) {
-            \Log::error("Failed to send invoice issued notification", [
+            \Log::error('Failed to send invoice issued notification', [
                 'event_key' => 'billing.invoice.issued',
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage(),
@@ -232,10 +233,11 @@ EOT;
             $company = $subscription->company;
             $billingContact = $company->owner;
 
-            if (!$billingContact || !$billingContact->email) {
-                \Log::warning("No billing contact for expiration notification", [
+            if (! $billingContact || ! $billingContact->email) {
+                \Log::warning('No billing contact for expiration notification', [
                     'subscription_id' => $subscription->id,
                 ]);
+
                 return;
             }
 
@@ -260,13 +262,13 @@ EOT;
                     ->subject($subject);
             });
 
-            \Log::info("Subscription expiration reminder sent", [
+            \Log::info('Subscription expiration reminder sent', [
                 'event_key' => 'billing.subscription.expiring_in_7_days',
                 'subscription_id' => $subscription->id,
                 'company_id' => $company->id,
             ]);
         } catch (\Exception $e) {
-            \Log::error("Failed to send subscription expiration notification", [
+            \Log::error('Failed to send subscription expiration notification', [
                 'event_key' => 'billing.subscription.expiring_in_7_days',
                 'subscription_id' => $subscription->id,
                 'error' => $e->getMessage(),
@@ -283,10 +285,11 @@ EOT;
             $company = $invoice->company;
             $billingContact = $company->owner;
 
-            if (!$billingContact || !$billingContact->email) {
-                \Log::warning("No billing contact for payment failure notification", [
+            if (! $billingContact || ! $billingContact->email) {
+                \Log::warning('No billing contact for payment failure notification', [
                     'invoice_id' => $invoice->id,
                 ]);
+
                 return;
             }
 
@@ -320,18 +323,18 @@ EOT;
                 Mail::raw(
                     "Payment failed for invoice {$invoice->invoice_number} from {$company->name}. Amount: {$amount}",
                     function ($mail) use ($admin) {
-                        $mail->to($admin->email)->subject("Alert: Payment Failed");
+                        $mail->to($admin->email)->subject('Alert: Payment Failed');
                     }
                 );
             }
 
-            \Log::warning("Payment failure notification sent", [
+            \Log::warning('Payment failure notification sent', [
                 'event_key' => 'billing.payment_failed',
                 'invoice_id' => $invoice->id,
                 'company_id' => $company->id,
             ]);
         } catch (\Exception $e) {
-            \Log::error("Failed to send payment failure notification", [
+            \Log::error('Failed to send payment failure notification', [
                 'event_key' => 'billing.payment_failed',
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage(),
@@ -352,6 +355,7 @@ EOT;
                 \Log::warning('No billing contact for grace period notification', [
                     'subscription_id' => $subscription->id,
                 ]);
+
                 return;
             }
 
@@ -408,6 +412,7 @@ EOT;
                 \Log::warning('No billing contact for suspension warning', [
                     'subscription_id' => $subscription->id,
                 ]);
+
                 return;
             }
 
@@ -458,6 +463,7 @@ EOT;
                 \Log::warning('No billing contact for inactive subscription notification', [
                     'subscription_id' => $subscription->id,
                 ]);
+
                 return;
             }
 
@@ -505,6 +511,7 @@ EOT;
                     'subscription_id' => $subscription->id,
                     'company_id' => $subscription->company_id,
                 ]);
+
                 return;
             }
 
@@ -549,10 +556,10 @@ EOT;
      * Send operational alert email to all super-admins.
      * Used for: payment gateway down, worker crash, failure spike.
      *
-     * @param string $alertType  gateway_down | worker_crash | failure_spike
-     * @param string $reasonCode MIDTRANS_DOWN | RENEWAL_WORKER_CRASHED | RENEWAL_FAILURE_SPIKE | ...
-     * @param string $message    Human-readable detail
-     * @param array  $context    Extra key-value pairs
+     * @param  string  $alertType  gateway_down | worker_crash | failure_spike
+     * @param  string  $reasonCode  MIDTRANS_DOWN | RENEWAL_WORKER_CRASHED | RENEWAL_FAILURE_SPIKE | ...
+     * @param  string  $message  Human-readable detail
+     * @param  array  $context  Extra key-value pairs
      */
     public function notifyAdminOperationalAlert(string $alertType, string $reasonCode, string $message, array $context = []): void
     {
@@ -563,6 +570,7 @@ EOT;
                     'alert_type' => $alertType,
                     'reason_code' => $reasonCode,
                 ]);
+
                 return;
             }
 
@@ -597,17 +605,17 @@ EOT;
             }
 
             \Log::info('Admin operational alert sent', [
-                'event_key'   => 'billing.renewal.operational_alert',
-                'alert_type'  => $alertType,
+                'event_key' => 'billing.renewal.operational_alert',
+                'alert_type' => $alertType,
                 'reason_code' => $reasonCode,
                 'recipient_count' => $admins->count(),
             ]);
         } catch (\Exception $e) {
             \Log::error('Failed to send admin operational alert', [
-                'event_key'   => 'billing.renewal.operational_alert',
-                'alert_type'  => $alertType,
+                'event_key' => 'billing.renewal.operational_alert',
+                'alert_type' => $alertType,
                 'reason_code' => $reasonCode,
-                'error'       => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
         }
     }

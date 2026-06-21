@@ -13,7 +13,7 @@ return new class extends Migration
             return;
         }
 
-        if (Schema::hasTable('dashboard_metrics') && !Schema::hasColumn('dashboard_metrics', 'company_id')) {
+        if (Schema::hasTable('dashboard_metrics') && ! Schema::hasColumn('dashboard_metrics', 'company_id')) {
             Schema::table('dashboard_metrics', function (Blueprint $table): void {
                 $table->unsignedBigInteger('company_id')->nullable()->after('metric_key');
                 $table->index('company_id', 'dashboard_metrics_company_id_index');
@@ -23,7 +23,7 @@ return new class extends Migration
         if (
             Schema::hasTable('dashboard_metrics')
             && Schema::hasColumn('dashboard_metrics', 'company_id')
-            && !$this->constraintExists('dashboard_metrics', 'dashboard_metrics_company_id_foreign')
+            && ! $this->constraintExists('dashboard_metrics', 'dashboard_metrics_company_id_foreign')
         ) {
             Schema::table('dashboard_metrics', function (Blueprint $table): void {
                 $table->foreign('company_id', 'dashboard_metrics_company_id_foreign')
@@ -33,7 +33,7 @@ return new class extends Migration
             });
         }
 
-        if (Schema::hasTable('purchase_transactions') && !Schema::hasColumn('purchase_transactions', 'package_addon_id')) {
+        if (Schema::hasTable('purchase_transactions') && ! Schema::hasColumn('purchase_transactions', 'package_addon_id')) {
             Schema::table('purchase_transactions', function (Blueprint $table): void {
                 $table->unsignedBigInteger('package_addon_id')->nullable()->after('subscription_id');
                 $table->index('package_addon_id', 'purchase_transactions_package_addon_id_index');
@@ -43,7 +43,7 @@ return new class extends Migration
         if (
             Schema::hasTable('purchase_transactions')
             && Schema::hasColumn('purchase_transactions', 'package_addon_id')
-            && !$this->constraintExists('purchase_transactions', 'purchase_transactions_package_addon_id_foreign')
+            && ! $this->constraintExists('purchase_transactions', 'purchase_transactions_package_addon_id_foreign')
         ) {
             Schema::table('purchase_transactions', function (Blueprint $table): void {
                 $table->foreign('package_addon_id', 'purchase_transactions_package_addon_id_foreign')

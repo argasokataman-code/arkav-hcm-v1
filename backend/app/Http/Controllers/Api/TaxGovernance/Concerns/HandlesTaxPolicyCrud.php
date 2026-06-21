@@ -3,34 +3,18 @@
 namespace App\Http\Controllers\Api\TaxGovernance\Concerns;
 
 use App\Events\TaxGovernancePolicyTransitioned;
-use App\Models\Company;
-use App\Models\CompanyUser;
-use App\Models\EmployeeProfile;
-use App\Models\EmployeeTaxProfile;
-use App\Models\HcmBillingTaxPolicy;
 use App\Models\HcmSalaryComponent;
-use App\Models\HcmTaxGovernanceBreakGlassRequest;
 use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTaxGovernancePolicyEvent;
-use App\Models\HcmTaxGovernanceProjection;
-use App\Models\HcmTaxGovernanceAnomaly;
-use App\Modelsser;
-use App\Services\BillingTaxCalculationService;
-use Carbon\Carbon;
-use Dompdf\Dompdf;
-use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Symfony\Component\HttpFoundation\Response;
-use HandlesPlatformTaxGovernance;
 
 trait HandlesTaxPolicyCrud
 {
-public function index(Request $request): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         if ($response = $this->ensurePermission($request, 'tax.tenant.policy.view')) {
             return $response;
@@ -386,7 +370,7 @@ public function index(Request $request): JsonResponse
         if (! in_array($policy->status, $allowedFromStatuses, true)) {
             return $this->errorResponse(
                 'TAX_POLICY_INVALID_STATE_TRANSITION',
-                'Policy cannot be published from its current status: ' . $policy->status,
+                'Policy cannot be published from its current status: '.$policy->status,
                 422
             );
         }
@@ -646,7 +630,7 @@ public function index(Request $request): JsonResponse
 
         $usedNumericLegacy = false;
         $policy = $this->findPolicyForRequest($request, $policyRef, $usedNumericLegacy);
-        if (!$policy) {
+        if (! $policy) {
             return $this->errorResponse('TAX_POLICY_NOT_FOUND', 'Tax policy not found.', 404);
         }
 

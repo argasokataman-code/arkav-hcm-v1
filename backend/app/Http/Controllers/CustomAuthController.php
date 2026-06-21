@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\AuthToken;
 use App\Models\User;
+use Hash;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
-use Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -14,13 +14,11 @@ use Session;
 
 class CustomAuthController extends Controller
 {
-
     public function index()
     {
-        
+
         return view('auth.login');
-    }  
-      
+    }
 
     public function customLogin(Request $request)
     {
@@ -28,11 +26,11 @@ class CustomAuthController extends Controller
             'email' => 'required|email',
             'password' => 'required',
         ],
-        [
-            'email.required' => 'Email is required',
-            'password.required' => 'Password is required',
-        ]
-    );
+            [
+                'email.required' => 'Email is required',
+                'password.required' => 'Password is required',
+            ]
+        );
         $credentials = $request->only('email', 'password');
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
@@ -47,8 +45,6 @@ class CustomAuthController extends Controller
                 'token_hash' => hash('sha256', $plainToken),
                 'expires_at' => now()->addSeconds($expiresIn),
             ]);
-
-
 
             // DO NOT store in session - session persistence is unreliable across requests.
             // Rely on browser cookie + /api-token endpoint to manage tokens.
@@ -84,17 +80,17 @@ class CustomAuthController extends Controller
                 ->withSuccess('Signed in')
                 ->withCookie($afterLoginCookie);
         }
-        return redirect("login")->withErrors('These credentials do not match our records.');
+
+        return redirect('login')->withErrors('These credentials do not match our records.');
     }
 
     public function registration()
     {
         return view('auth.register');
     }
-      
 
     public function customRegistration(Request $request)
-    {  
+    {
         $request->validate([
             'name' => 'required|min:5|max:30',
             'email' => 'required|email|unique:users',
@@ -102,46 +98,44 @@ class CustomAuthController extends Controller
             'confirmpassword' => 'required|min:6',
 
         ],
-        [
-            'name.required' => 'Userame is required',
-            'email.required' => 'Email is required',
-            'password.required' => 'Password is required',
-            'confirmpassword.required' => 'confirmpassword is required',
+            [
+                'name.required' => 'Userame is required',
+                'email.required' => 'Email is required',
+                'password.required' => 'Password is required',
+                'confirmpassword.required' => 'confirmpassword is required',
 
-        ]
-    );
-           
+            ]
+        );
+
         $data = $request->all();
         $check = $this->create($data);
-         
-        return redirect("login")->withSuccess('You have signed-in');
-    }
 
+        return redirect('login')->withSuccess('You have signed-in');
+    }
 
     public function create(array $data)
     {
-      return User::create([
-        'name' => $data['name'],
-        'email' => $data['email'],
-        'password' => Hash::make($data['password'])
-      ]);
-    }    
-    
+        return User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+        ]);
+    }
 
     public function dashboard()
     {
-        if(Auth::check()){
+        if (Auth::check()) {
             return view('misc.index');
         }
-  
-        return redirect("login")->withSuccess('You are not allowed to access');
-    }
-    
 
-    public function signOut() {
+        return redirect('login')->withSuccess('You are not allowed to access');
+    }
+
+    public function signOut()
+    {
         Session::flush();
         Auth::logout();
-  
+
         return Redirect('login');
     }
 
@@ -154,13 +148,13 @@ class CustomAuthController extends Controller
         ]);
 
         $user = auth()->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return redirect('login')->withErrors('Session expired. Please login again.');
         }
 
         // Verify password using Hash
-        if (!Hash::check($request->password, $user->password)) {
+        if (! Hash::check($request->password, $user->password)) {
             return redirect('lock-screen')->withErrors('Invalid password. Please try again.');
         }
 
@@ -225,8 +219,8 @@ class CustomAuthController extends Controller
     public function updatePassword(Request $request)
     {
         $request->validate([
-            'token'    => 'required|string',
-            'email'    => 'required|email',
+            'token' => 'required|string',
+            'email' => 'required|email',
             'password' => ['required', 'string', 'confirmed',
                 'regex:/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/'],
         ]);

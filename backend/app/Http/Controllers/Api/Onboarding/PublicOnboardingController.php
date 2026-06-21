@@ -2,45 +2,47 @@
 
 namespace App\Http\Controllers\Api\Onboarding;
 
+use App\Jobs\SendInvoiceEmailJob;
 use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\CompanyUser;
 use App\Models\HcmBillingTaxPolicy;
-use App\Services\BillingTaxCalculationService;
 use App\Models\HcmManualActivity;
 use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\Subscription;
 use App\Models\User;
-use App\Jobs\SendInvoiceEmailJob;
+use App\Services\BillingTaxCalculationService;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\HcmUserManagementSeeder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PublicOnboardingController
 {
     private function verifyTurnstileOrFail(Request $request, array $validated): void
     {
-        if (!config('turnstile.enabled')) {
+        if (! config('turnstile.enabled')) {
             return;
         }
 
         $token = trim((string) ($validated['turnstile_token'] ?? ''));
         if ($token === '') {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'turnstile_token' => ['Turnstile token is required.'],
             ]);
         }
 
         $secret = (string) config('turnstile.secret_key', '');
-        if (!$secret) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+        if (! $secret) {
+            throw ValidationException::withMessages([
                 'turnstile_token' => ['Turnstile is enabled but secret key is not configured.'],
             ]);
         }
@@ -56,30 +58,29 @@ class PublicOnboardingController
                     'remoteip' => (string) $request->ip(),
                 ]);
         } catch (\Throwable $e) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'turnstile_token' => ['Failed to verify Turnstile token. Please retry.'],
             ]);
         }
 
-        if (!$response->ok()) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+        if (! $response->ok()) {
+            throw ValidationException::withMessages([
                 'turnstile_token' => ['Turnstile verification failed. Please retry.'],
             ]);
         }
 
         $payload = $response->json();
         $success = (bool) data_get($payload, 'success', false);
-        if (!$success) {
+        if (! $success) {
             $codes = data_get($payload, 'error-codes', []);
             $codesText = is_array($codes) ? implode(', ', array_map('strval', $codes)) : '';
             $suffix = $codesText !== '' ? ' ('.$codesText.')' : '';
 
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'turnstile_token' => ['Turnstile token is invalid or expired'.$suffix.'.'],
             ]);
         }
 
-        return;
     }
 
     private function parsePricingBreakdownFromNotes(?string $notes): ?array
@@ -89,12 +90,12 @@ class PublicOnboardingController
         }
 
         $decoded = json_decode($notes, true);
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             return null;
         }
 
         $pricing = $decoded['pricing_breakdown'] ?? null;
-        if (!is_array($pricing)) {
+        if (! is_array($pricing)) {
             return null;
         }
 
@@ -142,7 +143,7 @@ class PublicOnboardingController
         for ($i = 0; $i < 25; $i++) {
             // 4 chars gives 1.6M combos, enough for a tenant code suffix.
             $suffix = substr(bin2hex(random_bytes(2)), 0, 4);
-            $candidate = $base . '_' . $suffix;
+            $candidate = $base.'_'.$suffix;
             $candidate = substr($candidate, 0, 100);
 
             $exists = Company::query()->where('code', $candidate)->exists();
@@ -152,7 +153,7 @@ class PublicOnboardingController
         }
 
         // Fallback: last resort, longer suffix.
-        return $base . '_' . substr(bin2hex(random_bytes(4)), 0, 8);
+        return $base.'_'.substr(bin2hex(random_bytes(4)), 0, 8);
     }
 
     public function store(Request $request): JsonResponse
@@ -325,7 +326,7 @@ class PublicOnboardingController
             try {
                 app(HcmUserManagementSeeder::class)->run();
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error(
+                Log::error(
                     'HcmUserManagementSeeder failed during public onboarding',
                     [
                         'company_id' => $company->id,
@@ -334,7 +335,7 @@ class PublicOnboardingController
                         'trace' => $e->getTraceAsString(),
                     ]
                 );
-                throw \Illuminate\Validation\ValidationException::withMessages([
+                throw ValidationException::withMessages([
                     'company_provisioning' => ['Failed to provision company roles and permissions. Please contact support.'],
                 ]);
             }
@@ -343,7 +344,7 @@ class PublicOnboardingController
             try {
                 DatabaseSeeder::seedDefaultPoliciesForCompany($company);
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error(
+                Log::error(
                     'Default policies seeding failed during public onboarding',
                     [
                         'company_id' => $company->id,
@@ -353,7 +354,7 @@ class PublicOnboardingController
                         'trace' => $e->getTraceAsString(),
                     ]
                 );
-                throw \Illuminate\Validation\ValidationException::withMessages([
+                throw ValidationException::withMessages([
                     'company_provisioning' => ['Failed to provision company default policies. Please contact support.'],
                 ]);
             }
@@ -402,55 +403,55 @@ class PublicOnboardingController
                     // Safety check: verify company and subscription exist
                     $companyExists = Company::query()->where('id', $company->id)->exists();
                     $subscriptionExists = Subscription::query()->where('id', $subscription->id)->exists();
-                    
-                    if (!$companyExists) {
+
+                    if (! $companyExists) {
                         throw new \RuntimeException("Company {$company->id} not found in database");
                     }
-                    if (!$subscriptionExists) {
+                    if (! $subscriptionExists) {
                         throw new \RuntimeException("Subscription {$subscription->id} not found in database");
                     }
 
                     $baseAmount = (float) $subscription->amount;
-                    \Illuminate\Support\Facades\Log::debug('Onboarding invoice: calculating pricing breakdown', [
+                    Log::debug('Onboarding invoice: calculating pricing breakdown', [
                         'company_id' => $company->id,
                         'base_amount' => $baseAmount,
                     ]);
-                    
+
                     try {
                         $pricingBreakdown = $this->buildSubscriptionPricingBreakdown($company->id, $baseAmount);
                     } catch (\Throwable $priceEx) {
                         throw new \RuntimeException(
-                            'Pricing breakdown calculation failed: ' . $priceEx->getMessage(),
+                            'Pricing breakdown calculation failed: '.$priceEx->getMessage(),
                             0,
                             $priceEx
                         );
                     }
-                    
+
                     $amountDue = (float) $pricingBreakdown['total_amount'];
 
-                    \Illuminate\Support\Facades\Log::debug('Onboarding invoice: resolving tax rate', [
+                    Log::debug('Onboarding invoice: resolving tax rate', [
                         'company_id' => $company->id,
                         'amount_due' => $amountDue,
                     ]);
-                    
+
                     try {
                         $taxRateSnapshot = app(BillingTaxCalculationService::class)
                             ->resolvePolicyRateSnapshot($company->id, now()->format('Y-m'));
                     } catch (\Throwable $taxEx) {
                         throw new \RuntimeException(
-                            'Tax rate resolution failed: ' . $taxEx->getMessage(),
+                            'Tax rate resolution failed: '.$taxEx->getMessage(),
                             0,
                             $taxEx
                         );
                     }
 
-                    \Illuminate\Support\Facades\Log::debug('Onboarding invoice: creating invoice record', [
+                    Log::debug('Onboarding invoice: creating invoice record', [
                         'company_id' => $company->id,
                         'subscription_id' => $subscription->id,
                         'amount_due' => $amountDue,
                         'tax_rate' => $taxRateSnapshot,
                     ]);
-                    
+
                     try {
                         $invoiceData = [
                             'company_id' => $company->id,
@@ -467,16 +468,16 @@ class PublicOnboardingController
                                 'Created from public onboarding.'
                             ),
                         ];
-                        
-                        \Illuminate\Support\Facades\Log::debug('Onboarding invoice: prepared data', [
+
+                        Log::debug('Onboarding invoice: prepared data', [
                             'keys' => array_keys($invoiceData),
                             'data' => $invoiceData,
                         ]);
-                        
+
                         $invoice = Invoice::query()->create($invoiceData);
                     } catch (\Throwable $createEx) {
                         throw new \RuntimeException(
-                            'Invoice record creation failed: ' . $createEx->getMessage(),
+                            'Invoice record creation failed: '.$createEx->getMessage(),
                             0,
                             $createEx
                         );
@@ -489,7 +490,7 @@ class PublicOnboardingController
                         SendInvoiceEmailJob::dispatch($invoice->id, $billingEmail)->afterCommit();
                     } catch (\Throwable $emailEx) {
                         // Log but don't fail the request if email dispatch fails
-                        \Illuminate\Support\Facades\Log::warning(
+                        Log::warning(
                             'Failed to dispatch invoice email during onboarding',
                             [
                                 'invoice_id' => $invoice->id,
@@ -500,7 +501,7 @@ class PublicOnboardingController
                         );
                     }
                 } catch (\Throwable $invoiceEx) {
-                    \Illuminate\Support\Facades\Log::error(
+                    Log::error(
                         'Failed to create invoice during pending_payment onboarding',
                         [
                             'company_id' => $company->id,
@@ -516,7 +517,7 @@ class PublicOnboardingController
                             ] : null,
                         ]
                     );
-                    throw \Illuminate\Validation\ValidationException::withMessages([
+                    throw ValidationException::withMessages([
                         'invoice_creation' => ['Failed to create invoice. Please contact support.'],
                     ]);
                 }
@@ -724,7 +725,7 @@ class PublicOnboardingController
         ];
 
         $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE);
+
         return is_string($encoded) ? $encoded : $fallbackMessage;
     }
 }
-

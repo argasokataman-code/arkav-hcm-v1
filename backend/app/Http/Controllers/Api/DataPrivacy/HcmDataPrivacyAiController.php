@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api\DataPrivacy;
 
-use App\Models\EmployeeProfile;
-use App\Models\EmployeeAiConsent;
 use App\Http\Controllers\Controller;
+use App\Models\EmployeeAiConsent;
+use App\Models\EmployeeProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

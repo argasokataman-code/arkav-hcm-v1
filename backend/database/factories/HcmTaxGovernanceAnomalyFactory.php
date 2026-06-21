@@ -2,9 +2,10 @@
 
 namespace Database\Factories;
 
-use App\Models\HcmTaxGovernanceAnomaly;
 use App\Models\Company;
+use App\Models\HcmTaxGovernanceAnomaly;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 class HcmTaxGovernanceAnomalyFactory extends Factory
 {
@@ -22,7 +23,7 @@ class HcmTaxGovernanceAnomalyFactory extends Factory
         ];
 
         return [
-            'id' => \Illuminate\Support\Str::uuid(),
+            'id' => Str::uuid(),
             'company_id' => Company::factory(),
             'anomaly_type' => $this->faker->randomElement($types),
             'severity' => $this->faker->randomElement(['info', 'warning', 'critical']),

@@ -201,4 +201,3 @@ class PromotionApiTest extends TestCase
             ->assertJsonPath('error.message', 'The selected user id is invalid for the active company.');
     }
 }
-

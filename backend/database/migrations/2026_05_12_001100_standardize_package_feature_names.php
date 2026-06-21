@@ -26,12 +26,12 @@ return new class extends Migration
      * @var array<string, string>
      */
     private array $canonicalNames = [
-        'attendance'               => 'Attendance',
-        'employee_management'      => 'Employee Management',
+        'attendance' => 'Attendance',
+        'employee_management' => 'Employee Management',
         'employee_document_center' => 'Employee Document Center',
-        'leave_management'         => 'Leave Management',
-        'payroll'                  => 'Payroll',
-        'performance'              => 'Performance',
+        'leave_management' => 'Leave Management',
+        'payroll' => 'Payroll',
+        'performance' => 'Performance',
     ];
 
     public function up(): void

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\AssignsUuid;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,7 +30,6 @@ class HcmRole extends Model
         'is_system' => 'boolean',
     ];
 
-
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
@@ -48,7 +48,7 @@ class HcmRole extends Model
     /**
      * @param  iterable<int, int|string>|Collection<int, mixed>  $permissionIds
      */
-    public function scopePlatform(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    public function scopePlatform(Builder $query): Builder
     {
         return $query->whereNull('company_id');
     }

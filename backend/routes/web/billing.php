@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApiTokenController;
 use Illuminate\Support\Facades\Route;
 
 // Company billing (tenant admin self-service)
@@ -15,4 +16,4 @@ Route::get('/subscription', function () {
     return view('saas.subscription-checkout');
 })->middleware('hcm.web.admin')->name('subscription');
 
-Route::get('/api-token', [\App\Http\Controllers\ApiTokenController::class, 'getToken'])->name('api-token');
+Route::get('/api-token', [ApiTokenController::class, 'getToken'])->name('api-token');

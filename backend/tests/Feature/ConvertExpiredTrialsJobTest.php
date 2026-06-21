@@ -50,7 +50,7 @@ class ConvertExpiredTrialsJobTest extends TestCase
             'amount' => 100000,
         ]);
 
-        dispatch_sync(new ConvertExpiredTrialsToPendingPaymentJob());
+        dispatch_sync(new ConvertExpiredTrialsToPendingPaymentJob);
 
         $sub->refresh();
         $this->assertSame('pending_payment', $sub->status);
@@ -111,8 +111,8 @@ class ConvertExpiredTrialsJobTest extends TestCase
             'notes' => null,
         ]);
 
-        dispatch_sync(new ConvertExpiredTrialsToPendingPaymentJob());
-        dispatch_sync(new ConvertExpiredTrialsToPendingPaymentJob());
+        dispatch_sync(new ConvertExpiredTrialsToPendingPaymentJob);
+        dispatch_sync(new ConvertExpiredTrialsToPendingPaymentJob);
 
         $this->assertSame(1, Invoice::query()->where('subscription_id', $sub->id)->count());
     }
@@ -168,7 +168,7 @@ class ConvertExpiredTrialsJobTest extends TestCase
             'amount' => 100000,
         ]);
 
-        dispatch_sync(new ConvertExpiredTrialsToPendingPaymentJob());
+        dispatch_sync(new ConvertExpiredTrialsToPendingPaymentJob);
 
         $invoice = Invoice::query()->where('subscription_id', $sub->id)->firstOrFail();
         $this->assertEqualsWithDelta(111000, (float) $invoice->amount_due, 0.01);
@@ -176,4 +176,3 @@ class ConvertExpiredTrialsJobTest extends TestCase
         $this->assertStringContainsString('"source":"trial_expiry_conversion"', (string) $invoice->notes);
     }
 }
-

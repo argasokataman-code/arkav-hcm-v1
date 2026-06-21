@@ -9,9 +9,11 @@ use App\Models\CompanyUser;
 use App\Models\DashboardMetric;
 use App\Models\Subscription;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
 class SuperAdminDashboardController extends Controller
@@ -769,14 +771,14 @@ class SuperAdminDashboardController extends Controller
         return $startingRevenue > 0 ? round(($currentRevenue / $startingRevenue) * 100, 2) : 0;
     }
 
-    private function buildMonthlyRevenueSeries(int $months): \Illuminate\Support\Collection
+    private function buildMonthlyRevenueSeries(int $months): Collection
     {
         $startDate = now()->startOfMonth()->subMonths($months - 1);
 
         return $this->buildMonthlyRevenueSeriesBetween($startDate, now()->endOfMonth());
     }
 
-    private function buildMonthlyRevenueSeriesBetween(\Carbon\CarbonInterface $fromDate, \Carbon\CarbonInterface $toDate): \Illuminate\Support\Collection
+    private function buildMonthlyRevenueSeriesBetween(CarbonInterface $fromDate, CarbonInterface $toDate): Collection
     {
         $cursor = $fromDate->copy()->startOfMonth();
         $endMonth = $toDate->copy()->startOfMonth();

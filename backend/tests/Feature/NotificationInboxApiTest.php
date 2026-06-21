@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\DatabaseNotification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Models\DatabaseNotification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 

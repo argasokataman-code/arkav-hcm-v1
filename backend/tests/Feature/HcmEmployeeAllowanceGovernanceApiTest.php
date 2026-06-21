@@ -40,7 +40,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'allowance-gov-admin@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         $policy = $this->createAllowancePolicy($headers);
@@ -67,7 +67,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'allowance-gov-policy-flow@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         $create = $this->withHeaders($headers)
@@ -89,7 +89,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
         $this->assertNotSame('', $policyRef);
 
         $this->withHeaders($headers)
-            ->patchJson('/v1/hcm/allowance-governance/policies/' . $policyRef, [
+            ->patchJson('/v1/hcm/allowance-governance/policies/'.$policyRef, [
                 'defaultAmount' => 425000,
                 'status' => 'active',
                 'isActive' => true,
@@ -99,7 +99,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
             ->assertJsonPath('data.defaultAmount', '425000.00');
 
         $this->withHeaders($headers)
-            ->postJson('/v1/hcm/allowance-governance/policies/' . $policyRef . '/activate', [])
+            ->postJson('/v1/hcm/allowance-governance/policies/'.$policyRef.'/activate', [])
             ->assertStatus(200)
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', 'active')
@@ -111,7 +111,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'allowance-gov-assignment@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         $employee = User::factory()->create(['email' => 'allowance-employee@example.com']);
@@ -184,7 +184,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'allowance-gov-compensation-source@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         $employee = User::factory()->create(['email' => 'allowance-compensation-only@example.com']);
@@ -236,7 +236,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'allowance-gov-overlap@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         $employee = User::factory()->create(['email' => 'allowance-overlap-employee@example.com']);
@@ -286,7 +286,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
         $admin = $this->createHcmAdminWithCompany(['email' => 'allowance-gov-seed@example.com']);
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
 
         // Company baru — belum ada policies sama sekali

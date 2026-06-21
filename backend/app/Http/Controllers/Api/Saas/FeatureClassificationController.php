@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\Saas;
 
 use App\Http\Controllers\Controller;
 use App\Models\FeatureClassification;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class FeatureClassificationController extends Controller
@@ -16,42 +16,43 @@ class FeatureClassificationController extends Controller
      */
     private const CATALOG_TIERS = [
         // mvp / core ────────────────────────────────────────────────────────
-        'max_employees'              => 'mvp',
-        'employee_management'        => 'mvp',
-        'employee_document_center'   => 'mvp',
-        'employee_lifecycle'         => 'mvp',
-        'attendance'                 => 'mvp',
-        'attendance_shift_scheduling'=> 'mvp',
-        'leave_management'           => 'mvp',
-        'holiday_calendar'           => 'mvp',
-        'leave_approval_flow'        => 'mvp',
-        'payroll'                    => 'mvp',
-        'payroll_components'         => 'mvp',
-        'payroll_thr'                => 'mvp',
-        'notifications'              => 'mvp',
-        'trial_billing_dashboard'    => 'mvp',
-        'tax_governance'             => 'mvp',
-        'bpjs_governance'            => 'mvp',
+        'max_employees' => 'mvp',
+        'employee_management' => 'mvp',
+        'employee_document_center' => 'mvp',
+        'employee_lifecycle' => 'mvp',
+        'attendance' => 'mvp',
+        'attendance_shift_scheduling' => 'mvp',
+        'leave_management' => 'mvp',
+        'holiday_calendar' => 'mvp',
+        'leave_approval_flow' => 'mvp',
+        'payroll' => 'mvp',
+        'payroll_components' => 'mvp',
+        'payroll_thr' => 'mvp',
+        'notifications' => 'mvp',
+        'trial_billing_dashboard' => 'mvp',
+        'tax_governance' => 'mvp',
+        'bpjs_governance' => 'mvp',
         // addon ─────────────────────────────────────────────────────────────
-        'allowance_governance'       => 'addon',
-        'spt_masa_pph21'             => 'addon',
-        'attendance_correction'      => 'addon',
-        'overtime'                   => 'addon',
-        'calendar_events'            => 'addon',
-        'promotion'                  => 'addon',
-        'resignation'                => 'addon',
-        'termination'                => 'addon',
-        'goal_tracking'              => 'addon',
-        'performance_goal_tracking'  => 'addon',
-        'performance'                => 'addon',
-        'training'                   => 'addon',
-        'ai_assistant'               => 'addon',
-        'asset_management'           => 'addon',
-        'tickets'                    => 'addon',
-        'data_privacy'               => 'addon',
-        'notes'                      => 'addon',
-        'faq'                        => 'addon',
+        'allowance_governance' => 'addon',
+        'spt_masa_pph21' => 'addon',
+        'attendance_correction' => 'addon',
+        'overtime' => 'addon',
+        'calendar_events' => 'addon',
+        'promotion' => 'addon',
+        'resignation' => 'addon',
+        'termination' => 'addon',
+        'goal_tracking' => 'addon',
+        'performance_goal_tracking' => 'addon',
+        'performance' => 'addon',
+        'training' => 'addon',
+        'ai_assistant' => 'addon',
+        'asset_management' => 'addon',
+        'tickets' => 'addon',
+        'data_privacy' => 'addon',
+        'notes' => 'addon',
+        'faq' => 'addon',
     ];
+
     public function index(Request $request): JsonResponse
     {
         if (! $this->isHcmAdmin($request)) {
@@ -129,7 +130,7 @@ class FeatureClassificationController extends Controller
 
             FeatureClassification::create([
                 'feature_code' => $code,
-                'tier'         => $tier,
+                'tier' => $tier,
             ]);
 
             $inserted++;
@@ -141,8 +142,8 @@ class FeatureClassificationController extends Controller
             'success' => true,
             'data' => [
                 'inserted' => $inserted,
-                'skipped'  => count(self::CATALOG_TIERS) - $inserted,
-                'total'    => $total,
+                'skipped' => count(self::CATALOG_TIERS) - $inserted,
+                'total' => $total,
             ],
         ]);
     }
@@ -150,6 +151,7 @@ class FeatureClassificationController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
+
         return $user ? $user->isGlobalHcmAdmin() : false;
     }
 }

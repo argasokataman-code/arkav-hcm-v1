@@ -47,12 +47,12 @@ return new class extends Migration
             }
 
             DB::table('package_features')->insert([
-                'package_uuid'  => (string) $package->uuid,
-                'feature_code'  => 'termination',
-                'feature_name'  => 'Termination Management',
-                'limit'         => null,   // unlimited — no per-company row cap
-                'created_at'    => now(),
-                'updated_at'    => now(),
+                'package_uuid' => (string) $package->uuid,
+                'feature_code' => 'termination',
+                'feature_name' => 'Termination Management',
+                'limit' => null,   // unlimited — no per-company row cap
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
     }

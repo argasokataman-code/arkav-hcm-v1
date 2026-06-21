@@ -31,11 +31,14 @@ class EmailSettingsServiceTest extends TestCase
 
     public function test_update_profile_encrypts_secrets_at_rest_and_masks_response(): void
     {
-        $service = new EmailSettingsService();
+        $service = new EmailSettingsService;
 
-        $user = new class {
+        $user = new class
+        {
             public int $id = 101;
+
             public string $uuid = '1f9cfde4-8085-4c79-b4b7-4c63d4210268';
+
             public string $email = 'owner@example.com';
         };
 
@@ -85,7 +88,7 @@ class EmailSettingsServiceTest extends TestCase
         Setting::set('email_mailtrap_account_id', '3229', 'email');
         Setting::set('email_mailtrap_api_token', 'legacy-token-5555', 'email');
 
-        $service = new EmailSettingsService();
+        $service = new EmailSettingsService;
         $profile = $service->getProfile();
 
         $this->assertSame('****4444', $profile['smtp']['passwordMasked']);
@@ -96,11 +99,14 @@ class EmailSettingsServiceTest extends TestCase
 
     public function test_persist_test_connection_snapshot_stores_last_probe_metadata(): void
     {
-        $service = new EmailSettingsService();
+        $service = new EmailSettingsService;
 
-        $user = new class {
+        $user = new class
+        {
             public int $id = 55;
+
             public string $uuid = 'f3ca8b20-1551-43f9-a9dd-2f039a412366';
+
             public string $email = 'tester@example.com';
         };
 
@@ -132,7 +138,7 @@ class EmailSettingsServiceTest extends TestCase
 
     public function test_persist_test_connection_snapshot_strips_sensitive_detail_keys(): void
     {
-        $service = new EmailSettingsService();
+        $service = new EmailSettingsService;
 
         $snapshot = $service->persistTestConnectionSnapshot([
             'provider' => 'smtp',
@@ -167,7 +173,7 @@ class EmailSettingsServiceTest extends TestCase
 
     public function test_update_profile_keeps_existing_secrets_when_secret_fields_are_omitted(): void
     {
-        $service = new EmailSettingsService();
+        $service = new EmailSettingsService;
 
         $service->updateProfile([
             'provider' => 'smtp',
@@ -221,7 +227,7 @@ class EmailSettingsServiceTest extends TestCase
         Setting::set('email_smtp_username', 'smtp-user', 'email');
         Setting::set('email_smtp_password', 'smtp-secret-9999', 'email');
 
-        $service = new EmailSettingsService();
+        $service = new EmailSettingsService;
         $transport = $service->resolveRuntimeSmtpTransport();
 
         $this->assertTrue($transport['configured']);
@@ -239,7 +245,7 @@ class EmailSettingsServiceTest extends TestCase
         Setting::set('email_mailtrap_account_id', '2682142', 'email');
         Setting::set('email_mailtrap_api_token', 'mt-token-abc-123', 'email');
 
-        $service = new EmailSettingsService();
+        $service = new EmailSettingsService;
         $transport = $service->resolveRuntimeSmtpTransport();
 
         $this->assertTrue($transport['configured']);

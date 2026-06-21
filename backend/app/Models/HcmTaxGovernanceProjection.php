@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Concerns\AssignsUuid;
 
 class HcmTaxGovernanceProjection extends Model
 {
@@ -41,21 +41,33 @@ class HcmTaxGovernanceProjection extends Model
     ];
 
     const STATUS_DRAFT = 'draft';
+
     const STATUS_SUBMITTED = 'submitted';
+
     const STATUS_APPROVED = 'approved';
+
     const STATUS_PUBLISHED = 'published';
+
     const STATUS_SUPERSEDED = 'superseded';
+
     const STATUS_VOID = 'void';
 
     const ACTION_CREATED = 'created';
+
     const ACTION_SUBMITTED = 'submitted';
+
     const ACTION_APPROVED = 'approved';
+
     const ACTION_PUBLISHED = 'published';
+
     const ACTION_SUPERSEDED = 'superseded';
+
     const ACTION_VOIDED = 'voided';
 
     const RISK_LEVEL_GREEN = 'green';
+
     const RISK_LEVEL_YELLOW = 'yellow';
+
     const RISK_LEVEL_RED = 'red';
 
     public function company(): BelongsTo
@@ -78,7 +90,7 @@ class HcmTaxGovernanceProjection extends Model
      */
     public function computeRiskLevel(): string
     {
-        if (!$this->anomaly_flags || count($this->anomaly_flags) === 0) {
+        if (! $this->anomaly_flags || count($this->anomaly_flags) === 0) {
             return self::RISK_LEVEL_GREEN;
         }
 

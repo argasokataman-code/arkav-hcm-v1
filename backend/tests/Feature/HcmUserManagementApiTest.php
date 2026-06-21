@@ -352,10 +352,10 @@ class HcmUserManagementApiTest extends TestCase
         $companyB = Company::factory()->create(['code' => 'test_company_b', 'name' => 'Test Company B']);
 
         // Create a company-scoped admin (not global admin) for company A
-        $email = 'admin.company.a.' . time() . '@example.com'; // Unique email
+        $email = 'admin.company.a.'.time().'@example.com'; // Unique email
         $password = 'StrongPass1';
 
-        // Register the user  
+        // Register the user
         $this->postJson('/v1/identity/auth/register', [
             'name' => 'Company A Admin',
             'email' => $email,

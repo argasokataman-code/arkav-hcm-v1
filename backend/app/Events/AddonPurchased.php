@@ -12,6 +12,5 @@ class AddonPurchased
     public function __construct(
         public int $purchaseTransactionId,
         public ?int $actorUserId = null,
-    ) {
-    }
+    ) {}
 }

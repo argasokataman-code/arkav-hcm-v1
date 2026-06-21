@@ -51,14 +51,15 @@ return new class extends Migration
 
         try {
             DB::statement('ALTER TABLE hcm_thr_batch_lines ADD UNIQUE hcm_thr_batch_lines_thr_slip_public_no_unique (thr_slip_public_no)');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Index likely already exists
         }
 
         if ($driver === 'mysql' && ! DB::table('hcm_thr_batch_lines')->whereNull('thr_slip_public_no')->exists()) {
             try {
                 DB::statement('ALTER TABLE hcm_thr_batch_lines MODIFY thr_slip_public_no VARCHAR(48) NOT NULL');
-            } catch (\Exception $e) {}
+            } catch (Exception $e) {
+            }
         }
     }
 

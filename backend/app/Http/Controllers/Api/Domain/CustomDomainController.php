@@ -26,7 +26,7 @@ class CustomDomainController extends Controller
             $query->where('company_id', $request->get('company_id'));
         }
         if ($request->has('domain')) {
-            $query->where('domain', 'like', '%' . $request->get('domain') . '%');
+            $query->where('domain', 'like', '%'.$request->get('domain').'%');
         }
 
         $domains = $query->latest()->paginate(15);
@@ -63,7 +63,7 @@ class CustomDomainController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -98,7 +98,7 @@ class CustomDomainController extends Controller
      */
     public function update(Request $request, CustomDomain $domain): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -127,7 +127,7 @@ class CustomDomainController extends Controller
      */
     public function destroy(Request $request, CustomDomain $domain): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -148,7 +148,7 @@ class CustomDomainController extends Controller
      */
     public function verify(Request $request, CustomDomain $domain): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],

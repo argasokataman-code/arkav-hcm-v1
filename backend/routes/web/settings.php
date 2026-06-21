@@ -25,6 +25,7 @@ Route::get('/company-overview', function (Request $request) {
     if ($role !== 'owner') {
         return redirect()->route('company-profile');
     }
+
     return view('settings.company-overview');
 })->middleware('hcm.web.admin')->name('company-overview');
 
@@ -108,7 +109,6 @@ Route::middleware('hcm.web.admin')->prefix('tax-employees')->group(function (): 
             'taxGovernancePolicyUuid' => null,
         ]);
     })->name('tax-employees.reports');
-
 
 });
 

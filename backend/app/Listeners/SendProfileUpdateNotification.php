@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Events\EmployeeProfileUpdated;
+use App\Mail\ProfileUpdatedNotification;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Mail;
@@ -45,7 +46,7 @@ class SendProfileUpdateNotification implements ShouldQueue
         }
 
         try {
-            Mail::to($user->email)->send(new \App\Mail\ProfileUpdatedNotification(
+            Mail::to($user->email)->send(new ProfileUpdatedNotification(
                 $user,
                 $sensitiveChanged,
             ));

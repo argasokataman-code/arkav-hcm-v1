@@ -147,6 +147,7 @@ return new class extends Migration
 
         if (DB::getDriverName() === 'mysql') {
             DB::statement("UPDATE {$table} t JOIN {$parentTable} p ON t.{$legacyColumn} = p.id SET t.{$uuidColumn} = p.uuid WHERE t.{$legacyColumn} IS NOT NULL AND t.{$uuidColumn} IS NULL");
+
             return;
         }
 
@@ -197,7 +198,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $tableBlueprint) use ($column, $name): void {
                 $tableBlueprint->index($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }
@@ -222,7 +223,7 @@ return new class extends Migration
                     $foreign->restrictOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }

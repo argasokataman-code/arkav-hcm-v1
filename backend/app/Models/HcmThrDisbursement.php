@@ -9,12 +9,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class HcmThrDisbursement extends Model
 {
     use AssignsUuid;
+
     public const STATUS_PROCESSING = 'processing';
 
     public const STATUS_COMPLETED = 'completed';
 
     public const STATUS_FAILED = 'failed';
-
 
     protected $fillable = [
         'hcm_thr_batch_id',

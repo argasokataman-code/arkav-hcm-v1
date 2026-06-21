@@ -4,10 +4,10 @@ namespace Database\Seeders;
 
 use App\Models\EmployeeProfile;
 use App\Models\PerformanceCycle;
-use App\Models\PerformanceIndicatorItem;
-use App\Models\PerformanceIndicatorTemplate;
 use App\Models\PerformanceGoal;
 use App\Models\PerformanceGoalType;
+use App\Models\PerformanceIndicatorItem;
+use App\Models\PerformanceIndicatorTemplate;
 use App\Models\PerformanceReview;
 use App\Models\PerformanceReviewScore;
 use App\Models\User;
@@ -321,4 +321,3 @@ class PerformanceSeeder extends Seeder
         $review->save();
     }
 }
-

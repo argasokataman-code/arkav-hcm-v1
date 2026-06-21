@@ -205,9 +205,6 @@ class WilayahSyncService
         }
     }
 
-    /**
-     * @return Response|null
-     */
     private function fetchRootResponse(string $path): ?Response
     {
         try {
@@ -270,6 +267,7 @@ class WilayahSyncService
 
                 if ($codes === []) {
                     $query->where($parentColumn, (int) $parent->id)->delete();
+
                     continue;
                 }
 

@@ -302,7 +302,7 @@ class SidebarAssetMenuVisibilityTest extends TestCase
     }
 
     /**
-     * @param array<int, string> $featureCodes
+     * @param  array<int, string>  $featureCodes
      */
     private function createCompanyWithActiveSubscriptionFeatures(array $featureCodes): Company
     {

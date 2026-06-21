@@ -11,8 +11,7 @@ final class PolicyAttachmentStorageService
     public function __construct(
         private readonly ImageProcessor $imageProcessor,
         private readonly MediaFileDeleter $mediaFileDeleter,
-    ) {
-    }
+    ) {}
 
     public function store(UploadedFile $file, int $policyId): StoredFileResult
     {

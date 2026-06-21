@@ -13,7 +13,6 @@ use App\Models\EmployeeTaxProfile;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -346,9 +345,9 @@ final class EmployeeSnapshotService
             'designationName' => $assignment?->designation?->name ?? $profile->designationRef?->name,
             'designation' => $assignment?->designation?->name ?: ($profile->designationRef?->name ?: $profile->getRawOriginal('designation')),
             'managerUserId' => $assignment?->manager_user_id ?? $profile->getRawOriginal('manager_user_id'),
-                'managerName' => $managerName,
+            'managerName' => $managerName,
             'baseSalary' => (float) ($compensation?->base_salary ?? $profile->getRawOriginal('base_salary') ?? 0),
-                'fixedAllowance' => 0.0,
+            'fixedAllowance' => 0.0,
             'compensation' => [
                 'salaryType' => $compensation?->salary_type ?? 'monthly',
                 'currency' => $compensation?->currency ?? 'IDR',
@@ -579,6 +578,7 @@ final class EmployeeSnapshotService
     private function normalizeSalaryType(?string $value): string
     {
         $raw = strtolower(trim((string) $value));
+
         return in_array($raw, (array) config('hcm.salary_types', ['monthly', 'daily', 'hourly']), true) ? $raw : 'monthly';
     }
 

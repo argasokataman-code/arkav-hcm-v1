@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\Settings;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
+use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Support\WebsiteSettings;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +18,7 @@ class SettingsController extends Controller
     use ChecksPermissions;
 
     private const AI_GROUP = 'ai';
+
     private const AI_SECRET_KEYS = [
         'openai_api_key',
         'api_key',
@@ -49,7 +50,7 @@ class SettingsController extends Controller
 
     /**
      * Get all settings by group
-    * GET /api/settings?group=general
+     * GET /api/settings?group=general
      */
     public function index(Request $request): JsonResponse
     {
@@ -81,7 +82,7 @@ class SettingsController extends Controller
     /**
      * Save settings for a group
      * POST /api/settings
-    * Body: { group: 'general', settings: { key: value, ... } }
+     * Body: { group: 'general', settings: { key: value, ... } }
      */
     public function store(Request $request): JsonResponse
     {
@@ -146,7 +147,7 @@ class SettingsController extends Controller
         }
 
         $value = Setting::get($key);
-        
+
         if ($value === null) {
             return $this->apiError('SETTING_NOT_FOUND', "Setting '{$key}' not found", 404);
         }
@@ -262,7 +263,7 @@ class SettingsController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $settings
+     * @param  array<string, mixed>  $settings
      * @return array<string, mixed>
      */
     private function maskAiSecrets(array $settings): array
@@ -277,7 +278,7 @@ class SettingsController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $settings
+     * @param  array<string, mixed>  $settings
      * @return array<string, mixed>
      */
     private function prepareAiSettingsForStorage(array $settings): array
@@ -300,6 +301,7 @@ class SettingsController extends Controller
             $existing = Setting::get(self::AI_GROUP.'_'.$secretKey);
             if ($existing === null) {
                 unset($settings[$secretKey]);
+
                 continue;
             }
 
@@ -315,7 +317,7 @@ class SettingsController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $settings
+     * @param  array<string, mixed>  $settings
      */
     private function validateLocalizationPayload(array $settings): void
     {
@@ -336,7 +338,7 @@ class SettingsController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $settings
+     * @param  array<string, mixed>  $settings
      */
     private function validateGeneralPayload(array $settings): void
     {
@@ -357,4 +359,3 @@ class SettingsController extends Controller
         }
     }
 }
-

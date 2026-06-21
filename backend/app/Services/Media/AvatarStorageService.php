@@ -13,8 +13,7 @@ final class AvatarStorageService
     public function __construct(
         private readonly ImageProcessor $imageProcessor,
         private readonly MediaFileDeleter $mediaFileDeleter,
-    ) {
-    }
+    ) {}
 
     public function store(UploadedFile $file, int $userId): StoredFileResult
     {

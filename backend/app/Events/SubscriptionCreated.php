@@ -12,6 +12,5 @@ class SubscriptionCreated
     public function __construct(
         public int $subscriptionId,
         public ?int $actorUserId = null,
-    ) {
-    }
+    ) {}
 }

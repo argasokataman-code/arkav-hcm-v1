@@ -74,6 +74,7 @@ return new class extends Migration
 
             if (DB::getDriverName() === 'mysql') {
                 DB::statement("UPDATE {$tableName} t JOIN employee_profiles p ON t.employee_id = p.id SET t.employee_uuid = p.uuid WHERE t.employee_id IS NOT NULL AND t.employee_uuid IS NULL");
+
                 continue;
             }
 
@@ -97,8 +98,8 @@ return new class extends Migration
                 continue;
             }
 
-            $this->safeIndex($tableName, 'uuid', $tableName . '_uuid_idx');
-            $this->safeIndex($tableName, 'employee_uuid', $tableName . '_employee_uuid_idx');
+            $this->safeIndex($tableName, 'uuid', $tableName.'_uuid_idx');
+            $this->safeIndex($tableName, 'employee_uuid', $tableName.'_employee_uuid_idx');
         }
     }
 
@@ -109,7 +110,7 @@ return new class extends Migration
                 continue;
             }
 
-            $this->safeForeign($tableName, 'employee_uuid', 'employee_profiles', 'uuid', $tableName . '_employee_uuid_fk', 'cascade');
+            $this->safeForeign($tableName, 'employee_uuid', 'employee_profiles', 'uuid', $tableName.'_employee_uuid_fk', 'cascade');
         }
     }
 
@@ -119,7 +120,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $tableBlueprint) use ($column, $name): void {
                 $tableBlueprint->index($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }
@@ -140,7 +141,7 @@ return new class extends Migration
                     $foreign->restrictOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }

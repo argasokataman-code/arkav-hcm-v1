@@ -23,13 +23,13 @@ class EnsureSuperAdmin
     {
         $user = $request->user();
 
-        if (!$user || !$this->rbacService->isGlobalAdmin($user)) {
+        if (! $user || ! $this->rbacService->isGlobalAdmin($user)) {
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'SUPER_USER_REQUIRED',
-                    'message' => 'This action requires super administrator privileges.'
-                ]
+                    'message' => 'This action requires super administrator privileges.',
+                ],
             ], 403);
         }
 

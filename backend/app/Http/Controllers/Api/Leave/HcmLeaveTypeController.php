@@ -77,15 +77,15 @@ class HcmLeaveTypeController extends Controller
         }
 
         $type = HcmLeaveTypeSetting::query()->create([
-            'company_id'   => $companyId,
-            'code'         => Str::lower(trim((string) $validated['code'])),
-            'name'         => trim((string) $validated['name']),
-            'is_enabled'   => (bool) ($validated['isEnabled'] ?? true),
-            'days'         => array_key_exists('days', $validated) ? $validated['days'] : null,
-            'carry_forward'  => (bool) ($validated['carryForward'] ?? false),
+            'company_id' => $companyId,
+            'code' => Str::lower(trim((string) $validated['code'])),
+            'name' => trim((string) $validated['name']),
+            'is_enabled' => (bool) ($validated['isEnabled'] ?? true),
+            'days' => array_key_exists('days', $validated) ? $validated['days'] : null,
+            'carry_forward' => (bool) ($validated['carryForward'] ?? false),
             'max_carry_days' => array_key_exists('maxCarryDays', $validated) ? $validated['maxCarryDays'] : null,
-            'earned_leave'   => (bool) ($validated['earnedLeave'] ?? false),
-            'sort_order'     => (int) ($validated['sortOrder'] ?? ((int) (HcmLeaveTypeSetting::query()->where('company_id', $companyId)->max('sort_order') ?? 0) + 1)),
+            'earned_leave' => (bool) ($validated['earnedLeave'] ?? false),
+            'sort_order' => (int) ($validated['sortOrder'] ?? ((int) (HcmLeaveTypeSetting::query()->where('company_id', $companyId)->max('sort_order') ?? 0) + 1)),
         ]);
 
         return response()->json([

@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api\Domain;
 
 use App\Http\Controllers\Controller;
-use App\Models\Domain;
 use App\Models\Company;
+use App\Models\Domain;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class DomainController extends Controller
 {
@@ -20,7 +20,7 @@ class DomainController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -41,7 +41,7 @@ class DomainController extends Controller
 
         // Search by domain name
         if ($request->has('search') && $request->get('search')) {
-            $query->where('domain_name', 'like', '%' . $request->get('search') . '%');
+            $query->where('domain_name', 'like', '%'.$request->get('search').'%');
         }
 
         $domains = $query
@@ -49,7 +49,7 @@ class DomainController extends Controller
             ->paginate(15);
 
         $items = collect($domains->items())
-            ->map(fn(Domain $domain) => [
+            ->map(fn (Domain $domain) => [
                 'id' => $domain->id,
                 'domainName' => $domain->domain_name,
                 'companyId' => $domain->company_id,
@@ -83,7 +83,7 @@ class DomainController extends Controller
      */
     public function show(Request $request, Domain $domain): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -117,7 +117,7 @@ class DomainController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -142,7 +142,7 @@ class DomainController extends Controller
         $companyId = Company::query()->where('uuid', $validated['company_id'])->value('id');
 
         // Generate verification token
-        $validated['verification_token'] = \Illuminate\Support\Str::random(32);
+        $validated['verification_token'] = Str::random(32);
         $validated['status'] = 'pending';
         $validated['company_id'] = $companyId;
 
@@ -171,7 +171,7 @@ class DomainController extends Controller
      */
     public function update(Request $request, Domain $domain): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -223,7 +223,7 @@ class DomainController extends Controller
      */
     public function destroy(Request $request, Domain $domain): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -244,7 +244,7 @@ class DomainController extends Controller
      */
     public function verify(Request $request, Domain $domain): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -278,7 +278,7 @@ class DomainController extends Controller
      */
     public function verificationDetails(Request $request, Domain $domain): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -320,7 +320,7 @@ class DomainController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 

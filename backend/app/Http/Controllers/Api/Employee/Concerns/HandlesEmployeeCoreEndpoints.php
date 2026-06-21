@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Employee\Concerns;
 
+use App\Events\EmployeeProfileUpdated;
 use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\Department;
@@ -1008,7 +1009,7 @@ trait HandlesEmployeeCoreEndpoints
             $changedFields = array_keys($profile->getDirty());
             $profile->save();
             if ($changedFields !== []) {
-                \App\Events\EmployeeProfileUpdated::dispatch(
+                EmployeeProfileUpdated::dispatch(
                     $profile,
                     $changedFields,
                     (string) ($request->user()?->uuid ?? ''),

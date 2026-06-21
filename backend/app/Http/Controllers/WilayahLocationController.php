@@ -3,19 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Console\Commands\WilayahSyncCommand;
-use App\Services\Wilayah\WilayahSyncService;
 use App\Models\WilayahDistrict;
 use App\Models\WilayahProvince;
 use App\Models\WilayahRegency;
 use App\Models\WilayahVillage;
-use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
+use App\Services\Wilayah\WilayahSyncService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use Symfony\Component\Process\Process;
-use Illuminate\Support\Carbon;
 
 class WilayahLocationController extends Controller
 {
@@ -26,6 +25,7 @@ class WilayahLocationController extends Controller
     private function canRunWilayahSync(Request $request): bool
     {
         $user = $request->user() ?: auth()->user();
+
         return (bool) ($user?->isGlobalHcmAdmin());
     }
 

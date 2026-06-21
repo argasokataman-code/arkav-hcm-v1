@@ -2,15 +2,17 @@
 
 namespace Tests\Feature;
 
-use Carbon\Carbon;
 use App\Models\Company;
 use App\Models\HcmRole;
 use App\Models\HcmUserRole;
 use App\Models\Invoice;
 use App\Models\Package;
+use App\Models\Subscription;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class PublicOnboardingApiTest extends TestCase
@@ -126,7 +128,7 @@ class PublicOnboardingApiTest extends TestCase
             'status' => 'active',
         ]);
 
-        \App\Models\User::query()->create([
+        User::query()->create([
             'name' => 'Existing',
             'email' => 'dupe.owner@example.com',
             'password' => bcrypt('StrongPass1'),
@@ -289,7 +291,7 @@ class PublicOnboardingApiTest extends TestCase
         $this->assertDatabaseHas('hcm_roles', ['company_id' => $company->id, 'code' => 'EMPLOYEE']);
         $this->assertDatabaseHas('hcm_roles', ['company_id' => $company->id, 'code' => 'ADMIN']);
 
-        $ownerUserId = (int) \App\Models\User::query()
+        $ownerUserId = (int) User::query()
             ->where('email', 'budi.santoso@example.com')
             ->value('id');
         $adminRoleId = (int) HcmRole::query()
@@ -356,7 +358,7 @@ class PublicOnboardingApiTest extends TestCase
         $this->assertDatabaseHas('subscriptions', ['company_id' => $company->id, 'status' => 'pending_payment']);
         $this->assertDatabaseHas('invoices', ['company_id' => $company->id]);
 
-        $subscription = \App\Models\Subscription::query()
+        $subscription = Subscription::query()
             ->where('company_id', $company->id)
             ->latest('id')
             ->firstOrFail();
@@ -387,7 +389,7 @@ class PublicOnboardingApiTest extends TestCase
             'status' => 'active',
         ]);
 
-        $owner = \App\Models\User::query()->create([
+        $owner = User::query()->create([
             'name' => 'Existing Owner',
             'email' => 'existing.owner@example.com',
             'password' => bcrypt('StrongPass1'),
@@ -428,4 +430,3 @@ class PublicOnboardingApiTest extends TestCase
             ->assertJsonPath('success', false);
     }
 }
-

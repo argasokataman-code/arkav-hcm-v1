@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 class CleanupEmailSettings extends Command
 {
     protected $signature = 'email-settings:cleanup';
+
     protected $description = 'Remove email settings from database (SMTP config moved to .env only)';
 
     public function handle(): int
@@ -32,7 +33,7 @@ class CleanupEmailSettings extends Command
             ->delete();
 
         $this->info("✅ Deleted {$deleted} email settings entries from database");
-        $this->info("📝 SMTP configuration now managed via .env only");
+        $this->info('📝 SMTP configuration now managed via .env only');
 
         return self::SUCCESS;
     }

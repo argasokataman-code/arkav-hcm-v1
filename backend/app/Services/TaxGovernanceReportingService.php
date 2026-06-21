@@ -3,22 +3,20 @@
 namespace App\Services;
 
 use App\Models\Company;
+use App\Models\HcmTaxGovernanceAnomaly;
 use App\Models\HcmTaxGovernancePolicy;
 use App\Models\HcmTaxGovernancePolicyEvent;
-use App\Models\HcmTaxGovernanceAnomaly;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class TaxGovernanceReportingService
 {
     /**
      * Generate tenant self-audit report
      *
-    * @param string $companyId Company numeric ID in tenant context
-     * @param Carbon $periodStart
-     * @param Carbon $periodEnd
-     * @return array
+     * @param  string  $companyId  Company numeric ID in tenant context
      */
     public function generateTenantSelfAuditReport(string $companyId, Carbon $periodStart, Carbon $periodEnd): array
     {
@@ -121,7 +119,7 @@ class TaxGovernanceReportingService
      */
     private function getPayrollCoverageStats(string $companyId, Carbon $periodStart, Carbon $periodEnd): array
     {
-        if (! \Illuminate\Support\Facades\Schema::hasTable('hcm_payroll_runs')) {
+        if (! Schema::hasTable('hcm_payroll_runs')) {
             return [
                 'total_payroll_runs' => 0,
                 'runs_under_current_policy' => 0,

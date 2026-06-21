@@ -170,6 +170,7 @@
 
     function loadSptMasa() {
         var loading = document.querySelector('[data-co-spt-loading]');
+        if (!loading) return; // section hidden by package feature gate
         var tableWrap = document.querySelector('[data-co-spt-table]');
         var tbody = document.querySelector('[data-co-spt-tbody]');
         var emptyEl = document.querySelector('[data-co-spt-empty]');
@@ -222,6 +223,7 @@
 
     function loadTaxPolicies() {
         var loading = document.querySelector('[data-co-tax-loading]');
+        if (!loading) return; // section hidden by package feature gate
         var tableWrap = document.querySelector('[data-co-tax-table]');
         var tbody = document.querySelector('[data-co-tax-tbody]');
         var emptyEl = document.querySelector('[data-co-tax-empty]');

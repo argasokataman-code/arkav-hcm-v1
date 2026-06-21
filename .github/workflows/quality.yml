@@ -73,43 +73,38 @@ jobs:
           script: |
             const fs = require('fs');
             const { execSync } = require('child_process');
-            const pintFailed = process.env.PINT_FAILED === 'true';
 
-            let byFile = {};
-            let totalViolations = 0;
-            let errorMsg = null;
-
-            if (pintFailed) {
-              let diff = '';
-              try {
-                diff = execSync('cd backend && vendor/bin/pint --diff --ansi', { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
-              } catch (err) {
-                diff = (err.stdout || err.message || '').toString();
-              }
-
-              // Parse diff → per-file violation count
-              const hunks = diff.split(/\ndiff --git a\//);
-              for (const hunk of hunks) {
-                const fileMatch = hunk.match(/^(.+?) b\//m);
-                if (!fileMatch) continue;
-                const file = fileMatch[1];
-                // Count @@ lines = number of change hunks
-                const changes = (hunk.match(/^@@/gm) || []).length;
-                // Count +/- lines (excluding header)
-                const addLines = (hunk.match(/^\+(?!\+)/gm) || []).length;
-                const delLines = (hunk.match(/^-(?!-)/gm) || []).length;
-                const styleChanges = changes + addLines + delLines;
-                byFile[file] = (byFile[file] || 0) + styleChanges;
-                totalViolations += styleChanges;
-              }
-              errorMsg = `Pint found style violations in ${Object.keys(byFile).length} files (${totalViolations} changes)`;
-            } else {
-              errorMsg = 'No style violations found';
+            let diff = '';
+            try {
+              diff = execSync('cd backend && vendor/bin/pint --diff --ansi', { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
+            } catch (err) {
+              diff = (err.stdout || err.message || '').toString();
             }
+
+            const byFile = {};
+            let totalViolations = 0;
+
+            const hunks = diff.split(/\ndiff --git a\//);
+            for (const hunk of hunks) {
+              const fileMatch = hunk.match(/^(.+?) b\//m);
+              if (!fileMatch) continue;
+              const file = fileMatch[1];
+              const changes = (hunk.match(/^@@/gm) || []).length;
+              const addLines = (hunk.match(/^\+(?!\+)/gm) || []).length;
+              const delLines = (hunk.match(/^-(?!-)/gm) || []).length;
+              const styleChanges = changes + addLines + delLines;
+              byFile[file] = (byFile[file] || 0) + styleChanges;
+              totalViolations += styleChanges;
+            }
+
+            const hasViolations = totalViolations > 0;
+            const errorMsg = hasViolations
+              ? `Pint found style violations in ${Object.keys(byFile).length} files (${totalViolations} changes)`
+              : 'No style violations found';
 
             const report = {
               tool: 'Pint (Laravel Code Style)',
-              status: pintFailed ? 'failed' : 'passed',
+              status: hasViolations ? 'failed' : 'passed',
               total_violations: totalViolations,
               files_affected: Object.keys(byFile).length,
               violations_by_file: byFile,

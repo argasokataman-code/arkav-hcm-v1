@@ -635,11 +635,13 @@ class AttendanceAdminController extends BaseAttendanceController
         // Get all active employees for this company
         $employees = User::query()
             ->select('users.id', 'users.name')
-            ->join('company_users', function ($join) use ($companyId) {
-                $join->on('company_users.user_id', '=', 'users.id')
+            ->whereExists(function ($sub) use ($companyId): void {
+                $sub->selectRaw('1')
+                    ->from('company_users')
+                    ->whereColumn('company_users.user_id', 'users.id')
                     ->where('company_users.company_id', $companyId)
                     ->where('company_users.status', 'active')
-                    ->whereIn('company_users.role', ['admin', 'owner', 'hr_admin', 'ops_admin', 'member', 'employee']);
+                    ->whereIn('company_users.role', ['admin', 'hr_admin', 'ops_admin', 'member', 'employee']);
             })
             ->orderBy('users.name')
             ->get()

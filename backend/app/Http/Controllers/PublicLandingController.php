@@ -43,16 +43,40 @@ class PublicLandingController extends Controller
         // Check if any subscription with trial status exists (indicates trial is available)
         $hasActiveTrialPackages = Subscription::where('status', 'trial')->exists();
 
-        // Get all unique features from first package for display
-        $allFeatures = collect();
-        if ($packages->isNotEmpty()) {
-            $allFeatures = $packages->first()->features ?? collect();
-        }
+        $landingBootstrap = [
+            'companyName' => \App\Support\WebsiteSettings::businessCompanyName(),
+            'loginUrl' => url('/login'),
+            'trialUrl' => url('/trial'),
+            'turnstileEnabled' => (bool) config('turnstile.enabled'),
+            'turnstileHideTestNotice' => (bool) config('turnstile.hide_test_notice'),
+            'turnstileSiteKey' => (string) config('turnstile.site_key'),
+            'packages' => $packages->map(function ($package) {
+                $featureHighlights = $package->features
+                    ->filter(fn ($feature) => method_exists($feature, 'isIncluded') ? $feature->isIncluded() : true)
+                    ->take(4)
+                    ->map(fn ($feature) => [
+                        'code' => (string) ($feature->feature_code ?? ''),
+                        'name' => (string) ($feature->feature_name ?: $feature->feature_code),
+                    ])
+                    ->values();
 
-        return view('public.landing', [
-            'packages' => $packages,
+                return [
+                    'uuid' => (string) $package->uuid,
+                    'code' => (string) $package->code,
+                    'name' => (string) $package->name,
+                    'description' => (string) ($package->description ?? ''),
+                    'monthlyPrice' => (float) $package->monthly_price,
+                    'yearlyPrice' => (float) $package->yearly_price,
+                    'billingUnit' => (string) ($package->billing_unit ?? 'company'),
+                    'color' => (string) ($package->color ?: '#2D7FF9'),
+                    'featureHighlights' => $featureHighlights,
+                ];
+            })->values(),
             'hasActiveTrialPackages' => $hasActiveTrialPackages,
-            'allFeatures' => $allFeatures,
+        ];
+
+        return view('public.landing-new', [
+            'landingBootstrap' => $landingBootstrap,
         ]);
     }
 }

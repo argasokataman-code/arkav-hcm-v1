@@ -9,6 +9,11 @@ trait ChecksPermissions
 {
     /**
      * Check if user has a specific permission for the active company.
+     *
+     * WARNING: tenant admins pass via isHcmAdminForCompany() fallback.
+     * For PLATFORM-level endpoints (cross-tenant data), DO NOT rely on
+     * this alone — add an explicit isGlobalHcmAdmin() check after the
+     * ensurePermission() call (see HandlesPlatformTaxGovernance for pattern).
      */
     protected function hasPermission(Request $request, string $permissionCode): bool
     {
@@ -17,7 +22,6 @@ trait ChecksPermissions
             return false;
         }
 
-        // Global admin has full capability across tenant-scoped features.
         if ($user->isGlobalHcmAdmin()) {
             return true;
         }
@@ -27,7 +31,6 @@ trait ChecksPermissions
             return $user->isHcmAdmin();
         }
 
-        // Backward compatibility: tenant admins should retain access even before granular permission seeding.
         if ($user->isHcmAdminForCompany($companyId)) {
             return true;
         }

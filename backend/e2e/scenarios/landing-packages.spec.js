@@ -16,7 +16,7 @@ function seedLandingPackages() {
 }
 
 async function openLanding(page) {
-  await page.goto("/landing", { waitUntil: "domcontentloaded" });
+    await page.goto("/landing?openOnboarding=1", { waitUntil: "domcontentloaded" });
   await expect(page.locator("[data-packages-grid]")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Pilih paket" })).toBeVisible();
 }
@@ -27,7 +27,7 @@ test.describe("Landing packages flow", () => {
   });
 
   test("shows starter and higher-tier packages on landing page", async ({ page }) => {
-    await openLanding(page);
+    await openLanding(page, "/landing?openOnboarding=1");
 
     const packagesGrid = page.locator("[data-packages-grid]");
     const packagesData = await packagesGrid.getAttribute("data-packages");

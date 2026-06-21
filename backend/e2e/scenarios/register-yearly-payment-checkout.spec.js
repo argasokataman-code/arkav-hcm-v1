@@ -57,7 +57,7 @@ test.describe.serial("Yearly registration payment checkout", () => {
             await page.goto("/register", { waitUntil: "domcontentloaded" });
             await page.waitForURL(/\/landing\?.*openOnboarding=1.*startMode=pending_payment/i, { timeout: 15000 });
 
-            const onboardingModal = page.locator('[aria-labelledby="landingOnboardingModalLabel"]');
+            const onboardingModal = page.locator('[id="pricing-showroom-column"], [class*="OnboardingModal"], [data-onboarding-modal]').first();
             await expect(onboardingModal).toBeVisible({ timeout: 15000 });
 
             await onboardingModal.locator('select[name="packageUuid"]').selectOption({ label: 'Starter (starter)' });

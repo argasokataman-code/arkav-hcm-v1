@@ -363,10 +363,10 @@
                 subtitle: "Invoice #" + invoiceLabel(invoice),
                 dueText: invoice.paidDate ? ("Dibayar pada " + formatDateLabel(invoice.paidDate)) : "Pembayaran berhasil diverifikasi.",
                 note: isInactiveContext
-                    ? "Pembayaran reaktivasi selesai. Kamu bisa lanjut masuk lagi ke aplikasi."
+                    ? "Pembayaran berhasil. Anda dapat masuk kembali ke aplikasi."
                     : "Pembayaran berhasil dan invoice ini sudah ditutup.",
                 badgeClass: "bg-success-subtle text-success border border-success-subtle",
-                badgeLabel: isInactiveContext ? "Reaktivasi selesai" : "Lunas",
+                badgeLabel: isInactiveContext ? "Aktif Kembali" : "Lunas",
             };
         }
 
@@ -382,16 +382,16 @@
             }
 
             return {
-                title: reused ? "Invoice reaktivasi aktif" : "Invoice reaktivasi dibuat",
-                subtitle: "Invoice #" + invoiceLabel(invoice) + " untuk mengaktifkan akses kembali.",
+                title: reused ? "Tagihan Aktif" : "Tagihan Dibuat",
+                subtitle: "Invoice #" + invoiceLabel(invoice) + " untuk mengaktifkan kembali akses.",
                 dueText: dueText,
                 note: overdue || dueDiff < 0
-                    ? "Tagihan ini masih jadi penghalang utama akses. Bayar sekarang untuk memulihkan langganan."
-                    : "Begitu invoice ini dibayar, akses company akan aktif kembali tanpa perlu bikin tagihan lain.",
+                    ? "Tagihan ini harus dibayar untuk memulihkan akses. Lakukan pembayaran sekarang."
+                    : "Setelah invoice ini dibayar, akses aplikasi akan aktif kembali secara otomatis.",
                 badgeClass: overdue || dueDiff < 0
                     ? "bg-danger-subtle text-danger border border-danger-subtle"
                     : "bg-warning-subtle text-warning border border-warning-subtle",
-                badgeLabel: overdue || dueDiff < 0 ? "Reaktivasi tertunda" : "Menunggu reaktivasi",
+                badgeLabel: overdue || dueDiff < 0 ? "Terlambat" : "Menunggu Pembayaran",
             };
         }
 
@@ -558,7 +558,7 @@
             renderInvoice({ invoice: pendingInvoice }, true);
             if (!isPendingLock) {
                 showFeedback("warning", isInactiveContext
-                    ? "Ada invoice reaktivasi yang belum dibayar. Selesaikan tagihan ini dulu sebelum lanjut ke langkah lain."
+                    ? "Ada tagihan yang belum dibayar. Selesaikan tagihan ini terlebih dahulu sebelum melanjutkan."
                     : "Ada invoice pending yang belum dibayar. Selesaikan pembayaran ini sebelum membuat invoice baru.");
             } else {
                 clearFeedback();
@@ -613,12 +613,12 @@
         }
 
         if (status === "failed") {
-            await loadInvoiceById(invoiceId, isInactiveContext ? "Pembayaran reaktivasi belum berhasil. Coba lagi dari tagihan yang sama." : "Pembayaran belum berhasil. Coba lagi.", "warning");
+            await loadInvoiceById(invoiceId, isInactiveContext ? "Pembayaran belum berhasil. Silakan coba lagi dari tagihan yang sama." : "Pembayaran belum berhasil. Silakan coba lagi.", "warning");
             return true;
         }
 
         if (status === "pending") {
-            await loadInvoiceById(invoiceId, isInactiveContext ? "Pembayaran reaktivasi belum selesai. Lanjutkan dari invoice aktif ini." : "Pembayaran belum selesai.", "info");
+            await loadInvoiceById(invoiceId, isInactiveContext ? "Pembayaran belum selesai. Lanjutkan dari tagihan aktif ini." : "Pembayaran belum selesai.", "info");
             return true;
         }
 

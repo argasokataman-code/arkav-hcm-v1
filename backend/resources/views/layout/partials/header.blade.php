@@ -114,9 +114,16 @@
     $headerActiveCompanyName = trim((string) ($activeCompany?->name ?? ''));
     $headerActiveCompanyCode = trim((string) ($activeCompany?->code ?? ''));
     $headerRoleBadge = strtoupper($activeCompanyRole !== '' ? $activeCompanyRole : 'member');
-    $headerPackageCode = strtoupper(trim((string) ($activeCompanySubscription?->package?->code ?? $activeCompanySubscription?->plan_code ?? '')));
-    $headerPackageName = trim((string) ($activeCompanySubscription?->package?->name ?? ''));
-    $headerPackageIsInternal = (bool) ($activeCompanySubscription?->package?->is_global_admin_only ?? false);
+    $headerLatestSubscription = $activeCompany instanceof \App\Models\Company
+        ? $activeCompany->latestSubscription
+        : null;
+    $isSubscriptionExpired = $headerLatestSubscription && (
+        $headerLatestSubscription->status === 'expired'
+        || ($headerLatestSubscription->ends_at?->isPast() && $headerLatestSubscription->status === 'active')
+    );
+    $headerPackageCode = strtoupper(trim((string) ($activeCompanySubscription?->package?->code ?? $activeCompanySubscription?->plan_code ?? $headerLatestSubscription?->package?->code ?? $headerLatestSubscription?->plan_code ?? '')));
+    $headerPackageName = trim((string) ($activeCompanySubscription?->package?->name ?? $headerLatestSubscription?->package?->name ?? ''));
+    $headerPackageIsInternal = (bool) ($activeCompanySubscription?->package?->is_global_admin_only ?? $headerLatestSubscription?->package?->is_global_admin_only ?? false);
     $headerPackageBadgeClass = $headerPackageIsInternal ? 'bg-dark text-white' : 'bg-light text-dark border';
 @endphp
 <div class="header">
@@ -1259,6 +1266,13 @@
                                 <i class="ti ti-building"></i>
                                 <span class="badge badge-soft-dark rounded-pill">{{ $headerActiveCompanyName }}</span>
                             </span>
+                        </div>
+                    @elseif ($isSubscriptionExpired)
+                        <div class="me-2 d-none d-md-flex align-items-center">
+                            <a href="{{ url('/subscription') }}" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 text-nowrap px-2" title="Langganan telah berakhir">
+                                <i class="ti ti-alert-triangle"></i>
+                                <span class="badge bg-danger rounded-pill">Expired</span>
+                            </a>
                         </div>
                     @elseif ($headerPackageCode !== '')
                         <div class="me-2 d-none d-md-flex align-items-center">

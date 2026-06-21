@@ -40,7 +40,6 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
 (function (window, document) {
     "use strict";
     var RETURN_STATE_KEY = "arcav_employees_return_state_v1";
-    try { console.error && console.error('employees legacy module loaded'); } catch (_) {}
     var selectedPreviewEmployeeId = null;
     var employeesTableState = State.employeesTableState;
     var employeesTableMeta = State.employeesTableMeta;
@@ -1003,7 +1002,6 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
     function getEmployeeReportSourceMode() {
         var sourceEl = document.querySelector("[data-employee-report-source]");
         var source = sourceEl ? String(sourceEl.value || "live").toLowerCase() : "live";
-        try { console.error && console.error('getEmployeeReportSourceMode ->', source); } catch (_) {}
         return source === "archive" ? "archive" : "live";
     }
 
@@ -1174,7 +1172,6 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
     }
 
     function loadEmployeeReportData() {
-        try { console.error && console.error('loadEmployeeReportData called, path=', window.location.pathname); } catch (_) {}
         var path = String(window.location.pathname || "").replace(/\/+$/, "") || "/";
         if (path !== "/employee-report") {
             return;

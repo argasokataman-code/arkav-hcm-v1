@@ -26,6 +26,7 @@ import * as Org from './org.js';
 import * as Renderers from './renderers.js';
 import * as Binders from './binders.js';
 import * as Bulk from './bulk.js';
+import * as List from './list.js';
 
 var employeesModuleLoaders = window.ArcavEmployeesModuleLoaders || {};
 var resolveBindEmployeeCompensationFormsModule = employeesModuleLoaders.resolveBindEmployeeCompensationFormsModule || function () { return null; };
@@ -46,64 +47,33 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
     var employeesViewerContext = State.employeesViewerContext;
     var selectedEmployeeProfilesMap = State.selectedEmployeeProfilesMap;
 
+    var list = List.makeListHandlers({
+        employeesTableState: employeesTableState,
+        employeesViewerContext: employeesViewerContext,
+        selectedEmployeeProfilesMap: selectedEmployeeProfilesMap,
+        selectedPreviewEmployeeId: selectedPreviewEmployeeId,
+        getCurrentListUrl: getCurrentListUrl,
+    });
+
     function isSpecialSuperAdminCode1(meData) {
-        if (!meData || !meData.hcmGlobalAdmin) {
-            return false;
-        }
-        var activeCompanyId = meData.activeCompany && meData.activeCompany.id != null
-            ? Number(meData.activeCompany.id)
-            : 0;
-        var userId = meData.id != null ? Number(meData.id) : 0;
-        return activeCompanyId === 1 || userId === 1;
+        return list.isSpecialSuperAdminCode1(meData);
     }
 
     function saveReturnState(employeeId) {
-        try {
-            window.sessionStorage.setItem(RETURN_STATE_KEY, JSON.stringify({
-                url: getCurrentListUrl(),
-                scrollY: window.scrollY || 0,
-                selectedId: employeeId ? String(employeeId) : "",
-                ts: Date.now()
-            }));
-        } catch (_e) { }
+        list.saveReturnState(employeeId);
     }
 
     function updateActiveRowHighlight() {
-        var rows = document.querySelectorAll("[data-employees-row-preview]");
-        for (var i = 0; i < rows.length; i++) {
-            var row = rows[i];
-            var active = selectedPreviewEmployeeId && row.getAttribute("data-employees-row-preview") === String(selectedPreviewEmployeeId);
-            row.classList.toggle("table-primary", !!active);
-        }
+        list.updateActiveRowHighlight(selectedPreviewEmployeeId);
     }
 
     function restoreReturnStateIfAny() {
-        try {
-            var raw = window.sessionStorage.getItem(RETURN_STATE_KEY);
-            if (!raw) {
-                return;
-            }
-            var state = JSON.parse(raw);
-            if (!state || state.url !== getCurrentListUrl()) {
-                return;
-            }
-            window.setTimeout(function () {
-                window.scrollTo(0, Number(state.scrollY || 0));
-            }, 0);
-            if (state.selectedId) {
-                selectedPreviewEmployeeId = String(state.selectedId);
-            }
-        } catch (_e) { }
+        list.restoreReturnStateIfAny();
+        selectedPreviewEmployeeId = list.getSelectedPreviewEmployeeId();
     }
 
     function syncEmployeesScopeTabState(activeScope) {
-        var tabs = Array.prototype.slice.call(document.querySelectorAll("[data-employees-scope-tab]"));
-        tabs.forEach(function (tab) {
-            var tabScope = normalizeEmployeeScope(tab.getAttribute("data-employees-scope-tab"));
-            var isActive = tabScope && tabScope === activeScope;
-            tab.classList.toggle("active", isActive);
-            tab.setAttribute("aria-pressed", isActive ? "true" : "false");
-        });
+        list.syncEmployeesScopeTabState(activeScope);
     }
 
     function applyEmployeesScopeTabs(meData) {
@@ -139,78 +109,19 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
     
 
     function renderListMessage(message) {
-        var tbody = document.querySelector("[data-employees-list-body]");
-        if (!tbody) return;
-        tbody.innerHTML = '<tr><td class="text-center text-muted py-4">' + escapeHtml(message) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
-        tbody.setAttribute("data-hydrated", "1");
-        updateBulkSelectionUi();
-    }
-
-    function getSelectedEmployeeProfileIds() {
-        return Object.keys(selectedEmployeeProfilesMap)
-            .filter(function (id) {
-                return Boolean(selectedEmployeeProfilesMap[id]);
-            })
-            .map(function (id) {
-                return Number(id);
-            })
-            .filter(function (id) {
-                return Number.isFinite(id) && id > 0;
-            });
-    }
-
-    function syncSelectAllCheckboxState() {
-        var selectAll = document.querySelector("[data-employees-select-all]");
-        if (!selectAll) {
-            return;
-        }
-        var rowCheckboxes = Array.prototype.slice.call(document.querySelectorAll("[data-employees-select]"));
-        if (!rowCheckboxes.length) {
-            selectAll.checked = false;
-            selectAll.indeterminate = false;
-            return;
-        }
-
-        var selectedCount = rowCheckboxes.filter(function (cb) {
-            return cb.checked;
-        }).length;
-
-        selectAll.checked = selectedCount > 0 && selectedCount === rowCheckboxes.length;
-        selectAll.indeterminate = selectedCount > 0 && selectedCount < rowCheckboxes.length;
-    }
-
-    function updateBulkSelectionUi() {
-        var selectedIds = getSelectedEmployeeProfileIds();
-        var count = selectedIds.length;
-        document.querySelectorAll("[data-employees-selected-count], [data-employees-bulk-selected-count]").forEach(function (el) {
-            el.textContent = String(count);
-        });
-
-        var openBtn = document.querySelector("[data-employees-bulk-reassign-open]");
-        if (openBtn) {
-            openBtn.disabled = count < 1;
-        }
+        renderers.renderListMessage(message);
     }
 
     var renderers = Renderers.makeRenderers({
         selectedEmployeeProfilesMap: selectedEmployeeProfilesMap,
-        getSelectedEmployeeProfileIds: getSelectedEmployeeProfileIds,
-        syncSelectAllCheckboxState: syncSelectAllCheckboxState,
-        updateBulkSelectionUi: updateBulkSelectionUi,
+        getSelectedEmployeeProfileIds: function () { return list.getSelectedEmployeeProfileIds(); },
+        syncSelectAllCheckboxState: function () { list.syncSelectAllCheckboxState(); },
+        updateBulkSelectionUi: function () { list.updateBulkSelectionUi(); },
     });
 
-    function clearSelectedEmployeesSelection() {
-        Object.keys(selectedEmployeeProfilesMap).forEach(function (k) { delete selectedEmployeeProfilesMap[k]; });
-        document.querySelectorAll("[data-employees-select]").forEach(function (cb) {
-            cb.checked = false;
-        });
-        syncSelectAllCheckboxState();
-        updateBulkSelectionUi();
-    }
-
     var bulk = Bulk.makeBulkHandlers({
-        getSelectedEmployeeProfileIds: getSelectedEmployeeProfileIds,
-        clearSelectedEmployeesSelection: clearSelectedEmployeesSelection,
+        getSelectedEmployeeProfileIds: function () { return list.getSelectedEmployeeProfileIds(); },
+        clearSelectedEmployeesSelection: function () { list.clearSelectedEmployeesSelection(); },
         loadEmployeesData: loadEmployeesData,
     });
     // bulk handlers moved to employees/bulk.js (instantiated above)
@@ -219,8 +130,8 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
         buildEmployeeDetailUrl: buildEmployeeDetailUrl,
         requestEmployeeDetail: requestEmployeeDetail,
         formatApiError: formatApiError,
-        saveReturnState: saveReturnState,
-        updateActiveRowHighlight: updateActiveRowHighlight,
+        saveReturnState: function (id) { list.saveReturnState(id); },
+        updateActiveRowHighlight: function () { list.updateActiveRowHighlight(selectedPreviewEmployeeId); },
         getSelectedPreviewEmployeeId: function () { return selectedPreviewEmployeeId; },
         setSelectedPreviewEmployeeId: function (v) { selectedPreviewEmployeeId = v; },
         escapeHtml: escapeHtml,
@@ -231,16 +142,16 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
         requestFormData: requestFormData,
         getOrganizationReferenceSnapshot: Org.getOrgSnapshot,
         loadEmployeesData: loadEmployeesData,
-        getSelectedEmployeeProfileIds: getSelectedEmployeeProfileIds,
-        clearSelectedEmployeesSelection: clearSelectedEmployeesSelection,
+        getSelectedEmployeeProfileIds: function () { return list.getSelectedEmployeeProfileIds(); },
+        clearSelectedEmployeesSelection: function () { list.clearSelectedEmployeesSelection(); },
         bulk: bulk,
         employeesTableState: employeesTableState,
         employeesTableMeta: employeesTableMeta,
         employeesViewerContext: employeesViewerContext,
-        updateBulkSelectionUi: updateBulkSelectionUi,
-        syncSelectAllCheckboxState: syncSelectAllCheckboxState,
-        syncEmployeesScopeTabState: syncEmployeesScopeTabState,
-        exportEmployees: exportEmployees,
+        updateBulkSelectionUi: function () { list.updateBulkSelectionUi(); },
+        syncSelectAllCheckboxState: function () { list.syncSelectAllCheckboxState(); },
+        syncEmployeesScopeTabState: function (scope) { list.syncEmployeesScopeTabState(scope); },
+        exportEmployees: function (fmt) { list.exportEmployees(fmt); },
         selectedEmployeeProfilesMap: selectedEmployeeProfilesMap,
         normalizeEmployeeScope: normalizeEmployeeScope,
     });
@@ -253,8 +164,8 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
             buildEmployeeDetailUrl: buildEmployeeDetailUrl,
             requestEmployeeDetail: requestEmployeeDetail,
             formatApiError: formatApiError,
-            saveReturnState: saveReturnState,
-            updateActiveRowHighlight: updateActiveRowHighlight,
+            saveReturnState: function (id) { list.saveReturnState(id); },
+            updateActiveRowHighlight: function () { list.updateActiveRowHighlight(selectedPreviewEmployeeId); },
             getSelectedPreviewEmployeeId: function () {
                 return selectedPreviewEmployeeId;
             },
@@ -340,120 +251,27 @@ var loadBindSalaryBulkUploadModule = employeesModuleLoaders.loadBindSalaryBulkUp
     }
 
     function renderGridMessage(message) {
-        var gridBody = document.querySelector("[data-employees-grid-body]");
-        if (!gridBody) return;
-        gridBody.innerHTML = '<div class="col-12"><div class="alert alert-light text-center mb-0">' + escapeHtml(message) + '</div></div>';
-        gridBody.setAttribute("data-hydrated", "1");
+        list.renderGridMessage(message);
     }
 
     function updateSummary(meta) {
-        var summary = (meta && meta.summary) || {};
-        var total = document.querySelector("[data-employees-total]");
-        var active = document.querySelector("[data-employees-active]");
-        var inactive = document.querySelector("[data-employees-inactive]");
-        var newJoiners = document.querySelector("[data-employees-new-joiners]");
-
-        if (total) total.textContent = String(summary.totalEmployees || 0);
-        if (active) active.textContent = String(summary.activeEmployees || 0);
-        if (inactive) inactive.textContent = String(summary.inactiveEmployees || 0);
-        if (newJoiners) newJoiners.textContent = String(summary.newJoiners || 0);
+        list.updateSummary(meta);
     }
 
     function syncEmployeesFilterOptions() {
-        var depSel = document.querySelector("[data-employees-filter-department]");
-        var desSel = document.querySelector("[data-employees-filter-designation]");
-        var teamSel = document.querySelector("[data-employees-filter-team]");
-        if (depSel) {
-            var depPrev = employeesTableState.departmentId || depSel.value || "";
-            depSel.innerHTML = '<option value="">All Departments</option>';
-            orgDepartmentsFlat.forEach(function (d) {
-                var opt = document.createElement("option");
-                opt.value = String(d.id);
-                opt.textContent = d.name || d.code || String(d.id);
-                depSel.appendChild(opt);
-            });
-            depSel.value = depPrev;
-        }
-        if (desSel) {
-            var desPrev = employeesTableState.designationId || desSel.value || "";
-            desSel.innerHTML = '<option value="">All Designations</option>';
-            orgDesignationsFlat.forEach(function (d) {
-                var opt2 = document.createElement("option");
-                opt2.value = String(d.id);
-                opt2.textContent = d.name || d.code || String(d.id);
-                desSel.appendChild(opt2);
-            });
-            desSel.value = desPrev;
-        }
-        if (teamSel) {
-            var teamPrev = employeesTableState.teamId || teamSel.value || "";
-            teamSel.innerHTML = '<option value="">All Teams</option>';
-            orgTeamsFlat.forEach(function (t) {
-                var opt3 = document.createElement("option");
-                opt3.value = String(t.id);
-                opt3.textContent = t.name || String(t.id);
-                teamSel.appendChild(opt3);
-            });
-            teamSel.value = teamPrev;
-        }
+        list.syncEmployeesFilterOptions(orgDepartmentsFlat, orgDesignationsFlat, orgTeamsFlat);
     }
 
     function renderEmployeesShowing(meta, rowCount) {
-        var el = document.querySelector("[data-employees-showing]");
-        if (!el) {
-            return;
-        }
-        var total = Number(meta && meta.total ? meta.total : 0);
-        var page = Number(meta && meta.page ? meta.page : 1);
-        var perPage = Number(meta && meta.perPage ? meta.perPage : 20);
-        if (!total || !rowCount) {
-            el.textContent = "Showing 0 - 0 of 0 entries";
-            return;
-        }
-        var start = ((page - 1) * perPage) + 1;
-        var end = Math.min(start + rowCount - 1, total);
-        el.textContent = "Showing " + start + " - " + end + " of " + total + " entries";
+        list.renderEmployeesShowing(meta, rowCount);
     }
 
     function renderEmployeesPagination(meta) {
-        var list = document.querySelector("[data-employees-pagination]");
-        if (!list) {
-            return;
-        }
-        var total = Number(meta && meta.total ? meta.total : 0);
-        var page = Number(meta && meta.page ? meta.page : 1);
-        var perPage = Number(meta && meta.perPage ? meta.perPage : 20);
-        var totalPages = Math.max(1, Math.ceil(total / Math.max(1, perPage)));
-        if (totalPages <= 1) {
-            list.innerHTML = "";
-            return;
-        }
-
-        var startPage = Math.max(1, page - 2);
-        var endPage = Math.min(totalPages, page + 2);
-        var html = '';
-
-        html += '<li class="page-item ' + (page <= 1 ? 'disabled' : '') + '"><a class="page-link" href="#" data-employees-page="' + (page - 1) + '">Prev</a></li>';
-        for (var p = startPage; p <= endPage; p += 1) {
-            html += '<li class="page-item ' + (p === page ? 'active' : '') + '"><a class="page-link" href="#" data-employees-page="' + p + '">' + p + '</a></li>';
-        }
-        html += '<li class="page-item ' + (page >= totalPages ? 'disabled' : '') + '"><a class="page-link" href="#" data-employees-page="' + (page + 1) + '">Next</a></li>';
-
-        list.innerHTML = html;
+        list.renderEmployeesPagination(meta);
     }
 
-    
-
     function exportEmployees(format) {
-        var params = new URLSearchParams();
-        if (employeesTableState.search) params.set("search", employeesTableState.search);
-        if (employeesTableState.status) params.set("status", employeesTableState.status);
-        if (employeesTableState.departmentId) params.set("departmentId", employeesTableState.departmentId);
-        if (employeesTableState.designationId) params.set("designationId", employeesTableState.designationId);
-        if (employeesTableState.teamId) params.set("teamId", employeesTableState.teamId);
-        if (employeesTableState.scope) params.set("scope", employeesTableState.scope);
-        params.set("format", format === "pdf" ? "pdf" : "xlsx");
-        window.location.assign("/v1/hcm/employees/export?" + params.toString());
+        list.exportEmployees(format);
     }
 
     function bindEmployeesListControls() {

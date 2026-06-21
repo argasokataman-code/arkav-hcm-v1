@@ -6,7 +6,6 @@ use App\Mail\MonthlyPayslipMail;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
-use App\Models\User;
 use App\Support\Exports\TabularExportResponse;
 use Closure;
 use Illuminate\Http\JsonResponse;

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Payroll\Concerns;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmTermination;
-use App\Models\User;
 use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
 use App\Services\Reconciliation\ReconciliationGateService;
 use Carbon\Carbon;
@@ -132,7 +131,7 @@ trait HandlesPayrollRunRuntimeUtilities
 
     private function shouldForceLocalMockCheckout(Request $request): bool
     {
-        return app()->environment(['local', 'testing']) && ! $this->isNgrokRuntime($request);
+        return app()->isLocal() && ! $this->isNgrokRuntime($request);
     }
 
     private function isNgrokRuntime(Request $request): bool

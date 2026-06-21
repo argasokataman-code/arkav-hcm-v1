@@ -1,12 +1,12 @@
 import React from "react";
 import { 
-  Layers, 
   ChevronLeft, 
   ChevronRight, 
   ArrowRight, 
   Sparkles
 } from "lucide-react";
 import { motion } from "motion/react";
+import arkavLogo from "../assets/arkav-logo.png";
 
 interface GlobalHUDProps {
   currentSlide: number;
@@ -54,8 +54,12 @@ export default function GlobalHUD({
           className="flex items-center gap-1.5 sm:gap-2.5 cursor-pointer group"
           id="hud-logo-container"
         >
-          <div className="relative w-8 h-8 rounded-none bg-[#FF6600] flex items-center justify-center transition-transform duration-300 group-hover:scale-105 shadow-xs">
-            <Layers className="w-4.5 h-4.5 text-white" />
+          <div className="relative w-8 h-8 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+            <img 
+              src={arkavLogo} 
+              alt="Arkav HCM" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <div className="flex items-baseline">
             <span className="font-display font-black text-lg tracking-tight text-[#1A1D24] uppercase">

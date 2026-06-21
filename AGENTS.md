@@ -13,13 +13,15 @@ Output: `Task: [ringkasan] Domain: [feature] Jenis: bugfix|new-feature|refactor|
 - Jika task bentrok rule → sebut konflik, minta konfirmasi.
 
 ### Fase 2: Source Discovery
-Cari dari atas ke bawah, berhenti saat cukup:
-1. `docs/features/<feature>/README.md` — flow bisnis, role, lifecycle
-2. `docs/features/<feature>/IMPLEMENTATION.md` — arsitektur, DB, API
-3. `docs/api/<feature>-api.md` — endpoint, request/response, RBAC
-4. `docs/planning/active-hcm-templates-and-permissions.md` — matriks role/URL
-5. `backend/routes/api.php` + `backend/routes/web.php` — routes aktual
-6. `backend/database/migrations/` — schema aktual
+Cari informasi dari sumber-sumber berikut, prioritaskan dari yang paling atas:
+
+1.  **Repository Map (`REPO_MAP.md`, `docs/maps/*.md`):** Periksa direktori `docs/maps/` untuk file pemetaan modul/fitur (misal: `feature-payroll-map.md`, `feature-employee-map.md`, `backend-map.md`, `frontend-map.md`). Gunakan ini untuk memahami struktur utama dan entry point fitur yang relevan.
+2.  **Feature-Specific Docs:** Jika map tidak cukup detail atau fitur tidak terpetakan, cari dokumentasi spesifik fitur di `docs/features/<feature>/` (README.md, IMPLEMENTATION.md, API.md).
+3.  **API Routes:** Cek `backend/routes/api.php` dan `backend/routes/web.php` untuk route aktual.
+4.  **Migrations:** Periksa `backend/database/migrations/` untuk skema database.
+5.  **Controllers & Services:** Lokasi utama implementasi logic.
+
+Cari secukupnya, berhenti saat konteks yang dibutuhkan sudah cukup jelas.
 
 ### Fase 3: Impact Analysis
 Jawab sebelum coding:
@@ -382,3 +384,53 @@ mysql_execute(sql: "UPDATE subscriptions SET status='active' WHERE id=1")
 - Output rapi (JSON array), langsung bisa dibaca
 - Gak perlu `tinker` heredoc rentan error
 - Lebih cepet (langsung SQL, tanpa Lapisan ORM)
+
+---
+
+## 15. Repository Protection (OpenCode Lock)
+
+Agent **DILARANG** mengubah, menghapus, atau menambah file/direktori berikut tanpa izin **eksplisit** dari user:
+
+### 🔒 Locked Files & Directories
+
+| Path | Alasan Lock |
+|---|---|
+| `AGENTS.md` | Single source of truth repo rules. Perubahan sembarangan = chaos. |
+| `docs/maps/*.md` | GPS navigasi agent. Struktur map sudah stabil. |
+| `.github/workflows/*.yml` | CI/CD pipeline. Salah edit = deploy broken. |
+| `Dockerfile` | Container config. |
+| `run.sh` | Entry point runtime. |
+| `docker-compose.yml` | Orchestration config. |
+| `scripts/*.sh` | Deployment & maintenance scripts. |
+| `backend/config/*.php` | App configuration. Ubah = seluruh app affected. |
+| `backend/app/Providers/*.php` | Service container bindings. |
+| `backend/app/Http/Middleware/*.php` | Security & auth layer. |
+| `backend/bootstrap/*.php` | Framework bootstrap. |
+| `backend/app/Support/ArcavAccessTokenResolver.php` | Token resolution core. |
+| `backend/app/Support/TenantContextResolver.php` | Tenant context core. |
+| `backend/composer.json` | Dependency manifest. |
+| `backend/composer.lock` | Dependency lock. |
+| `frontend/package.json` | FE dependency manifest. |
+| `frontend/package-lock.json` | FE dependency lock. |
+| `backend/vite.config.js` | Build configuration. |
+| `backend/vitest.config.js` | Test configuration. |
+| `backend/phpunit.xml` | PHPUnit config. |
+| `backend/phpstan.neon` | Static analysis config. |
+
+### 🔓 Unlock Conditions
+
+File di atas **boleh** diubah hanya jika:
+1. User **secara eksplisit** bilang: "edit file X" atau "unlock file X".
+2. Task yang diberikan **memang membutuhkan** perubahan di file tersebut (misal: "tambah middleware baru" → boleh edit `Middleware/` setelah konfirmasi).
+3. Agent harus **sebutkan file yang ingin di-edit** dan **alasan** sebelum menyentuh, lalu tunggu approval.
+
+### ⚠️ Protected Patterns (JANGAN UBAH tanpa alasan kuat)
+
+- **UUID-first pattern** — Jangan downgrade UUID ke integer ID.
+- **Snapshot pattern** (`currentXxxSnapshot()`) di `EmployeeProfile` — Jangan flatten ke single column.
+- **EncryptedOrPlaintext cast** (UU PDP) — Jangan hapus encryption.
+- **Multi-tenant `company_id` scope** — Jangan hapus tenant isolation.
+- **Concerns/traits split** di controller — Jangan merge jadi 1 file raksasa.
+- **`lockForUpdate()`** di transaction — Jangan hapus, ini race condition guard.
+- **`api.token` middleware** di route API — Jangan bypass.
+- **Response envelope** `{ success, data?, error? }` — Jangan ubah format.

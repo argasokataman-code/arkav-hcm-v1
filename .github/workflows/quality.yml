@@ -41,7 +41,15 @@ jobs:
         with:
           script: |
             const { execSync } = require('child_process');
-            const diff = execSync('cd backend && vendor/bin/pint --diff --ansi', { encoding: 'utf8' });
+            const core = require('@actions/core');
+
+            let diff = '';
+            try {
+              diff = execSync('cd backend && vendor/bin/pint --diff --ansi', { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
+            } catch (err) {
+              diff = (err.stdout || err.message || '').toString();
+            }
+
             const body = `## 🎨 Code Style Issues\n\nPint found style violations. Run \`vendor/bin/pint\` to fix.\n\n\`\`\`diff\n${diff.slice(0, 60000)}\n\`\`\``;
             await github.rest.issues.createComment({
               owner: context.repo.owner,

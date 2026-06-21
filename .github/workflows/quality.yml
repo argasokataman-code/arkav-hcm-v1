@@ -12,7 +12,7 @@ jobs:
     name: Pint (Code Style)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -22,7 +22,7 @@ jobs:
           coverage: none
 
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: backend/vendor
           key: pint-${{ hashFiles('backend/composer.lock') }}
@@ -37,7 +37,7 @@ jobs:
 
       - name: Post Pint diff
         if: env.PINT_FAILED == 'true' && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { execSync } = require('child_process');
@@ -68,7 +68,7 @@ jobs:
 
       - name: Generate Pint summary
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload Pint report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: pint-report
           path: backend/pint-report.json
@@ -127,7 +127,7 @@ jobs:
     name: PHPStan (Static Analysis)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -137,7 +137,7 @@ jobs:
           coverage: none
 
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: backend/vendor
           key: phpstan-${{ hashFiles('backend/composer.lock') }}
@@ -155,7 +155,7 @@ jobs:
       - name: Generate PHPStan summary
         id: phpstan-summary
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -226,7 +226,7 @@ jobs:
 
       - name: Upload PHPStan report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: phpstan-report
           path: backend/phpstan-report.txt
@@ -234,7 +234,7 @@ jobs:
 
       - name: Upload PHPStan JSON summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: phpstan-summary
           path: backend/phpstan-report.json

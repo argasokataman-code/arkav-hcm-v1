@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Company;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Support\ArcavAccessTokenResolver;
 use App\Support\TenantContextResolver;
@@ -55,22 +56,35 @@ class EnsureCompanyFeatureForApi
         }
 
         $subscription = $company instanceof Company ? $company->activeSubscription() : null;
-        if (! $subscription) {
-            // Backward compatibility: legacy tenant fixtures/tests may not have
-            // active subscription rows yet. In that case, let existing RBAC and
-            // module-level guards decide access.
+        if ($subscription) {
+            foreach ($codes as $code) {
+                if (! $subscription->package?->hasFeature($code)) {
+                    return $this->error(
+                        'FEATURE_DISABLED',
+                        sprintf('Feature "%s" is not enabled for this company.', $code),
+                        403,
+                    );
+                }
+            }
+
             return $next($request);
         }
 
-        foreach ($codes as $code) {
-            if (! $subscription->package?->hasFeature($code)) {
-                return $this->error(
-                    'FEATURE_DISABLED',
-                    sprintf('Feature "%s" is not enabled for this company.', $code),
-                    403,
-                );
-            }
+        // Tidak ada subscription aktif. Cek apakah ada subscription sama sekali:
+        // kalo ada tapi expired/cancelled → tolak. Kalo emang ga ada → backward compat.
+        $anySubscription = $company instanceof Company
+            ? Subscription::query()->where('company_id', $company->id)->exists()
+            : false;
+
+        if ($anySubscription) {
+            return $this->error(
+                'SUBSCRIPTION_EXPIRED',
+                'Langganan Anda sudah tidak aktif. Silakan perbarui paket Anda.',
+                403,
+            );
         }
+
+        return $next($request);
 
         return $next($request);
     }

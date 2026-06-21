@@ -7,7 +7,7 @@ import {
     requestJson,
     requestFormData,
     requestEmployeeDetail,
-} from '../resources/js/employees/api';
+} from '../../../frontend/resources/js/employees/api';
 
 describe('employeesListUrl', () => {
     test('builds URL with default pagination', () => {

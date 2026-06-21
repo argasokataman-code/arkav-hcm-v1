@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Employee\Concerns;
 use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\EmployeeProfile;
+use App\Models\User;
 use App\Services\Media\Exceptions\InvalidMediaException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

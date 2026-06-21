@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\RegisterSuccessMailable;
 use App\Models\AuditLog;
 use App\Models\AuthToken;
 use App\Models\Company;
@@ -16,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -43,6 +45,7 @@ class AuthController extends Controller
         ]);
 
         $this->attachUserToDefaultCompany($user);
+        $this->sendRegisterSuccessEmail($user);
         $legacyUserId = $this->resolveLegacyUserId($user);
 
         return response()->json([
@@ -109,19 +112,23 @@ class AuthController extends Controller
 
         RateLimiter::clear($throttleKey);
 
-        AuditLog::query()->create([
-            'super_admin_id' => $user->id,
-            'action' => 'login',
-            'target_type' => 'auth',
-            'target_id' => $user->id,
-            'details' => [
-                'method' => 'api',
-                'company_code' => $request->input('companyCode'),
-                'is_super_admin' => $user->isGlobalHcmAdmin(),
-            ],
-            'ip_address' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 255),
-        ]);
+        try {
+            AuditLog::query()->create([
+                'super_admin_id' => $user->id,
+                'action' => 'login',
+                'target_type' => 'auth',
+                'target_id' => $user->id,
+                'details' => [
+                    'method' => 'api',
+                    'company_code' => $request->input('companyCode'),
+                    'is_super_admin' => $user->isGlobalHcmAdmin(),
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 255),
+            ]);
+        } catch (\Throwable) {
+            \Log::warning('Login audit log failed', ['user_id' => $user->id]);
+        }
 
         $plainToken = Str::random(64);
         $rememberMe = (bool) $request->boolean('rememberMe', false);
@@ -1294,5 +1301,22 @@ class AuthController extends Controller
             ->where('status', 'active')
             ->whereIn('role', ['owner', 'admin'])
             ->exists();
+    }
+
+    private function sendRegisterSuccessEmail(User $user): void
+    {
+        if (! filter_var((string) $user->email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        try {
+            Mail::to((string) $user->email)->send(new RegisterSuccessMailable($user));
+        } catch (\Throwable $e) {
+            \Log::warning('Failed to send register success email.', [
+                'user_id' => $user->id,
+                'email' => (string) $user->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

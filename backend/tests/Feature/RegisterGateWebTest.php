@@ -65,14 +65,16 @@ class RegisterGateWebTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->get('/landing')
-            ->assertOk()
-            ->assertSee('Pilih paket yang paling pas untuk pertumbuhan tim Anda')
-            ->assertSee('Pilih plan')
-            // Landing Blade fallback still points at /trial?packageId=... which
-            // itself now redirects to the unified /landing?openOnboarding=1 flow.
-            ->assertSee('/trial?packageId='.$package->uuid, false)
-            ->assertSee('Daftarkan company');
+        $response = $this->get('/landing');
+        $response->assertOk();
+
+        // Landing is now SPA — check static shell content
+        $response
+            ->assertSee('Arkav - Human Capital Management — Platform HR Digital Terintegrasi')
+            ->assertSee('<div id="root"></div>', false)
+            ->assertSee('landing-app-data')
+            ->assertSee('"code":"starter"', false)
+            ->assertSee('"name":"Starter"', false);
     }
 
     public function test_landing_pricing_hides_internal_global_admin_packages(): void
@@ -92,10 +94,13 @@ class RegisterGateWebTest extends TestCase
             'is_global_admin_only' => true,
         ]);
 
-        $this->get('/landing')
-            ->assertOk()
-            ->assertSee('Starter Visible')
-            ->assertDontSee('Unlimited (Global Admin)')
-            ->assertDontSee('Paket internal khusus global super admin. Tidak ditampilkan ke katalog publik.');
+        $response = $this->get('/landing');
+        $response->assertOk();
+        // Landing is now SPA — check package data in JSON bootstrap
+        $response
+            ->assertSee('"name":"Starter Visible"', false)
+            ->assertSee('"code":"starter-visible"', false)
+            ->assertDontSee('"name":"Unlimited (Global Admin)"', false)
+            ->assertDontSee('"code":"unlimited-internal"', false);
     }
 }

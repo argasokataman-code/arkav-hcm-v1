@@ -1,6 +1,15 @@
 <?php $page = 'company-overview'; ?>
 @extends('layout.mainlayout')
 @section('content')
+@php
+    $authUser = request()->user() ?: auth()->user();
+    $activeCompany = request()->attributes->get('activeCompany');
+    $activeCompanySubscription = $activeCompany instanceof \App\Models\Company
+        ? $activeCompany->activeSubscription()
+        : null;
+    $hasSptMasa = (bool) ($activeCompanySubscription?->package?->hasFeature('spt_masa_pph21') ?? false);
+    $hasTaxGovernance = (bool) ($activeCompanySubscription?->package?->hasFeature('tax_governance') ?? false);
+@endphp
 
 <style>
     .company-profile-completion-card {
@@ -221,6 +230,7 @@
                 </div>
                 <!-- /Stats Row -->
 
+                @if($hasSptMasa)
                 <!-- SPT Masa Section -->
                 <div class="card">
                     <div class="card-header d-flex align-items-center justify-content-between">
@@ -261,7 +271,9 @@
                     </div>
                 </div>
                 <!-- /SPT Masa Section -->
+                @endif
 
+                @if($hasTaxGovernance)
                 <!-- Tax Governance Section -->
                 <div class="card mt-3">
                     <div class="card-header d-flex align-items-center justify-content-between">
@@ -301,6 +313,7 @@
                     </div>
                 </div>
                 <!-- /Tax Governance Section -->
+                @endif
 
             </div>
             <!-- /Right Column -->

@@ -36,18 +36,22 @@ class CustomAuthController extends Controller
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
 
-            AuditLog::query()->create([
-                'super_admin_id' => $user->id,
-                'action' => 'login',
-                'target_type' => 'auth',
-                'target_id' => $user->id,
-                'details' => [
-                    'method' => 'web_session',
-                    'is_super_admin' => $user->isGlobalHcmAdmin(),
-                ],
-                'ip_address' => $request->ip(),
-                'user_agent' => substr((string) $request->userAgent(), 0, 255),
-            ]);
+            try {
+                AuditLog::query()->create([
+                    'super_admin_id' => $user->id,
+                    'action' => 'login',
+                    'target_type' => 'auth',
+                    'target_id' => $user->id,
+                    'details' => [
+                        'method' => 'web_session',
+                        'is_super_admin' => $user->isGlobalHcmAdmin(),
+                    ],
+                    'ip_address' => $request->ip(),
+                    'user_agent' => substr((string) $request->userAgent(), 0, 255),
+                ]);
+            } catch (\Throwable) {
+                \Log::warning('Login audit log failed', ['user_id' => $user->id]);
+            }
 
             // Create API token so browser JS (e.g. /v1/identity/auth/me) works after web login.
             // Do NOT revoke previous tokens — let them expire naturally.

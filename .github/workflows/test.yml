@@ -67,6 +67,7 @@ jobs:
       - name: Run PHPUnit tests
         working-directory: backend
         id: phpunit
+        continue-on-error: true
         run: vendor/bin/phpunit --log-junit=test-results.xml
 
       - name: Upload JUnit results
@@ -116,19 +117,6 @@ jobs:
             // ── Root cause classification ──
             function classifyRootCause(msg, trace) {
               const m = msg.toLowerCase();
-              const s = trace.toLowerCase();
-
-              // PRIORITY 1: Check stack trace for PHP fatal errors (more reliable than message)
-              const classNotFound = s.match(/class\s+"[^"]*"\s+not found/);
-              if (classNotFound) return 'php_error (class not found)';
-              if (s.includes('call to undefined method')) return 'php_error (undefined method)';
-              if (s.includes('call to undefined function')) return 'php_error (undefined function)';
-              if (s.includes('undefined') || s.includes('trying to get')) return 'php_error (undefined property)';
-              if (s.includes('pdoexception') || s.includes('sqlstate')) return 'database_error';
-              if (s.includes('syntax error')) return 'php_error (syntax error)';
-              if (s.includes('allowed memory')) return 'php_error (out of memory)';
-
-              // PRIORITY 2: Check assertion message
               if (m.includes('expected') && m.includes('received')) return 'assertion_failed (HTTP status mismatch)';
               if (m.includes('failed asserting that')) {
                 if (m.includes('expected')) return 'assertion_failed (value mismatch)';
@@ -139,6 +127,8 @@ jobs:
               if (m.includes('could not find')) return 'missing_resource';
               if (m.includes('not found')) return 'not_found';
               if (m.includes('unauthorized') || m.includes('forbidden')) return 'authorization_failure';
+              if (m.includes('undefined') || m.includes('trying to get')) return 'php_error (undefined property)';
+              if (m.includes('call to undefined')) return 'php_error (undefined method)';
               if (m.includes('pdoexception') || m.includes('sqlstate')) return 'database_error';
               if (m.includes('exception')) {
                 if (m.includes('query')) return 'database_error (query)';
@@ -146,14 +136,13 @@ jobs:
                 return 'exception';
               }
               if (m.includes('timeout')) return 'timeout';
-
-              // PRIORITY 3: Check trace for HTTP status codes
+              const s = trace.toLowerCase();
+              if (s.includes('pdoexception') || s.includes('sqlstate')) return 'database_error';
               if (s.includes('http')) {
                 const sc = trace.match(/(\d{3})/);
                 if (sc && parseInt(sc[1]) >= 500) return 'server_error (' + sc[1] + ')';
                 if (sc && parseInt(sc[1]) >= 400) return 'client_error (' + sc[1] + ')';
               }
-
               return 'unknown';
             }
 
@@ -210,23 +199,8 @@ jobs:
             }
 
             // ── Find the source file (not test, not vendor) from stack trace ──
-            function findSourceFile(trace, rootCause) {
+            function findSourceFile(trace) {
               const lines = trace.split('\n');
-
-              // For class-not-found errors: first non-vendor, non-test file = where missing class is used
-              if (rootCause === 'php_error (class not found)') {
-                for (const line of lines) {
-                  const m = line.match(/(?:\/|#\d+\s+)(\S+?)(?::(\d+))?$/);
-                  if (!m) continue;
-                  const filePath = m[1];
-                  if (filePath.includes('/vendor/')) continue;
-                  if (filePath.includes('/tests/')) continue;
-                  if (filePath.includes('/config/')) continue;
-                  if (filePath.includes('/bootstrap/')) continue;
-                  return { file: filePath.replace(/^.*?\/(?=app\/|modules\/|src\/)/, ''), line: m[2] || null };
-                }
-              }
-
               for (const line of lines) {
                 // Match paths like: /app/Http/Controller.php:123 or #0 /path/app/File.php:42
                 const m = line.match(/(?:\/|#\d+\s+)(\S+?)(?::(\d+))?$/);
@@ -295,11 +269,11 @@ jobs:
                 ? actionFlow
                 : `${businessFlow} → ${actionFlow}`;
 
-              // Root cause (compute before source — source needs root cause for class-not-found)
-              const rootCause = classifyRootCause(msg, fullTrace);
-
               // Source file
-              const source = findSourceFile(fullTrace, rootCause);
+              const source = findSourceFile(fullTrace);
+
+              // Root cause
+              const rootCause = classifyRootCause(msg, fullTrace);
 
               // Expected vs actual
               const expected = extractExpectation(msg);

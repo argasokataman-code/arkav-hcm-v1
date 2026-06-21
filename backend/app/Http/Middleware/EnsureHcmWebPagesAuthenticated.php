@@ -191,7 +191,7 @@ class EnsureHcmWebPagesAuthenticated
         $latestSubscription = Subscription::query()
             ->where('company_id', $company->id)
             ->latest('id')
-            ->first(['id', 'company_id', 'status', 'suspension_reason']);
+            ->first(['id', 'company_id', 'status', 'ends_at', 'suspension_reason']);
 
         if ($latestSubscription && (string) $latestSubscription->status === 'suspended') {
             $latestSubscription->forceFill([
@@ -202,7 +202,14 @@ class EnsureHcmWebPagesAuthenticated
             $latestSubscription->refresh();
         }
 
-        if (! in_array(($latestSubscription?->status ?? null), ['pending_payment', 'inactive'], true)) {
+        // Auto-expire if ends_at is in the past
+        if ($latestSubscription && $latestSubscription->ends_at?->isPast()) {
+            $latestSubscription->forceFill(['status' => 'expired'])->save();
+            $this->companyStatusSynchronizer->syncFromSubscription($latestSubscription->fresh('company'));
+            $latestSubscription->refresh();
+        }
+
+        if (! in_array(($latestSubscription?->status ?? null), ['pending_payment', 'expired', 'inactive'], true)) {
             return null;
         }
 

@@ -32,11 +32,10 @@ class InvoiceMailable extends Mailable
     {
         return new Content(
             markdown: 'emails.invoice',
+            text: 'emails.invoice-text',
             with: [
                 'invoice' => $this->invoice,
                 'company' => $this->invoice->company,
-                'amountDue' => $this->invoice->amount_due,
-                'dueDate' => $this->invoice->due_date,
                 'issuerName' => WebsiteSettings::businessCompanyName(),
             ],
         );

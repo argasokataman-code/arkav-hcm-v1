@@ -1,6 +1,8 @@
 name: API docs sync check
 
 on:
+  schedule:
+    - cron: "0 */3 * * *"
   pull_request:
     branches: ["**"]
 

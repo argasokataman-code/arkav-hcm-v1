@@ -1,6 +1,8 @@
 name: Security Gates
 
 on:
+  schedule:
+    - cron: "0 */3 * * *"
   pull_request:
     branches:
       - main

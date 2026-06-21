@@ -1,5 +1,4 @@
 @include('components.modals.layout')
-@include('components.modals.super-admin')
 @include('components.modals.finance')
 @include('components.modals.leave')
 @include('components.modals.payroll')

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\AuthToken;
 use App\Models\Company;
 use App\Models\CompanySetting;
@@ -107,6 +108,20 @@ class AuthController extends Controller
         }
 
         RateLimiter::clear($throttleKey);
+
+        AuditLog::query()->create([
+            'super_admin_id' => $user->id,
+            'action' => 'login',
+            'target_type' => 'auth',
+            'target_id' => $user->id,
+            'details' => [
+                'method' => 'api',
+                'company_code' => $request->input('companyCode'),
+                'is_super_admin' => $user->isGlobalHcmAdmin(),
+            ],
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 255),
+        ]);
 
         $plainToken = Str::random(64);
         $rememberMe = (bool) $request->boolean('rememberMe', false);

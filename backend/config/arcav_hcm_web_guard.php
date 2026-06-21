@@ -33,6 +33,8 @@ return [
         'api-token',
         'api-docs',
         'api-docs/openapi.yaml',
+        'privacy-policy',
+        'terms-condition',
     ],
 
     'public_prefixes' => [

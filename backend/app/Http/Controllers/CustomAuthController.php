@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\AuthToken;
 use App\Models\User;
 use Hash;
@@ -34,6 +35,19 @@ class CustomAuthController extends Controller
         $credentials = $request->only('email', 'password');
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
+
+            AuditLog::query()->create([
+                'super_admin_id' => $user->id,
+                'action' => 'login',
+                'target_type' => 'auth',
+                'target_id' => $user->id,
+                'details' => [
+                    'method' => 'web_session',
+                    'is_super_admin' => $user->isGlobalHcmAdmin(),
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 255),
+            ]);
 
             // Create API token so browser JS (e.g. /v1/identity/auth/me) works after web login.
             // Do NOT revoke previous tokens — let them expire naturally.

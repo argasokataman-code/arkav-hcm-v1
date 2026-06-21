@@ -17,7 +17,7 @@ function seedLandingPackages() {
 }
 
 async function goToTrialPackageFromLanding(page) {
-    await page.goto("/landing", { waitUntil: "domcontentloaded" });
+    await page.goto("/landing?openOnboarding=1&package={{ uuid_of_starter_package }}&startMode=pending_payment", { waitUntil: "domcontentloaded" });
     await expect(page.locator("[data-packages-grid]")).toBeVisible();
 
     const trialCard = page.locator(".landing-card", { hasText: /Trial/ }).first();

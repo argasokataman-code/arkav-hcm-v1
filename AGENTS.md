@@ -362,3 +362,23 @@ Opsi local (jika mau):
 | `npm ci && npm run build` | ✅ Tetap (cek build) |
 
 > **Catatan:** Jika laptop kuat, bisa jalankan `bash scripts/local-test-gate.sh` untuk validasi penuh sebelum push.
+
+## 14. Database Query Tools
+
+Gunakan **MCP MySQL tools** (`mysql_connect_db`, `mysql_query`, `mysql_execute`) untuk query database, **bukan** `php artisan tinker` via bash.
+
+### Koneksi (lokal)
+```
+mysql_connect_db(url: "mysql://root:@127.0.0.1:3306/arcav_hcm")
+```
+
+### Contoh Query
+```
+mysql_query(sql: "SELECT code, name, monthly_price FROM packages WHERE status='active'")
+mysql_execute(sql: "UPDATE subscriptions SET status='active' WHERE id=1")
+```
+
+### Kenapa
+- Output rapi (JSON array), langsung bisa dibaca
+- Gak perlu `tinker` heredoc rentan error
+- Lebih cepet (langsung SQL, tanpa Lapisan ORM)

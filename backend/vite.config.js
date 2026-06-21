@@ -36,8 +36,9 @@ export default defineConfig({
             react: fileURLToPath(new URL('./node_modules/react', import.meta.url)),
             'react-dom': fileURLToPath(new URL('./node_modules/react-dom', import.meta.url)),
             'react-dom/client': fileURLToPath(new URL('./node_modules/react-dom/client.js', import.meta.url)),
-            'framer-motion': fileURLToPath(new URL('./node_modules/framer-motion', import.meta.url)),
-            '@phosphor-icons/react': fileURLToPath(new URL('./node_modules/@phosphor-icons/react', import.meta.url)),
+            // REMOVED: framer-motion & @phosphor-icons/react (old landing deprecated)
+            // 'framer-motion': fileURLToPath(new URL('./node_modules/framer-motion', import.meta.url)),
+            // '@phosphor-icons/react': fileURLToPath(new URL('./node_modules/@phosphor-icons/react', import.meta.url)),
         },
     },
     build: {
@@ -64,7 +65,7 @@ export default defineConfig({
             input: [
                 '../frontend/resources/css/style.css',
                 '../frontend/resources/js/script.js',
-                '../frontend/resources/js/public-landing-react.jsx',
+                // REMOVED: public-landing-react.jsx (migrated to standalone landing app)
                 '../frontend/resources/ts/thr-payroll-batch.ts',
                 '../frontend/resources/ts/payroll-run.ts',
             ],
@@ -99,19 +100,8 @@ export default defineConfig({
                     src: '../frontend/resources/plugins',
                     dest: ''
                 },
-                {
-                    src: 'node_modules/swiper/swiper-bundle.min.css',
-                    dest: 'vendor'
-                },
-                {
-                    src: 'node_modules/swiper/swiper-bundle.min.js',
-                    dest: 'vendor'
-                },
-                {
-                    src: 'node_modules/countup.js/dist/countUp.umd.js',
-                    dest: 'vendor'
-                },
-               
+                // REMOVED: Swiper & CountUp vendor copies (old landing deprecated)
+
             ]
         }),
     ],

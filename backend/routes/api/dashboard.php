@@ -11,11 +11,11 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/dashboard-summary', [HcmDashboardController::class, 'summary']);
     Route::get('/dashboard-summary/export', [HcmDashboardController::class, 'exportSummary']);
     Route::get('/employee-dashboard-summary', [HcmDashboardController::class, 'employeeSummary']);
-    Route::get('/super-admin/employees-monitor', [HcmDashboardController::class, 'globalEmployeeMonitor'])->middleware('throttle:60,1');
-    Route::get('/super-admin/package-compliance', [HcmDashboardController::class, 'packageComplianceMonitor'])->middleware('throttle:60,1');
+    Route::get('/super-admin/employees-monitor', [HcmDashboardController::class, 'globalEmployeeMonitor'])->middleware(['hcm.api.global-admin', 'throttle:60,1']);
+    Route::get('/super-admin/package-compliance', [HcmDashboardController::class, 'packageComplianceMonitor'])->middleware(['hcm.api.global-admin', 'throttle:60,1']);
     Route::get('/super-admin/package-compliance/{companyId}/employees', [HcmDashboardController::class, 'packageComplianceEmployees'])
         ->whereNumber('companyId')
-        ->middleware('throttle:60,1');
+        ->middleware(['hcm.api.global-admin', 'throttle:60,1']);
     Route::get('/search', [HcmGlobalSearchController::class, 'index'])->middleware('throttle:120,1');
 
     Route::get('/notifications', [HcmNotificationController::class, 'index']);

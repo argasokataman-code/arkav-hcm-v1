@@ -193,8 +193,8 @@ test.describe.serial("Landing to paid member flow", () => {
         const ownerName = "Nadia Pratama";
         let companyCode, invoiceId, invoiceNumber;
 
-        await test.step("1. Navigate to trial package from landing", async () => {
-            await goToTrialPackageFromLanding(page);
+        await test.step("1. Navigate to trial package from landing page", async () => {
+            await page.goto("/landing?openOnboarding=1", { waitUntil: "domcontentloaded" });
         });
 
         await test.step("2. Fill and submit onboarding form", async () => {

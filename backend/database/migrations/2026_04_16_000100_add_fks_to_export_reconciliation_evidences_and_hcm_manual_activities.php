@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         // Check if companies table exists before adding foreign keys
-        if (!Schema::hasTable('companies')) {
+        if (! Schema::hasTable('companies')) {
             return;
         }
 
@@ -57,7 +57,7 @@ return new class extends Migration
     public function down(): void
     {
         // Check if companies table exists before dropping foreign keys
-        if (!Schema::hasTable('companies')) {
+        if (! Schema::hasTable('companies')) {
             return;
         }
 
@@ -65,12 +65,12 @@ return new class extends Migration
             // Drop by convention-based names, but ignore errors if they don't exist
             try {
                 $table->dropForeign(['company_id']);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Foreign key might not exist
             }
             try {
                 $table->dropForeign(['exported_by_user_id']);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Foreign key might not exist
             }
         });
@@ -78,20 +78,19 @@ return new class extends Migration
         Schema::table('hcm_manual_activities', function (Blueprint $table): void {
             try {
                 $table->dropForeign(['company_id']);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Foreign key might not exist
             }
             try {
                 $table->dropForeign(['created_by_user_id']);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Foreign key might not exist
             }
             try {
                 $table->dropForeign(['updated_by_user_id']);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Foreign key might not exist
             }
         });
     }
 };
-

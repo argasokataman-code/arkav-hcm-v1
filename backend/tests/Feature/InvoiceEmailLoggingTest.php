@@ -234,4 +234,3 @@ class InvoiceEmailLoggingTest extends TestCase
         $this->assertSame('SMTP timeout', $response->json('data.emailLogs.1.errorMessage'));
     }
 }
-

@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Api\Leave\Concerns;
 
+use App\Http\Controllers\Api\HcmLeaveSettingController;
+use App\Models\AttendanceRecord;
 use App\Models\CompanyUser;
 use App\Models\EmployeeLeaveBalance;
 use App\Models\HcmLeaveTypeSetting;
-use Illuminate\Database\Eloquent\Builder;
 use App\Models\Holiday;
 use App\Models\HolidayCalendar;
 use App\Models\LeaveLedger;
@@ -14,30 +15,28 @@ use App\Models\LeavePolicyAssignment;
 use App\Models\LeaveRequest;
 use App\Models\LeaveRequestBreakdown;
 use App\Models\LeaveType;
-use App\Modelsser;
-use App\Models\AttendanceRecord;
-use App\Support\Exports\TabularExportResponse;
+use App\Notifications\LeaveApprovalRequestedNotification;
+use App\Notifications\LeaveApprovedNotification;
+use App\Notifications\LeaveCancelledNotification;
+use App\Notifications\LeaveNextApproverNotification;
+use App\Notifications\LeaveRejectedNotification;
+use App\Notifications\LeaveRequestedNotification;
+use App\Services\ApprovalConfigService;
 use App\Services\Hcm\LeaveLedgerService;
 use App\Services\Hcm\LeaveWorkingDayCalculator;
-use App\Notifications\LeaveRequestedNotification;
-use App\Notifications\LeaveApprovedNotification;
-use App\Notifications\LeaveRejectedNotification;
-use App\Notifications\LeaveCancelledNotification;
-use App\Notifications\LeaveApprovalRequestedNotification;
-use App\Notifications\LeaveNextApproverNotification;
-use App\Services\ApprovalConfigService;
+use App\Support\Exports\TabularExportResponse;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use \App\Http\Controllers\Api\Concerns\LogsHcmActivity;
 
 trait HandlesLeaveRequestCrud
 {
@@ -148,6 +147,7 @@ trait HandlesLeaveRequestCrud
         $leaveTypeLabelMap = $this->buildLeaveTypeLabelMap();
         $mapped = $paginator->getCollection()->map(function (LeaveRequest $r) use ($leaveTypeLabelMap) {
             $label = $this->resolveLeaveTypeLabel((string) $r->leave_type, $leaveTypeLabelMap);
+
             return [
                 'id' => $r->id,
                 'userId' => $r->user_id,
@@ -258,6 +258,7 @@ trait HandlesLeaveRequestCrud
             $resolvedUser = $this->resolveUserIdentifier((string) $validated['userId']);
             if (! $resolvedUser) {
                 $query->whereRaw('1 = 0');
+
                 return;
             }
 
@@ -426,8 +427,8 @@ trait HandlesLeaveRequestCrud
             : $request->user();
         $userId = $user->id;
 
-        $from = \Carbon\Carbon::parse($validated['dateFrom']);
-        $to = \Carbon\Carbon::parse($validated['dateTo']);
+        $from = Carbon::parse($validated['dateFrom']);
+        $to = Carbon::parse($validated['dateTo']);
 
         // Validate: Check for overlapping leave requests (pending or approved status)
         $companyId = $this->activeCompanyId($request);
@@ -487,7 +488,7 @@ trait HandlesLeaveRequestCrud
                         'success' => false,
                         'error' => [
                             'code' => 'LEAVE_INSUFFICIENT_BALANCE',
-                            'message' => 'Saldo cuti tidak mencukupi. Saldo tersedia: ' . number_format($availableBalance, 1) . ' hari, dibutuhkan: ' . number_format($days, 1) . ' hari.',
+                            'message' => 'Saldo cuti tidak mencukupi. Saldo tersedia: '.number_format($availableBalance, 1).' hari, dibutuhkan: '.number_format($days, 1).' hari.',
                         ],
                     ], 422);
                 }
@@ -497,7 +498,7 @@ trait HandlesLeaveRequestCrud
                     'success' => false,
                     'error' => [
                         'code' => 'LEAVE_INSUFFICIENT_BALANCE',
-                        'message' => 'Saldo cuti tidak mencukupi. Saldo tersedia: 0.0 hari, dibutuhkan: ' . number_format($days, 1) . ' hari.',
+                        'message' => 'Saldo cuti tidak mencukupi. Saldo tersedia: 0.0 hari, dibutuhkan: '.number_format($days, 1).' hari.',
                     ],
                 ], 422);
             }
@@ -744,7 +745,7 @@ trait HandlesLeaveRequestCrud
 
     private function composeDeclinedLeaveNotes(string $existingNotes, string $reason): string
     {
-        [$employeeNotes, ] = $this->splitDeclinedLeaveNotes($existingNotes);
+        [$employeeNotes] = $this->splitDeclinedLeaveNotes($existingNotes);
 
         $employeeNotes = trim($employeeNotes);
         $reason = trim($reason);
@@ -754,10 +755,10 @@ trait HandlesLeaveRequestCrud
 '.$reason;
         }
 
-        return $employeeNotes."
+        return $employeeNotes.'
 
 [Admin rejection reason]
-".$reason;
+'.$reason;
     }
 
     /**
@@ -765,10 +766,10 @@ trait HandlesLeaveRequestCrud
      */
     private function splitDeclinedLeaveNotes(string $notes): array
     {
-        $marker = "
+        $marker = '
 
 [Admin rejection reason]
-";
+';
         $pos = strrpos($notes, $marker);
         if ($pos !== false) {
             return [
@@ -1008,7 +1009,6 @@ trait HandlesLeaveRequestCrud
         return response()->json(['success' => true]);
     }
 
-
     private function resolveLeaveRequestRouteModel(?int $companyId, string $routeId): LeaveRequest
     {
         $query = $this->applyTenantScope(LeaveRequest::query(), $companyId)
@@ -1022,9 +1022,10 @@ trait HandlesLeaveRequestCrud
 
         return $query->firstOrFail();
     }
+
     /**
      * Enabled leave type labels for request forms (any authenticated user).
-     * Full settings remain admin-only at {@see \App\Http\Controllers\Api\HcmLeaveSettingController::index}.
+     * Full settings remain admin-only at {@see HcmLeaveSettingController::index}.
      */
     public function enabledLeaveTypes(): JsonResponse
     {
@@ -1082,7 +1083,7 @@ trait HandlesLeaveRequestCrud
 
         $userId = $targetUser?->id ?? 0;
 
-        if (!$companyId || !$userId || !$leaveType) {
+        if (! $companyId || ! $userId || ! $leaveType) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'MISSING_PARAMS', 'message' => 'leaveType and userId required.'],
@@ -1090,7 +1091,7 @@ trait HandlesLeaveRequestCrud
         }
 
         // Verify user can view balance (own balance or admin)
-        if ($userId !== $request->user()->id && !$this->canManageLeaveForCompany($request)) {
+        if ($userId !== $request->user()->id && ! $this->canManageLeaveForCompany($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot view other users balance.'],
@@ -1099,7 +1100,7 @@ trait HandlesLeaveRequestCrud
 
         // Resolve leave type
         $resolvedLeaveType = $this->resolveLeaveType($leaveType);
-        if (!$resolvedLeaveType) {
+        if (! $resolvedLeaveType) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'INVALID_LEAVE_TYPE', 'message' => 'Leave type not found.'],
@@ -1338,11 +1339,11 @@ trait HandlesLeaveRequestCrud
     private function markAttendanceOnLeave(LeaveRequest $leaveRequest, bool $isApproved): void
     {
         try {
-            if (!Schema::hasTable('attendance_records')) {
+            if (! Schema::hasTable('attendance_records')) {
                 return;
             }
 
-            if (!$leaveRequest->date_from || !$leaveRequest->date_to) {
+            if (! $leaveRequest->date_from || ! $leaveRequest->date_to) {
                 return;
             }
 
@@ -1353,7 +1354,7 @@ trait HandlesLeaveRequestCrud
 
             while ($current->lte($endDate)) {
                 // Check if it's a working day (not weekend)
-                if (!$current->isWeekend()) {
+                if (! $current->isWeekend()) {
                     $workingDays[] = $current->toDateString();
                 }
                 $current->addDay();

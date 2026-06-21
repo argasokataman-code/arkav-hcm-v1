@@ -4,11 +4,9 @@ namespace App\Http\Controllers\Api\UserManagement;
 
 use App\Http\Controllers\Controller;
 use App\Models\HcmRole;
-use App\Models\HcmPermission;
-use App\Models\HcmRolePermission;
 use App\Services\HcmRbacService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -30,13 +28,13 @@ class HcmRoleManagementController extends Controller
         $companyId = $this->getCompanyIdFromRequest($request);
 
         // Check permission
-        if (!$this->rbacService->userHasPermission($user, 'role.view', $companyId)) {
+        if (! $this->rbacService->userHasPermission($user, 'role.view', $companyId)) {
             return response()->json(['error' => 'Insufficient permissions'], 403);
         }
 
         $roles = HcmRole::with(['permissions', 'company'])
-            ->when($companyId, fn($q) => $q->where('company_id', $companyId))
-            ->when(!$companyId && $this->rbacService->isGlobalAdmin($user), fn($q) => $q->platform())
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->when(! $companyId && $this->rbacService->isGlobalAdmin($user), fn ($q) => $q->platform())
             ->get();
 
         return response()->json([
@@ -53,13 +51,13 @@ class HcmRoleManagementController extends Controller
         $user = $request->user();
 
         // Only super admin can create roles
-        if (!$this->rbacService->isGlobalAdmin($user)) {
+        if (! $this->rbacService->isGlobalAdmin($user)) {
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'SUPER_USER_REQUIRED',
-                    'message' => 'Only super administrators can create roles.'
-                ]
+                    'message' => 'Only super administrators can create roles.',
+                ],
             ], 403);
         }
 
@@ -84,7 +82,7 @@ class HcmRoleManagementController extends Controller
             ]);
 
             // Sync permissions if provided
-            if (!empty($validated['permission_codes'])) {
+            if (! empty($validated['permission_codes'])) {
                 $this->rbacService->syncRolePermissions(
                     $role,
                     $validated['permission_codes'],
@@ -107,13 +105,13 @@ class HcmRoleManagementController extends Controller
         $user = $request->user();
 
         // Only super admin can modify role permissions
-        if (!$this->rbacService->isGlobalAdmin($user)) {
+        if (! $this->rbacService->isGlobalAdmin($user)) {
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'SUPER_USER_REQUIRED',
-                    'message' => 'Only super administrators can modify role permissions.'
-                ]
+                    'message' => 'Only super administrators can modify role permissions.',
+                ],
             ], 403);
         }
 
@@ -145,13 +143,13 @@ class HcmRoleManagementController extends Controller
         $user = $request->user();
 
         // Only super admin can delete roles
-        if (!$this->rbacService->isGlobalAdmin($user)) {
+        if (! $this->rbacService->isGlobalAdmin($user)) {
             return response()->json([
                 'success' => false,
                 'error' => [
                     'code' => 'SUPER_USER_REQUIRED',
-                    'message' => 'Only super administrators can delete roles.'
-                ]
+                    'message' => 'Only super administrators can delete roles.',
+                ],
             ], 403);
         }
 
@@ -159,7 +157,7 @@ class HcmRoleManagementController extends Controller
         if ($role->is_system) {
             return response()->json([
                 'success' => false,
-                'error' => ['message' => 'System roles cannot be deleted']
+                'error' => ['message' => 'System roles cannot be deleted'],
             ], 422);
         }
 

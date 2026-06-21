@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\Saas;
 
 use App\Http\Controllers\Controller;
-use App\Models\Payment;
 use App\Models\Invoice;
+use App\Models\Payment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use League\Csv\Reader;
@@ -18,7 +18,7 @@ class BulkPaymentImportController extends Controller
     public function upload(Request $request): JsonResponse
     {
         // Validate admin access
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => [
@@ -67,7 +67,7 @@ class BulkPaymentImportController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to process file: ' . $e->getMessage(),
+                'error' => 'Failed to process file: '.$e->getMessage(),
             ], 422);
         }
     }
@@ -89,7 +89,7 @@ class BulkPaymentImportController extends Controller
             $invoiceId = $row['invoice_id'];
             $invoice = Invoice::find($invoiceId);
 
-            if (!$invoice) {
+            if (! $invoice) {
                 return ['success' => false, 'error' => "Invoice $invoiceId not found"];
             }
 
@@ -140,6 +140,7 @@ class BulkPaymentImportController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
+
         return $user && $user->isGlobalHcmAdmin();
     }
 }

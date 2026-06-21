@@ -22,6 +22,7 @@ class SptMasaGenerationService
     public static function parsePeriode(string $periode): array
     {
         $parts = explode('-', $periode);
+
         return [(int) ($parts[0] ?? 0), (int) ($parts[1] ?? 0)];
     }
 

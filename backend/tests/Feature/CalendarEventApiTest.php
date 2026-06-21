@@ -24,7 +24,7 @@ class CalendarEventApiTest extends TestCase
     private function headers(string $token, int $companyId): array
     {
         return [
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $companyId,
         ];
     }
@@ -52,7 +52,7 @@ class CalendarEventApiTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonCount(1, 'data');
 
-        $this->putJson('/v1/hcm/calendar/events/' . $created['id'], [
+        $this->putJson('/v1/hcm/calendar/events/'.$created['id'], [
             'title' => 'Team Sync Updated',
             'location' => 'Meeting Room B',
         ], $headers)
@@ -61,7 +61,7 @@ class CalendarEventApiTest extends TestCase
             ->assertJsonPath('data.title', 'Team Sync Updated')
             ->assertJsonPath('data.location', 'Meeting Room B');
 
-        $this->deleteJson('/v1/hcm/calendar/events/' . $created['id'], [], $headers)
+        $this->deleteJson('/v1/hcm/calendar/events/'.$created['id'], [], $headers)
             ->assertOk()
             ->assertJsonPath('success', true);
 
@@ -82,13 +82,13 @@ class CalendarEventApiTest extends TestCase
             ->assertStatus(201)
             ->json('data');
 
-        $result2 = $this->createHcmAdminWithCompany(['email' => 'calendar-user2-' . time() . '@example.com']);
+        $result2 = $this->createHcmAdminWithCompany(['email' => 'calendar-user2-'.time().'@example.com']);
         $headers2 = $this->headers($result2['token'], $result2['company_id']);
 
-        $this->putJson('/v1/hcm/calendar/events/' . $created['id'], ['title' => 'Hijacked'], $headers2)
+        $this->putJson('/v1/hcm/calendar/events/'.$created['id'], ['title' => 'Hijacked'], $headers2)
             ->assertNotFound();
 
-        $this->deleteJson('/v1/hcm/calendar/events/' . $created['id'], [], $headers2)
+        $this->deleteJson('/v1/hcm/calendar/events/'.$created['id'], [], $headers2)
             ->assertNotFound();
     }
 }

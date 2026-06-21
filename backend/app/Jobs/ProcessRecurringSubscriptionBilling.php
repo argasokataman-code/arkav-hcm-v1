@@ -17,19 +17,22 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ProcessRecurringSubscriptionBilling implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     private const RETRY_SCHEDULE_HOURS = [1, 24, 72];
+
     private const FAILURE_SPIKE_THRESHOLD = 3;
 
     /**
      * Execute the job.
-     * 
+     *
      * This job runs daily to:
      * 1. Check subscriptions expiring in 7 days and send reminders
      * 2. Create renewal invoices for subscriptions ending today
@@ -78,7 +81,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
         foreach ($subscriptions as $subscription) {
             try {
                 // Send notification to company billing contact
-                $notificationService = new NotificationService();
+                $notificationService = new NotificationService;
                 $notificationService->notifySubscriptionExpiringIn7Days($subscription);
 
                 Log::info('Sent expiration reminder', [
@@ -228,6 +231,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                     'company_id' => $company->id,
                     'renewal_period_key' => $renewalPeriodKey,
                 ]);
+
                 return;
             }
 
@@ -268,11 +272,12 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 $this->updateRenewalReason($invoice, 'ZERO_AMOUNT_AUTO_SETTLED', 'Renewal auto-settled because invoice amount is zero.');
                 $this->recordSubscriptionEvent($lockedSubscription, $invoice, null, 'renewal_paid', 'ZERO_AMOUNT_AUTO_SETTLED', 'Renewal auto-settled because invoice amount is zero.');
                 $this->extendSubscriptionPeriod($lockedSubscription);
+
                 return;
             }
 
             // Send invoice to company
-            $notificationService = new NotificationService();
+            $notificationService = new NotificationService;
             $notificationService->notifyInvoiceIssued($invoice);
         });
     }
@@ -301,6 +306,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 Log::warning('Skipping payment collection because subscription is missing', [
                     'invoice_id' => $lockedInvoice->id,
                 ]);
+
                 return;
             }
 
@@ -334,7 +340,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
 
             $attemptCount = (int) (($payment->metadata['attempt_count'] ?? 0));
             $nextAttemptAt = isset($payment->metadata['next_attempt_at'])
-                ? \Illuminate\Support\Carbon::parse((string) $payment->metadata['next_attempt_at'])
+                ? Carbon::parse((string) $payment->metadata['next_attempt_at'])
                 : null;
 
             if ($nextAttemptAt && $nextAttemptAt->isFuture()) {
@@ -342,6 +348,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                     'invoice_id' => $lockedInvoice->id,
                     'next_attempt_at' => $nextAttemptAt->toIso8601String(),
                 ]);
+
                 return;
             }
 
@@ -368,17 +375,18 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 ]);
 
                 // Send payment failure notification
-                $notificationService = new NotificationService();
+                $notificationService = new NotificationService;
                 $notificationService->notifyPaymentFailed($lockedInvoice);
+
                 return;
             }
 
             try {
                 // Attempt payment based on gateway
                 $result = match ($gateway) {
-                    'stripe'   => $this->chargeViaStripe($lockedInvoice, $subscription, $payment),
+                    'stripe' => $this->chargeViaStripe($lockedInvoice, $subscription, $payment),
                     'midtrans' => $this->chargeViaMidtrans($lockedInvoice, $subscription, $payment),
-                    default    => throw new \RuntimeException("Unsupported gateway: $gateway"),
+                    default => throw new \RuntimeException("Unsupported gateway: $gateway"),
                 };
 
                 $resultState = $result['state'] ?? 'failed';
@@ -406,7 +414,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                     ]);
 
                     // Send payment receipt
-                    $notificationService = new NotificationService();
+                    $notificationService = new NotificationService;
                     $notificationService->notifyPaymentReceived($payment->fresh(), $lockedInvoice->fresh());
                 } elseif ($resultState === 'pending') {
                     $nextAttempt = $this->resolveNextAttemptAt($attemptCount + 1)->toIso8601String();
@@ -509,7 +517,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
         ])->save();
     }
 
-    private function resolveNextAttemptAt(int $attemptNumber): \Illuminate\Support\Carbon
+    private function resolveNextAttemptAt(int $attemptNumber): Carbon
     {
         $index = max(1, min($attemptNumber, count(self::RETRY_SCHEDULE_HOURS))) - 1;
         $hours = self::RETRY_SCHEDULE_HOURS[$index];
@@ -543,7 +551,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
             ['grace_ends_at' => $graceEndsAt->toIso8601String()]
         );
 
-        $notificationService = new NotificationService();
+        $notificationService = new NotificationService;
         $notificationService->notifyGracePeriodStarted($subscription->fresh(['company']), $invoice->fresh(['company']));
     }
 
@@ -565,7 +573,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                         continue;
                     }
 
-                    $notificationService = new NotificationService();
+                    $notificationService = new NotificationService;
                     $notificationService->notifySuspensionWarning($subscription);
 
                     $subscription->forceFill([
@@ -605,7 +613,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                         'Subscription inactivated because grace period expired without successful renewal.'
                     );
 
-                    $notificationService = new NotificationService();
+                    $notificationService = new NotificationService;
                     $notificationService->notifySubscriptionSuspended($subscription->fresh(['company']));
                 }
             });
@@ -652,9 +660,10 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                     'invoice_id' => $invoice->id,
                     'subscription_id' => $subscription->id,
                 ]);
+
                 return ['state' => 'failed'];
             }
-            
+
             // Use stored payment method or create one-time payment intent
             $result = $stripeService->createPaymentIntent([
                 'customer_id' => $customerId,
@@ -689,6 +698,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage(),
             ]);
+
             return ['state' => 'failed'];
         }
     }
@@ -708,21 +718,22 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
     {
         try {
             $midtransService = app(MidtransService::class);
-            $metadata        = is_array($payment->metadata) ? $payment->metadata : [];
+            $metadata = is_array($payment->metadata) ? $payment->metadata : [];
 
             $company = $invoice->company;
             if (! $company) {
                 Log::warning('Midtrans payment skipped: company missing', ['invoice_id' => $invoice->id]);
+
                 return ['state' => 'failed'];
             }
 
             // Re-use existing Midtrans order if pending (avoid duplicate Snap tokens)
             $existingOrderId = isset($metadata['midtrans_order_id']) ? (string) $metadata['midtrans_order_id'] : '';
             if ($existingOrderId !== '') {
-                $existing       = $midtransService->getTransaction($existingOrderId);
+                $existing = $midtransService->getTransaction($existingOrderId);
                 $existingStatus = strtolower((string) ($existing['transaction_status'] ?? ''));
-                $existingFraud  = strtolower((string) ($existing['fraud_status'] ?? ''));
-                $existingState  = $midtransService->resolvePaymentState($existingStatus, $existingFraud);
+                $existingFraud = strtolower((string) ($existing['fraud_status'] ?? ''));
+                $existingState = $midtransService->resolvePaymentState($existingStatus, $existingFraud);
 
                 if ($existingState === 'paid') {
                     return ['state' => 'paid'];
@@ -731,36 +742,37 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 if ($existingState === 'pending') {
                     Log::info('Midtrans renewal order still pending', [
                         'invoice_id' => $invoice->id,
-                        'order_id'   => $existingOrderId,
-                        'status'     => $existingStatus,
+                        'order_id' => $existingOrderId,
+                        'status' => $existingStatus,
                     ]);
+
                     return ['state' => 'pending'];
                 }
             }
 
-            $orderId = sprintf('renewal-inv-%d-%s', $invoice->id, \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(8)));
-            $result  = $midtransService->createTransaction([
-                'order_id'    => $orderId,
-                'amount'      => (int) round((float) $invoice->amount_due),
-                'description' => 'Recurring renewal invoice ' . $invoice->invoice_number,
-                'customer'    => [
-                    'name'  => (string) ($company->name ?? 'Customer'),
+            $orderId = sprintf('renewal-inv-%d-%s', $invoice->id, Str::lower(Str::random(8)));
+            $result = $midtransService->createTransaction([
+                'order_id' => $orderId,
+                'amount' => (int) round((float) $invoice->amount_due),
+                'description' => 'Recurring renewal invoice '.$invoice->invoice_number,
+                'customer' => [
+                    'name' => (string) ($company->name ?? 'Customer'),
                     'email' => (string) ($company->email ?? ''),
                 ],
             ]);
 
             $payment->update([
                 'gateway_reference' => $orderId,
-                'metadata'          => array_merge($metadata, [
-                    'midtrans_order_id'     => $orderId,
+                'metadata' => array_merge($metadata, [
+                    'midtrans_order_id' => $orderId,
                     'midtrans_redirect_url' => $result['redirect_url'],
-                    'midtrans_snap_token'   => $result['token'],
+                    'midtrans_snap_token' => $result['token'],
                 ]),
             ]);
 
             Log::info('Midtrans renewal Snap transaction created', [
-                'invoice_id'   => $invoice->id,
-                'order_id'     => $orderId,
+                'invoice_id' => $invoice->id,
+                'order_id' => $orderId,
                 'redirect_url' => $result['redirect_url'],
             ]);
 
@@ -768,11 +780,12 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
         } catch (\Exception $e) {
             Log::error('Midtrans payment attempt failed', [
                 'invoice_id' => $invoice->id,
-                'error'      => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return [
-                'state'          => 'failed',
-                'reason_code'    => 'MIDTRANS_DOWN',
+                'state' => 'failed',
+                'reason_code' => 'MIDTRANS_DOWN',
                 'reason_message' => 'Midtrans gateway unavailable, next retry has been scheduled.',
             ];
         }
@@ -803,7 +816,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
         ], $context));
 
         if (in_array($alertType, ['gateway_down', 'worker_crash'], true)) {
-            (new NotificationService())->notifyAdminOperationalAlert(
+            (new NotificationService)->notifyAdminOperationalAlert(
                 $alertType,
                 $reasonCode,
                 $message,
@@ -848,10 +861,10 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
             'trigger_reason_code' => $reasonCode,
         ]);
 
-        (new NotificationService())->notifyAdminOperationalAlert(
+        (new NotificationService)->notifyAdminOperationalAlert(
             'failure_spike',
             'RENEWAL_FAILURE_SPIKE',
-            "Renewal failure spike: {$count} failures in the last 24 hours (threshold: " . self::FAILURE_SPIKE_THRESHOLD . ").",
+            "Renewal failure spike: {$count} failures in the last 24 hours (threshold: ".self::FAILURE_SPIKE_THRESHOLD.').',
             [
                 'window' => '24h',
                 'count' => $count,
@@ -927,7 +940,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 continue;
             }
 
-            $componentKey = \Illuminate\Support\Str::snake((string) $key);
+            $componentKey = Str::snake((string) $key);
             if ($componentKey === '') {
                 continue;
             }
@@ -956,7 +969,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
         $components = [];
         foreach ($resolvedRates as $componentKey => $rate) {
             $amount = round($baseAmount * ($rate / 100), 2);
-            $label = $customLabels[$componentKey] ?? $defaultLabels[$componentKey] ?? \Illuminate\Support\Str::title(str_replace('_', ' ', $componentKey));
+            $label = $customLabels[$componentKey] ?? $defaultLabels[$componentKey] ?? Str::title(str_replace('_', ' ', $componentKey));
 
             $components[] = [
                 'key' => $componentKey,
@@ -1023,6 +1036,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
         ];
 
         $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE);
+
         return is_string($encoded) ? $encoded : $fallbackMessage;
     }
 
@@ -1051,6 +1065,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
         }
 
         $value = (string) ($subscription->metadata['stripe_customer_id'] ?? '');
+
         return $value !== '' ? $value : null;
     }
 

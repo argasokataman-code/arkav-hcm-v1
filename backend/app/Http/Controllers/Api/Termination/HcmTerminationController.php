@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api\Termination;
 
+use App\DataClasses\WorkflowAuditEvent;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
-use App\DataClasses\WorkflowAuditEvent;
 use App\Models\Asset;
 use App\Models\AssetAssignment;
 use App\Models\CompanyUser;
@@ -15,12 +15,12 @@ use App\Models\HcmPayrollRun;
 use App\Models\HcmTermination;
 use App\Models\HcmTerminationChecklistItem;
 use App\Models\User;
+use App\Notifications\TerminationApprovalRequestedNotification;
+use App\Services\ApprovalConfigService;
 use App\Services\AssetService;
 use App\Services\Hcm\PkwtCompensationService;
 use App\Services\Hcm\TerminationSettlementCalculationService;
 use App\Services\Hcm\TerminationWorkflowValidator;
-use App\Notifications\TerminationApprovalRequestedNotification;
-use App\Services\ApprovalConfigService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +32,7 @@ class HcmTerminationController extends Controller
     use ChecksPermissions;
 
     private const STATUSES = ['pending', 'approved', 'finalized', 'cancelled'];
+
     private const POLICY_FORMULA_VERSION = '2026.04.id.v1';
 
     public function __construct(
@@ -73,21 +74,21 @@ class HcmTerminationController extends Controller
         }
 
         $v = $request->validate([
-            'label'               => ['required', 'string', 'max:255'],
-            'description'         => ['nullable', 'string', 'max:2000'],
-            'ownerName'           => ['nullable', 'string', 'max:100'],
-            'dueDate'             => ['nullable', 'date'],
-            'mandatory'           => ['boolean'],
+            'label' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'ownerName' => ['nullable', 'string', 'max:100'],
+            'dueDate' => ['nullable', 'date'],
+            'mandatory' => ['boolean'],
         ]);
 
         $item = HcmTerminationChecklistItem::query()->create([
-            'termination_id'    => $termination->id,
-            'label'             => trim($v['label']),
-            'description'       => $this->cleanNullableString($v['description'] ?? null),
-            'owner_name'        => $this->cleanNullableString($v['ownerName'] ?? null),
-            'due_date'          => $v['dueDate'] ?? null,
-            'mandatory'         => (bool) ($v['mandatory'] ?? false),
-            'status'            => 'open',
+            'termination_id' => $termination->id,
+            'label' => trim($v['label']),
+            'description' => $this->cleanNullableString($v['description'] ?? null),
+            'owner_name' => $this->cleanNullableString($v['ownerName'] ?? null),
+            'due_date' => $v['dueDate'] ?? null,
+            'mandatory' => (bool) ($v['mandatory'] ?? false),
+            'status' => 'open',
         ]);
 
         return response()->json(['success' => true, 'data' => $this->checklistItemPayload($item)], 201);
@@ -119,7 +120,7 @@ class HcmTerminationController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $items->map(fn (HcmTerminationChecklistItem $item) => $this->checklistItemPayload($item))->values(),
+            'data' => $items->map(fn (HcmTerminationChecklistItem $item) => $this->checklistItemPayload($item))->values(),
         ]);
     }
 
@@ -147,21 +148,33 @@ class HcmTerminationController extends Controller
             ->findOrFail($itemId);
 
         $v = $request->validate([
-            'label'       => ['sometimes', 'required', 'string', 'max:255'],
+            'label' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            'ownerName'   => ['sometimes', 'nullable', 'string', 'max:100'],
-            'dueDate'     => ['sometimes', 'required', 'date'],
-            'mandatory'   => ['sometimes', 'boolean'],
-            'status'      => ['sometimes', 'string', 'in:'.implode(',', HcmTerminationChecklistItem::STATUSES)],
+            'ownerName' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'dueDate' => ['sometimes', 'required', 'date'],
+            'mandatory' => ['sometimes', 'boolean'],
+            'status' => ['sometimes', 'string', 'in:'.implode(',', HcmTerminationChecklistItem::STATUSES)],
         ]);
 
         $updateData = [];
-        if (array_key_exists('label', $v))       { $updateData['label']       = trim($v['label']); }
-        if (array_key_exists('description', $v)) { $updateData['description'] = $this->cleanNullableString($v['description']); }
-        if (array_key_exists('ownerName', $v))   { $updateData['owner_name']  = $this->cleanNullableString($v['ownerName']); }
-        if (array_key_exists('dueDate', $v))     { $updateData['due_date']    = $v['dueDate']; }
-        if (array_key_exists('mandatory', $v))   { $updateData['mandatory']   = (bool) $v['mandatory']; }
-        if (array_key_exists('status', $v))      { $updateData['status']      = $v['status']; }
+        if (array_key_exists('label', $v)) {
+            $updateData['label'] = trim($v['label']);
+        }
+        if (array_key_exists('description', $v)) {
+            $updateData['description'] = $this->cleanNullableString($v['description']);
+        }
+        if (array_key_exists('ownerName', $v)) {
+            $updateData['owner_name'] = $this->cleanNullableString($v['ownerName']);
+        }
+        if (array_key_exists('dueDate', $v)) {
+            $updateData['due_date'] = $v['dueDate'];
+        }
+        if (array_key_exists('mandatory', $v)) {
+            $updateData['mandatory'] = (bool) $v['mandatory'];
+        }
+        if (array_key_exists('status', $v)) {
+            $updateData['status'] = $v['status'];
+        }
 
         if ($updateData !== []) {
             $item->update($updateData);
@@ -197,9 +210,9 @@ class HcmTerminationController extends Controller
         ]);
 
         $item->update([
-            'status'             => 'completed',
-            'completed_by'       => (int) $request->user()->id,
-            'completed_at'       => now(),
+            'status' => 'completed',
+            'completed_by' => (int) $request->user()->id,
+            'completed_at' => now(),
             'completion_evidence' => $this->cleanNullableString($v['completionEvidence'] ?? null),
         ]);
 
@@ -249,19 +262,19 @@ class HcmTerminationController extends Controller
     private function checklistItemPayload(HcmTerminationChecklistItem $item): array
     {
         return [
-            'id'                 => $item->id,
-            'uuid'               => $item->uuid,
-            'terminationId'      => $item->termination_id,
-            'label'              => $item->label,
-            'description'        => $item->description,
-            'ownerName'          => $item->owner_name,
-            'dueDate'            => $item->due_date?->toDateString(),
-            'mandatory'          => (bool) $item->mandatory,
-            'status'             => $item->status,
-            'completedBy'        => $item->completed_by,
-            'completedAt'        => $item->completed_at?->toIso8601String(),
+            'id' => $item->id,
+            'uuid' => $item->uuid,
+            'terminationId' => $item->termination_id,
+            'label' => $item->label,
+            'description' => $item->description,
+            'ownerName' => $item->owner_name,
+            'dueDate' => $item->due_date?->toDateString(),
+            'mandatory' => (bool) $item->mandatory,
+            'status' => $item->status,
+            'completedBy' => $item->completed_by,
+            'completedAt' => $item->completed_at?->toIso8601String(),
             'completionEvidence' => $item->completion_evidence,
-            'createdAt'          => $item->created_at?->toIso8601String(),
+            'createdAt' => $item->created_at?->toIso8601String(),
         ];
     }
 
@@ -271,6 +284,7 @@ class HcmTerminationController extends Controller
     private function resolveActiveCompanyId(Request $request): ?int
     {
         $id = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+
         return $id > 0 ? $id : null;
     }
 
@@ -942,10 +956,10 @@ class HcmTerminationController extends Controller
                 $actor = $request->user();
                 $auditEvent = WorkflowAuditEvent::make(
                     previousStage: $currentStage,
-                    newStage:      $nextWorkflowStage,
-                    action:        $this->workflowValidator->stageToAction($nextWorkflowStage),
-                    actor:         $actor,
-                    note:          $this->cleanNullableString($v['notes'] ?? null),
+                    newStage: $nextWorkflowStage,
+                    action: $this->workflowValidator->stageToAction($nextWorkflowStage),
+                    actor: $actor,
+                    note: $this->cleanNullableString($v['notes'] ?? null),
                 );
                 $payload['workflow_history'] = $this->workflowValidator->appendHistory($t, $auditEvent);
                 $payload['workflow_version'] = ((int) ($t->workflow_version ?? 0)) + 1;
@@ -1005,7 +1019,7 @@ class HcmTerminationController extends Controller
             // Anomaly #2 — wrap save in transaction when workflow_history is being mutated
             // to prevent concurrent writes from corrupting the JSON history array.
             if (array_key_exists('workflow_history', $payload)) {
-                \Illuminate\Support\Facades\DB::transaction(function () use ($t, $payload): void {
+                DB::transaction(function () use ($t, $payload): void {
                     // Re-fetch with write lock so concurrent requests must queue behind this write.
                     $locked = HcmTermination::lockForUpdate()->findOrFail($t->id);
                     $locked->update($payload);
@@ -1303,29 +1317,29 @@ class HcmTerminationController extends Controller
 
         // Slice A — Enrich settlement breakdown with severance, UPMK, UPH, leave payout
         $enriched = $this->settlementCalculator->calculate(
-            companyId:        $companyId,
-            userId:           $userId,
-            terminationDate:  $terminationDate,
+            companyId: $companyId,
+            userId: $userId,
+            terminationDate: $terminationDate,
             policyProfileKey: $policyProfileKey,
         );
 
         // Merge existing prorata items + enriched items (severance, UPMK, UPH, leave)
         // settlement_breakdown stays as a flat array of line items (API backward-compat).
         // Enriched totals/metadata live in settlement_evidence_snapshot.
-        $baseItems   = $this->normalizeNullableArray($preview['breakdown'] ?? null) ?? [];
+        $baseItems = $this->normalizeNullableArray($preview['breakdown'] ?? null) ?? [];
         $mergedItems = array_values(array_merge($baseItems, $enriched->lineItems));
 
         $evidenceSnapshot = array_merge($enriched->toEvidenceSnapshotArray(), [
-            'totalGross'           => number_format($enriched->totalGross, 2, '.', ''),
-            'totalDeduction'       => number_format($enriched->totalDeduction, 2, '.', ''),
-            'netPayable'           => number_format($enriched->netPayable, 2, '.', ''),
-            'calculationMethod'    => $enriched->calculationMethod,
-            'policyProfileKey'     => $enriched->policyProfileKey,
-            'leaveBalanceAvailable'=> $enriched->leaveBalanceAvailable,
-            'leavePayout'          => $enriched->leavePayout !== null
+            'totalGross' => number_format($enriched->totalGross, 2, '.', ''),
+            'totalDeduction' => number_format($enriched->totalDeduction, 2, '.', ''),
+            'netPayable' => number_format($enriched->netPayable, 2, '.', ''),
+            'calculationMethod' => $enriched->calculationMethod,
+            'policyProfileKey' => $enriched->policyProfileKey,
+            'leaveBalanceAvailable' => $enriched->leaveBalanceAvailable,
+            'leavePayout' => $enriched->leavePayout !== null
                 ? number_format($enriched->leavePayout, 2, '.', '')
                 : null,
-            'source'               => ($preview['source'] ?? 'termination_policy_prorated').'_plus_enriched',
+            'source' => ($preview['source'] ?? 'termination_policy_prorated').'_plus_enriched',
         ]);
 
         return [
@@ -1584,7 +1598,7 @@ class HcmTerminationController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $item
+     * @param  array<string, mixed>  $item
      * @return array<string, string|null>
      */
     private function summarizeSettlementBreakdown(array $items): array
@@ -1599,10 +1613,12 @@ class HcmTerminationController extends Controller
 
             if ($bucket === 'salary') {
                 $salary += $amount;
+
                 continue;
             }
             if ($bucket === 'deduction') {
                 $deduction += $amount;
+
                 continue;
             }
 
@@ -1859,8 +1875,8 @@ class HcmTerminationController extends Controller
 
         // Strict sequential transitions — no stage skipping allowed (planning doc §5.2.1)
         return match ($current) {
-            'draft_review'      => in_array($nextStage, ['legal_review', 'cancelled'], true),
-            'legal_review'      => in_array($nextStage, ['approved_internal', 'cancelled'], true),
+            'draft_review' => in_array($nextStage, ['legal_review', 'cancelled'], true),
+            'legal_review' => in_array($nextStage, ['approved_internal', 'cancelled'], true),
             'approved_internal' => in_array($nextStage, ['finalized_execution', 'cancelled'], true),
             'finalized_execution', 'cancelled' => false,
             default => false,

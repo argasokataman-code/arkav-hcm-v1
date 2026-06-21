@@ -101,8 +101,8 @@ return new class extends Migration
                 continue;
             }
 
-            $indexName = substr($childTable . '_' . $uuidColumn . '_idx', 0, 58) . '_' . substr(md5($childTable . $uuidColumn), 0, 5);
-            $fkName = substr($childTable . '_' . $uuidColumn . '_fk', 0, 58) . '_' . substr(md5($childTable . $uuidColumn . $parentTable), 0, 5);
+            $indexName = substr($childTable.'_'.$uuidColumn.'_idx', 0, 58).'_'.substr(md5($childTable.$uuidColumn), 0, 5);
+            $fkName = substr($childTable.'_'.$uuidColumn.'_fk', 0, 58).'_'.substr(md5($childTable.$uuidColumn.$parentTable), 0, 5);
 
             // Parent uuid must be unique/indexed uniquely for InnoDB FK eligibility.
             if (! $this->hasUniqueColumn($parentTable, 'uuid')) {

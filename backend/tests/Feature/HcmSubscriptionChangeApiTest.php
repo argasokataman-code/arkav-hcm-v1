@@ -15,6 +15,7 @@ use App\Models\PackageFeature;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -40,11 +41,11 @@ class HcmSubscriptionChangeApiTest extends TestCase
      */
     private function bootstrapTenant(string $suffix): array
     {
-        $code = 'TST' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+        $code = 'TST'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
         $company = Company::query()->create([
             'code' => $code,
-            'name' => 'F4 ' . $suffix,
-            'legal_name' => 'F4 ' . $suffix . ' Ltd',
+            'name' => 'F4 '.$suffix,
+            'legal_name' => 'F4 '.$suffix.' Ltd',
             'status' => 'active',
             'timezone' => 'UTC',
             'currency' => 'IDR',
@@ -52,8 +53,8 @@ class HcmSubscriptionChangeApiTest extends TestCase
         ]);
 
         $basic = Package::query()->create([
-            'code' => 'f4b-' . strtolower($suffix),
-            'name' => 'F4 Basic ' . $suffix,
+            'code' => 'f4b-'.strtolower($suffix),
+            'name' => 'F4 Basic '.$suffix,
             'monthly_price' => 99000,
             'yearly_price' => 990000,
             'billing_unit' => 'company',
@@ -67,8 +68,8 @@ class HcmSubscriptionChangeApiTest extends TestCase
         ]);
 
         $pro = Package::query()->create([
-            'code' => 'f4p-' . strtolower($suffix),
-            'name' => 'F4 Pro ' . $suffix,
+            'code' => 'f4p-'.strtolower($suffix),
+            'name' => 'F4 Pro '.$suffix,
             'monthly_price' => 299000,
             'yearly_price' => 2990000,
             'billing_unit' => 'company',
@@ -99,8 +100,8 @@ class HcmSubscriptionChangeApiTest extends TestCase
         ]);
 
         $user = User::query()->create([
-            'name' => 'F4 Owner ' . $suffix,
-            'email' => 'f4.' . strtolower($suffix) . '@example.com',
+            'name' => 'F4 Owner '.$suffix,
+            'email' => 'f4.'.strtolower($suffix).'@example.com',
             'password' => bcrypt('StrongPass1'),
         ]);
 
@@ -144,7 +145,7 @@ class HcmSubscriptionChangeApiTest extends TestCase
             'status' => 'active',
         ]);
 
-        $rawToken = 'tst-f4-' . strtolower($suffix);
+        $rawToken = 'tst-f4-'.strtolower($suffix);
         AuthToken::query()->create([
             'user_id' => $user->id,
             'token_hash' => hash('sha256', $rawToken),
@@ -163,7 +164,7 @@ class HcmSubscriptionChangeApiTest extends TestCase
     private function tenantHeaders(array $ctx): array
     {
         return [
-            'Authorization' => 'Bearer ' . $ctx['token'],
+            'Authorization' => 'Bearer '.$ctx['token'],
             'X-Company-Id' => (string) $ctx['company']->id,
         ];
     }
@@ -254,8 +255,8 @@ class HcmSubscriptionChangeApiTest extends TestCase
             'expires_at' => now()->addHour(),
         ]);
 
-        $resp = $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
-            ->postJson('/v1/saas/subscription-change-requests/' . $pending->id . '/approve')
+        $resp = $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/saas/subscription-change-requests/'.$pending->id.'/approve')
             ->assertOk();
 
         $this->assertSame('approved', $resp->json('data.status'));
@@ -297,7 +298,7 @@ class HcmSubscriptionChangeApiTest extends TestCase
         // Create a plain employee user (no admin role) on the same company.
         $employee = User::query()->create([
             'name' => 'Plain Employee',
-            'email' => 'plain.' . strtolower('NoAdm') . '@example.com',
+            'email' => 'plain.'.strtolower('NoAdm').'@example.com',
             'password' => bcrypt('StrongPass1'),
         ]);
         CompanyUser::query()->create([
@@ -317,7 +318,7 @@ class HcmSubscriptionChangeApiTest extends TestCase
         ]);
 
         $resp = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $ctx['company']->id,
         ])->postJson('/v1/hcm/subscriptions/change-plan', [
             'action' => 'upgrade',
@@ -354,15 +355,15 @@ class HcmSubscriptionChangeApiTest extends TestCase
             'expires_at' => now()->addHour(),
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer ' . $secondaryToken])
+        $this->withHeaders(['Authorization' => 'Bearer '.$secondaryToken])
             ->getJson('/v1/saas/subscription-change-requests')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'PRIMARY_SUPER_ADMIN_REQUIRED');
 
         $requestId = (string) HcmSubscriptionChangeRequest::query()->value('id');
 
-        $this->withHeaders(['Authorization' => 'Bearer ' . $secondaryToken])
-            ->postJson('/v1/saas/subscription-change-requests/' . $requestId . '/approve')
+        $this->withHeaders(['Authorization' => 'Bearer '.$secondaryToken])
+            ->postJson('/v1/saas/subscription-change-requests/'.$requestId.'/approve')
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'PRIMARY_SUPER_ADMIN_REQUIRED');
     }
@@ -427,7 +428,7 @@ class HcmSubscriptionChangeApiTest extends TestCase
         $effectiveAt = $resp->json('data.preview.effective_at');
         $this->assertNotNull($effectiveAt);
         $this->assertTrue(
-            \Carbon\Carbon::parse($effectiveAt)->isAfter(now()),
+            Carbon::parse($effectiveAt)->isAfter(now()),
             'Downgrade effective_at must be in the future (end of current billing period)'
         );
     }
@@ -546,8 +547,8 @@ class HcmSubscriptionChangeApiTest extends TestCase
             'expires_at' => now()->addHour(),
         ]);
 
-        $this->withHeaders(['Authorization' => 'Bearer ' . $adminToken])
-            ->postJson('/v1/saas/subscription-change-requests/' . $requestId . '/approve')
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
+            ->postJson('/v1/saas/subscription-change-requests/'.$requestId.'/approve')
             ->assertOk()
             ->assertJsonPath('data.status', 'applied');
 
@@ -561,7 +562,7 @@ class HcmSubscriptionChangeApiTest extends TestCase
             ->where('company_id', $ctx['company']->id)
             ->where('subscription_id', $subscription->id)
             ->where('is_paid', false)
-            ->where('notes', 'like', '%[downgrade_request:' . $requestId . ']%')
+            ->where('notes', 'like', '%[downgrade_request:'.$requestId.']%')
             ->latest('id')
             ->first();
 
@@ -604,7 +605,7 @@ class HcmSubscriptionChangeApiTest extends TestCase
             'status' => 'completed',
             'payment_method' => 'bank_transfer',
             'gateway' => 'mock',
-            'gateway_reference' => 'partial-' . strtolower(Str::random(8)),
+            'gateway_reference' => 'partial-'.strtolower(Str::random(8)),
             'verified_at' => now()->subDay(),
         ]);
 

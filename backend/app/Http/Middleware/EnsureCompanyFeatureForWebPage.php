@@ -28,8 +28,7 @@ class EnsureCompanyFeatureForWebPage
 {
     public function __construct(
         private readonly TenantContextResolver $tenantContextResolver,
-    ) {
-    }
+    ) {}
 
     public function handle(Request $request, Closure $next, string ...$featureCodes): Response
     {
@@ -78,7 +77,7 @@ class EnsureCompanyFeatureForWebPage
         foreach ($codes as $code) {
             if (! $subscription->package?->hasFeature($code)) {
                 return redirect()
-                    ->to(url('upgrade') . '?blocked=' . urlencode($code))
+                    ->to(url('upgrade').'?blocked='.urlencode($code))
                     ->with('error', sprintf(
                         'Fitur "%s" belum termasuk dalam paket aktif Anda. Silakan upgrade paket.',
                         $code,

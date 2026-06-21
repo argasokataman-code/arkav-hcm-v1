@@ -47,7 +47,7 @@ class HcmTaxGovernanceApiTest extends TestCase
     private function complianceHeaders(array $admin): array
     {
         return $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
     }
 
@@ -57,7 +57,7 @@ class HcmTaxGovernanceApiTest extends TestCase
         $employeeToken = $this->employeeTokenForCompany($admin['company'], 'tax-employee-runtime@example.com');
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $employeeToken,
+            'Authorization' => 'Bearer '.$employeeToken,
         ], $admin['company_id']);
 
         $this->withHeaders($headers)
@@ -103,7 +103,7 @@ class HcmTaxGovernanceApiTest extends TestCase
         $employeeToken = $this->employeeTokenForCompany($admin['company'], 'pricing-employee-runtime@example.com');
 
         $headers = $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $employeeToken,
+            'Authorization' => 'Bearer '.$employeeToken,
         ], $admin['company_id']);
 
         $this->withHeaders($headers)
@@ -377,8 +377,8 @@ class HcmTaxGovernanceApiTest extends TestCase
         $baselineTotal = (int) ($baselineResponse->json('data.meta.items_global_total') ?? 0);
 
         for ($i = 1; $i <= 25; $i++) {
-            $month = date('Y-m', strtotime('2024-01-01 +' . ($i - 1) . ' month'));
-            $effectiveFrom = $month . '-01';
+            $month = date('Y-m', strtotime('2024-01-01 +'.($i - 1).' month'));
+            $effectiveFrom = $month.'-01';
 
             $this->withHeaders($this->complianceHeaders($admin))
                 ->postJson('/v1/hcm/tax-governance/platform-tax-compliance/policies', [
@@ -392,7 +392,7 @@ class HcmTaxGovernanceApiTest extends TestCase
                         'transaction_tax' => [
                             'tax_rate' => 11,
                             'tax_name' => 'PPN',
-                            'description' => 'history-' . $i,
+                            'description' => 'history-'.$i,
                         ],
                     ]),
                 ])

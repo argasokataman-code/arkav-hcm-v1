@@ -17,10 +17,6 @@ abstract class TestCase extends BaseTestCase
     /**
      * Assign full HCM admin permissions to a user within a company.
      * Creates role + all core permissions if needed.
-     *
-     * @param User $user
-     * @param Company|null $company
-     * @return HcmRole
      */
     protected function setupHcmAdminPermissions(User $user, ?Company $company = null): HcmRole
     {
@@ -113,8 +109,6 @@ abstract class TestCase extends BaseTestCase
     /**
      * Create a user with HCM admin permissions and return both token and company ID.
      *
-     * @param array $userData
-     * @param Company|null $company
      * @return array{token: string, company_id: int, company: Company}
      */
     protected function createHcmAdminWithCompany(array $userData = [], ?Company $company = null): array
@@ -166,26 +160,24 @@ abstract class TestCase extends BaseTestCase
     /**
      * Create a user with HCM admin permissions and return bearer token.
      *
-     * @param array $userData
-     * @param Company|null $company
      * @return string Bearer token
      */
     protected function createHcmAdminUserWithToken(array $userData = [], ?Company $company = null): string
     {
         $result = $this->createHcmAdminWithCompany($userData, $company);
+
         return $result['token'];
     }
-    
+
     /**
      * Add tenant context headers for API requests.
      *
-     * @param array $headers
-     * @param int|Company $companyOrId
      * @return array Headers with X-Company-Id added
      */
     protected function withCompanyContext(array $headers = [], int|Company $companyOrId = 1): array
     {
         $companyId = $companyOrId instanceof Company ? $companyOrId->id : $companyOrId;
+
         return array_merge($headers, ['X-Company-Id' => (string) $companyId]);
     }
 

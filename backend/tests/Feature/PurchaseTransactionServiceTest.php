@@ -14,8 +14,11 @@ class PurchaseTransactionServiceTest extends TestCase
     use RefreshDatabase;
 
     protected string $adminToken;
+
     protected string $userToken;
+
     protected Company $company;
+
     protected Subscription $subscription;
 
     protected function setUp(): void
@@ -85,12 +88,12 @@ class PurchaseTransactionServiceTest extends TestCase
 
     private function adminRequest()
     {
-        return $this->withHeader('Authorization', 'Bearer ' . $this->adminToken);
+        return $this->withHeader('Authorization', 'Bearer '.$this->adminToken);
     }
 
     private function userRequest()
     {
-        return $this->withHeader('Authorization', 'Bearer ' . $this->userToken);
+        return $this->withHeader('Authorization', 'Bearer '.$this->userToken);
     }
 
     public function test_list_transactions_with_status_filter(): void
@@ -228,7 +231,7 @@ class PurchaseTransactionServiceTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $response = $this->adminRequest()->getJson('/v1/saas/transactions?company_id=' . $this->company->uuid);
+        $response = $this->adminRequest()->getJson('/v1/saas/transactions?company_id='.$this->company->uuid);
 
         $response->assertOk()
             ->assertJsonCount(1, 'data')
@@ -249,7 +252,7 @@ class PurchaseTransactionServiceTest extends TestCase
             'status' => 'issued',
         ]);
 
-        $response = $this->adminRequest()->putJson('/v1/saas/transactions/' . $transaction->id, [
+        $response = $this->adminRequest()->putJson('/v1/saas/transactions/'.$transaction->id, [
             'status' => 'paid',
             'paid_at' => now()->toIso8601String(),
             'payment_method' => 'bank_transfer',
@@ -275,7 +278,7 @@ class PurchaseTransactionServiceTest extends TestCase
             'status' => 'issued',
         ]);
 
-        $response = $this->adminRequest()->getJson('/v1/saas/transactions/' . $transaction->id);
+        $response = $this->adminRequest()->getJson('/v1/saas/transactions/'.$transaction->id);
 
         $response->assertOk()->assertJsonStructure([
             'success',

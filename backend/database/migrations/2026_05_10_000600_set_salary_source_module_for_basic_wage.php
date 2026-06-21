@@ -1,8 +1,8 @@
 <?php
 
+use App\Models\HcmSalaryComponent;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
-use App\Models\HcmSalaryComponent;
 
 return new class extends Migration
 {

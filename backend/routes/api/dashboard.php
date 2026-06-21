@@ -1,10 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\Dashboard\HcmActivityController;
 use App\Http\Controllers\Api\Dashboard\HcmAiChatController;
 use App\Http\Controllers\Api\Dashboard\HcmDashboardController;
 use App\Http\Controllers\Api\Dashboard\HcmGlobalSearchController;
 use App\Http\Controllers\Api\Notifications\HcmNotificationController;
-use App\Http\Controllers\Api\Dashboard\HcmActivityController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(function () {
@@ -17,7 +17,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
         ->whereNumber('companyId')
         ->middleware('throttle:60,1');
     Route::get('/search', [HcmGlobalSearchController::class, 'index'])->middleware('throttle:120,1');
-    
+
     Route::get('/notifications', [HcmNotificationController::class, 'index']);
     Route::post('/notifications/read-all', [HcmNotificationController::class, 'markAllAsRead']);
     Route::post('/notifications/{notification}/read', [HcmNotificationController::class, 'markAsRead']);
@@ -27,7 +27,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/notifications/delivery-export', [HcmNotificationController::class, 'exportDeliveries'])->middleware('throttle:50,1');
     Route::post('/notifications/delivery/{id}/retry', [HcmNotificationController::class, 'retryDelivery'])->whereNumber('id')->middleware('throttle:30,1');
     Route::get('/notifications/templates', [HcmNotificationController::class, 'templateCatalog'])->middleware('throttle:30,1');
-    
+
     Route::get('/activity-feed', [HcmActivityController::class, 'index']);
     Route::get('/activity-feed-companies', [HcmActivityController::class, 'listCompanies']);
     Route::post('/activity-manual', [HcmActivityController::class, 'storeManual']);

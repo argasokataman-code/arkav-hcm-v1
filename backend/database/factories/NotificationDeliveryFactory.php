@@ -6,7 +6,7 @@ use App\Models\NotificationDelivery;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\NotificationDelivery>
+ * @extends Factory<NotificationDelivery>
  */
 class NotificationDeliveryFactory extends Factory
 {

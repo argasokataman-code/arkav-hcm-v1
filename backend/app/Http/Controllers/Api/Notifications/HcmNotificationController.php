@@ -3,28 +3,29 @@
 namespace App\Http\Controllers\Api\Notifications;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\NotificationDelivery;
 use App\Models\DatabaseNotification;
+use App\Models\NotificationDelivery;
+use App\Models\User;
 use App\Support\Exports\TabularExportResponse;
 use App\Support\Hcm\NotificationEventCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 
 class HcmNotificationController extends Controller
 {
     public function templateCatalog(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'UNAUTHENTICATED', 'message' => 'Unauthenticated.'],
             ], 401);
         }
 
-        if (!$user->isGlobalHcmAdmin()) {
+        if (! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -62,7 +63,7 @@ class HcmNotificationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'UNAUTHENTICATED', 'message' => 'Unauthenticated.'],
@@ -106,7 +107,7 @@ class HcmNotificationController extends Controller
                     return false;
                 }
 
-                if (!$user->isGlobalHcmAdmin() && $activeCompanyUuid !== '' && $companyUuid !== '' && $companyUuid !== $activeCompanyUuid) {
+                if (! $user->isGlobalHcmAdmin() && $activeCompanyUuid !== '' && $companyUuid !== '' && $companyUuid !== $activeCompanyUuid) {
                     return false;
                 }
 
@@ -152,7 +153,7 @@ class HcmNotificationController extends Controller
     public function markAsRead(Request $request, string $notificationId): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'UNAUTHENTICATED', 'message' => 'Unauthenticated.'],
@@ -160,7 +161,7 @@ class HcmNotificationController extends Controller
         }
 
         $notification = $user->notifications()->find($notificationId);
-        if (!$notification) {
+        if (! $notification) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'NOT_FOUND', 'message' => 'Notification not found.'],
@@ -178,7 +179,7 @@ class HcmNotificationController extends Controller
     public function markAllAsRead(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'UNAUTHENTICATED', 'message' => 'Unauthenticated.'],
@@ -206,7 +207,7 @@ class HcmNotificationController extends Controller
     public function unreadCount(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'UNAUTHENTICATED', 'message' => 'Unauthenticated.'],
@@ -224,7 +225,7 @@ class HcmNotificationController extends Controller
     public function deliverySummary(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user || !$user->isGlobalHcmAdmin()) {
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -300,7 +301,7 @@ class HcmNotificationController extends Controller
     public function deliveryDetails(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (!$user || !$user->isGlobalHcmAdmin()) {
+        if (! $user || ! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -389,17 +390,17 @@ class HcmNotificationController extends Controller
         ]);
     }
 
-    public function exportDeliveries(Request $request): \Symfony\Component\HttpFoundation\Response
+    public function exportDeliveries(Request $request): Response
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'UNAUTHENTICATED', 'message' => 'Unauthenticated.'],
             ], 401);
         }
 
-        if (!$user->isGlobalHcmAdmin()) {
+        if (! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -467,7 +468,7 @@ class HcmNotificationController extends Controller
         return TabularExportResponse::download(
             headers: $headers,
             rows: $rows,
-            filenameBase: 'notification-deliveries-' . now()->format('YmdHis'),
+            filenameBase: 'notification-deliveries-'.now()->format('YmdHis'),
             format: $format,
             sheetTitle: 'Delivery Log'
         );
@@ -476,14 +477,14 @@ class HcmNotificationController extends Controller
     public function retryDelivery(Request $request, int $deliveryId): JsonResponse
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'UNAUTHENTICATED', 'message' => 'Unauthenticated.'],
             ], 401);
         }
 
-        if (!$user->isGlobalHcmAdmin()) {
+        if (! $user->isGlobalHcmAdmin()) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -505,7 +506,7 @@ class HcmNotificationController extends Controller
             ->where('id', $deliveryId)
             ->where('company_uuid', $activeCompanyUuid)
             ->first();
-        if (!$delivery) {
+        if (! $delivery) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'NOT_FOUND', 'message' => 'Delivery record not found.'],
@@ -513,7 +514,7 @@ class HcmNotificationController extends Controller
         }
 
         $metadata = (array) ($delivery->metadata ?? []);
-        if (!isset($metadata['retry_log'])) {
+        if (! isset($metadata['retry_log'])) {
             $metadata['retry_log'] = [];
         }
         $metadata['retry_log'][] = [

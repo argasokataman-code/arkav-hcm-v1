@@ -30,6 +30,7 @@ class TerminateExpiredSubscriptionsJob implements ShouldQueue
 
         if ($expiredSubscriptions->isEmpty()) {
             Log::info('No expired subscriptions found');
+
             return;
         }
 
@@ -50,6 +51,6 @@ class TerminateExpiredSubscriptionsJob implements ShouldQueue
             }
         }
 
-        Log::info("TerminateExpiredSubscriptionsJob completed");
+        Log::info('TerminateExpiredSubscriptionsJob completed');
     }
 }

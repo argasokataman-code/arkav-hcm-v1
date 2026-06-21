@@ -121,10 +121,10 @@ class HcmEmailComposeApiTest extends TestCase
         $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
         ])->postJson('/v1/hcm/notifications/send-email', [
-                'to' => 'someone@example.com',
-                'subject' => 'forbidden',
-                'message' => 'forbidden',
-            ])
+            'to' => 'someone@example.com',
+            'subject' => 'forbidden',
+            'message' => 'forbidden',
+        ])
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'ADMIN_REQUIRED');
     }

@@ -2,35 +2,15 @@
 
 namespace App\Http\Controllers\Api\TaxGovernance\Concerns;
 
-use App\Events\TaxGovernancePolicyTransitioned;
-use App\Models\Company;
-use App\Models\CompanyUser;
-use App\Models\EmployeeProfile;
-use App\Models\EmployeeTaxProfile;
-use App\Models\HcmBillingTaxPolicy;
-use App\Models\HcmSalaryComponent;
-use App\Models\HcmTaxGovernanceBreakGlassRequest;
-use App\Models\HcmTaxGovernancePolicy;
-use App\Models\HcmTaxGovernancePolicyEvent;
-use App\Models\HcmTaxGovernanceProjection;
 use App\Models\HcmTaxGovernanceAnomaly;
-use App\Modelsser;
-use App\Services\BillingTaxCalculationService;
-use Carbon\Carbon;
-use Dompdf\Dompdf;
-use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Symfony\Component\HttpFoundation\Response;
-use HandlesPlatformTaxGovernance;
 
 trait HandlesTaxAnomalyManagement
 {
-public function anomalyRegistry(Request $request): JsonResponse
+    public function anomalyRegistry(Request $request): JsonResponse
     {
         if ($response = $this->ensurePermission($request, 'tax.governance.anomaly.view_all')) {
             return $response;
@@ -49,11 +29,11 @@ public function anomalyRegistry(Request $request): JsonResponse
         $query = HcmTaxGovernanceAnomaly::query()
             ->orderByDesc('detected_at');
 
-        if (!empty($validated['severity_filter'])) {
+        if (! empty($validated['severity_filter'])) {
             $query->where('severity', $validated['severity_filter']);
         }
 
-        if (!empty($validated['anomaly_type_filter'])) {
+        if (! empty($validated['anomaly_type_filter'])) {
             $query->where('anomaly_type', $validated['anomaly_type_filter']);
         }
 
@@ -102,14 +82,14 @@ public function anomalyRegistry(Request $request): JsonResponse
         }
 
         $anomaly = HcmTaxGovernanceAnomaly::find($anomalyId);
-        if (!$anomaly) {
+        if (! $anomaly) {
             return $this->errorResponse('ANOMALY_NOT_FOUND', 'Anomaly not found.', 404);
         }
 
         // Verify tenant access (global admin can resolve any, tenant user can only resolve own)
         $userCompanyId = $this->activeCompanyId($request);
         $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
-        if (!$isGlobalAdmin && $anomaly->company_id !== $userCompanyId) {
+        if (! $isGlobalAdmin && $anomaly->company_id !== $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot resolve anomaly in other tenant.', 403);
         }
 
@@ -159,14 +139,14 @@ public function anomalyRegistry(Request $request): JsonResponse
         }
 
         $anomaly = HcmTaxGovernanceAnomaly::find($anomalyId);
-        if (!$anomaly) {
+        if (! $anomaly) {
             return $this->errorResponse('ANOMALY_NOT_FOUND', 'Anomaly not found.', 404);
         }
 
         // Verify tenant access
         $userCompanyId = $this->activeCompanyId($request);
         $isGlobalAdmin = (bool) ($request->user()?->isGlobalHcmAdmin() ?? false);
-        if (!$isGlobalAdmin && (int) $anomaly->company_id !== (int) $userCompanyId) {
+        if (! $isGlobalAdmin && (int) $anomaly->company_id !== (int) $userCompanyId) {
             return $this->errorResponse('AUTH_FORBIDDEN', 'Cannot acknowledge anomaly in other tenant.', 403);
         }
 

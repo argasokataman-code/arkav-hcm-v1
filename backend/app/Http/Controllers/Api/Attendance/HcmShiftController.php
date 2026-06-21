@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Attendance;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmShift;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -248,7 +249,7 @@ class HcmShiftController extends Controller
             return $m[1].':'.$m[2];
         }
 
-        return \Carbon\Carbon::parse((string) $v)->format('H:i');
+        return Carbon::parse((string) $v)->format('H:i');
     }
 
     private function uniqueCode(?string $requested, string $name, ?int $companyId): string

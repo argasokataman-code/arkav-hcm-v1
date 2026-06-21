@@ -7,6 +7,7 @@ use App\Models\HcmPayrollPeriod;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Support\HcmFeatureFlags;
+use App\Support\PayrollDraftBuilder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\Schema;
  * Hanya aktif bila feature flag `payroll.leave_integration_enabled` = true
  * (global atau per-tenant via `company_settings`).
  *
- * Output dipakai {@see \App\Support\PayrollDraftBuilder} untuk membuat dua
+ * Output dipakai {@see PayrollDraftBuilder} untuk membuat dua
  * jenis line tambahan:
  *  - Deduction `potongan_cuti_unpaid` bila ada approved unpaid leave di bulan
  *    periode.

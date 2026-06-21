@@ -7,20 +7,15 @@ use App\Models\EmployeeTaxProfile;
 use App\Models\HcmBpjsGovernancePolicy;
 use App\Models\HcmEmployeeAllowancePolicy;
 use App\Models\HcmEmployeePayrollItemAssignment;
-use App\Models\HcmPayrollItem;
 use App\Models\HcmSalaryComponent;
-use App\Models\HcmSalaryComponentCategory;
 use App\Models\HcmTaxGovernancePolicy;
-use App\Modelsser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 trait HandlesSalaryComponentEmployeeProfiles
 {
-public function employeeProfiles(Request $request): JsonResponse
+    public function employeeProfiles(Request $request): JsonResponse
     {
         $forbidden = $this->ensurePermission($request, 'payroll.view');
         if ($forbidden) {
@@ -329,7 +324,7 @@ public function employeeProfiles(Request $request): JsonResponse
                     'isEstimated' => true,
                     'note' => $taxStatus === ''
                         ? 'Metode TER · Status PTKP belum diisi'
-                        : 'Metode TER' .
+                        : 'Metode TER'.
                             ' · Status: '.$this->normalizeTaxStatus($taxStatus).
                             ($pph21Estimate !== null ? ' · Kategori: '.($pph21Estimate['category'] ?? 'A') : '').
                             ' · Basis Gross: '.round($terTaxableGross, 2),

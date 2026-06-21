@@ -53,4 +53,3 @@ return [
     'secret_key' => $effectiveSecretKey,
     'verify_url' => (string) env('TURNSTILE_VERIFY_URL', 'https://challenges.cloudflare.com/turnstile/v0/siteverify'),
 ];
-

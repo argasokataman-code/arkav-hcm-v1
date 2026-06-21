@@ -4,18 +4,16 @@ namespace App\Http\Controllers\Api\Saas\Concerns;
 
 use App\Models\FeatureClassification;
 use App\Models\Package;
-use App\Models\PackageAddon;
 use App\Models\PackageFeature;
-use App\Services\PackageFeatureCatalogRuntimeService;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 
 trait HandlesPackageFeatures
-{    public function featureCatalog(): JsonResponse
+{
+    public function featureCatalog(): JsonResponse
     {
         $runtimeCatalog = $this->featureCatalogRuntimeService->build();
         $catalogGroups = collect($runtimeCatalog['groups'] ?? []);
@@ -47,8 +45,9 @@ trait HandlesPackageFeatures
     private function readFeatureClassificationOverrides(): array
     {
         try {
-            $rows = \App\Models\FeatureClassification::all(['feature_code', 'tier']);
-            return $rows->mapWithKeys(fn($r) => [trim($r->feature_code) => trim($r->tier)])->toArray();
+            $rows = FeatureClassification::all(['feature_code', 'tier']);
+
+            return $rows->mapWithKeys(fn ($r) => [trim($r->feature_code) => trim($r->tier)])->toArray();
         } catch (\Throwable $e) {
             return [];
         }
@@ -121,7 +120,7 @@ trait HandlesPackageFeatures
 
         return response()->json([
             'success' => true,
-            'data' => $features->map(fn($f) => [
+            'data' => $features->map(fn ($f) => [
                 'id' => $f->id,
                 'code' => $f->feature_code,
                 'name' => $f->feature_name,
@@ -138,7 +137,7 @@ trait HandlesPackageFeatures
      */
     public function addFeature(Request $request, Package $package): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -174,7 +173,7 @@ trait HandlesPackageFeatures
      */
     public function updateFeature(Request $request, PackageFeature $feature): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -209,7 +208,7 @@ trait HandlesPackageFeatures
      */
     public function deleteFeature(Request $request, PackageFeature $feature): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -271,7 +270,7 @@ trait HandlesPackageFeatures
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, mixed>  $catalogGroups
+     * @param  Collection<int, mixed>  $catalogGroups
      * @param  array<int, string>  $runtimeMvpFeatureCodes
      * @return array{
      *   all_feature_codes: array<int, string>,
@@ -356,5 +355,4 @@ trait HandlesPackageFeatures
             ->values()
             ->all();
     }
-
 }

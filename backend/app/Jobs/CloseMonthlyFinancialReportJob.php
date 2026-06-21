@@ -44,7 +44,7 @@ class CloseMonthlyFinancialReportJob implements ShouldQueue
 
     public function handle(): void
     {
-        $year  = $this->year;
+        $year = $this->year;
         $month = $this->month;
 
         // AN-015: 24-hour grace period — do not lock until at least 24 hours after month end.
@@ -58,12 +58,13 @@ class CloseMonthlyFinancialReportJob implements ShouldQueue
             static::dispatch($year, $month)->delay(
                 now()->diffInSeconds($monthEnd->copy()->addHours(24)) + 60
             );
+
             return;
         }
 
         // AN-002: Acquire distributed lock to prevent concurrent close jobs for the same period.
         $lockKey = "monthly_financial_close_{$year}_{$month}";
-        $lock    = Cache::lock($lockKey, 120);
+        $lock = Cache::lock($lockKey, 120);
 
         $acquired = $lock->block(30, function () use ($year, $month): void {
             $this->executeClose($year, $month);
@@ -82,6 +83,7 @@ class CloseMonthlyFinancialReportJob implements ShouldQueue
             Log::error('CloseMonthlyFinancialReportJob: platform_monthly_financial_summaries table missing.', [
                 'year' => $year, 'month' => $month,
             ]);
+
             return;
         }
 
@@ -95,6 +97,7 @@ class CloseMonthlyFinancialReportJob implements ShouldQueue
             Log::info('CloseMonthlyFinancialReportJob: period already locked, skipping.', [
                 'year' => $year, 'month' => $month,
             ]);
+
             return;
         }
 
@@ -103,7 +106,7 @@ class CloseMonthlyFinancialReportJob implements ShouldQueue
 
         // Calculate aggregate revenue for the period from cleared transactions.
         $periodStart = Carbon::create($year, $month, 1)->startOfDay()->toDateTimeString();
-        $periodEnd   = Carbon::create($year, $month)->endOfMonth()->endOfDay()->toDateTimeString();
+        $periodEnd = Carbon::create($year, $month)->endOfMonth()->endOfDay()->toDateTimeString();
 
         $summary = DB::table('platform_revenue_transactions')
             ->whereBetween('occurred_at', [$periodStart, $periodEnd])
@@ -135,21 +138,21 @@ class CloseMonthlyFinancialReportJob implements ShouldQueue
 
         DB::transaction(function () use ($year, $month, $summary, $existing, $tenantSnapshot): void {
             $payload = [
-                'gross_revenue'     => (float) ($summary->gross_revenue ?? 0),
-                'cleared_revenue'   => (float) ($summary->cleared_revenue ?? 0),
+                'gross_revenue' => (float) ($summary->gross_revenue ?? 0),
+                'cleared_revenue' => (float) ($summary->cleared_revenue ?? 0),
                 'uncleared_revenue' => (float) ($summary->uncleared_revenue ?? 0),
-                'disputed_revenue'  => (float) ($summary->disputed_revenue ?? 0),
-                'reversed_revenue'  => (float) ($summary->reversed_revenue ?? 0),
-                'tax_amount'        => (float) ($summary->tax_amount ?? 0),
-                'net_revenue'       => (float) ($summary->net_revenue ?? 0),
-                'report_status'     => 'locked',
-                'locked_at'         => now()->toDateTimeString(),
+                'disputed_revenue' => (float) ($summary->disputed_revenue ?? 0),
+                'reversed_revenue' => (float) ($summary->reversed_revenue ?? 0),
+                'tax_amount' => (float) ($summary->tax_amount ?? 0),
+                'net_revenue' => (float) ($summary->net_revenue ?? 0),
+                'report_status' => 'locked',
+                'locked_at' => now()->toDateTimeString(),
             ];
 
             // Level 3: Persist per-tenant snapshot so the frozen data is served on future reads.
             if ($tenantSnapshot !== null && Schema::hasColumn('platform_monthly_financial_summaries', 'tenant_billing_snapshots')) {
                 $payload['tenant_billing_snapshots'] = json_encode($tenantSnapshot);
-                $payload['tax_snapshots_locked_at']  = now()->toDateTimeString();
+                $payload['tax_snapshots_locked_at'] = now()->toDateTimeString();
             }
 
             if ($existing) {
@@ -159,18 +162,18 @@ class CloseMonthlyFinancialReportJob implements ShouldQueue
                     ->update(array_merge($payload, ['updated_at' => now()->toDateTimeString()]));
             } else {
                 DB::table('platform_monthly_financial_summaries')->insert(array_merge($payload, [
-                    'report_year'  => $year,
+                    'report_year' => $year,
                     'report_month' => $month,
-                    'created_at'   => now()->toDateTimeString(),
-                    'updated_at'   => now()->toDateTimeString(),
+                    'created_at' => now()->toDateTimeString(),
+                    'updated_at' => now()->toDateTimeString(),
                 ]));
             }
 
             Log::info('CloseMonthlyFinancialReportJob: period locked successfully.', [
-                'year'          => $year,
-                'month'         => $month,
+                'year' => $year,
+                'month' => $month,
                 'gross_revenue' => $payload['gross_revenue'],
-                'net_revenue'   => $payload['net_revenue'],
+                'net_revenue' => $payload['net_revenue'],
             ]);
         });
     }
@@ -186,6 +189,7 @@ class CloseMonthlyFinancialReportJob implements ShouldQueue
                 Log::warning('CloseMonthlyFinancialReportJob: platform_expense_tax_codes table not found (AN-016).', [
                     'year' => $year, 'month' => $month,
                 ]);
+
                 return;
             }
 

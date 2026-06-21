@@ -6,6 +6,8 @@ use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\ReportSnapshot;
 use App\Models\User;
+use App\Services\Reporting\ReportSnapshotService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -320,12 +322,12 @@ class ReportSnapshotApiTest extends TestCase
             'password' => bcrypt('StrongPass1'),
         ]);
 
-        /** @var \App\Services\Reporting\ReportSnapshotService $service */
-        $service = app(\App\Services\Reporting\ReportSnapshotService::class);
+        /** @var ReportSnapshotService $service */
+        $service = app(ReportSnapshotService::class);
         $snapshot = $service->generateSnapshot(
             reportType: 'employee',
-            periodStart: \Carbon\Carbon::parse('2027-01-01'),
-            periodEnd: \Carbon\Carbon::parse('2027-01-31'),
+            periodStart: Carbon::parse('2027-01-01'),
+            periodEnd: Carbon::parse('2027-01-31'),
             filters: [],
             userId: $generator->id,
             companyId: $company->id,
@@ -375,12 +377,12 @@ class ReportSnapshotApiTest extends TestCase
             'password' => bcrypt('StrongPass1'),
         ]);
 
-        /** @var \App\Services\Reporting\ReportSnapshotService $service */
-        $service = app(\App\Services\Reporting\ReportSnapshotService::class);
+        /** @var ReportSnapshotService $service */
+        $service = app(ReportSnapshotService::class);
         $snapshot = $service->generateSnapshot(
             reportType: 'employee',
-            periodStart: \Carbon\Carbon::parse('2027-02-01'),
-            periodEnd: \Carbon\Carbon::parse('2027-02-28'),
+            periodStart: Carbon::parse('2027-02-01'),
+            periodEnd: Carbon::parse('2027-02-28'),
             filters: [],
             userId: $generator->id,
             companyId: $company->id,

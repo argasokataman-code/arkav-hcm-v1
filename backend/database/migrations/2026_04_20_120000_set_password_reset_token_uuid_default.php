@@ -17,7 +17,7 @@ return new class extends Migration
         }
 
         DB::statement("UPDATE `password_reset_tokens` SET `uuid` = UUID() WHERE `uuid` IS NULL OR `uuid` = ''");
-        DB::statement("ALTER TABLE `password_reset_tokens` MODIFY `uuid` CHAR(36) NOT NULL DEFAULT (UUID())");
+        DB::statement('ALTER TABLE `password_reset_tokens` MODIFY `uuid` CHAR(36) NOT NULL DEFAULT (UUID())');
     }
 
     public function down(): void
@@ -30,6 +30,6 @@ return new class extends Migration
             return;
         }
 
-        DB::statement("ALTER TABLE `password_reset_tokens` MODIFY `uuid` CHAR(36) NOT NULL");
+        DB::statement('ALTER TABLE `password_reset_tokens` MODIFY `uuid` CHAR(36) NOT NULL');
     }
 };

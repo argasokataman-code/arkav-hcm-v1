@@ -288,6 +288,7 @@ trait BuildsPayrollRunPayloads
 
             if ($purpose === HcmPayrollRun::PURPOSE_THR) {
                 $thrUserIds = array_merge($thrUserIds, $eligibleUserIds);
+
                 continue;
             }
 

@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Notifications\PasswordResetLinkNotification;
+use App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin;
 use App\Models\Concerns\AssignsUuid;
-use App\Models\DatabaseNotification;
+use App\Notifications\PasswordResetLinkNotification;
+use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -18,8 +19,8 @@ use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, AssignsUuid, SoftDeletes;
+    /** @use HasFactory<UserFactory> */
+    use AssignsUuid, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -101,7 +102,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Mirrors {@see \App\Http\Controllers\Api\Concerns\EnsuresHcmAdmin} for API and `/auth/me` hints.
+     * Mirrors {@see EnsuresHcmAdmin} for API and `/auth/me` hints.
      * Global check now relies on RBAC assignment in at least one active company.
      */
     public function isHcmAdmin(): bool

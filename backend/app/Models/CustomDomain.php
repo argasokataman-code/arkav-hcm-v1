@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CustomDomain extends Model
 {
-    use SoftDeletes, AssignsUuid;
+    use AssignsUuid, SoftDeletes;
 
     protected $fillable = [
         'company_id',
@@ -45,7 +45,7 @@ class CustomDomain extends Model
         parent::boot();
 
         static::creating(function ($model) {
-            if (!$model->verification_token) {
+            if (! $model->verification_token) {
                 $model->verification_token = self::generateVerificationToken();
             }
         });
@@ -66,7 +66,7 @@ class CustomDomain extends Model
      */
     public function isActive(): bool
     {
-        if ($this->status !== 'verified' || !$this->verified_at) {
+        if ($this->status !== 'verified' || ! $this->verified_at) {
             return false;
         }
 
@@ -104,7 +104,7 @@ class CustomDomain extends Model
      */
     public static function generateVerificationToken(): string
     {
-        return 'verify_' . bin2hex(random_bytes(16));
+        return 'verify_'.bin2hex(random_bytes(16));
     }
 
     /**
@@ -112,7 +112,7 @@ class CustomDomain extends Model
      */
     public static function generateDnsRecord(string $token): string
     {
-        return "v=arcav " . $token;
+        return 'v=arcav '.$token;
     }
 
     /**

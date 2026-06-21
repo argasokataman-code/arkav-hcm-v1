@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         // Check if column already exists to handle idempotency
-        if (!Schema::hasColumn('leave_request_breakdowns', 'holiday_calendar_id')) {
+        if (! Schema::hasColumn('leave_request_breakdowns', 'holiday_calendar_id')) {
             Schema::table('leave_request_breakdowns', function (Blueprint $table): void {
                 $table->unsignedBigInteger('holiday_calendar_id')
                     ->nullable()

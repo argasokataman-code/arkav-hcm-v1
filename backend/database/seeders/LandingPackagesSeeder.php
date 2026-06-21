@@ -75,18 +75,18 @@ class LandingPackagesSeeder extends Seeder
             );
 
             $featureTemplate = [
-                'max_employees'          => 'Maximum Employees',
-                'employee_management'    => 'Employee Management',
-                'attendance'             => 'Attendance',
-                'leave_management'       => 'Leave Management',
-                'holiday_calendar'       => 'Holiday Calendar',
-                'employee_lifecycle'     => 'Employee Lifecycle',
-                'payroll'                => 'Payroll',
-                'performance'            => 'Performance',
-                'training'               => 'Training',
-                'goal_tracking'          => 'Goal Tracking',
-                'asset_management'       => 'Asset Management',
-                'tickets'                => 'Tickets',
+                'max_employees' => 'Maximum Employees',
+                'employee_management' => 'Employee Management',
+                'attendance' => 'Attendance',
+                'leave_management' => 'Leave Management',
+                'holiday_calendar' => 'Holiday Calendar',
+                'employee_lifecycle' => 'Employee Lifecycle',
+                'payroll' => 'Payroll',
+                'performance' => 'Performance',
+                'training' => 'Training',
+                'goal_tracking' => 'Goal Tracking',
+                'asset_management' => 'Asset Management',
+                'tickets' => 'Tickets',
                 'employee_document_center' => 'Employee Document Center',
             ];
 
@@ -96,10 +96,10 @@ class LandingPackagesSeeder extends Seeder
             // All other features: 0 = disabled, 1 = enabled.
             // Audit fix 2026-05-12: payroll enabled in trial and starter (MVP feature, was 0)
             $limitsByPackage = [
-                'trial'      => [20,   1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0],
-                'starter'    => [50,   1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0],
-                'growth'     => [150,  1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0],
-                'business'   => [500,  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                'trial' => [20,   1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0],
+                'starter' => [50,   1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0],
+                'growth' => [150,  1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0],
+                'business' => [500,  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                 'enterprise' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             ];
 
@@ -122,4 +122,3 @@ class LandingPackagesSeeder extends Seeder
         $this->command?->info('Landing packages seeded (trial, starter, growth, business, enterprise).');
     }
 }
-

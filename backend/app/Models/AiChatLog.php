@@ -2,26 +2,28 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @property int         $id
- * @property int         $user_id
- * @property int|null    $company_id
- * @property string      $session_id
- * @property string      $intent
+ * @property int $id
+ * @property int $user_id
+ * @property int|null $company_id
+ * @property string $session_id
+ * @property string $intent
  * @property string|null $raw_intent
- * @property bool        $allowed
+ * @property bool $allowed
  * @property string|null $deny_reason
- * @property array|null  $source_endpoints
+ * @property array|null $source_endpoints
  * @property string|null $user_message
  * @property string|null $ai_reply
- * @property \Carbon\Carbon $created_at
+ * @property Carbon $created_at
  */
 class AiChatLog extends Model
 {
     use SoftDeletes;
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -40,7 +42,7 @@ class AiChatLog extends Model
 
     protected $casts = [
         'source_endpoints' => 'array',
-        'allowed'          => 'boolean',
-        'created_at'       => 'datetime',
+        'allowed' => 'boolean',
+        'created_at' => 'datetime',
     ];
 }

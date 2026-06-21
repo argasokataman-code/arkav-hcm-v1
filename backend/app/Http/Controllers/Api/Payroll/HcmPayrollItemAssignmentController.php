@@ -140,7 +140,7 @@ class HcmPayrollItemAssignmentController extends Controller
         $this->applyIdentifierScope(
             $assignmentQuery,
             $id,
-            Schema::hasColumn((new HcmEmployeePayrollItemAssignment())->getTable(), 'uuid')
+            Schema::hasColumn((new HcmEmployeePayrollItemAssignment)->getTable(), 'uuid')
         );
         $this->applyTenantScope($assignmentQuery, $companyId);
         $assignment = $assignmentQuery->firstOrFail();
@@ -229,7 +229,7 @@ class HcmPayrollItemAssignmentController extends Controller
         $this->applyIdentifierScope(
             $assignmentQuery,
             $id,
-            Schema::hasColumn((new HcmEmployeePayrollItemAssignment())->getTable(), 'uuid')
+            Schema::hasColumn((new HcmEmployeePayrollItemAssignment)->getTable(), 'uuid')
         );
         $this->applyTenantScope($assignmentQuery, $companyId);
         $assignment = $assignmentQuery->firstOrFail();

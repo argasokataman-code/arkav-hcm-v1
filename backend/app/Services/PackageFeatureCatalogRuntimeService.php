@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\FeatureClassification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
-use App\Models\FeatureClassification;
 
 class PackageFeatureCatalogRuntimeService
 {
@@ -428,10 +428,10 @@ class PackageFeatureCatalogRuntimeService
         foreach ($orphanChecks as $check) {
             if (isset($selectedLookup[$check['child']]) && ! isset($selectedLookup[$check['parent']])) {
                 $parentLabel = $this->resolveFeatureLabel($check['parent']);
-                $childLabel  = $this->resolveFeatureLabel($check['child']);
+                $childLabel = $this->resolveFeatureLabel($check['child']);
                 $dependencyItems[] = $this->buildIssue(
-                    'ORPHAN_' . Str::upper($check['child']),
-                    $childLabel . ' (butuh ' . $parentLabel . ')',
+                    'ORPHAN_'.Str::upper($check['child']),
+                    $childLabel.' (butuh '.$parentLabel.')',
                     'missing',
                     'error',
                     sprintf('%s dipilih tanpa %s aktif. Aktifkan %s terlebih dahulu.', $childLabel, $parentLabel, $parentLabel),
@@ -445,8 +445,8 @@ class PackageFeatureCatalogRuntimeService
             if (isset($selectedLookup[$govCode]) && ! isset($selectedLookup['payroll'])) {
                 $govLabel = $this->resolveFeatureLabel($govCode);
                 $dependencyItems[] = $this->buildIssue(
-                    'ORPHAN_GOV_' . Str::upper($govCode),
-                    $govLabel . ' (butuh Payroll)',
+                    'ORPHAN_GOV_'.Str::upper($govCode),
+                    $govLabel.' (butuh Payroll)',
                     'missing',
                     'error',
                     sprintf('%s dipilih tanpa Payroll aktif. Payroll wajib ada agar fitur ini berjalan.', $govLabel),

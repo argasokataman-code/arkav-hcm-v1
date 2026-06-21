@@ -162,6 +162,7 @@ return new class extends Migration
     private function normalizeTaxStatus(?string $value): string
     {
         $raw = strtoupper(str_replace(['/', ' '], '', trim((string) $value)));
+
         return match ($raw) {
             'TK', 'TK0', '' => 'TK0',
             'TK1' => 'TK1',

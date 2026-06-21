@@ -8,8 +8,7 @@ final readonly class ImageCompressionConfig
         public int $maxWidth,
         public int $maxHeight,
         public int $jpegQuality,
-    ) {
-    }
+    ) {}
 
     public static function policyAttachment(): self
     {

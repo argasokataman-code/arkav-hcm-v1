@@ -13,7 +13,7 @@ class BpjsContributionCalculatorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->calc = new BpjsContributionCalculator();
+        $this->calc = new BpjsContributionCalculator;
     }
 
     // ────────────────────────────────────────────────────

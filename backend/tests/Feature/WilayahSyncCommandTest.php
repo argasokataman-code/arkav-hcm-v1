@@ -2,11 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use App\Models\WilayahDistrict;
 use App\Models\WilayahProvince;
 use App\Models\WilayahRegency;
 use App\Models\WilayahVillage;
-use App\Models\User;
+use App\Services\Wilayah\WilayahSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
@@ -192,7 +193,7 @@ class WilayahSyncCommandTest extends TestCase
         $user = User::factory()->create([
             'email' => (string) config('hcm.admin_email', 'qa.login@example.com'),
         ]);
-        Cache::forget(\App\Services\Wilayah\WilayahSyncService::PROGRESS_CACHE_KEY);
+        Cache::forget(WilayahSyncService::PROGRESS_CACHE_KEY);
         $csrfToken = 'test-sync-token';
         $response = $this->actingAs($user)
             ->withSession(['_token' => $csrfToken])
@@ -209,7 +210,7 @@ class WilayahSyncCommandTest extends TestCase
         Http::fake();
 
         $user = User::factory()->create();
-        Cache::forget(\App\Services\Wilayah\WilayahSyncService::PROGRESS_CACHE_KEY);
+        Cache::forget(WilayahSyncService::PROGRESS_CACHE_KEY);
         $csrfToken = 'test-sync-token-forbidden';
 
         $response = $this->actingAs($user)

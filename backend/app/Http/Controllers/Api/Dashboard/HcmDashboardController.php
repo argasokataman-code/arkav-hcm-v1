@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Dashboard;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
+use App\Models\Company;
 use App\Models\Department;
 use App\Models\EmployeeProfile;
 use App\Models\HcmLeaveTypeSetting;
@@ -17,18 +18,18 @@ use App\Models\HcmResignation;
 use App\Models\HcmTermination;
 use App\Models\HcmTraining;
 use App\Models\Holiday;
-use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\LeaveRequest;
-use App\Models\Subscription;
 use App\Models\OvertimeRequest;
 use App\Models\PerformanceReview;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Support\Exports\TabularExportResponse;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -66,7 +67,6 @@ class HcmDashboardController extends Controller
         $monthStart = $today->copy()->startOfMonth();
         $monthEnd = $today->copy()->endOfMonth();
         $companyId = $this->activeCompanyId($request);
-
 
         // --- Patch: Add totalEmployees and inactiveEmployees ---
         $allProfiles = EmployeeProfile::query()
@@ -110,6 +110,7 @@ class HcmDashboardController extends Controller
                 return false;
             }
             $days = $today->diffInDays(Carbon::parse($profile->contract_end_date), false);
+
             return $days >= 0 && $days <= 30;
         })->count();
 
@@ -317,6 +318,7 @@ class HcmDashboardController extends Controller
                 $punctualityRate = max(0, 1 - min(1, ((float) $row['averageLateMinutes']) / 30));
                 $score = (int) round((($attendanceRate * 0.7) + ($punctualityRate * 0.3)) * 100);
                 $row['score'] = max(0, min(100, $score));
+
                 return $row;
             })
             ->sortByDesc('score')
@@ -468,6 +470,7 @@ class HcmDashboardController extends Controller
             ->take(5)
             ->map(function (EmployeeProfile $profile) use ($userDirectory): array {
                 $userId = (int) ($profile->user_id ?? 0);
+
                 return [
                     'name' => (string) ($userDirectory->get($userId)?->name ?? 'Employee'),
                     'role' => trim((string) ($profile->designation ?? '')) !== ''
@@ -482,6 +485,7 @@ class HcmDashboardController extends Controller
             ->take(5)
             ->map(function (EmployeeProfile $profile) use ($userDirectory): array {
                 $userId = (int) ($profile->user_id ?? 0);
+
                 return [
                     'name' => (string) ($userDirectory->get($userId)?->name ?? 'Employee'),
                     'role' => trim((string) ($profile->designation ?? '')) !== ''
@@ -731,6 +735,7 @@ class HcmDashboardController extends Controller
 
             $paymentStates = $lineRows->map(function (HcmPayrollLine $line): string {
                 $meta = is_array($line->meta) ? $line->meta : [];
+
                 return strtolower((string) ($meta['paymentStatus'] ?? 'unpaid'));
             });
 
@@ -949,6 +954,7 @@ class HcmDashboardController extends Controller
 
                 $row['birthdayLabel'] = $next->format('d M');
                 $row['birthdayDaysLeft'] = $referenceDate->diffInDays($next, false);
+
                 return $row;
             })
             ->sortBy('birthdayDaysLeft')
@@ -993,6 +999,7 @@ class HcmDashboardController extends Controller
 
         $scores = $reviews->map(function (PerformanceReview $row): array {
             $score = (float) ($row->final_total_score ?? $row->manager_total_score ?? $row->self_total_score ?? 0);
+
             return [
                 'label' => (string) ($row->cycle?->name ?: optional($row->cycle?->period_end)->format('M Y') ?: ('Review #'.$row->id)),
                 'score' => round($score, 2),
@@ -1026,7 +1033,7 @@ class HcmDashboardController extends Controller
         });
 
         return $grouped->map(function ($rows, string $skillName): array {
-            /** @var \Illuminate\Support\Collection $rows */
+            /** @var Collection $rows */
             $latest = $rows->sortByDesc('end_date')->first();
             $count = $rows->count();
             $level = (int) min(95, 45 + ($count * 10));
@@ -1046,6 +1053,7 @@ class HcmDashboardController extends Controller
         }
 
         $normalized = ltrim(str_replace('\\', '/', $path), '/');
+
         return '/storage/'.$normalized;
     }
 
@@ -1064,6 +1072,7 @@ class HcmDashboardController extends Controller
         }
 
         $mins = (int) $checkIn->diffInMinutes($end);
+
         return max(0, $mins - $breakMinutes);
     }
 
@@ -1126,10 +1135,10 @@ class HcmDashboardController extends Controller
 
         $now = Carbon::now('Asia/Jakarta');
         $monthStart = $now->copy()->startOfMonth()->toDateString();
-        $monthEnd   = $now->copy()->endOfMonth()->toDateString();
+        $monthEnd = $now->copy()->endOfMonth()->toDateString();
 
         // Aggregate employee counts grouped by company
-        $companyCounts = \App\Models\Company::query()
+        $companyCounts = Company::query()
             ->select([
                 'companies.id',
                 'companies.code',
@@ -1140,21 +1149,21 @@ class HcmDashboardController extends Controller
             ->selectRaw("SUM(CASE WHEN ep.employment_status IN ('active','probation') THEN 1 ELSE 0 END) as active_employees")
             ->selectRaw("SUM(CASE WHEN ep.employment_status = 'probation' THEN 1 ELSE 0 END) as probation_employees")
             ->selectRaw("SUM(CASE WHEN ep.employment_status IN ('resigned','terminated','inactive') THEN 1 ELSE 0 END) as inactive_employees")
-            ->selectRaw("SUM(CASE WHEN ep.hire_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as new_hires_this_month", [$monthStart, $monthEnd])
-            ->selectRaw("SUM(CASE WHEN ep.contract_end_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as expiring_contracts_30d", [$now->toDateString(), $now->copy()->addDays(30)->toDateString()])
+            ->selectRaw('SUM(CASE WHEN ep.hire_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as new_hires_this_month', [$monthStart, $monthEnd])
+            ->selectRaw('SUM(CASE WHEN ep.contract_end_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as expiring_contracts_30d', [$now->toDateString(), $now->copy()->addDays(30)->toDateString()])
             ->leftJoin('employee_profiles as ep', 'ep.company_id', '=', 'companies.id')
             ->groupBy('companies.id', 'companies.code', 'companies.name', 'companies.status')
             ->orderBy('companies.name')
             ->get();
 
         // Global summary
-        $totalEmployees      = $companyCounts->sum('total_employees');
-        $totalActive         = $companyCounts->sum('active_employees');
-        $totalProbation      = $companyCounts->sum('probation_employees');
-        $totalInactive       = $companyCounts->sum('inactive_employees');
-        $totalNewHires       = $companyCounts->sum('new_hires_this_month');
+        $totalEmployees = $companyCounts->sum('total_employees');
+        $totalActive = $companyCounts->sum('active_employees');
+        $totalProbation = $companyCounts->sum('probation_employees');
+        $totalInactive = $companyCounts->sum('inactive_employees');
+        $totalNewHires = $companyCounts->sum('new_hires_this_month');
         $totalExpiringContracts = $companyCounts->sum('expiring_contracts_30d');
-        $totalCompanies      = $companyCounts->count();
+        $totalCompanies = $companyCounts->count();
         $totalActiveCompanies = $companyCounts->where('status', 'active')->count();
 
         // Global employment_status breakdown
@@ -1167,10 +1176,10 @@ class HcmDashboardController extends Controller
         // New hires trend (last 6 months)
         $hireTrend = [];
         for ($i = 5; $i >= 0; $i--) {
-            $monthRef   = $now->copy()->subMonths($i);
-            $mStart     = $monthRef->copy()->startOfMonth()->toDateString();
-            $mEnd       = $monthRef->copy()->endOfMonth()->toDateString();
-            $count      = EmployeeProfile::query()
+            $monthRef = $now->copy()->subMonths($i);
+            $mStart = $monthRef->copy()->startOfMonth()->toDateString();
+            $mEnd = $monthRef->copy()->endOfMonth()->toDateString();
+            $count = EmployeeProfile::query()
                 ->whereBetween('hire_date', [$mStart, $mEnd])
                 ->count();
             $hireTrend[] = [
@@ -1183,28 +1192,28 @@ class HcmDashboardController extends Controller
             'success' => true,
             'data' => [
                 'summary' => [
-                    'total_companies'          => $totalCompanies,
-                    'total_active_companies'   => $totalActiveCompanies,
-                    'total_employees'          => $totalEmployees,
-                    'total_active'             => $totalActive,
-                    'total_probation'          => $totalProbation,
-                    'total_inactive'           => $totalInactive,
-                    'new_hires_this_month'     => $totalNewHires,
-                    'expiring_contracts_30d'   => $totalExpiringContracts,
-                    'month_label'              => $now->format('F Y'),
+                    'total_companies' => $totalCompanies,
+                    'total_active_companies' => $totalActiveCompanies,
+                    'total_employees' => $totalEmployees,
+                    'total_active' => $totalActive,
+                    'total_probation' => $totalProbation,
+                    'total_inactive' => $totalInactive,
+                    'new_hires_this_month' => $totalNewHires,
+                    'expiring_contracts_30d' => $totalExpiringContracts,
+                    'month_label' => $now->format('F Y'),
                 ],
-                'status_breakdown'   => $statusBreakdown,
-                'hire_trend'         => $hireTrend,
-                'companies'          => $companyCounts->map(fn ($c) => [
-                    'id'                     => $c->id,
-                    'code'                   => $c->code,
-                    'name'                   => $c->name,
-                    'status'                 => $c->status,
-                    'total_employees'        => (int) $c->total_employees,
-                    'active_employees'       => (int) $c->active_employees,
-                    'probation_employees'    => (int) $c->probation_employees,
-                    'inactive_employees'     => (int) $c->inactive_employees,
-                    'new_hires_this_month'   => (int) $c->new_hires_this_month,
+                'status_breakdown' => $statusBreakdown,
+                'hire_trend' => $hireTrend,
+                'companies' => $companyCounts->map(fn ($c) => [
+                    'id' => $c->id,
+                    'code' => $c->code,
+                    'name' => $c->name,
+                    'status' => $c->status,
+                    'total_employees' => (int) $c->total_employees,
+                    'active_employees' => (int) $c->active_employees,
+                    'probation_employees' => (int) $c->probation_employees,
+                    'inactive_employees' => (int) $c->inactive_employees,
+                    'new_hires_this_month' => (int) $c->new_hires_this_month,
                     'expiring_contracts_30d' => (int) $c->expiring_contracts_30d,
                 ])->values()->all(),
             ],
@@ -1233,7 +1242,7 @@ class HcmDashboardController extends Controller
             }
 
             $feature = $sub->package->features->firstWhere('feature_code', 'max_employees');
-            $limit   = $feature ? ($feature->limit === null ? null : (int) $feature->limit) : null;
+            $limit = $feature ? ($feature->limit === null ? null : (int) $feature->limit) : null;
 
             $actual = EmployeeProfile::query()
                 ->where('company_id', $sub->company_id)
@@ -1242,7 +1251,7 @@ class HcmDashboardController extends Controller
 
             if ($limit === null) {
                 $usagePct = 0;
-                $status   = 'unlimited';
+                $status = 'unlimited';
                 $summary['unlimited']++;
             } else {
                 $usagePct = $limit > 0 ? round(($actual / $limit) * 100, 1) : ($actual > 0 ? 999 : 0);
@@ -1260,18 +1269,18 @@ class HcmDashboardController extends Controller
             $summary['total']++;
 
             $rows[] = [
-                'company_id'        => $sub->company_id,
-                'company_name'      => $sub->company->name,
-                'company_code'      => $sub->company->code,
-                'company_status'    => $sub->company->status,
-                'package_name'      => $sub->package->name,
-                'plan_code'         => $sub->plan_code,
-                'sub_status'        => $sub->status,
-                'sub_ends_at'       => $sub->ends_at ? $sub->ends_at->toDateString() : null,
-                'limit'             => $limit,
-                'actual'            => $actual,
-                'excess'            => max(0, $actual - ($limit ?? $actual)),
-                'usage_pct'         => $usagePct,
+                'company_id' => $sub->company_id,
+                'company_name' => $sub->company->name,
+                'company_code' => $sub->company->code,
+                'company_status' => $sub->company->status,
+                'package_name' => $sub->package->name,
+                'plan_code' => $sub->plan_code,
+                'sub_status' => $sub->status,
+                'sub_ends_at' => $sub->ends_at ? $sub->ends_at->toDateString() : null,
+                'limit' => $limit,
+                'actual' => $actual,
+                'excess' => max(0, $actual - ($limit ?? $actual)),
+                'usage_pct' => $usagePct,
                 'compliance_status' => $status,
             ];
         }
@@ -1279,6 +1288,7 @@ class HcmDashboardController extends Controller
         // Sort: violations first, then warnings, then compliant, then unlimited
         usort($rows, function ($a, $b) {
             $order = ['violation' => 0, 'warning' => 1, 'compliant' => 2, 'unlimited' => 3];
+
             return ($order[$a['compliance_status']] ?? 9) <=> ($order[$b['compliance_status']] ?? 9);
         });
 
@@ -1383,9 +1393,9 @@ class HcmDashboardController extends Controller
         }
 
         if (function_exists('mb_substr')) {
-            return mb_substr($normalized, 0, 1, 'UTF-8') . '***';
+            return mb_substr($normalized, 0, 1, 'UTF-8').'***';
         }
 
-        return substr($normalized, 0, 1) . '***';
+        return substr($normalized, 0, 1).'***';
     }
 }

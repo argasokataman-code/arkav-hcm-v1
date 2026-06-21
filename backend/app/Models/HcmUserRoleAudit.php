@@ -5,14 +5,12 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Schema;
 
 class HcmUserRoleAudit extends Model
 {
     use AssignsUuid;
 
     public $timestamps = false;
-
 
     protected $fillable = [
         'company_id',

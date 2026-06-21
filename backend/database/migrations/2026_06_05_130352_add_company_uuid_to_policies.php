@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::table('policies', function (Blueprint $table) {
             // Add company_uuid for multi-tenant scoping
-            if (!Schema::hasColumn('policies', 'company_uuid')) {
+            if (! Schema::hasColumn('policies', 'company_uuid')) {
                 $table->char('company_uuid', 36)->nullable();
             }
-            if (!Schema::hasIndex('policies', 'policies_company_uuid_index')) {
+            if (! Schema::hasIndex('policies', 'policies_company_uuid_index')) {
                 $table->index('company_uuid');
             }
         });

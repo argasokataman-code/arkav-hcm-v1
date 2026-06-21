@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 class ProcessSubscriptionBilling extends Command
 {
     protected $signature = 'billing:process-renewals';
+
     protected $description = 'Process subscription renewals and attempt payment collection';
 
     public function handle(): int
@@ -20,10 +21,12 @@ class ProcessSubscriptionBilling extends Command
             ProcessRecurringSubscriptionBilling::dispatch();
             $this->info('✓ Subscription billing job dispatched successfully');
             Log::info('Subscription billing job dispatched');
+
             return 0;
         } catch (\Exception $e) {
-            $this->error('✗ Failed to dispatch subscription billing job: ' . $e->getMessage());
+            $this->error('✗ Failed to dispatch subscription billing job: '.$e->getMessage());
             Log::error('Failed to dispatch subscription billing job', ['error' => $e->getMessage()]);
+
             return 1;
         }
     }

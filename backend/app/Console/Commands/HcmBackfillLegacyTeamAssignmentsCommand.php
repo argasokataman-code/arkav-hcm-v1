@@ -88,11 +88,13 @@ class HcmBackfillLegacyTeamAssignmentsCommand extends Command
 
             if (! $team) {
                 $skippedNoMatch++;
+
                 continue;
             }
 
             if ($dryRun) {
                 $reassigned++;
+
                 continue;
             }
 

@@ -2,8 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
+use App\Models\CompanyUser;
+use App\Models\HcmPermission;
+use App\Models\HcmRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class TrainingApiTest extends TestCase
@@ -118,15 +124,15 @@ class TrainingApiTest extends TestCase
         $trainerId = (int) $trainerRes->json('data.id');
 
         $tRes = $this->withHeaders($hAdmin)->postJson('/v1/hcm/training/trainings', [
-                'trainingTypeId' => $typeId,
-                'trainerId' => $trainerId,
-                'participantUserIds' => [$employee['user']->id],
-                'startDate' => '2026-04-09',
-                'endDate' => '2026-04-10',
-                'description' => 'desc',
-                'costCents' => 250000,
-                'status' => 'active',
-            ])
+            'trainingTypeId' => $typeId,
+            'trainerId' => $trainerId,
+            'participantUserIds' => [$employee['user']->id],
+            'startDate' => '2026-04-09',
+            'endDate' => '2026-04-10',
+            'description' => 'desc',
+            'costCents' => 250000,
+            'status' => 'active',
+        ])
             ->assertStatus(201)
             ->assertJsonPath('success', true);
         $trainingId = (int) $tRes->json('data.id');
@@ -146,9 +152,9 @@ class TrainingApiTest extends TestCase
 
         // Admin update
         $this->withHeaders($hAdmin)->putJson("/v1/hcm/training/trainings/{$trainingId}", [
-                'status' => 'completed',
-                'participantUserIds' => [],
-            ])
+            'status' => 'completed',
+            'participantUserIds' => [],
+        ])
             ->assertOk()
             ->assertJsonPath('success', true);
 
@@ -207,12 +213,12 @@ class TrainingApiTest extends TestCase
 
     public function test_training_types_and_trainings_are_tenant_scoped_for_admins(): void
     {
-        $companyA = \App\Models\Company::query()->create([
+        $companyA = Company::query()->create([
             'code' => 'TRAIN_A',
             'name' => 'Training Company A',
             'domain' => 'train-a.local',
         ]);
-        $companyB = \App\Models\Company::query()->create([
+        $companyB = Company::query()->create([
             'code' => 'TRAIN_B',
             'name' => 'Training Company B',
             'domain' => 'train-b.local',
@@ -296,7 +302,7 @@ class TrainingApiTest extends TestCase
 
     public function test_training_mutation_requires_manage_permission_not_view_only(): void
     {
-        $company = \App\Models\Company::query()->create([
+        $company = Company::query()->create([
             'code' => 'TRAIN_VIEW_ONLY',
             'name' => 'Training View Only',
             'domain' => 'train-view-only.local',
@@ -305,7 +311,7 @@ class TrainingApiTest extends TestCase
         $user = $this->login('training-view-only@example.com', 'Training View Only User');
         $authUser = User::query()->where('email', 'training-view-only@example.com')->firstOrFail();
 
-        \App\Models\CompanyUser::query()->create([
+        CompanyUser::query()->create([
             'company_id' => $company->id,
             'user_id' => $authUser->id,
             'role' => 'member',
@@ -313,29 +319,29 @@ class TrainingApiTest extends TestCase
             'joined_at' => now(),
         ]);
 
-        $role = \App\Models\HcmRole::query()->create([
+        $role = HcmRole::query()->create([
             'company_id' => $company->id,
             'code' => 'TRAINING_VIEWER',
             'name' => 'Training Viewer',
             'status' => 'active',
             'is_system' => false,
         ]);
-        $permission = \App\Models\HcmPermission::query()->firstOrCreate(
+        $permission = HcmPermission::query()->firstOrCreate(
             ['code' => 'training.view'],
             ['module' => 'training', 'resource' => 'training', 'action' => 'view', 'name' => 'Training View', 'is_active' => true]
         );
-        \Illuminate\Support\Facades\DB::table('hcm_role_permissions')->insert([
+        DB::table('hcm_role_permissions')->insert([
             'company_id' => $company->id,
             'role_id' => $role->id,
             'permission_id' => $permission->id,
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
         ]);
-        \Illuminate\Support\Facades\DB::table('hcm_user_roles')->insert([
+        DB::table('hcm_user_roles')->insert([
             'user_id' => $authUser->id,
             'company_id' => $company->id,
             'role_id' => $role->id,
             'status' => 'active',
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
         ]);
 
         $headers = [
@@ -353,4 +359,3 @@ class TrainingApiTest extends TestCase
             ->assertJsonPath('success', true);
     }
 }
-

@@ -21,6 +21,7 @@ class EnsureHcmWebAdminPage
 
         if (! $user instanceof User) {
             \Log::warning('EnsureHcmWebAdminPage: User not resolved');
+
             return redirect()->to(url('login'));
         }
 
@@ -36,20 +37,24 @@ class EnsureHcmWebAdminPage
         // Global admin (super admin) bypasses all checks in developer mode
         if ($user->isGlobalHcmAdmin()) {
             \Log::info('EnsureHcmWebAdminPage: Global admin bypass', ['email' => $user->email]);
+
             return $next($request);
         }
 
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
         if ($activeCompanyId > 0) {
             if (! $user->isHcmAdminForCompany($activeCompanyId)) {
-                    \Log::info('EnsureHcmWebAdminPage: Not HCM admin for company', ['activeCompanyId' => $activeCompanyId]);
-                    return redirect()->to(url('employee-dashboard'))->with('error', 'Halaman ini khusus admin perusahaan. Anda sedang login sebagai pengguna employee/member.');
+                \Log::info('EnsureHcmWebAdminPage: Not HCM admin for company', ['activeCompanyId' => $activeCompanyId]);
+
+                return redirect()->to(url('employee-dashboard'))->with('error', 'Halaman ini khusus admin perusahaan. Anda sedang login sebagai pengguna employee/member.');
             }
+
             return $next($request);
         }
 
         if (! $user->isHcmAdmin()) {
             \Log::info('EnsureHcmWebAdminPage: Not HCM admin', ['email' => $user->email]);
+
             return redirect()->to(url('employee-dashboard'))->with('error', 'Halaman ini khusus admin perusahaan. Anda sedang login sebagai pengguna employee/member.');
         }
 

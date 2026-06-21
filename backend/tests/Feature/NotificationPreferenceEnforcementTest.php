@@ -25,7 +25,8 @@ class NotificationPreferenceEnforcementTest extends TestCase
             'digest_mode' => 'instant',
         ]);
 
-        $user->notify(new class extends Notification {
+        $user->notify(new class extends Notification
+        {
             public function via($notifiable): array
             {
                 return ['database'];
@@ -57,7 +58,8 @@ class NotificationPreferenceEnforcementTest extends TestCase
             'digest_mode' => 'instant',
         ]);
 
-        $user->notify(new class extends Notification {
+        $user->notify(new class extends Notification
+        {
             public function via($notifiable): array
             {
                 return ['database'];

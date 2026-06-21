@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\Schema;
 class PayrollMonthlySettingsService
 {
     public const PAYDAY_STRATEGY_PREVIOUS_WORKING_DAY = 'previous_working_day';
+
     public const PAYDAY_STRATEGY_NEXT_WORKING_DAY = 'next_working_day';
+
     public const PAYDAY_STRATEGY_EXACT_CALENDAR_DAY = 'exact_calendar_day';
 
     private const DEFAULTS = [

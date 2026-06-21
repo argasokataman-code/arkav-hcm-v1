@@ -53,7 +53,7 @@ return new class extends Migration
                     $table->dropUnique('hcm_role_permissions_unique');
                 });
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'doesn\'t exist') === false && stripos($e->getMessage(), 'can\'t drop') === false) {
                 throw $e;
             }
@@ -65,7 +65,7 @@ return new class extends Migration
                     $table->unique(['company_id', 'role_id', 'permission_id'], 'hcm_role_permissions_tenant_unique');
                 });
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }
@@ -82,7 +82,7 @@ return new class extends Migration
             Schema::table('hcm_role_permissions', function (Blueprint $table): void {
                 $table->dropUnique('hcm_role_permissions_tenant_unique');
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'doesn\'t exist') === false && stripos($e->getMessage(), 'can\'t drop') === false) {
                 throw $e;
             }
@@ -92,7 +92,7 @@ return new class extends Migration
             Schema::table('hcm_role_permissions', function (Blueprint $table): void {
                 $table->dropForeign(['company_id']);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'doesn\'t exist') === false && stripos($e->getMessage(), 'can\'t drop') === false) {
                 throw $e;
             }
@@ -158,7 +158,7 @@ return new class extends Migration
             Schema::table('hcm_role_permissions', function (Blueprint $table): void {
                 $table->foreign('company_id')->references('id')->on('companies')->nullOnDelete();
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'duplicate') === false && stripos($e->getMessage(), 'exists') === false && stripos($e->getMessage(), 'Duplicate foreign key constraint name') === false) {
                 throw $e;
             }

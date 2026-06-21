@@ -71,11 +71,13 @@ class LeaveWorkingDayCalculator
 
             if ($excludeWeekends && $date->isWeekend()) {
                 $excludedDates[] = ['date' => $dateKey, 'reason' => 'weekend'];
+
                 continue;
             }
 
             if ($excludeHolidays && array_key_exists($dateKey, $holidayMap)) {
                 $excludedDates[] = ['date' => $dateKey, 'reason' => 'holiday: '.$holidayMap[$dateKey]];
+
                 continue;
             }
 

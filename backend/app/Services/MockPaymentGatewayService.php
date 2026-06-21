@@ -4,29 +4,29 @@ namespace App\Services;
 
 use App\Models\Invoice;
 use App\Models\Payment;
-use App\Services\BillingTaxCalculationService;
+use App\Models\Subscription;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
  * Mock Payment Gateway Service
- * 
+ *
  * Simulates payment processing for development/testing WITHOUT actual gateway integration.
  * Use this when payment gateway subscriptions are not yet active.
- * 
+ *
  * This is development-only and should NOT be used in production.
  */
 class MockPaymentGatewayService
 {
     /**
      * Create a mock payment (instant success)
-     * 
-     * @param array $params Payment parameters
+     *
+     * @param  array  $params  Payment parameters
      * @return array Payment result with charge ID
      */
     public function createPayment(array $params): array
     {
-        $chargeId = 'mock_' . uniqid();
+        $chargeId = 'mock_'.uniqid();
         $amount = $params['amount'] ?? 0;
         $invoiceId = $params['invoice_id'] ?? null;
 
@@ -50,13 +50,13 @@ class MockPaymentGatewayService
 
     /**
      * Simulate payment failure
-     * 
-     * @param array $params Payment parameters
+     *
+     * @param  array  $params  Payment parameters
      * @return array Failed payment result
      */
     public function createFailedPayment(array $params): array
     {
-        $chargeId = 'mock_failed_' . uniqid();
+        $chargeId = 'mock_failed_'.uniqid();
         $failureReason = $params['failure_reason'] ?? 'Insufficient funds';
 
         Log::warning('Mock payment failed', [
@@ -78,8 +78,8 @@ class MockPaymentGatewayService
 
     /**
      * Create mock invoice and process payment
-     * 
-     * @param array $params Invoice parameters
+     *
+     * @param  array  $params  Invoice parameters
      * @return array Result with invoice and payment
      */
     public function createInvoiceAndPay(array $params): array
@@ -98,7 +98,7 @@ class MockPaymentGatewayService
         };
 
         // Check if company has a pending trial/payment subscription to activate
-        $subscription = \App\Models\Subscription::where('company_id', $companyId)
+        $subscription = Subscription::where('company_id', $companyId)
             ->whereIn('status', ['pending_payment', 'trial'])
             ->latest('created_at')
             ->first();
@@ -107,10 +107,10 @@ class MockPaymentGatewayService
         $taxRateSnapshot = app(BillingTaxCalculationService::class)
             ->resolvePolicyRateSnapshot((int) $companyId, now()->format('Y-m'));
 
-        $invoice = \App\Models\Invoice::create([
+        $invoice = Invoice::create([
             'company_id' => $companyId,
             'subscription_id' => $subscription?->id,
-            'invoice_number' => 'MOCK-' . date('YmdHis'),
+            'invoice_number' => 'MOCK-'.date('YmdHis'),
             'status' => 'draft',
             'issue_date' => now(),
             'due_date' => now()->addDays(7),
@@ -147,7 +147,7 @@ class MockPaymentGatewayService
             'currency' => $params['currency'] ?? 'IDR',
             'payment_method' => $storedPaymentMethod,
             'gateway' => 'mock',
-            'gateway_reference' => 'mock_' . uniqid(),
+            'gateway_reference' => 'mock_'.uniqid(),
             'status' => $paymentStatus,
             'metadata' => $paymentMetadata,
         ]);

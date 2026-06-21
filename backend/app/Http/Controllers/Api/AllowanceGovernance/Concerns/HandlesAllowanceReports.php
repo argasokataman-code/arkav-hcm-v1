@@ -3,23 +3,15 @@
 namespace App\Http\Controllers\Api\AllowanceGovernance\Concerns;
 
 use App\Models\CompanyUser;
-use App\Models\HcmEmployeeAllowanceAssignment;
-use App\Models\HcmEmployeeAllowanceAssignmentHistory;
-use App\Models\HcmEmployeePayrollItemAssignment;
 use App\Models\HcmEmployeeAllowancePolicy;
-use App\Models\HcmEmployeeAllowancePolicyHistory;
-use App\Models\HcmPayrollItem;
-use App\Models\HcmSalaryComponent;
-use App\Modelsser;
+use App\Models\HcmEmployeePayrollItemAssignment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
-use ChecksPermissions;
 
 trait HandlesAllowanceReports
-{    public function reports(Request $request): JsonResponse
+{
+    public function reports(Request $request): JsonResponse
     {
         if ($forbidden = $this->ensurePermission($request, 'payroll.view')) {
             return $forbidden;
@@ -156,12 +148,11 @@ trait HandlesAllowanceReports
         $report = $this->reports($request);
         $payload = (string) $report->getContent();
 
-        $filename = 'allowance-compliance-report-' . now()->format('Ymd-His') . '.json';
+        $filename = 'allowance-compliance-report-'.now()->format('Ymd-His').'.json';
 
         return response($payload, 200, [
             'Content-Type' => 'application/json',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
-
 }

@@ -2,9 +2,9 @@
 
 namespace Database\Factories;
 
-use App\Models\Subscription;
 use App\Models\Company;
 use App\Models\Package;
+use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class SubscriptionFactory extends Factory

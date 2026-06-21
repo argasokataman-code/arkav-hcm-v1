@@ -304,4 +304,3 @@ class PerformanceApiTest extends TestCase
             ->assertJsonPath('data.leaveFrequency.leavesByType.Annual Leave', 2);
     }
 }
-

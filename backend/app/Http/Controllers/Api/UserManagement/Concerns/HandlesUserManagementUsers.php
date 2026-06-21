@@ -2,16 +2,12 @@
 
 namespace App\Http\Controllers\ApiserManagement\Concerns;
 
-use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
 use App\Models\HcmPermission;
 use App\Models\HcmRole;
 use App\Models\HcmUserRole;
-use App\Models\HcmUserRoleAudit;
 use App\Support\Exports\TabularExportResponse;
-use App\Modelsser;
 use App\Support\Hcm\HcmFeatureEntitlementResolver;
-use Database\Seeders\HcmUserManagementSeeder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +18,8 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 trait HandlesUserManagementUsers
-{    private function ensureUserManagementViewPermission(Request $request): ?JsonResponse
+{
+    private function ensureUserManagementViewPermission(Request $request): ?JsonResponse
     {
         return $this->ensureAnyPermission($request, [
             'user.view',

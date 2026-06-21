@@ -2,56 +2,35 @@
 
 namespace App\Http\Controllers\Api\Employee;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
+use App\Http\Controllers\Api\Concerns\LogsHcmActivity;
 use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeBulkOperations;
 use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeCoreEndpoints;
 use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeOrganizationEndpoints;
 use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeProfilePhotoEndpoints;
 use App\Http\Controllers\Api\Employee\Concerns\HandlesEmployeeSharedUtilities;
-use App\Models\Company;
-use App\Models\CompanySetting;
-use App\Models\CompanyUser;
-use App\Models\Department;
-use App\Services\Media\AvatarStorageService;
-use App\Services\Media\Exceptions\InvalidMediaException;
-use App\Services\Media\MediaFileDeleter;
-use App\Services\Media\PolicyAttachmentStorageService;
+use App\Http\Controllers\Controller;
 use App\Models\Designation;
 use App\Models\EmployeeProfile;
-use App\Models\HcmRole;
-use App\Models\HcmScheduleTiming;
-use App\Models\HcmUserRole;
-use App\Models\Policy;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\WilayahDistrict;
 use App\Models\WilayahProvince;
 use App\Models\WilayahRegency;
 use App\Models\WilayahVillage;
-use App\Services\EmployeeCountValidator;
 use App\Services\Hcm\EmployeeSnapshotService;
 use App\Services\Hcm\PkwtCompensationService;
-use Database\Seeders\HcmUserManagementSeeder;
-use Dompdf\Dompdf;
-use Dompdf\Options;
+use App\Services\Media\AvatarStorageService;
+use App\Services\Media\MediaFileDeleter;
+use App\Services\Media\PolicyAttachmentStorageService;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class HcmEmployeeController extends Controller
 {
@@ -61,7 +40,7 @@ class HcmEmployeeController extends Controller
     use HandlesEmployeeOrganizationEndpoints;
     use HandlesEmployeeProfilePhotoEndpoints;
     use HandlesEmployeeSharedUtilities;
-    use \App\Http\Controllers\Api\Concerns\LogsHcmActivity;
+    use LogsHcmActivity;
 
     public function __construct(
         private readonly AvatarStorageService $avatarStorage,
@@ -69,8 +48,7 @@ class HcmEmployeeController extends Controller
         private readonly MediaFileDeleter $mediaFileDeleter,
         private readonly PkwtCompensationService $pkwtCompensationService,
         private readonly EmployeeSnapshotService $employeeSnapshotService,
-    ) {
-    }
+    ) {}
 
     /**
      * Single aggregate query for directory summary (avoids N separate COUNT(*) on large tables).
@@ -122,6 +100,7 @@ class HcmEmployeeController extends Controller
             return null;
         }
         $text = trim((string) $value);
+
         return $text === '' ? null : $text;
     }
 
@@ -134,6 +113,7 @@ class HcmEmployeeController extends Controller
         if ($text === '') {
             return null;
         }
+
         return is_numeric($text) ? (int) $text : null;
     }
 
@@ -358,6 +338,7 @@ class HcmEmployeeController extends Controller
 
                 $alreadyExists = $query->get(['id', 'nik'])->contains(function (EmployeeProfile $profile) use ($normalizedInput): bool {
                     $existingNik = preg_replace('/\D+/', '', (string) ($profile->nik ?? '')) ?? '';
+
                     return $existingNik !== '' && $existingNik === $normalizedInput;
                 });
 
@@ -369,6 +350,7 @@ class HcmEmployeeController extends Controller
         $nationalityRule = function (string $attribute, mixed $value, \Closure $fail): void {
             if ($value === null || trim((string) $value) === '') {
                 $fail('Nationality wajib diisi dan harus Indonesia.');
+
                 return;
             }
             if (strcasecmp(trim((string) $value), 'Indonesia') !== 0) {
@@ -381,6 +363,7 @@ class HcmEmployeeController extends Controller
                 if (! is_array($contact)) {
                     return false;
                 }
+
                 return filled($contact['name'] ?? null)
                     && filled($contact['relationship'] ?? null)
                     && preg_match('/^\+?[0-9]{10,15}$/', (string) ($contact['phone'] ?? '')) === 1;
@@ -437,8 +420,8 @@ class HcmEmployeeController extends Controller
                 function (string $attribute, mixed $value, \Closure $fail): void {
                     $startDate = request()->input('startDate') ?? request()->input('contractStartDate');
                     if ($startDate && $value) {
-                        $max = \Carbon\Carbon::parse((string) $startDate)->addMonths(12);
-                        if (\Carbon\Carbon::parse((string) $value)->gt($max)) {
+                        $max = Carbon::parse((string) $startDate)->addMonths(12);
+                        if (Carbon::parse((string) $value)->gt($max)) {
                             $fail('Tanggal akhir probasi tidak boleh lebih dari 12 bulan sejak tanggal mulai kerja.');
                         }
                     }
@@ -474,8 +457,7 @@ class HcmEmployeeController extends Controller
                 'sometimes',
                 'nullable',
                 'integer',
-                Rule::requiredIf(fn () =>
-                    (($isCreate && ! $selfService) || $request->filled('districtId'))
+                Rule::requiredIf(fn () => (($isCreate && ! $selfService) || $request->filled('districtId'))
                     && ($districtId === null || $districtHasVillages)
                 ),
                 Rule::exists('wilayah_villages', 'id')->where(fn ($query) => $query->where('district_id', $this->nullableInteger($request->input('districtId')))),
@@ -486,8 +468,7 @@ class HcmEmployeeController extends Controller
                 'nullable',
                 'string',
                 'max:500',
-                Rule::requiredIf(fn () =>
-                    (($isCreate && ! $selfService) || $request->filled('districtId'))
+                Rule::requiredIf(fn () => (($isCreate && ! $selfService) || $request->filled('districtId'))
                     && $districtId !== null
                     && ! $districtHasVillages
                 ),
@@ -536,7 +517,7 @@ class HcmEmployeeController extends Controller
 
                     $normalized = preg_replace('/[^0-9]/', '', $raw) ?? '';
                     if (! preg_match('/^[0-9]{15,16}$/', $normalized)) {
-                        $fail($attribute . ' harus berisi NPWP valid (15-16 digit, titik/strip diperbolehkan).');
+                        $fail($attribute.' harus berisi NPWP valid (15-16 digit, titik/strip diperbolehkan).');
                     }
                 },
             ],
@@ -640,7 +621,7 @@ class HcmEmployeeController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $validated
+     * @param  array<string, mixed>  $validated
      */
     private function normalizeTeamAssignmentPayload(?int $activeCompanyId, array &$validated): ?JsonResponse
     {

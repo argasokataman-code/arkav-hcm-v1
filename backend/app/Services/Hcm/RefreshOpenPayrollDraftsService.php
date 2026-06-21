@@ -47,6 +47,7 @@ class RefreshOpenPayrollDraftsService
 
             if ($finalizedExists) {
                 $skippedFinalizedPeriodIds[] = (int) $period->id;
+
                 continue;
             }
 
@@ -59,6 +60,7 @@ class RefreshOpenPayrollDraftsService
             $localToday = $now->setTimezone((string) $snapshot['payrollTimezone'])->toDateString();
             if ($localToday > (string) $snapshot['resolvedCutoffDate']) {
                 $skippedAfterCutoffPeriodIds[] = (int) $period->id;
+
                 continue;
             }
 

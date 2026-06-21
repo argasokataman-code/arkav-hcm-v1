@@ -15,6 +15,5 @@ class TaxGovernancePolicyTransitioned
         public string $previousStatus,
         public string $newStatus,
         public int $actorUserId,
-    ) {
-    }
+    ) {}
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\CompanyUser;
+use App\Models\HcmResignation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -114,7 +115,7 @@ class ResignationApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true);
 
-        $rowAUuid = (string) \App\Models\HcmResignation::query()->findOrFail($idA)->uuid;
+        $rowAUuid = (string) HcmResignation::query()->findOrFail($idA)->uuid;
 
         $this->withHeaders(['Authorization' => 'Bearer '.$empAToken])
             ->getJson('/v1/hcm/resignations/'.$rowAUuid)

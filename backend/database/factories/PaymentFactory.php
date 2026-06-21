@@ -2,11 +2,11 @@
 
 namespace Database\Factories;
 
-use App\Models\Payment;
 use App\Models\Company;
-use App\Models\Subscription;
-use App\Models\PurchaseTransaction;
 use App\Models\Invoice;
+use App\Models\Payment;
+use App\Models\PurchaseTransaction;
+use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class PaymentFactory extends Factory

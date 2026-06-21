@@ -217,6 +217,7 @@ class HcmUserManagementSeeder extends Seeder
 
                 if (in_array($role['code'], $adminRoleCodes, true)) {
                     $createdRole->syncPermissionsForCompany($adminPermissionIds);
+
                     continue;
                 }
 

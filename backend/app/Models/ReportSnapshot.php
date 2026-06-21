@@ -3,21 +3,21 @@
 namespace App\Models;
 
 use App\Models\Concerns\AssignsUuid;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 /**
- * @property \Carbon\Carbon|null $period_start
- * @property \Carbon\Carbon|null $period_end
- * @property \Carbon\Carbon|null $generated_at
+ * @property Carbon|null $period_start
+ * @property Carbon|null $period_end
+ * @property Carbon|null $generated_at
  * @property array<string, mixed>|null $meta
  */
 class ReportSnapshot extends Model
 {
-    use HasFactory, AssignsUuid;
+    use AssignsUuid, HasFactory;
 
     protected $fillable = [
         'company_id',

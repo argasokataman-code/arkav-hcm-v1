@@ -8,12 +8,12 @@ use App\Models\CompanySetting;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\EmployeeTaxProfile;
-use App\Models\HcmResignation;
 use App\Models\HcmPayrollLine;
+use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
+use App\Models\HcmResignation;
 use App\Models\HcmSalaryComponent;
 use App\Models\HcmTaxGovernancePolicy;
-use App\Models\NotificationDelivery;
 use App\Models\OvertimeRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -247,7 +247,7 @@ class HcmPayrollApiTest extends TestCase
         $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-periods', [
                 'periodYear' => 2026,
-                    'periodMonth' => 4,
+                'periodMonth' => 4,
             ])
             ->assertStatus(201)
             ->json('data.id');
@@ -264,7 +264,7 @@ class HcmPayrollApiTest extends TestCase
             ->assertJsonPath('data.id', $periodId);
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
-                ->getJson('/v1/hcm/payroll-runs/history?periodYear=2026&periodMonth=4')
+            ->getJson('/v1/hcm/payroll-runs/history?periodYear=2026&periodMonth=4')
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.0.id', $runId);
@@ -607,6 +607,7 @@ class HcmPayrollApiTest extends TestCase
 
             if ((float) $case['expected'] === 0.0) {
                 $this->assertNull($line);
+
                 continue;
             }
 
@@ -862,6 +863,7 @@ class HcmPayrollApiTest extends TestCase
 
             if ((float) $case['expected'] === 0.0) {
                 $this->assertNull($line);
+
                 continue;
             }
 
@@ -1109,7 +1111,7 @@ class HcmPayrollApiTest extends TestCase
             ->postJson('/v1/hcm/payroll-runs/'.$runId.'/finalize')
             ->assertOk();
 
-        $period = \App\Models\HcmPayrollPeriod::query()->findOrFail($periodId);
+        $period = HcmPayrollPeriod::query()->findOrFail($periodId);
         $companyId = (int) $this->company?->id;
         $thrComponent = HcmSalaryComponent::query()->create([
             'company_id' => $companyId,

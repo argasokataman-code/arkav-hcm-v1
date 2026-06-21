@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Models\PurchaseTransaction;
 use App\Models\Company;
+use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Factories\Factory;
 

@@ -2,30 +2,17 @@
 
 namespace App\Http\Controllers\Api\Auth\Concerns;
 
-use App\Http\Controllers\Controller;
-use App\Mail\RegisterSuccessMailable;
-use App\Models\AuthToken;
 use App\Models\Company;
-use App\Models\CompanySetting;
-use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
-use App\Models\Invoice;
-use App\Models\HcmPermission;
-use App\Modelsser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 trait HandlesAuthProfile
-{    public function changePassword(Request $request): JsonResponse
+{
+    public function changePassword(Request $request): JsonResponse
     {
         /** @var User|null $user */
         $user = $request->user();
@@ -249,5 +236,4 @@ trait HandlesAuthProfile
 
         return '/storage/'.$normalized;
     }
-
 }

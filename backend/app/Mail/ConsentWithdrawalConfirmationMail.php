@@ -14,7 +14,7 @@ class ConsentWithdrawalConfirmationMail extends Mailable
     use Queueable, SerializesModels;
 
     /**
-     * @param array{ai_chat: bool, biometric: bool} $withdrawnScopes
+     * @param  array{ai_chat: bool, biometric: bool}  $withdrawnScopes
      */
     public function __construct(
         public readonly User $user,

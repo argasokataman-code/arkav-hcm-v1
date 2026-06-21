@@ -41,7 +41,7 @@ class TaxGovernanceCaptureAtomicityTest extends TestCase
         $this->assertDatabaseHas('platform_revenue_transactions', [
             'company_id' => $company->id,
             'transaction_type' => PlatformRevenueTransaction::TYPE_SUBSCRIPTION,
-            'idempotency_key' => 'subscription_created:' . $subscription->id,
+            'idempotency_key' => 'subscription_created:'.$subscription->id,
         ]);
     }
 
@@ -76,7 +76,7 @@ class TaxGovernanceCaptureAtomicityTest extends TestCase
 
     public function test_backpressure_guard_logs_warning_when_threshold_exceeded(): void
     {
-        $windowKey = 'queue_bp:revenue_capture:' . now()->format('Y-m-d-H-i');
+        $windowKey = 'queue_bp:revenue_capture:'.now()->format('Y-m-d-H-i');
         Cache::put($windowKey, 250, now()->addMinutes(2));
 
         Log::shouldReceive('warning')
@@ -93,7 +93,7 @@ class TaxGovernanceCaptureAtomicityTest extends TestCase
 
     public function test_backpressure_guard_does_not_log_below_threshold(): void
     {
-        $windowKey = 'queue_bp:revenue_capture:' . now()->format('Y-m-d-H-i');
+        $windowKey = 'queue_bp:revenue_capture:'.now()->format('Y-m-d-H-i');
         Cache::put($windowKey, 5, now()->addMinutes(2));
 
         Log::shouldReceive('warning')->never();

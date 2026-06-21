@@ -5,17 +5,17 @@ namespace App\Http\Controllers\Api\Billing;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\InvoiceEmailLog;
-use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
 use App\Services\InvoiceService;
 use App\Services\NotificationDeliveryRecorder;
 use App\Services\NotificationService;
 use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
 use App\Services\Reconciliation\ReconciliationGateService;
-use Illuminate\Support\Facades\File;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class InvoiceController extends Controller
 {
@@ -31,7 +31,7 @@ class InvoiceController extends Controller
         $query = Invoice::with(['company', 'purchaseTransaction', 'subscription.package', 'emailLogs', 'latestEmailLog']);
 
         // Security: If not admin, only show invoices for active company
-        if (!$isAdmin && $activeCompanyId > 0) {
+        if (! $isAdmin && $activeCompanyId > 0) {
             $query->where('company_id', $activeCompanyId);
         }
 
@@ -42,7 +42,7 @@ class InvoiceController extends Controller
         if ($request->has('company_id')) {
             // Allow filtering by company_id only if user is admin or it's their own company
             $filteredCompanyId = (int) $request->get('company_id');
-            if (!$isAdmin && $filteredCompanyId !== $activeCompanyId) {
+            if (! $isAdmin && $filteredCompanyId !== $activeCompanyId) {
                 return response()->json([
                     'success' => false,
                     'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot view invoices for other companies.'],
@@ -55,9 +55,9 @@ class InvoiceController extends Controller
         }
         if ($request->has('search') && $search = trim($request->get('search'))) {
             $query->where(function ($q) use ($search) {
-                $q->where('invoice_number', 'like', '%' . $search . '%')
-                  ->orWhereHas('company', fn($c) => $c->where('name', 'like', '%' . $search . '%'))
-                  ->orWhere('notes', 'like', '%' . $search . '%');
+                $q->where('invoice_number', 'like', '%'.$search.'%')
+                    ->orWhereHas('company', fn ($c) => $c->where('name', 'like', '%'.$search.'%'))
+                    ->orWhere('notes', 'like', '%'.$search.'%');
             });
         }
         if ($request->has('from_date')) {
@@ -72,7 +72,7 @@ class InvoiceController extends Controller
         return response()->json([
             'success' => true,
             'data' => collect($invoices->items())
-                ->map(fn(Invoice $inv) => $this->formatInvoice($inv))
+                ->map(fn (Invoice $inv) => $this->formatInvoice($inv))
                 ->values(),
             'pagination' => [
                 'total' => $invoices->total(),
@@ -93,7 +93,7 @@ class InvoiceController extends Controller
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
 
         // Security: If not admin, ensure invoice belongs to their company
-        if (!$isAdmin && $activeCompanyId > 0 && $invoice->company_id !== $activeCompanyId) {
+        if (! $isAdmin && $activeCompanyId > 0 && $invoice->company_id !== $activeCompanyId) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot view this invoice.'],
@@ -123,7 +123,7 @@ class InvoiceController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -171,7 +171,7 @@ class InvoiceController extends Controller
      */
     public function update(Request $request, Invoice $invoice): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -215,7 +215,7 @@ class InvoiceController extends Controller
      */
     public function markAsSent(Request $request, Invoice $invoice): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -237,7 +237,7 @@ class InvoiceController extends Controller
      */
     public function markAsPaid(Request $request, Invoice $invoice): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -263,7 +263,7 @@ class InvoiceController extends Controller
      */
     public function destroy(Request $request, Invoice $invoice): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -283,13 +283,13 @@ class InvoiceController extends Controller
      * GET /v1/saas/invoices/{id}/pdf
      * Download invoice PDF
      */
-    public function downloadPdf(Request $request, Invoice $invoice): \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
+    public function downloadPdf(Request $request, Invoice $invoice): BinaryFileResponse|JsonResponse
     {
         $isAdmin = (bool) $request->user()?->isGlobalHcmAdmin();
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
 
         // Security: Allow download if admin or if invoice belongs to their company
-        if (!$isAdmin && $activeCompanyId > 0 && $invoice->company_id !== $activeCompanyId) {
+        if (! $isAdmin && $activeCompanyId > 0 && $invoice->company_id !== $activeCompanyId) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot download this invoice.'],
@@ -312,12 +312,12 @@ class InvoiceController extends Controller
      * GET /v1/saas/invoices/{id}/pdf/preview
      * Preview invoice PDF inline in browser
      */
-    public function previewPdf(Request $request, Invoice $invoice): \Symfony\Component\HttpFoundation\BinaryFileResponse|JsonResponse
+    public function previewPdf(Request $request, Invoice $invoice): BinaryFileResponse|JsonResponse
     {
         $isAdmin = (bool) $request->user()?->isGlobalHcmAdmin();
         $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
 
-        if (!$isAdmin && $activeCompanyId > 0 && $invoice->company_id !== $activeCompanyId) {
+        if (! $isAdmin && $activeCompanyId > 0 && $invoice->company_id !== $activeCompanyId) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot preview this invoice.'],
@@ -339,14 +339,14 @@ class InvoiceController extends Controller
 
     private function resolveInvoicePdfPath(Invoice $invoice): array|JsonResponse
     {
-        $invoiceService = new InvoiceService();
+        $invoiceService = new InvoiceService;
         $relativePath = $invoice->pdf_path;
 
-        if (!$relativePath || !File::exists(storage_path('app/private/'.$relativePath))) {
+        if (! $relativePath || ! File::exists(storage_path('app/private/'.$relativePath))) {
             $relativePath = $invoiceService->generatePdf($invoice);
         }
 
-        if (!$relativePath) {
+        if (! $relativePath) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'PDF_GENERATION_FAILED', 'message' => 'Failed to generate invoice PDF.'],
@@ -354,7 +354,7 @@ class InvoiceController extends Controller
         }
 
         $fullPath = storage_path('app/private/'.$relativePath);
-        if (!File::exists($fullPath)) {
+        if (! File::exists($fullPath)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'FILE_NOT_FOUND', 'message' => 'Invoice PDF file is missing.'],
@@ -370,7 +370,7 @@ class InvoiceController extends Controller
      */
     public function sendEmail(Request $request, Invoice $invoice): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -387,8 +387,8 @@ class InvoiceController extends Controller
             ], 422);
         }
 
-        $invoiceService = new InvoiceService();
-        $notificationService = new NotificationService();
+        $invoiceService = new InvoiceService;
+        $notificationService = new NotificationService;
 
         $validated = $request->validate([
             'email' => ['nullable', 'string', 'email:rfc', 'max:255'],
@@ -526,6 +526,7 @@ class InvoiceController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
+
         return $user && $user->isGlobalHcmAdmin();
     }
 

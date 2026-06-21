@@ -67,18 +67,18 @@ return new class extends Migration
         foreach ($mvpCodes as $code) {
             $rows[] = [
                 'feature_code' => $code,
-                'tier'         => 'mvp',
-                'created_at'   => $now,
-                'updated_at'   => $now,
+                'tier' => 'mvp',
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
         }
 
         foreach ($addonCodes as $code) {
             $rows[] = [
                 'feature_code' => $code,
-                'tier'         => 'addon',
-                'created_at'   => $now,
-                'updated_at'   => $now,
+                'tier' => 'addon',
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
         }
 

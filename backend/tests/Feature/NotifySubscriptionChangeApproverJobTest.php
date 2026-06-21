@@ -21,7 +21,7 @@ class NotifySubscriptionChangeApproverJobTest extends TestCase
         config(['hcm.admin_email' => 'qa.login@example.com']);
 
         $company = Company::query()->create([
-            'code' => 'NTF' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)),
+            'code' => 'NTF'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)),
             'name' => 'Notify Scope Co',
             'legal_name' => 'Notify Scope Co Ltd',
             'status' => 'active',

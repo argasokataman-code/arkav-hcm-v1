@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
 
 class PerformanceGoal extends Model
 {
@@ -45,4 +44,3 @@ class PerformanceGoal extends Model
         return $this->belongsTo(User::class, 'manager_user_id');
     }
 }
-

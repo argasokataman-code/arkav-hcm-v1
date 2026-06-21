@@ -8,9 +8,9 @@ use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\PackageFeature;
 use App\Models\Subscription;
+use App\Models\User;
 use App\Services\EmployeeCountValidator;
 use App\Services\SubscriptionTerminationService;
-use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,9 +19,13 @@ class SubscriptionManagementTest extends TestCase
     use RefreshDatabase;
 
     private SubscriptionTerminationService $terminationService;
+
     private EmployeeCountValidator $employeeValidator;
+
     private Company $company;
+
     private Package $package;
+
     private Subscription $subscription;
 
     protected function setUp(): void
@@ -210,7 +214,7 @@ class SubscriptionManagementTest extends TestCase
     {
         // Create 3 employees (limit is 5)
         for ($i = 0; $i < 3; $i++) {
-            $user = \App\Models\User::create([
+            $user = User::create([
                 'name' => "Employee {$i}",
                 'email' => "emp{$i}@test.com",
                 'password' => bcrypt('password'),
@@ -235,7 +239,7 @@ class SubscriptionManagementTest extends TestCase
     {
         // Create 4 employees (limit is 5)
         for ($i = 0; $i < 4; $i++) {
-            $user = \App\Models\User::create([
+            $user = User::create([
                 'name' => "Employee {$i}",
                 'email' => "emp{$i}@test2.com",
                 'password' => bcrypt('password'),
@@ -260,7 +264,7 @@ class SubscriptionManagementTest extends TestCase
     {
         // Create 6 employees (exceeds limit of 5)
         for ($i = 0; $i < 6; $i++) {
-            $user = \App\Models\User::create([
+            $user = User::create([
                 'name' => "Employee {$i}",
                 'email' => "emp{$i}@test3.com",
                 'password' => bcrypt('password'),
@@ -356,7 +360,7 @@ class SubscriptionManagementTest extends TestCase
 
         // Create 100 employees
         for ($i = 0; $i < 100; $i++) {
-            $user = \App\Models\User::create([
+            $user = User::create([
                 'name' => "Employee {$i}",
                 'email' => "emp{$i}@test4.com",
                 'password' => bcrypt('password'),

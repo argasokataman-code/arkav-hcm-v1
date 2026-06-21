@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DomainVerificationLog extends Model
 {
     use AssignsUuid;
+
     protected $fillable = [
         'domain_id',
         'status',

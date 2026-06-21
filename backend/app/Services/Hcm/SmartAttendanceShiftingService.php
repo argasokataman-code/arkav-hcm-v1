@@ -11,10 +11,10 @@ use Illuminate\Support\Collection;
 class SmartAttendanceShiftingService
 {
     /**
-     * @param Collection<int, array{id:int,name:string,jobTitle:string,availability:array<string,mixed>}> $employees
-     * @param Collection<int, HcmShift> $shifts
-     * @param array<string,mixed> $rules
-     * @param array<string,mixed>|null $coverageInput
+     * @param  Collection<int, array{id:int,name:string,jobTitle:string,availability:array<string,mixed>}>  $employees
+     * @param  Collection<int, HcmShift>  $shifts
+     * @param  array<string,mixed>  $rules
+     * @param  array<string,mixed>|null  $coverageInput
      * @return array<string,mixed>
      */
     public function generate(
@@ -175,6 +175,7 @@ class SmartAttendanceShiftingService
 
         $scheduleRows = $employees->map(function (array $employee) use ($state): array {
             $empId = (int) $employee['id'];
+
             return [
                 'employee_id' => (string) $empId,
                 'employee_name' => (string) $employee['name'],
@@ -204,7 +205,7 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param Collection<int,HcmShift> $shifts
+     * @param  Collection<int,HcmShift>  $shifts
      * @return Collection<int,array<string,mixed>>
      */
     private function normalizeShiftTemplates(Collection $shifts): Collection
@@ -234,8 +235,8 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param Collection<int,string> $weekDates
-     * @param Collection<int,array<string,mixed>> $templates
+     * @param  Collection<int,string>  $weekDates
+     * @param  Collection<int,array<string,mixed>>  $templates
      * @return array<string,array<int,array<string,mixed>>>
      */
     private function buildCoverageRequirements(
@@ -245,8 +246,7 @@ class SmartAttendanceShiftingService
         string $shiftCategory,
         int $maxWorkDaysPerWeek,
         ?array $coverageInput
-    ): array
-    {
+    ): array {
         $coverage = [];
         $templateIds = $templates->pluck('shift_id')->values();
         $maxWorkDays = max(1, min(7, $maxWorkDaysPerWeek));
@@ -300,8 +300,8 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param Collection<int,array<string,mixed>> $templates
-     * @param Collection<int,string> $templateIds
+     * @param  Collection<int,array<string,mixed>>  $templates
+     * @param  Collection<int,string>  $templateIds
      * @return array<int,array{shift_id:string,headcount:int}>
      */
     private function defaultCoverageRows(
@@ -353,7 +353,7 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param int[] $employeeIds
+     * @param  int[]  $employeeIds
      * @return array<int,int>
      */
     private function nightHistoryCount(int $companyId, array $employeeIds, CarbonImmutable $weekStart, string $timezone): array
@@ -388,11 +388,11 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param Collection<int,array{id:int,name:string,jobTitle:string,availability:array<string,mixed>}> $employees
-     * @param array<int,array<string,mixed>> $state
-     * @param array<int,bool> $assignedToday
-     * @param array<string,mixed> $shift
-     * @param array<string,mixed> $rules
+     * @param  Collection<int,array{id:int,name:string,jobTitle:string,availability:array<string,mixed>}>  $employees
+     * @param  array<int,array<string,mixed>>  $state
+     * @param  array<int,bool>  $assignedToday
+     * @param  array<string,mixed>  $shift
+     * @param  array<string,mixed>  $rules
      */
     private function pickBestCandidate(
         Collection $employees,
@@ -509,9 +509,9 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param array<string,mixed> $state
-     * @param array<string,mixed> $shift
-     * @param array<string,mixed> $rules
+     * @param  array<string,mixed>  $state
+     * @param  array<string,mixed>  $shift
+     * @param  array<string,mixed>  $rules
      */
     private function isValidAssignment(array $state, string $date, array $shift, array $rules, string $timezone): bool
     {
@@ -549,9 +549,9 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param array<string,mixed> $state
-     * @param array<string,mixed> $shift
-     * @param array<string,mixed> $rules
+     * @param  array<string,mixed>  $state
+     * @param  array<string,mixed>  $shift
+     * @param  array<string,mixed>  $rules
      */
     private function isIllegalTransition(array $state, array $shift, array $rules): bool
     {
@@ -584,8 +584,8 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param array<string,mixed> $state
-     * @param array<string,mixed> $shift
+     * @param  array<string,mixed>  $state
+     * @param  array<string,mixed>  $shift
      */
     private function applyAssignmentState(array &$state, string $date, array $shift, string $timezone): void
     {
@@ -656,8 +656,8 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param Collection<int,array{id:int,name:string,jobTitle:string,availability:array<string,mixed>}> $employees
-     * @param Collection<int,array<string,mixed>> $state
+     * @param  Collection<int,array{id:int,name:string,jobTitle:string,availability:array<string,mixed>}>  $employees
+     * @param  Collection<int,array<string,mixed>>  $state
      * @return array<string,mixed>
      */
     private function analyzeAttendance(
@@ -725,6 +725,7 @@ class SmartAttendanceShiftingService
                         'date' => $date,
                         'status' => 'absent',
                     ];
+
                     continue;
                 }
 
@@ -830,6 +831,7 @@ class SmartAttendanceShiftingService
         $avg = (float) ($values->avg() ?: 0.0);
         $variance = $values->reduce(function (float $carry, int $v) use ($avg): float {
             $d = $v - $avg;
+
             return $carry + ($d * $d);
         }, 0.0) / max(1, $values->count());
 
@@ -837,8 +839,8 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param Collection<int,array<string,mixed>> $state
-     * @param array<int,array<string,mixed>> $employeeSummaries
+     * @param  Collection<int,array<string,mixed>>  $state
+     * @param  array<int,array<string,mixed>>  $employeeSummaries
      */
     private function calculateFatigueRiskScore(Collection $state, array $employeeSummaries): float
     {
@@ -859,8 +861,8 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param array<int,array<string,mixed>> $violations
-     * @param array<int,array<string,mixed>> $flags
+     * @param  array<int,array<string,mixed>>  $violations
+     * @param  array<int,array<string,mixed>>  $flags
      * @return array<int,array<string,mixed>>
      */
     private function buildRecommendations(float $fairnessScore, float $fatigueRiskScore, array $violations, array $flags, int $employeeCount = 0, array $unmetCoverage = []): array
@@ -972,10 +974,10 @@ class SmartAttendanceShiftingService
      * Simulate swapping shifts between two employees on given dates.
      * Returns risk assessment (fatigue, rest gap, illegal transition) for both before and after swap.
      *
-     * @param array<string,mixed> $employeeA
-     * @param array<string,mixed> $employeeB
-     * @param Collection<int,array<string,mixed>> $assignmentsA  Current weekly assignments for employee A
-     * @param Collection<int,array<string,mixed>> $assignmentsB  Current weekly assignments for employee B
+     * @param  array<string,mixed>  $employeeA
+     * @param  array<string,mixed>  $employeeB
+     * @param  Collection<int,array<string,mixed>>  $assignmentsA  Current weekly assignments for employee A
+     * @param  Collection<int,array<string,mixed>>  $assignmentsB  Current weekly assignments for employee B
      * @return array<string,mixed>
      */
     public function simulateSwap(
@@ -1015,6 +1017,7 @@ class SmartAttendanceShiftingService
                     'cross_day' => $shiftB['cross_day'] ?? false,
                 ]);
             }
+
             return $a;
         })->sortBy('date')->values();
 
@@ -1027,6 +1030,7 @@ class SmartAttendanceShiftingService
                     'cross_day' => $shiftA['cross_day'] ?? false,
                 ]);
             }
+
             return $b;
         })->sortBy('date')->values();
 
@@ -1043,8 +1047,8 @@ class SmartAttendanceShiftingService
         $shiftBLabel = $shiftB['shift_id'] === 'OFF' ? 'Libur' : (string) ($shiftB['shift_id']);
 
         $warnings = array_merge(
-            array_map(fn (string $w): string => $employeeAName . ': ' . $w, $riskA['warnings']),
-            array_map(fn (string $w): string => $employeeBName . ': ' . $w, $riskB['warnings'])
+            array_map(fn (string $w): string => $employeeAName.': '.$w, $riskA['warnings']),
+            array_map(fn (string $w): string => $employeeBName.': '.$w, $riskB['warnings'])
         );
 
         return [
@@ -1077,8 +1081,8 @@ class SmartAttendanceShiftingService
     }
 
     /**
-     * @param Collection<int,array<string,mixed>> $assignments  Sorted by date
-     * @param array<string> $illegalRules
+     * @param  Collection<int,array<string,mixed>>  $assignments  Sorted by date
+     * @param  array<string>  $illegalRules
      * @return array{risk_level:int,warnings:array<string>}
      */
     private function assessSwapRisk(
@@ -1114,7 +1118,7 @@ class SmartAttendanceShiftingService
 
             $prev = $sorted[$i - 1];
             $prevEnd = $this->shiftEndDateTime((string) $prev['date'], (string) ($prev['end_time'] ?? ''), (bool) ($prev['cross_day'] ?? false), $timezone);
-            $curStart = CarbonImmutable::parse((string) $cur['date'] . ' ' . (string) ($cur['start_time'] ?? '00:00'), $timezone);
+            $curStart = CarbonImmutable::parse((string) $cur['date'].' '.(string) ($cur['start_time'] ?? '00:00'), $timezone);
 
             if ($prevEnd && $curStart) {
                 $restHours = $prevEnd->diffInMinutes($curStart, false) / 60;
@@ -1131,7 +1135,7 @@ class SmartAttendanceShiftingService
             $prevType = $this->shiftTypeLabel($prev);
             $curType = $this->shiftTypeLabel($cur);
             if ($prevType && $curType) {
-                $key = $prevType . '_to_' . $curType;
+                $key = $prevType.'_to_'.$curType;
                 if (in_array($key, $illegalRules, true)) {
                     $warnings[] = sprintf(
                         'Urutan shift dilarang: %s → %s pada %s → %s.',
@@ -1163,6 +1167,7 @@ class SmartAttendanceShiftingService
             return false;
         }
         $h = (int) substr($startTime, 0, 2);
+
         return $h >= 20 || $h < 5;
     }
 
@@ -1180,6 +1185,7 @@ class SmartAttendanceShiftingService
         if ($h >= 14) {
             return 'afternoon';
         }
+
         return 'morning';
     }
 
@@ -1188,15 +1194,16 @@ class SmartAttendanceShiftingService
         if ($endTime === '') {
             return null;
         }
-        $end = CarbonImmutable::parse($date . ' ' . $endTime, $timezone);
+        $end = CarbonImmutable::parse($date.' '.$endTime, $timezone);
         if ($crossDay) {
             $end = $end->addDay();
         }
+
         return $end;
     }
 
     /**
-     * @param array<string> $warnings
+     * @param  array<string>  $warnings
      */
     private function buildSwapAdvice(bool $swappable, int $riskLevel, string $nameA, string $nameB, array $warnings): string
     {
@@ -1212,6 +1219,7 @@ class SmartAttendanceShiftingService
                 $nameA, $nameB, implode(' ', $warnings)
             );
         }
+
         return sprintf(
             'Tukar jadwal antara %s dan %s TIDAK DISARANKAN karena: %s. Pertimbangkan pengganti lain atau ubah tanggal swap.',
             $nameA, $nameB, implode(' ', $warnings)
@@ -1221,10 +1229,10 @@ class SmartAttendanceShiftingService
     /**
      * Find the best replacement candidates for an absent employee on given dates.
      *
-     * @param Collection<int,array<string,mixed>> $employees  All employees in scope
-     * @param array<string,array<string,mixed>> $rosterByUser  userId => array of assignments for the week
-     * @param array<string> $absentDates
-     * @param array<string,mixed> $shiftTemplate  The shift that needs to be covered
+     * @param  Collection<int,array<string,mixed>>  $employees  All employees in scope
+     * @param  array<string,array<string,mixed>>  $rosterByUser  userId => array of assignments for the week
+     * @param  array<string>  $absentDates
+     * @param  array<string,mixed>  $shiftTemplate  The shift that needs to be covered
      * @return array<string,mixed>
      */
     public function findReplacement(
@@ -1276,7 +1284,7 @@ class SmartAttendanceShiftingService
                         (bool) ($prevAssignment['cross_day'] ?? false),
                         $timezone
                     );
-                    $newStart = CarbonImmutable::parse($date . ' ' . (string) ($shiftTemplate['start_time'] ?? '00:00'), $timezone);
+                    $newStart = CarbonImmutable::parse($date.' '.(string) ($shiftTemplate['start_time'] ?? '00:00'), $timezone);
                     if ($prevEnd && $newStart) {
                         $restHours = $prevEnd->diffInMinutes($newStart, false) / 60;
                         if ($restHours >= 0 && $restHours < $minRest) {
@@ -1292,7 +1300,7 @@ class SmartAttendanceShiftingService
                     $prevType = $this->shiftTypeLabel($prevAssignment);
                     $newType = $this->shiftTypeLabel($shiftTemplate);
                     if ($prevType && $newType) {
-                        $key = $prevType . '_to_' . $newType;
+                        $key = $prevType.'_to_'.$newType;
                         if (in_array($key, $illegalRules, true)) {
                             $issues[] = sprintf('Transisi shift %s → %s dilarang', strtoupper($prevType), strtoupper($newType));
                             $canCover = false;
@@ -1345,6 +1353,7 @@ class SmartAttendanceShiftingService
                     $c['available_capacity'],
                     empty($c['issues']) ? 'Tidak ada konflik aturan yang terdeteksi.' : implode('; ', $c['issues'])
                 );
+
                 return [
                     'employee_id' => $c['employee_id'],
                     'employee_name' => $c['employee_name'],

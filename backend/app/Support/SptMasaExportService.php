@@ -25,7 +25,7 @@ class SptMasaExportService
 
         $details = $header->details()->orderBy('id')->get();
 
-        return response()->streamDownload(function () use ($details, $header): void {
+        return response()->streamDownload(function () use ($details): void {
             $handle = fopen('php://output', 'w');
             if ($handle === false) {
                 return;

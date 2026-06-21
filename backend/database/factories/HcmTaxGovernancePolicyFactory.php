@@ -2,9 +2,10 @@
 
 namespace Database\Factories;
 
-use App\Models\HcmTaxGovernancePolicy;
 use App\Models\Company;
+use App\Models\HcmTaxGovernancePolicy;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 class HcmTaxGovernancePolicyFactory extends Factory
 {
@@ -14,7 +15,7 @@ class HcmTaxGovernancePolicyFactory extends Factory
     {
         return [
             'company_id' => Company::factory(),
-            'uuid' => \Illuminate\Support\Str::uuid(),
+            'uuid' => Str::uuid(),
             'policy_code' => $this->faker->unique()->bothify('POL-####-????'),
             'name' => $this->faker->sentence(),
             'status' => 'draft',

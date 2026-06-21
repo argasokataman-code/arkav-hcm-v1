@@ -11,7 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasTable('custom_domains')) return;
+        if (Schema::hasTable('custom_domains')) {
+            return;
+        }
 
         Schema::create('custom_domains', function (Blueprint $table) {
             $table->id();

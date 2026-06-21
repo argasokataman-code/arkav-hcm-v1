@@ -1,16 +1,16 @@
 <?php
+
 namespace App\Models;
 
 use App\Casts\EncryptedOrPlaintext;
 use App\Models\Concerns\AssignsUuid;
-
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * @property int|null $company_id
@@ -433,4 +433,3 @@ class EmployeeProfile extends Model
         );
     }
 }
-

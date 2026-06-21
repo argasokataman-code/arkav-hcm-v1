@@ -238,6 +238,7 @@ return new class extends Migration
                 DB::table('hcm_salary_components')
                     ->where('code', $row['code'])
                     ->update(array_merge($row, ['updated_at' => $now]));
+
                 continue;
             }
 

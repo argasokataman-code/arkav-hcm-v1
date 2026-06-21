@@ -38,10 +38,11 @@ class SuspendServicesForOverdueInvoicesJob implements ShouldQueue
 
         if (empty($overdueInvoices)) {
             Log::info('No subscriptions with overdue invoices found');
+
             return;
         }
 
-        Log::info("Found " . count($overdueInvoices) . " subscription(s) with overdue invoice(s)");
+        Log::info('Found '.count($overdueInvoices).' subscription(s) with overdue invoice(s)');
 
         foreach ($overdueInvoices as [$subscription, $invoice]) {
             try {
@@ -56,6 +57,6 @@ class SuspendServicesForOverdueInvoicesJob implements ShouldQueue
             }
         }
 
-        Log::info("SuspendServicesForOverdueInvoicesJob completed");
+        Log::info('SuspendServicesForOverdueInvoicesJob completed');
     }
 }

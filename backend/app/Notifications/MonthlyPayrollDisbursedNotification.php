@@ -16,8 +16,7 @@ class MonthlyPayrollDisbursedNotification extends Notification
 
     public function __construct(
         public readonly HcmPayrollRun $payrollRun,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -31,7 +30,7 @@ class MonthlyPayrollDisbursedNotification extends Notification
             'entityType' => 'payroll_monthly',
             'entityUuid' => (string) ($this->payrollRun->uuid ?? ''),
             'title' => 'Monthly payroll disbursed',
-            'message' => 'Salary for ' . $this->payrollRun->period_label,
+            'message' => 'Salary for '.$this->payrollRun->period_label,
             'occurredAt' => now(),
         ], [
             'event' => 'payroll.monthly.disbursed',

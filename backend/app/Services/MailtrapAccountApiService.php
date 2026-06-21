@@ -77,7 +77,7 @@ class MailtrapAccountApiService
     }
 
     /**
-     * @param array{api_token: string, account_id: int, base_url: string, timeout: int} $config
+     * @param  array{api_token: string, account_id: int, base_url: string, timeout: int}  $config
      * @return array<int, array<string, mixed>>
      */
     private function listApiTokensForConfig(array $config): array
@@ -129,9 +129,6 @@ class MailtrapAccountApiService
         ];
     }
 
-    /**
-     * @param mixed $json
-     */
     private function extractErrorMessage(mixed $json, string $fallbackBody): string
     {
         if (is_array($json)) {

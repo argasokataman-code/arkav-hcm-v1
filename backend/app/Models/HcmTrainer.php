@@ -20,7 +20,6 @@ class HcmTrainer extends Model
         });
     }
 
-
     protected $fillable = [
         'company_id',
         'company_uuid',
@@ -41,4 +40,3 @@ class HcmTrainer extends Model
         return $this->hasMany(HcmTraining::class, 'trainer_id');
     }
 }
-

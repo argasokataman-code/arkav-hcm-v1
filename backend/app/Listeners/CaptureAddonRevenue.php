@@ -25,8 +25,7 @@ class CaptureAddonRevenue implements ShouldQueue
     public function __construct(
         private readonly RevenueSourceReferenceValidator $referenceValidator,
         private readonly QueueBackpressureGuard $backpressureGuard,
-    ) {
-    }
+    ) {}
 
     public function handle(AddonPurchased $event): void
     {
@@ -41,7 +40,7 @@ class CaptureAddonRevenue implements ShouldQueue
             throw new RuntimeException('Purchase transaction source entity is not addon type.');
         }
 
-        $idempotencyKey = 'addon_purchased:' . $transaction->id;
+        $idempotencyKey = 'addon_purchased:'.$transaction->id;
         $status = strtolower((string) ($transaction->status ?? 'draft'));
 
         $this->referenceValidator->assertValid(

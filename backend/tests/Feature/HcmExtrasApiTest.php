@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\EmployeeLeaveBalance;
 use App\Models\EmployeeProfile;
 use App\Models\Holiday;
 use App\Models\HolidayCalendar;
+use App\Models\LeaveType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -368,11 +370,11 @@ class HcmExtrasApiTest extends TestCase
         $token = $this->bearerToken();
 
         // Seed balance for the test user
-        $user = \App\Models\User::where('email', 'hcmextra@example.com')->first();
-        $leaveType = \App\Models\LeaveType::where('code', 'annual_leave')->first();
+        $user = User::where('email', 'hcmextra@example.com')->first();
+        $leaveType = LeaveType::where('code', 'annual_leave')->first();
         $companyId = $user->company_id ?? 1;
 
-        \App\Models\EmployeeLeaveBalance::create([
+        EmployeeLeaveBalance::create([
             'company_id' => $companyId,
             'employee_id' => $user->id,
             'leave_type_id' => $leaveType->id,

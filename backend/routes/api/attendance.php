@@ -3,12 +3,12 @@
 use App\Http\Controllers\Api\Attendance\AttendanceAdminController;
 use App\Http\Controllers\Api\Attendance\AttendanceCorrectionController;
 use App\Http\Controllers\Api\Attendance\AttendanceEmployeeController;
+use App\Http\Controllers\Api\Attendance\AttendanceScheduleController;
 use App\Http\Controllers\Api\Attendance\AttendanceSelfieController;
 use App\Http\Controllers\Api\Attendance\AttendanceTimesheetController;
-use App\Http\Controllers\Api\Attendance\AttendanceScheduleController;
 use App\Http\Controllers\Api\Attendance\HcmAttendanceSettingsController;
-use App\Http\Controllers\Api\Attendance\HcmSmartAttendanceController;
 use App\Http\Controllers\Api\Attendance\HcmShiftController;
+use App\Http\Controllers\Api\Attendance\HcmSmartAttendanceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:attendance'])->group(function () {

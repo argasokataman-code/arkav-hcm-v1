@@ -37,13 +37,13 @@ class MidtransService
      */
     public function createTransaction(array $params): array
     {
-        $orderId   = (string) $params['order_id'];
-        $amount    = (int) $params['amount'];
-        $customer  = $params['customer'] ?? [];
-        $itemName  = (string) ($params['description'] ?? 'Invoice payment');
+        $orderId = (string) $params['order_id'];
+        $amount = (int) $params['amount'];
+        $customer = $params['customer'] ?? [];
+        $itemName = (string) ($params['description'] ?? 'Invoice payment');
 
         $transactionDetails = [
-            'order_id'    => $orderId,
+            'order_id' => $orderId,
             'gross_amount' => $amount,
         ];
 
@@ -59,10 +59,10 @@ class MidtransService
         if (! empty($params['items']) && is_array($params['items'])) {
             foreach ($params['items'] as $item) {
                 $itemDetails[] = [
-                    'id'       => (string) ($item['id'] ?? 'item'),
-                    'price'    => (int) ($item['price'] ?? 0),
+                    'id' => (string) ($item['id'] ?? 'item'),
+                    'price' => (int) ($item['price'] ?? 0),
                     'quantity' => (int) ($item['quantity'] ?? 1),
-                    'name'     => (string) ($item['name'] ?? 'Item'),
+                    'name' => (string) ($item['name'] ?? 'Item'),
                 ];
             }
         }
@@ -75,7 +75,7 @@ class MidtransService
 
         $snapParams = [
             'transaction_details' => $transactionDetails,
-            'item_details'        => $itemDetails,
+            'item_details' => $itemDetails,
         ];
 
         if (! empty($customerDetails)) {
@@ -98,13 +98,13 @@ class MidtransService
 
         Log::info('MidtransService: creating transaction', [
             'order_id' => $orderId,
-            'amount'   => $amount,
+            'amount' => $amount,
         ]);
 
         $response = Snap::createTransaction($snapParams);
 
         // SDK returns a stdClass with token and redirect_url
-        $token       = (string) ($response->token ?? '');
+        $token = (string) ($response->token ?? '');
         $redirectUrl = (string) ($response->redirect_url ?? '');
 
         if ($token === '' || $redirectUrl === '') {
@@ -112,14 +112,14 @@ class MidtransService
         }
 
         Log::info('MidtransService: transaction created', [
-            'order_id'     => $orderId,
+            'order_id' => $orderId,
             'redirect_url' => $redirectUrl,
         ]);
 
         return [
-            'token'        => $token,
+            'token' => $token,
             'redirect_url' => $redirectUrl,
-            'order_id'     => $orderId,
+            'order_id' => $orderId,
         ];
     }
 
@@ -128,7 +128,7 @@ class MidtransService
      *
      * Returns the raw status object cast to array, or null on error.
      *
-     * @return array|null  Midtrans transaction status payload
+     * @return array|null Midtrans transaction status payload
      */
     public function getTransaction(string $orderId): ?array
     {
@@ -142,7 +142,7 @@ class MidtransService
         } catch (\Throwable $e) {
             Log::warning('MidtransService: getTransaction failed', [
                 'order_id' => $orderId,
-                'error'    => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
 
             return null;
@@ -158,8 +158,8 @@ class MidtransService
      */
     public function verifySignature(array $payload): bool
     {
-        $orderId     = (string) ($payload['order_id'] ?? '');
-        $statusCode  = (string) ($payload['status_code'] ?? '');
+        $orderId = (string) ($payload['order_id'] ?? '');
+        $statusCode = (string) ($payload['status_code'] ?? '');
         $grossAmount = (string) ($payload['gross_amount'] ?? '');
         $signatureIn = (string) ($payload['signature_key'] ?? '');
 
@@ -168,7 +168,7 @@ class MidtransService
         }
 
         $serverKey = (string) config('services.midtrans.server_key', '');
-        $expected  = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
+        $expected = hash('sha512', $orderId.$statusCode.$grossAmount.$serverKey);
 
         return hash_equals($expected, strtolower($signatureIn));
     }
@@ -181,7 +181,7 @@ class MidtransService
     {
         return match ($transactionStatus) {
             'settlement' => 'paid',
-            'capture'    => $fraudStatus === 'accept' ? 'paid' : 'pending', // 'challenge' = pending review
+            'capture' => $fraudStatus === 'accept' ? 'paid' : 'pending', // 'challenge' = pending review
             'pending', 'authorize' => 'pending',
             'cancel', 'deny', 'expire' => 'failed',
             default => 'pending',
@@ -194,9 +194,9 @@ class MidtransService
 
     private function configure(): void
     {
-        MidtransConfig::$serverKey    = (string) config('services.midtrans.server_key', '');
+        MidtransConfig::$serverKey = (string) config('services.midtrans.server_key', '');
         MidtransConfig::$isProduction = (bool) config('services.midtrans.is_production', false);
-        MidtransConfig::$isSanitized  = true;
-        MidtransConfig::$is3ds        = true;
+        MidtransConfig::$isSanitized = true;
+        MidtransConfig::$is3ds = true;
     }
 }

@@ -86,6 +86,7 @@ return new class extends Migration
 
         if (! $pk) {
             DB::table($table)->whereNull('uuid')->update(['uuid' => (string) Str::uuid()]);
+
             return;
         }
 
@@ -116,6 +117,7 @@ return new class extends Migration
 
         if ($this->primaryKeyColumn($table)) {
             DB::statement("ALTER TABLE `{$table}` DROP PRIMARY KEY, ADD PRIMARY KEY (`uuid`)");
+
             return;
         }
 

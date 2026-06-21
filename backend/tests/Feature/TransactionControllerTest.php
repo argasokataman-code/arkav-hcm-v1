@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\AuthToken;
-use App\Models\Transaction;
-use App\Models\Subscription;
-use App\Models\Package;
 use App\Models\Company;
+use App\Models\Package;
+use App\Models\Subscription;
+use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,8 +16,11 @@ class TransactionControllerTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private Package $package;
+
     private Company $company;
+
     private Subscription $subscription;
 
     protected function setUp(): void
@@ -124,7 +127,7 @@ class TransactionControllerTest extends TestCase
             ->create(['status' => 'pending']);
 
         $response = $this->withHeader('Cookie', $this->adminCookieHeader())
-            ->putJson('/v1/saas/transactions/' . $transaction->id, [
+            ->putJson('/v1/saas/transactions/'.$transaction->id, [
                 'status' => 'completed',
             ]);
 

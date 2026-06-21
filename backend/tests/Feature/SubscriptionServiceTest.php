@@ -8,6 +8,7 @@ use App\Models\Package;
 use App\Models\Subscription;
 use App\Models\SubscriptionEvent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class SubscriptionServiceTest extends TestCase
@@ -15,8 +16,11 @@ class SubscriptionServiceTest extends TestCase
     use RefreshDatabase;
 
     protected string $token;
+
     protected string $nonAdminToken;
+
     protected Package $basicPackage;
+
     protected Company $company;
 
     protected function setUp(): void
@@ -696,7 +700,7 @@ class SubscriptionServiceTest extends TestCase
     // -----------------------------------------------------------------------
 
     /** Helper: authenticate as the admin user and set activeCompanyId attribute. */
-    private function checkoutRequest(array $body = []): \Illuminate\Testing\TestResponse
+    private function checkoutRequest(array $body = []): TestResponse
     {
         // Attach the activeCompanyId via a real authenticated session that the middleware resolves.
         // For unit tests we just hit the endpoint; the controller also reads
@@ -707,7 +711,7 @@ class SubscriptionServiceTest extends TestCase
         // we can't inject the request attribute from outside).  The important guard test exercises
         // the Invoice model directly.
         return $this->withHeader('Authorization', 'Bearer '.$this->token)
-                    ->postJson('/v1/hcm/billing/checkout', $body);
+            ->postJson('/v1/hcm/billing/checkout', $body);
     }
 
     /** Checkout with a trial package must be rejected. */
@@ -724,7 +728,7 @@ class SubscriptionServiceTest extends TestCase
 
         $response = $this->withHeader('Authorization', 'Bearer '.$this->token)
             ->postJson('/v1/hcm/billing/checkout', [
-                'package_uuid'  => $trialPackage->uuid,
+                'package_uuid' => $trialPackage->uuid,
                 'billing_cycle' => 'monthly',
             ]);
 
@@ -737,24 +741,24 @@ class SubscriptionServiceTest extends TestCase
     {
         // Create an active subscription + an unpaid (sent) invoice for our test company.
         $activeSub = Subscription::create([
-            'company_id'   => $this->company->id,
+            'company_id' => $this->company->id,
             'package_uuid' => $this->basicPackage->uuid,
-            'plan_code'    => 'basic',
-            'status'       => 'active',
-            'starts_at'    => now(),
-            'ends_at'      => now()->addMonth(),
+            'plan_code' => 'basic',
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addMonth(),
             'billing_cycle' => 'monthly',
-            'amount'       => 99000,
+            'amount' => 99000,
         ]);
 
         $unpaidInvoice = Invoice::create([
-            'company_id'      => $this->company->id,
+            'company_id' => $this->company->id,
             'subscription_id' => $activeSub->id,
-            'issue_date'      => now()->toDateString(),
-            'due_date'        => now()->addWeek()->toDateString(),
-            'amount_due'      => 99000,
-            'status'          => 'sent',
-            'is_paid'         => false,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addWeek()->toDateString(),
+            'amount_due' => 99000,
+            'status' => 'sent',
+            'is_paid' => false,
         ]);
 
         // Directly invoke the guard logic: an existing unpaid invoice must be reused.

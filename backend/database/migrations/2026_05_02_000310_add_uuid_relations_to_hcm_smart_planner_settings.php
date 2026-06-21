@@ -121,7 +121,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $blueprint) use ($column, $name): void {
                 $blueprint->index($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $message = strtolower($e->getMessage());
             if (str_contains($message, 'duplicate') || str_contains($message, 'exists') || str_contains($message, 'already')) {
                 return;
@@ -164,7 +164,7 @@ return new class extends Migration
                     $foreign->restrictOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $message = strtolower($e->getMessage());
             if (
                 str_contains($message, 'duplicate')

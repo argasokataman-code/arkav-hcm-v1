@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\Api\Leave\HcmLeaveRequestController;
-use App\Http\Controllers\Api\Leave\HcmLeaveTypeController;
-use App\Http\Controllers\Api\Leave\HcmLeaveSettingController;
 use App\Http\Controllers\Api\Leave\HcmHolidayController;
+use App\Http\Controllers\Api\Leave\HcmLeaveRequestController;
+use App\Http\Controllers\Api\Leave\HcmLeaveSettingController;
+use App\Http\Controllers\Api\Leave\HcmLeaveTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:leave_management'])->group(function () {

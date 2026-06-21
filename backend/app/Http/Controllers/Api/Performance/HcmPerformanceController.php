@@ -8,17 +8,17 @@ use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\LeaveRequest;
 use App\Models\PerformanceCycle;
-use App\Models\PerformanceIndicatorItem;
-use App\Models\PerformanceIndicatorTemplate;
 use App\Models\PerformanceGoal;
 use App\Models\PerformanceGoalType;
+use App\Models\PerformanceIndicatorItem;
+use App\Models\PerformanceIndicatorTemplate;
 use App\Models\PerformanceReview;
 use App\Models\PerformanceReviewScore;
 use App\Models\User;
 use App\Notifications\PerformanceReviewCreatedNotification;
-use App\Notifications\PerformanceReviewSubmittedNotification;
-use App\Notifications\PerformanceReviewManagerReviewedNotification;
 use App\Notifications\PerformanceReviewFinalizedNotification;
+use App\Notifications\PerformanceReviewManagerReviewedNotification;
+use App\Notifications\PerformanceReviewSubmittedNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,6 +30,7 @@ class HcmPerformanceController extends Controller
     use ChecksPermissions;
 
     private const KPI_WEIGHT_GLOBAL = 0.7;
+
     private const BEHAVIOR_WEIGHT_GLOBAL = 0.3;
 
     protected function forbidden(): JsonResponse
@@ -189,6 +190,7 @@ class HcmPerformanceController extends Controller
         }
 
         PerformanceGoalType::query()->whereKey($id)->delete();
+
         return response()->json(['success' => true]);
     }
 
@@ -418,6 +420,7 @@ class HcmPerformanceController extends Controller
         }
 
         $g->delete();
+
         return response()->json(['success' => true]);
     }
 
@@ -498,6 +501,7 @@ class HcmPerformanceController extends Controller
         }
 
         PerformanceIndicatorTemplate::query()->whereKey($id)->delete();
+
         return response()->json(['success' => true]);
     }
 
@@ -591,6 +595,7 @@ class HcmPerformanceController extends Controller
             return $forbidden;
         }
         PerformanceIndicatorItem::query()->whereKey($itemId)->delete();
+
         return response()->json(['success' => true]);
     }
 
@@ -609,6 +614,7 @@ class HcmPerformanceController extends Controller
             'periodEnd' => $c->period_end->toDateString(),
             'status' => $c->status,
         ])->values();
+
         return response()->json(['success' => true, 'data' => $rows]);
     }
 
@@ -628,6 +634,7 @@ class HcmPerformanceController extends Controller
             'period_end' => $v['periodEnd'],
             'status' => 'draft',
         ]);
+
         return response()->json(['success' => true, 'data' => ['id' => $c->id]], 201);
     }
 
@@ -649,6 +656,7 @@ class HcmPerformanceController extends Controller
             'period_end' => $v['periodEnd'],
             'status' => $v['status'],
         ]);
+
         return response()->json(['success' => true]);
     }
 
@@ -660,6 +668,7 @@ class HcmPerformanceController extends Controller
         PerformanceCycle::query()->where('status', 'active')->update(['status' => 'closed']);
         $c = PerformanceCycle::query()->findOrFail($id);
         $c->update(['status' => 'active']);
+
         return response()->json(['success' => true]);
     }
 
@@ -670,6 +679,7 @@ class HcmPerformanceController extends Controller
         }
         $c = PerformanceCycle::query()->findOrFail($id);
         $c->update(['status' => 'closed']);
+
         return response()->json(['success' => true]);
     }
 
@@ -804,6 +814,7 @@ class HcmPerformanceController extends Controller
 
         $payloadItems = $items->map(function (PerformanceIndicatorItem $i) use ($scoreByItem) {
             $s = $scoreByItem->get($i->id);
+
             return [
                 'id' => $i->id,
                 'section' => $i->section,
@@ -1113,6 +1124,7 @@ class HcmPerformanceController extends Controller
         }
         $isOwner = $review->user_id === $user->id;
         $isManager = $review->manager_user_id !== null && $review->manager_user_id === $user->id;
+
         return $isOwner || $isManager;
     }
 
@@ -1129,9 +1141,15 @@ class HcmPerformanceController extends Controller
         foreach ($items as $item) {
             $s = $scores->get($item->id);
             $val = null;
-            if ($kind === 'self') $val = $s?->self_score;
-            if ($kind === 'manager') $val = $s?->manager_score;
-            if ($kind === 'final') $val = $s?->final_score;
+            if ($kind === 'self') {
+                $val = $s?->self_score;
+            }
+            if ($kind === 'manager') {
+                $val = $s?->manager_score;
+            }
+            if ($kind === 'final') {
+                $val = $s?->final_score;
+            }
             if ($val === null) {
                 continue;
             }
@@ -1163,7 +1181,7 @@ class HcmPerformanceController extends Controller
      */
     private function calculateLeaveFrequencyMetrics(PerformanceReview $review): ?array
     {
-        if (!$review->cycle || !$review->cycle->period_start || !$review->cycle->period_end) {
+        if (! $review->cycle || ! $review->cycle->period_start || ! $review->cycle->period_end) {
             return null;
         }
 
@@ -1194,7 +1212,7 @@ class HcmPerformanceController extends Controller
         $leavesByType = [];
         foreach ($approvedLeaves as $leave) {
             $type = (string) $leave->leave_type;
-            if (!isset($leavesByType[$type])) {
+            if (! isset($leavesByType[$type])) {
                 $leavesByType[$type] = 0;
             }
             $leavesByType[$type] += (float) $leave->days;
@@ -1237,4 +1255,3 @@ class HcmPerformanceController extends Controller
         });
     }
 }
-

@@ -281,7 +281,7 @@ class HcmSubscriptionChangeController extends Controller
 
         $anomalySummary = trim((string) ($anomalySnapshot['summary'] ?? ''));
         $note = $anomalySummary !== ''
-            ? ($baseNote . ' Catatan anomali: ' . $anomalySummary)
+            ? ($baseNote.' Catatan anomali: '.$anomalySummary)
             : $baseNote;
 
         return [

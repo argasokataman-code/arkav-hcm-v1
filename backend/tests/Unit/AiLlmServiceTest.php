@@ -44,7 +44,7 @@ class AiLlmServiceTest extends TestCase
             ], 200);
         });
 
-        $service = new AiLlmService();
+        $service = new AiLlmService;
 
         $reply = $service->chat([
             ['role' => 'system', 'content' => 'Answer briefly.'],

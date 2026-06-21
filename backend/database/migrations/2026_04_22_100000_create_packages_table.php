@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('color', 7)->default('#007bff'); // hex color
             $table->integer('sort_order')->default(0);
             $table->timestamps();
-            
+
             $table->index('status');
             $table->index('code');
         });

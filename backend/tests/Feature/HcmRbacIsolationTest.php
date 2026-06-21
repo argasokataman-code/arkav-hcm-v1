@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\CompanyUser;
-use App\Models\HcmRole;
 use App\Models\HcmPermission;
+use App\Models\HcmRole;
 use App\Models\HcmRolePermission;
 use App\Models\HcmUserRole;
 use App\Models\User;
@@ -191,7 +191,7 @@ class HcmRbacIsolationTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-                ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true);
     }
 
     #[Test]

@@ -208,33 +208,33 @@ class SaasUiFlowSeeder extends Seeder
         //   - starter payroll fixed from 0 -> 1 (payroll is MVP)
         //   - retired feature codes (api_access, priority_support) removed from active seed template
         $featureTemplate = [
-            'employee_management'      => 'Employee Management',
-            'attendance'               => 'Attendance',
-            'payroll'                  => 'Payroll',
-            'leave_management'         => 'Leave Management',
-            'holiday_calendar'         => 'Holiday Calendar',
-            'performance'              => 'Performance',
-            'asset_management'         => 'Asset Management',
-            'asset_logs'               => 'Asset Logs',
-            'asset_attachments'        => 'Asset Attachments',
-            'asset_warranty'           => 'Asset Warranty',
-            'asset_maintenance'        => 'Asset Maintenance',
-            'asset_reporting'          => 'Asset Reporting',
-            'asset_depreciation'       => 'Asset Depreciation',
-            'tickets'                  => 'Tickets',
-            'goal_tracking'            => 'Goal Tracking',
-            'training'                 => 'Training',
+            'employee_management' => 'Employee Management',
+            'attendance' => 'Attendance',
+            'payroll' => 'Payroll',
+            'leave_management' => 'Leave Management',
+            'holiday_calendar' => 'Holiday Calendar',
+            'performance' => 'Performance',
+            'asset_management' => 'Asset Management',
+            'asset_logs' => 'Asset Logs',
+            'asset_attachments' => 'Asset Attachments',
+            'asset_warranty' => 'Asset Warranty',
+            'asset_maintenance' => 'Asset Maintenance',
+            'asset_reporting' => 'Asset Reporting',
+            'asset_depreciation' => 'Asset Depreciation',
+            'tickets' => 'Tickets',
+            'goal_tracking' => 'Goal Tracking',
+            'training' => 'Training',
             'employee_document_center' => 'Employee Document Center', // canonical — matches saas_package_feature_catalog.php
         ];
 
         // null=unlimited, 0=not included, >0=limit
         // Index 0..16 maps to $featureTemplate keys above in order
         $featureLimitsByPackage = [
-            'starter'    => [50,   1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-            'growth'     => [150,  1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0],
-            'business'   => [500,  1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1],
+            'starter' => [50,   1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+            'growth' => [150,  1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0],
+            'business' => [500,  1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1],
             'enterprise' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            'ultimate'   => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, null, null, null],
+            'ultimate' => [null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, null, null, null],
         ];
 
         $result = [];

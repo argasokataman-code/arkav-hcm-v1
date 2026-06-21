@@ -10,7 +10,7 @@ use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmPermission;
 use App\Models\HcmRolePermission;
-use App\Models\HcmSptMasaHeader;
+use App\Models\HcmUserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
@@ -22,7 +22,9 @@ class HcmSptMasaTest extends TestCase
     use RefreshDatabase;
 
     private const PERIODE = '2025-01';
+
     private const YEAR = 2025;
+
     private const MONTH = 1;
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -49,7 +51,7 @@ class HcmSptMasaTest extends TestCase
             ->whereHas('companyMemberships', fn ($q) => $q->where('company_id', $company->id))
             ->first();
 
-        $roleId = \App\Models\HcmUserRole::query()
+        $roleId = HcmUserRole::query()
             ->where('user_id', $user->id)
             ->where('company_id', $company->id)
             ->value('role_id');
@@ -78,7 +80,7 @@ class HcmSptMasaTest extends TestCase
     private function headers(string $token, int $companyId): array
     {
         return [
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $companyId,
         ];
     }
@@ -138,7 +140,7 @@ class HcmSptMasaTest extends TestCase
             [
                 'company_id' => 1,
                 'contract_type' => 'permanent',
-                'employee_id' => 'EMP-TEST-' . $userId,
+                'employee_id' => 'EMP-TEST-'.$userId,
             ]
         );
 
@@ -170,7 +172,7 @@ class HcmSptMasaTest extends TestCase
         // false for tenant admins → 403 before the 400 check is reached.
         $result = $this->makeAdmin('spt-nocompany@example.com');
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $result['token'],
+            'Authorization' => 'Bearer '.$result['token'],
         ])->getJson('/v1/hcm/spt-masa/headers');
 
         $response->assertStatus(403)
@@ -301,7 +303,7 @@ class HcmSptMasaTest extends TestCase
         $uuid = $this->withHeaders($headers)->postJson('/v1/hcm/spt-masa/headers', ['periode' => self::PERIODE])
             ->assertStatus(201)->json('data.uuid');
 
-        $this->withHeaders($headers)->getJson('/v1/hcm/spt-masa/headers/' . $uuid)
+        $this->withHeaders($headers)->getJson('/v1/hcm/spt-masa/headers/'.$uuid)
             ->assertOk()
             ->assertJsonPath('data.uuid', $uuid)
             ->assertJsonStructure(['data' => ['details']]);
@@ -454,7 +456,7 @@ class HcmSptMasaTest extends TestCase
         $headersB = $this->headers($b['token'], $b['company_id']);
 
         // Tenant B tries to access tenant A's header
-        $this->withHeaders($headersB)->getJson('/v1/hcm/spt-masa/headers/' . $uuidA)
+        $this->withHeaders($headersB)->getJson('/v1/hcm/spt-masa/headers/'.$uuidA)
             ->assertStatus(404);
 
         // Tenant B list should be empty

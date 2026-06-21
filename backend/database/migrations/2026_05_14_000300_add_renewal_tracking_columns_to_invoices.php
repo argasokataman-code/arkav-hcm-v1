@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -45,9 +46,9 @@ return new class extends Migration
                     $period = null;
 
                     if (! empty($row->issue_date)) {
-                        $period = \Illuminate\Support\Carbon::parse((string) $row->issue_date)->format('Y_m');
+                        $period = Carbon::parse((string) $row->issue_date)->format('Y_m');
                     } elseif (! empty($row->created_at)) {
-                        $period = \Illuminate\Support\Carbon::parse((string) $row->created_at)->format('Y_m');
+                        $period = Carbon::parse((string) $row->created_at)->format('Y_m');
                     } else {
                         $period = now()->format('Y_m');
                     }

@@ -31,7 +31,7 @@ class TaxGovernanceRevenueClearingJobTest extends TestCase
             'idempotency_key' => 'test-clearing-1',
         ]);
 
-        (new ClearRevenueTransactionsJob())->handle();
+        (new ClearRevenueTransactionsJob)->handle();
 
         $this->assertDatabaseHas('platform_revenue_transactions', [
             'id' => $row->id,
@@ -59,8 +59,8 @@ class TaxGovernanceRevenueClearingJobTest extends TestCase
             'idempotency_key' => 'test-clearing-2',
         ]);
 
-        (new ClearRevenueTransactionsJob())->handle();
-        (new ClearRevenueTransactionsJob())->handle();
+        (new ClearRevenueTransactionsJob)->handle();
+        (new ClearRevenueTransactionsJob)->handle();
 
         $this->assertDatabaseHas('platform_revenue_transactions', [
             'id' => $cleared->id,

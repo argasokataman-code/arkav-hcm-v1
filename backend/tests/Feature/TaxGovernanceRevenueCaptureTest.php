@@ -37,7 +37,7 @@ class TaxGovernanceRevenueCaptureTest extends TestCase
             'source_event_type' => 'subscription.created',
             'source_entity_id' => $subscription->id,
             'transaction_type' => 'subscription',
-            'idempotency_key' => 'subscription_created:' . $subscription->id,
+            'idempotency_key' => 'subscription_created:'.$subscription->id,
         ]);
     }
 
@@ -58,7 +58,7 @@ class TaxGovernanceRevenueCaptureTest extends TestCase
             ->withArgs(function (string $message, array $context) use ($company, $subscription): bool {
                 return $message === 'tax_governance.revenue_capture_duplicate_skipped'
                     && ($context['source_event_type'] ?? null) === 'subscription.created'
-                    && ($context['idempotency_key'] ?? null) === 'subscription_created:' . $subscription->id
+                    && ($context['idempotency_key'] ?? null) === 'subscription_created:'.$subscription->id
                     && (int) ($context['company_id'] ?? 0) === (int) $company->id
                     && (int) ($context['source_entity_id'] ?? 0) === (int) $subscription->id;
             });
@@ -102,7 +102,7 @@ class TaxGovernanceRevenueCaptureTest extends TestCase
             'source_event_type' => 'addon.purchased',
             'source_entity_id' => $transaction->id,
             'transaction_type' => 'addon_feature',
-            'idempotency_key' => 'addon_purchased:' . $transaction->id,
+            'idempotency_key' => 'addon_purchased:'.$transaction->id,
         ]);
     }
 }

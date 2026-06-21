@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\Package;
 use App\Models\PackageAddon;
 use App\Models\PackageFeature;
-use App\Models\Company;
 use App\Models\Subscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

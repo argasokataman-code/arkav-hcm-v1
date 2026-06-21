@@ -15,6 +15,7 @@ class RenewalMonitoringApiTest extends TestCase
     use RefreshDatabase;
 
     private string $adminToken;
+
     private string $userToken;
 
     protected function setUp(): void

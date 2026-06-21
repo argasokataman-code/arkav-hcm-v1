@@ -6,11 +6,9 @@ use App\Models\Company;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\EmployeeProfile;
-use App\Modelsser;
 use App\Services\EmployeeCountValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\HttpploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -76,7 +74,7 @@ trait HandlesEmployeeBulkOperations
             ],
         ];
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('employee_bulk_data');
         $sheet->fromArray(array_merge([$headers], $rows), null, 'A1');
@@ -242,7 +240,7 @@ trait HandlesEmployeeBulkOperations
         $errors = [];
 
         try {
-            DB::transaction(function () use ($rows, &$created, &$updated, &$errors, $activeCompanyId, $company, $employeeValidator): void {
+            DB::transaction(function () use ($rows, &$created, &$updated, &$errors, $activeCompanyId, $employeeValidator): void {
                 $lockedCompany = Company::query()
                     ->whereKey($activeCompanyId)
                     ->lockForUpdate()
@@ -270,43 +268,53 @@ trait HandlesEmployeeBulkOperations
                     $baseSalaryRaw = $row['base_salary'] ?? 0;
                     if (! is_numeric($baseSalaryRaw)) {
                         $errors[] = "Row {$lineNo}: base_salary harus angka.";
+
                         continue;
                     }
                     $baseSalary = (float) $baseSalaryRaw;
                     if ($baseSalary < 0) {
                         $errors[] = "Row {$lineNo}: base_salary tidak boleh negatif.";
+
                         continue;
                     }
                     if (! in_array($employmentStatus, $this->employmentStatusOptions(), true)) {
                         $errors[] = "Row {$lineNo}: employment_status harus salah satu dari ".implode('|', $this->employmentStatusOptions()).'.';
+
                         continue;
                     }
                     if ($contractTypeInput !== null && ! in_array(strtolower($contractTypeInput), $this->acceptedContractTypeInputs(), true)) {
                         $errors[] = "Row {$lineNo}: contract_type harus contract|permanent (alias pkwt|pkwtt masih diterima saat migrasi).";
+
                         continue;
                     }
                     if ($contractStatus !== '' && ! in_array($contractStatus, $this->contractStatusOptions(), true)) {
                         $errors[] = "Row {$lineNo}: contract_status harus active|ended|terminated.";
+
                         continue;
                     }
                     if ($gender !== null && ! in_array($gender, ['male', 'female', 'other'], true)) {
                         $errors[] = "Row {$lineNo}: gender harus male|female|other.";
+
                         continue;
                     }
                     if ($maritalStatus !== null && ! in_array($maritalStatus, $this->maritalStatusOptions(), true)) {
                         $errors[] = "Row {$lineNo}: marital_status tidak valid.";
+
                         continue;
                     }
                     if ($religion !== null && ! in_array($religion, $this->religionOptions(), true)) {
                         $errors[] = "Row {$lineNo}: religion harus mengikuti daftar agama Indonesia yang disediakan.";
+
                         continue;
                     }
                     if ($bankName !== null && ! in_array($bankName, $this->acceptedBankNames(), true)) {
                         $errors[] = "Row {$lineNo}: bank_name tidak ada dalam daftar bank Indonesia yang didukung.";
+
                         continue;
                     }
                     if ($taxStatus !== '' && ! in_array($taxStatus, $this->acceptedTaxStatusInputs(), true)) {
                         $errors[] = "Row {$lineNo}: tax_status harus TK0-TK3 atau K0-K3 (alias TK/K masih diterima untuk kompatibilitas).";
+
                         continue;
                     }
 
@@ -316,6 +324,7 @@ trait HandlesEmployeeBulkOperations
 
                     if ($userByUuid && $userByEmail && $userByUuid->id !== $userByEmail->id) {
                         $errors[] = "Row {$lineNo}: employee_uuid dan email mengacu ke user yang berbeda. Perbaiki salah satu identitas sebelum import.";
+
                         continue;
                     }
 
@@ -325,18 +334,22 @@ trait HandlesEmployeeBulkOperations
                         $employeeValidator->validateCanAddEmployees($lockedCompany, 1);
                         if ($name === '' || $email === '') {
                             $errors[] = "Row {$lineNo}: untuk create baru, name dan email wajib diisi.";
+
                             continue;
                         }
                         if ($password === '' || $confirmPassword === '' || $password !== $confirmPassword) {
                             $errors[] = "Row {$lineNo}: password dan confirm_password wajib serta harus sama untuk create baru.";
+
                             continue;
                         }
                         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                             $errors[] = "Row {$lineNo}: email tidak valid.";
+
                             continue;
                         }
                         if (User::query()->where('email', $email)->exists()) {
                             $errors[] = "Row {$lineNo}: email {$email} sudah digunakan.";
+
                             continue;
                         }
 
@@ -353,11 +366,13 @@ trait HandlesEmployeeBulkOperations
                         if ($email !== '' && $email !== strtolower((string) $user->email)) {
                             if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                                 $errors[] = "Row {$lineNo}: email tidak valid.";
+
                                 continue;
                             }
                             $exists = User::query()->where('email', $email)->where('id', '!=', $user->id)->exists();
                             if ($exists) {
                                 $errors[] = "Row {$lineNo}: email {$email} sudah dipakai user lain.";
+
                                 continue;
                             }
                             $user->email = $email;
@@ -365,6 +380,7 @@ trait HandlesEmployeeBulkOperations
                         if ($password !== '') {
                             if ($password !== $confirmPassword) {
                                 $errors[] = "Row {$lineNo}: confirm_password harus sama dengan password.";
+
                                 continue;
                             }
                             $user->password = Hash::make($password);
@@ -394,6 +410,7 @@ trait HandlesEmployeeBulkOperations
                             ->first();
                         if (! $resolvedDepartment) {
                             $errors[] = "Row {$lineNo}: department tidak ditemukan di company ini.";
+
                             continue;
                         }
                         $bulkDeptId = (int) $resolvedDepartment->id;
@@ -406,6 +423,7 @@ trait HandlesEmployeeBulkOperations
                             ->value('name') ?? '');
                         if ($resolvedDepartmentName === '') {
                             $errors[] = "Row {$lineNo}: department_id tidak ditemukan di company ini.";
+
                             continue;
                         }
                         $bulkDeptName = $resolvedDepartmentName;
@@ -426,11 +444,13 @@ trait HandlesEmployeeBulkOperations
 
                         if ($resolvedDesignations->isEmpty()) {
                             $errors[] = "Row {$lineNo}: designation tidak ditemukan di company ini.";
+
                             continue;
                         }
 
                         if ($resolvedDesignations->count() > 1 && $bulkDeptId === null) {
                             $errors[] = "Row {$lineNo}: designation ditemukan di lebih dari satu department. Isi kolom department atau designation_id.";
+
                             continue;
                         }
 
@@ -449,6 +469,7 @@ trait HandlesEmployeeBulkOperations
                             ->value('name') ?? '');
                         if ($resolvedDesignationName === '') {
                             $errors[] = "Row {$lineNo}: designation_id tidak ditemukan di company ini.";
+
                             continue;
                         }
                         $bulkDesigName = $resolvedDesignationName;
@@ -462,10 +483,12 @@ trait HandlesEmployeeBulkOperations
                             ->first();
                         if (! $resolvedTeam) {
                             $errors[] = "Row {$lineNo}: team_id tidak ditemukan pada master teams.";
+
                             continue;
                         }
                         if (! (bool) ($resolvedTeam->is_active ?? false)) {
                             $errors[] = "Row {$lineNo}: team_id mengacu ke team inactive dan tidak boleh dipakai assignment.";
+
                             continue;
                         }
                         if ($bulkDeptId === null && $resolvedTeam->department_id !== null) {
@@ -473,6 +496,7 @@ trait HandlesEmployeeBulkOperations
                         }
                         if ($bulkDeptId !== null && $resolvedTeam->department_id !== null && (int) $resolvedTeam->department_id !== (int) $bulkDeptId) {
                             $errors[] = "Row {$lineNo}: team_id tidak sesuai dengan department_id yang dipilih.";
+
                             continue;
                         }
                         // team_id is authoritative; ignore name column even if it differs
@@ -487,6 +511,7 @@ trait HandlesEmployeeBulkOperations
                         if ($resolvedByName) {
                             if (! (bool) ($resolvedByName->is_active ?? false)) {
                                 $errors[] = "Row {$lineNo}: team mengacu ke team inactive dan tidak boleh dipakai assignment.";
+
                                 continue;
                             }
                             $teamId = (int) $resolvedByName->id;
@@ -496,6 +521,7 @@ trait HandlesEmployeeBulkOperations
                             }
                             if ($bulkDeptId !== null && $resolvedByName->department_id !== null && (int) $resolvedByName->department_id !== (int) $bulkDeptId) {
                                 $errors[] = "Row {$lineNo}: team tidak sesuai dengan department_id yang dipilih.";
+
                                 continue;
                             }
                         }
@@ -505,6 +531,7 @@ trait HandlesEmployeeBulkOperations
                     $profile->team_id = $teamId;
                     if ($bulkDeptId && ! Department::query()->whereKey($bulkDeptId)->where('company_id', $activeCompanyId)->exists()) {
                         $errors[] = "Row {$lineNo}: department_id tidak ditemukan di company ini.";
+
                         continue;
                     }
                     if ($bulkDesigId) {
@@ -516,12 +543,14 @@ trait HandlesEmployeeBulkOperations
                             ->exists();
                         if (! $desigBelongsToCompanyDept) {
                             $errors[] = "Row {$lineNo}: designation_id tidak ditemukan di company ini.";
+
                             continue;
                         }
                     }
                     $orgBulk = $this->resolveOrganizationForWrite($bulkDeptId, $bulkDesigId, $bulkDesigName);
                     if ($orgBulk instanceof JsonResponse) {
                         $errors[] = "Row {$lineNo}: kombinasi department/jabatan tidak valid.";
+
                         continue;
                     }
                     $profile->department_id = $orgBulk['department_id'];
@@ -646,7 +675,7 @@ trait HandlesEmployeeBulkOperations
         $startIndex = Coordinate::columnIndexFromString($startColumn);
         $endIndex = Coordinate::columnIndexFromString($endColumn);
 
-        $template = new DataValidation();
+        $template = new DataValidation;
         $template->setType(DataValidation::TYPE_LIST);
         $template->setErrorStyle(DataValidation::STYLE_STOP);
         $template->setAllowBlank(true);
@@ -684,8 +713,8 @@ trait HandlesEmployeeBulkOperations
         try {
             if (in_array($extension, ['csv', 'txt'], true)) {
                 $sample = @file_get_contents($filePath, false, null, 0, 4096) ?: '';
-                $firstLine = strtok($sample, "
-");
+                $firstLine = strtok($sample, '
+');
                 $commaCount = $firstLine !== false ? substr_count((string) $firstLine, ',') : 0;
                 $semiCount = $firstLine !== false ? substr_count((string) $firstLine, ';') : 0;
                 $delimiter = $commaCount >= $semiCount ? ',' : ';';
@@ -713,6 +742,7 @@ trait HandlesEmployeeBulkOperations
         if ($highestRow < 2) {
             $spreadsheet->disconnectWorksheets();
             unset($spreadsheet);
+
             return [];
         }
 
@@ -792,7 +822,7 @@ trait HandlesEmployeeBulkOperations
             'success' => false,
             'error' => [
                 'code' => 'EMPLOYEE_BULK_ORG_SETUP_REQUIRED',
-                'message' => 'Isi minimal satu department dan satu designation sebelum ' . $action . '.',
+                'message' => 'Isi minimal satu department dan satu designation sebelum '.$action.'.',
             ],
             'data' => [
                 'departmentCount' => $departmentCount,

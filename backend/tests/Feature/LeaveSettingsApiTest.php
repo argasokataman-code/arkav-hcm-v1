@@ -266,5 +266,4 @@ class LeaveSettingsApiTest extends TestCase
         ])->assertStatus(422)
             ->assertJsonValidationErrors(['assigneeUserIds.0']);
     }
-
 }

@@ -53,18 +53,20 @@ class ReconcilePendingRenewalPayments implements ShouldQueue
             $this->recordEvent($invoice->subscription, $invoice, $payment, 'renewal_anomaly', 'STALE_INVOICE_DETECTED', 'Pending Midtrans renewal payment has no order_id.');
             $this->emitRenewalMetric('renewal_reconciliation_anomaly', 'STALE_INVOICE_DETECTED', $invoice);
             $this->emitFailureSpikeAlert($invoice, 'STALE_INVOICE_DETECTED');
+
             return;
         }
 
         try {
             $midtrans = app(MidtransService::class);
-            $tx       = $midtrans->getTransaction($orderId);
+            $tx = $midtrans->getTransaction($orderId);
         } catch (\Throwable $exception) {
-            $this->updateInvoiceReason($invoice, 'MIDTRANS_DOWN', 'Midtrans reconciliation unavailable: ' . $exception->getMessage());
+            $this->updateInvoiceReason($invoice, 'MIDTRANS_DOWN', 'Midtrans reconciliation unavailable: '.$exception->getMessage());
             $this->recordEvent($invoice->subscription, $invoice, $payment, 'renewal_anomaly', 'MIDTRANS_DOWN', 'Midtrans reconciliation unavailable.');
             $this->emitRenewalMetric('renewal_reconciliation_anomaly', 'MIDTRANS_DOWN', $invoice);
             $this->emitRenewalAlert('gateway_down', 'MIDTRANS_DOWN', 'Midtrans reconciliation unavailable.', $invoice, ['error' => $exception->getMessage()]);
             $this->emitFailureSpikeAlert($invoice, 'MIDTRANS_DOWN');
+
             return;
         }
 
@@ -74,22 +76,24 @@ class ReconcilePendingRenewalPayments implements ShouldQueue
             $this->emitRenewalMetric('renewal_reconciliation_anomaly', 'MIDTRANS_DOWN', $invoice);
             $this->emitRenewalAlert('gateway_down', 'MIDTRANS_DOWN', 'Midtrans reconciliation returned no transaction payload.', $invoice);
             $this->emitFailureSpikeAlert($invoice, 'MIDTRANS_DOWN');
+
             return;
         }
 
-        $txStatus    = strtolower((string) ($tx['transaction_status'] ?? ''));
+        $txStatus = strtolower((string) ($tx['transaction_status'] ?? ''));
         $fraudStatus = strtolower((string) ($tx['fraud_status'] ?? ''));
-        $state       = $midtrans->resolvePaymentState($txStatus, $fraudStatus);
+        $state = $midtrans->resolvePaymentState($txStatus, $fraudStatus);
 
         if ($state === 'paid') {
             $payment->update([
                 'metadata' => array_merge($payment->metadata ?? [], [
                     'midtrans_transaction_id' => (string) ($tx['transaction_id'] ?? ''),
-                    'midtrans_payment_type'   => (string) ($tx['payment_type'] ?? ''),
-                    'midtrans_fraud_status'   => $fraudStatus,
+                    'midtrans_payment_type' => (string) ($tx['payment_type'] ?? ''),
+                    'midtrans_fraud_status' => $fraudStatus,
                 ]),
             ]);
             $this->markPaymentAsPaid($payment, $invoice);
+
             return;
         }
 
@@ -97,7 +101,7 @@ class ReconcilePendingRenewalPayments implements ShouldQueue
             $payment->update([
                 'status' => 'failed',
                 'metadata' => array_merge($payment->metadata ?? [], [
-                    'reconciled_at'     => now()->toIso8601String(),
+                    'reconciled_at' => now()->toIso8601String(),
                     'reconciled_status' => $txStatus,
                 ]),
             ]);

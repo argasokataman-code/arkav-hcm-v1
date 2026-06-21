@@ -5,12 +5,13 @@ namespace App\Http\Controllers\Api\Payroll\Concerns;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmTermination;
-use App\Modelsser;
 use App\Services\Reconciliation\Exceptions\ExportReconciliationException;
 use App\Services\Reconciliation\ReconciliationGateService;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 trait HandlesPayrollRunRuntimeUtilities
@@ -44,7 +45,7 @@ trait HandlesPayrollRunRuntimeUtilities
 
     /**
      * @param  array<int, mixed>  $identifiers
-     * @return \Illuminate\Support\Collection<int, int>
+     * @return Collection<int, int>
      */
     private function resolveUserIdsFromIdentifiers(array $identifiers)
     {
@@ -187,7 +188,7 @@ trait HandlesPayrollRunRuntimeUtilities
             return null;
         }
 
-        $periodEnd = \Carbon\Carbon::createFromDate($year, $month, 1)->endOfMonth()->toDateString();
+        $periodEnd = Carbon::createFromDate($year, $month, 1)->endOfMonth()->toDateString();
 
         $query = HcmTermination::query()
             ->where('status', 'approved')

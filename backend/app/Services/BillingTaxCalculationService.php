@@ -19,7 +19,7 @@ class BillingTaxCalculationService
 
         $policy = $this->resolvePolicy($companyId, $billingMonth);
 
-        $periodStart = $billingMonth . '-01';
+        $periodStart = $billingMonth.'-01';
         $periodEnd = date('Y-m-t', strtotime($periodStart));
 
         $invoiceQuery = Invoice::query()
@@ -75,6 +75,7 @@ class BillingTaxCalculationService
                     $rate = $inv->billing_tax_rate_snapshot !== null
                         ? (float) $inv->billing_tax_rate_snapshot
                         : $taxRatePercentage;
+
                     return (float) $inv->amount_due * ($rate / 100);
                 });
                 $taxAmount = round($snapshotTax, 2);
@@ -114,6 +115,7 @@ class BillingTaxCalculationService
     public function resolvePolicyRateSnapshot(int $companyId, string $billingMonth): float
     {
         $policy = $this->resolvePolicy($companyId, $billingMonth);
+
         return (float) ($policy?->tax_rate_percentage ?? 0);
     }
 
@@ -126,7 +128,7 @@ class BillingTaxCalculationService
             return $lockedSnapshot;
         }
 
-        $periodStart = $billingMonth . '-01';
+        $periodStart = $billingMonth.'-01';
         $periodEnd = date('Y-m-t', strtotime($periodStart));
 
         $tenantIds = Invoice::query()
@@ -177,7 +179,7 @@ class BillingTaxCalculationService
             $effectiveGrossRevenue = $grossRevenue > 0 ? $grossRevenue : $taxableRevenueAmount;
             $netRevenue = round(max(0, $effectiveGrossRevenue - (float) $calc['tax_amount']), 2);
 
-            if (!empty($calc['policy_uuid'])) {
+            if (! empty($calc['policy_uuid'])) {
                 $tenantCountWithPolicy++;
             }
 
@@ -266,15 +268,15 @@ class BillingTaxCalculationService
 
     public function validateBillingTaxPolicy(array $payload): bool
     {
-        if (!isset($payload['tax_rate_percentage']) || (float) $payload['tax_rate_percentage'] < 0 || (float) $payload['tax_rate_percentage'] > 100) {
+        if (! isset($payload['tax_rate_percentage']) || (float) $payload['tax_rate_percentage'] < 0 || (float) $payload['tax_rate_percentage'] > 100) {
             return false;
         }
 
-        if (!isset($payload['billing_cycle_type']) || !in_array($payload['billing_cycle_type'], ['monthly', 'yearly', 'custom'], true)) {
+        if (! isset($payload['billing_cycle_type']) || ! in_array($payload['billing_cycle_type'], ['monthly', 'yearly', 'custom'], true)) {
             return false;
         }
 
-        if (!isset($payload['base_calculation_method']) || $payload['base_calculation_method'] !== 'invoice_amount_due') {
+        if (! isset($payload['base_calculation_method']) || $payload['base_calculation_method'] !== 'invoice_amount_due') {
             return false;
         }
 
@@ -290,7 +292,7 @@ class BillingTaxCalculationService
             return null;
         }
 
-        $year  = (int) substr($billingMonth, 0, 4);
+        $year = (int) substr($billingMonth, 0, 4);
         $month = (int) substr($billingMonth, 5, 2);
 
         $row = DB::table('platform_monthly_financial_summaries')
@@ -305,6 +307,7 @@ class BillingTaxCalculationService
         }
 
         $snapshot = json_decode((string) $row->tenant_billing_snapshots, true);
+
         return is_array($snapshot) ? $snapshot : null;
     }
 
@@ -316,7 +319,7 @@ class BillingTaxCalculationService
      */
     private function resolvePolicy(int $companyId, string $billingMonth): ?HcmBillingTaxPolicy
     {
-        $periodEnd = date('Y-m-t', strtotime($billingMonth . '-01'));
+        $periodEnd = date('Y-m-t', strtotime($billingMonth.'-01'));
 
         return HcmBillingTaxPolicy::query()
             ->where('company_id', $companyId)
@@ -324,7 +327,7 @@ class BillingTaxCalculationService
             ->where('status', 'active')
             ->where(function ($q) use ($periodEnd): void {
                 $q->whereNull('effective_from')
-                  ->orWhere('effective_from', '<=', $periodEnd);
+                    ->orWhere('effective_from', '<=', $periodEnd);
             })
             ->orderByDesc('effective_from')
             ->orderByDesc('created_at')
@@ -333,7 +336,7 @@ class BillingTaxCalculationService
 
     private function resolveNextRenewalMonth(string $billingMonth, ?string $billingCycleType): ?string
     {
-        $baseDate = strtotime($billingMonth . '-01');
+        $baseDate = strtotime($billingMonth.'-01');
         if ($baseDate === false) {
             return null;
         }

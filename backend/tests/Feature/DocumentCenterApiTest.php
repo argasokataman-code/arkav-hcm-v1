@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\HcmPermission;
@@ -25,12 +26,12 @@ class DocumentCenterApiTest extends TestCase
     private function adminSetup(): array
     {
         $data = $this->createHcmAdminWithCompany([
-            'name'  => 'Doc Admin',
+            'name' => 'Doc Admin',
             'email' => 'doc-admin@example.com',
         ]);
 
         $headers = $this->withCompanyContext(
-            ['Authorization' => 'Bearer ' . $data['token']],
+            ['Authorization' => 'Bearer '.$data['token']],
             $data['company']
         );
 
@@ -40,9 +41,9 @@ class DocumentCenterApiTest extends TestCase
     private function employeeSetup(int $companyId): array
     {
         $this->postJson('/v1/identity/auth/register', [
-            'name'            => 'Doc Employee',
-            'email'           => 'doc-employee@example.com',
-            'password'        => 'StrongPass1',
+            'name' => 'Doc Employee',
+            'email' => 'doc-employee@example.com',
+            'password' => 'StrongPass1',
             'confirmPassword' => 'StrongPass1',
         ])->assertStatus(201);
 
@@ -58,7 +59,7 @@ class DocumentCenterApiTest extends TestCase
         $permission = HcmPermission::query()->firstOrCreate(
             ['code' => 'document_center.view'],
             ['module' => 'document_center', 'resource' => 'document_center', 'action' => 'view',
-             'name' => 'Document Center View', 'is_active' => true]
+                'name' => 'Document Center View', 'is_active' => true]
         );
         $viewRole = HcmRole::query()->firstOrCreate(
             ['company_id' => $companyId, 'code' => 'DOC_VIEWER'],
@@ -66,9 +67,9 @@ class DocumentCenterApiTest extends TestCase
         );
         HcmRolePermission::withoutTimestamps(function () use ($viewRole, $permission, $companyId): void {
             HcmRolePermission::firstOrCreate([
-                'role_id'       => $viewRole->id,
+                'role_id' => $viewRole->id,
                 'permission_id' => $permission->id,
-                'company_id'    => $companyId,
+                'company_id' => $companyId,
             ]);
         });
         HcmUserRole::updateOrCreate(
@@ -77,9 +78,9 @@ class DocumentCenterApiTest extends TestCase
         );
 
         $login = $this->postJson('/v1/identity/auth/login', [
-            'email'    => 'doc-employee@example.com',
+            'email' => 'doc-employee@example.com',
             'password' => 'StrongPass1',
-            'companyCode' => \App\Models\Company::find($companyId)->code,
+            'companyCode' => Company::find($companyId)->code,
         ])->assertOk();
 
         $token = (string) $login->json('data.accessToken');
@@ -87,13 +88,13 @@ class DocumentCenterApiTest extends TestCase
         // Create an employee profile for the employee user linked to the company
         $profile = EmployeeProfile::query()->create([
             'company_id' => $companyId,
-            'user_id'    => $user->id,
+            'user_id' => $user->id,
             'first_name' => 'Doc',
-            'last_name'  => 'Employee',
-            'status'     => 'active',
+            'last_name' => 'Employee',
+            'status' => 'active',
         ]);
 
-        $headers = ['Authorization' => 'Bearer ' . $token, 'X-Company-Id' => (string) $companyId];
+        $headers = ['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $companyId];
 
         return ['user' => $user, 'profile' => $profile, 'headers' => $headers, 'token' => $token];
     }
@@ -105,9 +106,9 @@ class DocumentCenterApiTest extends TestCase
     private function selfServiceEmployeeSetup(int $companyId): array
     {
         $this->postJson('/v1/identity/auth/register', [
-            'name'            => 'Self Service Employee',
-            'email'           => 'self-service@example.com',
-            'password'        => 'StrongPass1',
+            'name' => 'Self Service Employee',
+            'email' => 'self-service@example.com',
+            'password' => 'StrongPass1',
             'confirmPassword' => 'StrongPass1',
         ])->assertStatus(201);
 
@@ -120,22 +121,22 @@ class DocumentCenterApiTest extends TestCase
         );
 
         $login = $this->postJson('/v1/identity/auth/login', [
-            'email'       => 'self-service@example.com',
-            'password'    => 'StrongPass1',
-            'companyCode' => \App\Models\Company::find($companyId)->code,
+            'email' => 'self-service@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => Company::find($companyId)->code,
         ])->assertOk();
 
         $token = (string) $login->json('data.accessToken');
 
         $profile = EmployeeProfile::query()->create([
             'company_id' => $companyId,
-            'user_id'    => $user->id,
+            'user_id' => $user->id,
             'first_name' => 'Self',
-            'last_name'  => 'Service',
-            'status'     => 'active',
+            'last_name' => 'Service',
+            'status' => 'active',
         ]);
 
-        $headers = ['Authorization' => 'Bearer ' . $token, 'X-Company-Id' => (string) $companyId];
+        $headers = ['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $companyId];
 
         return ['user' => $user, 'profile' => $profile, 'headers' => $headers, 'token' => $token];
     }
@@ -148,19 +149,19 @@ class DocumentCenterApiTest extends TestCase
     {
         // Register a fresh user with no company membership
         $this->postJson('/v1/identity/auth/register', [
-            'name'            => 'No Company User',
-            'email'           => 'no-company@example.com',
-            'password'        => 'StrongPass1',
+            'name' => 'No Company User',
+            'email' => 'no-company@example.com',
+            'password' => 'StrongPass1',
             'confirmPassword' => 'StrongPass1',
         ])->assertStatus(201);
 
         $login = $this->postJson('/v1/identity/auth/login', [
-            'email'    => 'no-company@example.com',
+            'email' => 'no-company@example.com',
             'password' => 'StrongPass1',
         ])->assertOk();
 
         $token = (string) $login->json('data.accessToken');
-        $headers = ['Authorization' => 'Bearer ' . $token]; // no X-Company-Id, no membership
+        $headers = ['Authorization' => 'Bearer '.$token]; // no X-Company-Id, no membership
 
         // Without any company membership, the middleware + controller chain returns
         // 403 AUTH_FORBIDDEN (controller canView = false after testing tenant bypass)
@@ -182,7 +183,7 @@ class DocumentCenterApiTest extends TestCase
 
         // Create
         $res = $this->withHeaders($headers)->postJson('/v1/hcm/document-center/categories', [
-            'name'     => 'Kontrak Kerja',
+            'name' => 'Kontrak Kerja',
             'isActive' => true,
         ])
             ->assertStatus(201)
@@ -195,7 +196,7 @@ class DocumentCenterApiTest extends TestCase
 
         // Update
         $this->withHeaders($headers)->putJson("/v1/hcm/document-center/categories/{$id}", [
-            'name'     => 'Kontrak Kerja Updated',
+            'name' => 'Kontrak Kerja Updated',
             'isActive' => false,
         ])
             ->assertOk()
@@ -251,11 +252,11 @@ class DocumentCenterApiTest extends TestCase
         // Upload a document assigned to this category
         $file = UploadedFile::fake()->create('contract.pdf', 100, 'application/pdf');
         $docRes = $this->withHeaders($admin['headers'])->post('/v1/hcm/document-center/documents', [
-            'file'              => $file,
+            'file' => $file,
             'employeeProfileId' => $emp['profile']->id,
-            'title'             => 'Test Contract',
-            'visibility'        => 'hr_only',
-            'categoryId'        => $catId,
+            'title' => 'Test Contract',
+            'visibility' => 'hr_only',
+            'categoryId' => $catId,
         ])->assertStatus(201);
         $docId = (int) $docRes->json('data.id');
 
@@ -265,7 +266,7 @@ class DocumentCenterApiTest extends TestCase
 
         // Document should still exist but category = null
         $this->assertDatabaseHas('hcm_employee_documents', [
-            'id'          => $docId,
+            'id' => $docId,
             'category_id' => null,
         ]);
     }
@@ -284,11 +285,11 @@ class DocumentCenterApiTest extends TestCase
         // Upload document
         $file = UploadedFile::fake()->create('contract.pdf', 512, 'application/pdf');
         $res = $this->withHeaders($admin['headers'])->post('/v1/hcm/document-center/documents', [
-            'file'              => $file,
+            'file' => $file,
             'employeeProfileId' => $emp['profile']->id,
-            'title'             => 'Employment Contract 2026',
-            'description'       => 'Standard contract',
-            'visibility'        => 'employee_visible',
+            'title' => 'Employment Contract 2026',
+            'description' => 'Standard contract',
+            'visibility' => 'employee_visible',
         ])
             ->assertStatus(201)
             ->assertJsonPath('success', true)
@@ -315,18 +316,18 @@ class DocumentCenterApiTest extends TestCase
 
         $file = UploadedFile::fake()->create('doc.pdf', 100, 'application/pdf');
         $docRes = $this->withHeaders($admin['headers'])->post('/v1/hcm/document-center/documents', [
-            'file'              => $file,
+            'file' => $file,
             'employeeProfileId' => $emp['profile']->id,
-            'title'             => 'Original Title',
-            'visibility'        => 'hr_only',
+            'title' => 'Original Title',
+            'visibility' => 'hr_only',
         ])->assertStatus(201);
         $docId = (int) $docRes->json('data.id');
 
         // Update metadata
         $this->withHeaders($admin['headers'])->putJson("/v1/hcm/document-center/documents/{$docId}", [
-            'title'      => 'Updated Title',
+            'title' => 'Updated Title',
             'visibility' => 'employee_visible',
-            'expiresAt'  => '2027-12-31',
+            'expiresAt' => '2027-12-31',
         ])
             ->assertOk()
             ->assertJsonPath('data.title', 'Updated Title')
@@ -343,10 +344,10 @@ class DocumentCenterApiTest extends TestCase
 
         $file = UploadedFile::fake()->create('to-delete.pdf', 100, 'application/pdf');
         $docRes = $this->withHeaders($admin['headers'])->post('/v1/hcm/document-center/documents', [
-            'file'              => $file,
+            'file' => $file,
             'employeeProfileId' => $emp['profile']->id,
-            'title'             => 'To Delete',
-            'visibility'        => 'hr_only',
+            'title' => 'To Delete',
+            'visibility' => 'hr_only',
         ])->assertStatus(201);
         $docId = (int) $docRes->json('data.id');
 
@@ -368,20 +369,20 @@ class DocumentCenterApiTest extends TestCase
         // Upload hr_only doc for employee
         $file1 = UploadedFile::fake()->create('private.pdf', 100, 'application/pdf');
         $hrOnly = $this->withHeaders($admin['headers'])->post('/v1/hcm/document-center/documents', [
-            'file'              => $file1,
+            'file' => $file1,
             'employeeProfileId' => $emp['profile']->id,
-            'title'             => 'HR Only Doc',
-            'visibility'        => 'hr_only',
+            'title' => 'HR Only Doc',
+            'visibility' => 'hr_only',
         ])->assertStatus(201);
         $hrOnlyId = (int) $hrOnly->json('data.id');
 
         // Upload employee_visible doc for employee
         $file2 = UploadedFile::fake()->create('visible.pdf', 100, 'application/pdf');
         $visible = $this->withHeaders($admin['headers'])->post('/v1/hcm/document-center/documents', [
-            'file'              => $file2,
+            'file' => $file2,
             'employeeProfileId' => $emp['profile']->id,
-            'title'             => 'Visible Doc',
-            'visibility'        => 'employee_visible',
+            'title' => 'Visible Doc',
+            'visibility' => 'employee_visible',
         ])->assertStatus(201);
         $visibleId = (int) $visible->json('data.id');
 
@@ -405,10 +406,10 @@ class DocumentCenterApiTest extends TestCase
 
         $file = UploadedFile::fake()->create('sneaky.pdf', 100, 'application/pdf');
         $this->withHeaders($emp['headers'])->post('/v1/hcm/document-center/documents', [
-            'file'              => $file,
+            'file' => $file,
             'employeeProfileId' => $emp['profile']->id,
-            'title'             => 'Sneaky Upload',
-            'visibility'        => 'hr_only',
+            'title' => 'Sneaky Upload',
+            'visibility' => 'hr_only',
         ])
             ->assertStatus(403)
             ->assertJsonPath('success', false);
@@ -423,10 +424,10 @@ class DocumentCenterApiTest extends TestCase
 
         $file = UploadedFile::fake()->create('contract.pdf', 100, 'application/pdf');
         $docRes = $this->withHeaders($admin['headers'])->post('/v1/hcm/document-center/documents', [
-            'file'              => $file,
+            'file' => $file,
             'employeeProfileId' => $emp['profile']->id,
-            'title'             => 'Contract',
-            'visibility'        => 'employee_visible',
+            'title' => 'Contract',
+            'visibility' => 'employee_visible',
         ])->assertStatus(201);
         $docId = (int) $docRes->json('data.id');
 
@@ -445,10 +446,10 @@ class DocumentCenterApiTest extends TestCase
 
         $file = UploadedFile::fake()->create('hr-doc.pdf', 100, 'application/pdf');
         $docRes = $this->withHeaders($admin['headers'])->post('/v1/hcm/document-center/documents', [
-            'file'              => $file,
+            'file' => $file,
             'employeeProfileId' => $emp['profile']->id,
-            'title'             => 'HR Only',
-            'visibility'        => 'hr_only',
+            'title' => 'HR Only',
+            'visibility' => 'hr_only',
         ])->assertStatus(201);
         $docId = (int) $docRes->json('data.id');
 
@@ -464,8 +465,8 @@ class DocumentCenterApiTest extends TestCase
         $adminA = $this->createHcmAdminWithCompany(['name' => 'Admin A', 'email' => 'doc-admin-a@example.com']);
         $adminB = $this->createHcmAdminWithCompany(['name' => 'Admin B', 'email' => 'doc-admin-b@example.com']);
 
-        $headersA = $this->withCompanyContext(['Authorization' => 'Bearer ' . $adminA['token']], $adminA['company']);
-        $headersB = $this->withCompanyContext(['Authorization' => 'Bearer ' . $adminB['token']], $adminB['company']);
+        $headersA = $this->withCompanyContext(['Authorization' => 'Bearer '.$adminA['token']], $adminA['company']);
+        $headersB = $this->withCompanyContext(['Authorization' => 'Bearer '.$adminB['token']], $adminB['company']);
 
         // Create employee profiles for each company (user_id required - reuse admin users)
         $userA = User::query()->where('email', 'doc-admin-a@example.com')->firstOrFail();
@@ -473,17 +474,17 @@ class DocumentCenterApiTest extends TestCase
 
         $profileA = EmployeeProfile::query()->create([
             'company_id' => $adminA['company_id'],
-            'user_id'    => $userA->id,
+            'user_id' => $userA->id,
             'first_name' => 'Emp A',
-            'last_name'  => '',
-            'status'     => 'active',
+            'last_name' => '',
+            'status' => 'active',
         ]);
         $profileB = EmployeeProfile::query()->create([
             'company_id' => $adminB['company_id'],
-            'user_id'    => $userB->id,
+            'user_id' => $userB->id,
             'first_name' => 'Emp B',
-            'last_name'  => '',
-            'status'     => 'active',
+            'last_name' => '',
+            'status' => 'active',
         ]);
 
         // Admin A creates a category
@@ -500,10 +501,10 @@ class DocumentCenterApiTest extends TestCase
         // Admin A uploads document
         $file = UploadedFile::fake()->create('company-a-doc.pdf', 100, 'application/pdf');
         $docA = $this->withHeaders($headersA)->post('/v1/hcm/document-center/documents', [
-            'file'              => $file,
+            'file' => $file,
             'employeeProfileId' => $profileA->id,
-            'title'             => 'Company A Secret',
-            'visibility'        => 'hr_only',
+            'title' => 'Company A Secret',
+            'visibility' => 'hr_only',
         ])->assertStatus(201);
         $docAId = (int) $docA->json('data.id');
 
@@ -525,18 +526,18 @@ class DocumentCenterApiTest extends TestCase
 
         $file1 = UploadedFile::fake()->create('doc1.pdf', 100, 'application/pdf');
         $this->withHeaders($admin['headers'])->post('/v1/hcm/document-center/documents', [
-            'file'              => $file1,
+            'file' => $file1,
             'employeeProfileId' => $emp['profile']->id,
-            'title'             => 'HR Doc',
-            'visibility'        => 'hr_only',
+            'title' => 'HR Doc',
+            'visibility' => 'hr_only',
         ])->assertStatus(201);
 
         $file2 = UploadedFile::fake()->create('doc2.pdf', 100, 'application/pdf');
         $this->withHeaders($admin['headers'])->post('/v1/hcm/document-center/documents', [
-            'file'              => $file2,
+            'file' => $file2,
             'employeeProfileId' => $emp['profile']->id,
-            'title'             => 'Employee Doc',
-            'visibility'        => 'employee_visible',
+            'title' => 'Employee Doc',
+            'visibility' => 'employee_visible',
         ])->assertStatus(201);
 
         $res = $this->withHeaders($admin['headers'])->getJson('/v1/hcm/document-center/documents?visibility=hr_only')

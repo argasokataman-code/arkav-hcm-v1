@@ -39,7 +39,6 @@ class Package extends Model
         'is_global_admin_only' => 'boolean',
     ];
 
-
     /**
      * Package features
      */
@@ -108,6 +107,7 @@ class Package extends Model
     public function getFeatureLimit(string $code): ?int
     {
         $feature = $this->getFeature($code);
+
         return $feature?->limit;
     }
 }

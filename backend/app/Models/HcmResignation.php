@@ -13,7 +13,6 @@ class HcmResignation extends Model
     use AssignsUuid;
     use SoftDeletes;
 
-
     protected $table = 'hcm_resignations';
 
     protected $fillable = [
@@ -55,9 +54,9 @@ class HcmResignation extends Model
      */
     protected function setStatusAttribute($value): void
     {
-        if ($value && !in_array($value, self::VALID_STATUSES, true)) {
+        if ($value && ! in_array($value, self::VALID_STATUSES, true)) {
             throw new InvalidArgumentException(
-                "Invalid resignation status: {$value}. Must be one of: " . implode(', ', self::VALID_STATUSES)
+                "Invalid resignation status: {$value}. Must be one of: ".implode(', ', self::VALID_STATUSES)
             );
         }
         $this->attributes['status'] = $value;

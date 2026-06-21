@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Models\User;
 use App\Http\Middleware\AuthenticateApiToken;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class FeatureClassificationControllerTest extends TestCase
 {
@@ -35,7 +35,7 @@ class FeatureClassificationControllerTest extends TestCase
         $data = $list->json('data');
         $this->assertTrue(count($data) >= 1, 'Expected at least one classification row');
         $this->assertTrue(
-            collect($data)->contains(fn($row) => $row['id'] === $id),
+            collect($data)->contains(fn ($row) => $row['id'] === $id),
             'Newly created classification not found in index'
         );
 

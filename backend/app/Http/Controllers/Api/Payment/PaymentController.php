@@ -64,7 +64,7 @@ class PaymentController extends Controller
         return response()->json([
             'success' => true,
             'data' => collect($payments->items())
-                ->map(fn(Payment $payment) => $this->formatPayment($payment))
+                ->map(fn (Payment $payment) => $this->formatPayment($payment))
                 ->values(),
             'pagination' => [
                 'total' => $payments->total(),
@@ -105,7 +105,7 @@ class PaymentController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -141,7 +141,7 @@ class PaymentController extends Controller
      */
     public function verify(Request $request, Payment $payment): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -161,7 +161,7 @@ class PaymentController extends Controller
         }
 
         // Send notification
-        $notificationService = new NotificationService();
+        $notificationService = new NotificationService;
         $notificationService->notifyPaymentReceived($payment, $payment->invoice);
 
         return response()->json([
@@ -177,7 +177,7 @@ class PaymentController extends Controller
      */
     public function destroy(Request $request, Payment $payment): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -227,6 +227,7 @@ class PaymentController extends Controller
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
+
         return $user && $user->isGlobalHcmAdmin();
     }
 

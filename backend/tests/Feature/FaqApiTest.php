@@ -25,7 +25,7 @@ class FaqApiTest extends TestCase
     {
         $defaults = [
             'name' => 'Tenant Employee',
-            'email' => 'tenant-employee-' . time() . '@example.com',
+            'email' => 'tenant-employee-'.time().'@example.com',
             'password' => 'StrongPass1',
         ];
         $data = array_merge($defaults, $userData);
@@ -80,7 +80,7 @@ class FaqApiTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonCount(1, 'data');
 
-        $this->putJson('/v1/hcm/faqs/' . $created['id'], [
+        $this->putJson('/v1/hcm/faqs/'.$created['id'], [
             'question' => 'What is FAQ entry?',
             'answer' => 'Updated answer.',
         ], $headers)
@@ -106,7 +106,7 @@ class FaqApiTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.deletedCount', 2);
 
-        $this->deleteJson('/v1/hcm/faqs/' . $created['id'], [], $headers)
+        $this->deleteJson('/v1/hcm/faqs/'.$created['id'], [], $headers)
             ->assertOk()
             ->assertJsonPath('success', true);
 
@@ -136,7 +136,7 @@ class FaqApiTest extends TestCase
 
     public function test_admin_cannot_delete_other_tenant_faq(): void
     {
-        $authA = $this->createHcmAdminWithCompany(['email' => 'faq-admin-a-' . time() . '@example.com']);
+        $authA = $this->createHcmAdminWithCompany(['email' => 'faq-admin-a-'.time().'@example.com']);
         $headersA = $this->headers($authA['token'], $authA['company_id']);
 
         $created = $this->postJson('/v1/hcm/faqs', [
@@ -145,10 +145,10 @@ class FaqApiTest extends TestCase
             'answer' => 'Tenant A answer',
         ], $headersA)->assertStatus(201)->json('data');
 
-        $authB = $this->createHcmAdminWithCompany(['email' => 'faq-admin-b-' . time() . '@example.com']);
+        $authB = $this->createHcmAdminWithCompany(['email' => 'faq-admin-b-'.time().'@example.com']);
         $headersB = $this->headers($authB['token'], $authB['company_id']);
 
-        $this->deleteJson('/v1/hcm/faqs/' . $created['id'], [], $headersB)
+        $this->deleteJson('/v1/hcm/faqs/'.$created['id'], [], $headersB)
             ->assertNotFound();
     }
 }

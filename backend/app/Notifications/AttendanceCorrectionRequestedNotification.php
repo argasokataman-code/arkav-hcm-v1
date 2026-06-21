@@ -21,8 +21,7 @@ class AttendanceCorrectionRequestedNotification extends Notification
         public readonly string $workDate,
         public readonly string $reason,
         public readonly int $attendanceRecordId,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -35,18 +34,18 @@ class AttendanceCorrectionRequestedNotification extends Notification
 
         return NotificationPayloadFactory::make('attendance.correction.requested', [
             'companyUuid' => $this->companyUuid,
-            'entityType'  => 'attendance_record',
-            'entityUuid'  => (string) $this->attendanceRecordId,
-            'title'       => 'Koreksi absensi diajukan',
-            'message'     => $message,
-            'occurredAt'  => now(),
+            'entityType' => 'attendance_record',
+            'entityUuid' => (string) $this->attendanceRecordId,
+            'title' => 'Koreksi absensi diajukan',
+            'message' => $message,
+            'occurredAt' => now(),
         ], [
-            'event'               => 'attendance.correction.requested',
-            'employeeName'        => $this->employeeName,
-            'companyUuid'         => $this->companyUuid,
-            'workDate'            => $this->workDate,
-            'reason'              => $this->reason,
-            'attendanceRecordId'  => $this->attendanceRecordId,
+            'event' => 'attendance.correction.requested',
+            'employeeName' => $this->employeeName,
+            'companyUuid' => $this->companyUuid,
+            'workDate' => $this->workDate,
+            'reason' => $this->reason,
+            'attendanceRecordId' => $this->attendanceRecordId,
         ]);
     }
 }

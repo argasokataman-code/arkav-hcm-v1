@@ -11,8 +11,7 @@ final class ImageProcessor
 {
     public function __construct(
         private readonly ImageManager $manager,
-    ) {
-    }
+    ) {}
 
     /**
      * Resize (scale down only) and encode to JPEG bytes.

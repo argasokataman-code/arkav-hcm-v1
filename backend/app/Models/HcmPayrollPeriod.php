@@ -10,11 +10,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class HcmPayrollPeriod extends Model
 {
     use AssignsUuid;
+
     public const STATUS_OPEN = 'open';
 
     /** Set when a run for this period has been finalized (posted payslip). */
     public const STATUS_POSTED = 'posted';
-
 
     protected $fillable = [
         'company_id',

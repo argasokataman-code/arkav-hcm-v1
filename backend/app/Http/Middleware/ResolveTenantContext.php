@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\CompanyUser;
 use App\Models\User;
 use App\Support\TenantContextResolver;
 use Closure;
@@ -11,9 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ResolveTenantContext
 {
-    public function __construct(private readonly TenantContextResolver $resolver)
-    {
-    }
+    public function __construct(private readonly TenantContextResolver $resolver) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -28,7 +25,7 @@ class ResolveTenantContext
             if ($this->shouldBypassMissingTenantContextForTesting($request, $user, (string) $result['error'])) {
                 return $next($request);
             }
-            
+
             $traceId = $request->attributes->get('traceId');
             $errorCode = (string) $result['error'];
             $message = $errorCode === 'TENANT_MEMBERSHIP_REQUIRED'

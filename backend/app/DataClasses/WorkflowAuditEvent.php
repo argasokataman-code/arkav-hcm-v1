@@ -2,6 +2,8 @@
 
 namespace App\DataClasses;
 
+use App\Models\User;
+
 /**
  * Immutable record of a single workflow stage transition event.
  *
@@ -12,13 +14,13 @@ namespace App\DataClasses;
 final class WorkflowAuditEvent
 {
     public function __construct(
-        public readonly string  $previousStage,
-        public readonly string  $newStage,
-        public readonly string  $action,       // 'submit_review' | 'approve' | 'finalize' | 'cancel' | 'revert'
-        public readonly int     $actorId,
-        public readonly string  $actorName,
-        public readonly string  $actorRole,    // 'admin' | 'hr_manager' | 'employee' | 'system'
-        public readonly string  $timestamp,    // ISO-8601
+        public readonly string $previousStage,
+        public readonly string $newStage,
+        public readonly string $action,       // 'submit_review' | 'approve' | 'finalize' | 'cancel' | 'revert'
+        public readonly int $actorId,
+        public readonly string $actorName,
+        public readonly string $actorRole,    // 'admin' | 'hr_manager' | 'employee' | 'system'
+        public readonly string $timestamp,    // ISO-8601
         public readonly ?string $note = null,
     ) {}
 
@@ -31,20 +33,20 @@ final class WorkflowAuditEvent
     {
         return [
             'previous_stage' => $this->previousStage,
-            'new_stage'      => $this->newStage,
-            'action'         => $this->action,
-            'actor_id'       => $this->actorId,
-            'actor_name'     => $this->actorName,
-            'actor_role'     => $this->actorRole,
-            'timestamp'      => $this->timestamp,
-            'note'           => $this->note,
+            'new_stage' => $this->newStage,
+            'action' => $this->action,
+            'actor_id' => $this->actorId,
+            'actor_name' => $this->actorName,
+            'actor_role' => $this->actorRole,
+            'timestamp' => $this->timestamp,
+            'note' => $this->note,
         ];
     }
 
     /**
      * Build from a request + actor context.
      *
-     * @param \App\Models\User $actor
+     * @param  User  $actor
      */
     public static function make(
         string $previousStage,
@@ -55,13 +57,13 @@ final class WorkflowAuditEvent
     ): self {
         return new self(
             previousStage: $previousStage,
-            newStage:      $newStage,
-            action:        $action,
-            actorId:       $actor->id,
-            actorName:     $actor->name ?? ($actor->email ?? 'unknown'),
-            actorRole:     $actor->roles?->first()?->name ?? 'employee',
-            timestamp:     now()->toIso8601String(),
-            note:          $note,
+            newStage: $newStage,
+            action: $action,
+            actorId: $actor->id,
+            actorName: $actor->name ?? ($actor->email ?? 'unknown'),
+            actorRole: $actor->roles?->first()?->name ?? 'employee',
+            timestamp: now()->toIso8601String(),
+            note: $note,
         );
     }
 }

@@ -186,6 +186,7 @@ class HcmHolidayController extends Controller
         foreach ($list as $row) {
             if (! is_array($row)) {
                 $invalidRows++;
+
                 continue;
             }
 
@@ -196,6 +197,7 @@ class HcmHolidayController extends Controller
             }
             if ($holidayDate === '' || $title === '') {
                 $invalidRows++;
+
                 continue;
             }
 
@@ -203,12 +205,14 @@ class HcmHolidayController extends Controller
                 $normalizedDate = Carbon::parse($holidayDate)->toDateString();
             } catch (Throwable) {
                 $invalidRows++;
+
                 continue;
             }
             $normalizedTitle = preg_replace('/\s+/', ' ', $title) ?: $title;
 
             if (! $this->isPrimaryPublicHolidayRow($row, $normalizedTitle, $providerUsed)) {
                 $skippedNonPrimary++;
+
                 continue;
             }
 
@@ -228,6 +232,7 @@ class HcmHolidayController extends Controller
             if ($existingManual) {
                 $this->syncHolidayCalendarRow($existingManual);
                 $skippedManual++;
+
                 continue;
             }
 

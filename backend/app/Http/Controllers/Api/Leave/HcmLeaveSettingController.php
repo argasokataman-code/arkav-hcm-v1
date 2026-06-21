@@ -167,7 +167,6 @@ class HcmLeaveSettingController extends Controller
         return response()->json(['success' => true, 'data' => $this->typePayload($type->fresh())]);
     }
 
-
     private function ensureLeaveTypeCode(string $baseName): string
     {
         $base = Str::of($baseName)->lower()->slug('_')->toString();
@@ -183,6 +182,7 @@ class HcmLeaveSettingController extends Controller
 
         return $code;
     }
+
     public function storeCustomPolicy(Request $request): JsonResponse
     {
         $forbidden = $this->ensurePermission($request, 'leave.settings');

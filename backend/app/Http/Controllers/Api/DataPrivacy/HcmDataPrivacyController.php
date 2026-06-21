@@ -4,13 +4,16 @@ namespace App\Http\Controllers\Api\DataPrivacy;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessApprovedErasure;
 use App\Mail\ConsentWithdrawalConfirmationMail;
-use App\Models\ErasureRequest;
 use App\Models\EmployeeAiConsent;
 use App\Models\EmployeeBiometricConsent;
 use App\Models\EmployeeProfile;
+use App\Models\ErasureRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -138,7 +141,7 @@ class HcmDataPrivacyController extends Controller
         }
 
         $validated = $request->validate([
-            'action'      => ['required', Rule::in(['approve', 'reject'])],
+            'action' => ['required', Rule::in(['approve', 'reject'])],
             'admin_notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -152,20 +155,20 @@ class HcmDataPrivacyController extends Controller
         $newStatus = $validated['action'] === 'approve' ? 'approved' : 'rejected';
 
         $erasureRequest->update([
-            'status'           => $newStatus,
+            'status' => $newStatus,
             'reviewed_by_uuid' => (string) ($actor?->uuid ?? ''),
-            'reviewed_at'      => now(),
-            'admin_notes'      => $validated['admin_notes'] ?? null,
+            'reviewed_at' => now(),
+            'admin_notes' => $validated['admin_notes'] ?? null,
         ]);
 
         if ($newStatus === 'approved') {
-            \App\Jobs\ProcessApprovedErasure::dispatch($erasureRequest->id)->afterCommit();
+            ProcessApprovedErasure::dispatch($erasureRequest->id)->afterCommit();
         }
 
         return response()->json([
             'success' => true,
             'data' => [
-                'uuid'   => $erasureRequest->uuid,
+                'uuid' => $erasureRequest->uuid,
                 'status' => $erasureRequest->status,
             ],
         ]);
@@ -189,17 +192,17 @@ class HcmDataPrivacyController extends Controller
 
         $validated = $request->validate([
             'selfie_consent' => ['required', 'boolean'],
-            'gps_consent'    => ['required', 'boolean'],
+            'gps_consent' => ['required', 'boolean'],
         ]);
 
-        $profile = \App\Models\EmployeeProfile::query()
+        $profile = EmployeeProfile::query()
             ->where('user_id', $user->id)
             ->where('company_id', $companyId)
             ->firstOrFail();
 
         // Persist consent in a transaction and set timestamps defensively.
         $consent = null;
-        \Illuminate\Support\Facades\DB::transaction(function () use ($profile, $companyId, $validated, $request, &$consent) {
+        DB::transaction(function () use ($profile, $companyId, $validated, $request, &$consent) {
             $attrs = [
                 'selfie_consent' => (bool) $validated['selfie_consent'],
                 'gps_consent' => (bool) $validated['gps_consent'],
@@ -215,17 +218,17 @@ class HcmDataPrivacyController extends Controller
                 $attrs['consent_withdrawn_at'] = now();
             }
 
-            $consent = \App\Models\EmployeeBiometricConsent::query()->updateOrCreate(
+            $consent = EmployeeBiometricConsent::query()->updateOrCreate(
                 [
                     'employee_uuid' => (string) $profile->uuid,
-                    'company_id'    => $companyId,
+                    'company_id' => $companyId,
                 ],
                 $attrs
             );
         });
 
         // Log for audit/debug — safe, non-sensitive fields only.
-        \Illuminate\Support\Facades\Log::info('Biometric consent saved', [
+        Log::info('Biometric consent saved', [
             'user_id' => $user->id ?? null,
             'employee_uuid' => $profile->uuid ?? null,
             'company_id' => $companyId,
@@ -236,7 +239,7 @@ class HcmDataPrivacyController extends Controller
             'success' => true,
             'data' => [
                 'selfieConsent' => $consent->selfie_consent,
-                'gpsConsent'    => $consent->gps_consent,
+                'gpsConsent' => $consent->gps_consent,
                 'consentGivenAt' => $consent->consent_given_at,
             ],
         ]);
@@ -254,17 +257,17 @@ class HcmDataPrivacyController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        $profile = \App\Models\EmployeeProfile::query()
+        $profile = EmployeeProfile::query()
             ->where('user_id', $user->id)
             ->where('company_id', $companyId)
             ->firstOrFail();
 
-        \App\Models\EmployeeBiometricConsent::query()
+        EmployeeBiometricConsent::query()
             ->where('employee_uuid', (string) $profile->uuid)
             ->where('company_id', $companyId)
             ->update([
-                'selfie_consent'       => false,
-                'gps_consent'          => false,
+                'selfie_consent' => false,
+                'gps_consent' => false,
                 'consent_withdrawn_at' => now(),
             ]);
 
@@ -357,7 +360,7 @@ class HcmDataPrivacyController extends Controller
             return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
         }
 
-        $profile = \App\Models\EmployeeProfile::query()
+        $profile = EmployeeProfile::query()
             ->where('user_id', $user->id)
             ->where('company_id', $companyId)
             ->first();
@@ -366,7 +369,7 @@ class HcmDataPrivacyController extends Controller
             return response()->json(['success' => true, 'data' => ['biometric' => null]]);
         }
 
-        $consent = \App\Models\EmployeeBiometricConsent::query()
+        $consent = EmployeeBiometricConsent::query()
             ->where('employee_uuid', $profile->uuid)
             ->where('company_id', $companyId)
             ->first();

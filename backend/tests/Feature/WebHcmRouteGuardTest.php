@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
+use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
 
@@ -20,7 +21,7 @@ class WebHcmRouteGuardTest extends TestCase
     private function createCompany(array $overrides = []): Company
     {
         return Company::query()->create(array_merge([
-            'code' => 'web_guard_' . str()->lower((string) str()->random(8)),
+            'code' => 'web_guard_'.str()->lower((string) str()->random(8)),
             'name' => 'Web Guard Company',
             'legal_name' => 'Web Guard Company PT',
             'status' => 'active',
@@ -38,7 +39,7 @@ class WebHcmRouteGuardTest extends TestCase
             'employment_status' => 'active',
             'designation' => $designation,
             'team' => 'HCM',
-            'nik' => 'EMP-' . str()->upper((string) str()->random(10)),
+            'nik' => 'EMP-'.str()->upper((string) str()->random(10)),
             'hire_date' => now()->subMonth()->toDateString(),
         ]);
 
@@ -56,7 +57,7 @@ class WebHcmRouteGuardTest extends TestCase
         return (string) config('auth.api_token_cookie.name', 'arcav_access_token');
     }
 
-    private function readCookieValueFromLoginResponse(\Illuminate\Testing\TestResponse $response): string
+    private function readCookieValueFromLoginResponse(TestResponse $response): string
     {
         $setCookies = $response->headers->getCookies();
         foreach ($setCookies as $cookie) {

@@ -31,6 +31,7 @@ class ReportControllerTest extends TestCase
         ]);
 
         $login->assertOk();
+
         return (string) $login->json('data.accessToken');
     }
 
@@ -52,6 +53,7 @@ class ReportControllerTest extends TestCase
         ]);
 
         $login->assertOk();
+
         return (string) $login->json('data.accessToken');
     }
 
@@ -73,7 +75,7 @@ class ReportControllerTest extends TestCase
     {
         $token = $this->employeeToken();
         $response = $this->getJson('/v1/saas/reports/revenue', [
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer '.$token,
         ]);
 
         $this->assertEquals(403, $response->status());
@@ -84,7 +86,7 @@ class ReportControllerTest extends TestCase
     {
         $token = $this->adminToken();
         $response = $this->getJson('/v1/saas/reports/revenue', [
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer '.$token,
         ]);
 
         $this->assertTrue($response->json('success'));
@@ -97,7 +99,7 @@ class ReportControllerTest extends TestCase
     {
         $token = $this->employeeToken();
         $response = $this->getJson('/v1/saas/reports/aging', [
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer '.$token,
         ]);
 
         $this->assertEquals(403, $response->status());
@@ -108,7 +110,7 @@ class ReportControllerTest extends TestCase
     {
         $token = $this->adminToken();
         $response = $this->getJson('/v1/saas/reports/aging', [
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer '.$token,
         ]);
 
         $this->assertTrue($response->json('success'));
@@ -121,7 +123,7 @@ class ReportControllerTest extends TestCase
     {
         $token = $this->employeeToken();
         $response = $this->getJson('/v1/saas/reports/churn', [
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer '.$token,
         ]);
 
         $this->assertEquals(403, $response->status());
@@ -132,7 +134,7 @@ class ReportControllerTest extends TestCase
     {
         $token = $this->adminToken();
         $response = $this->getJson('/v1/saas/reports/churn', [
-            'Authorization' => 'Bearer ' . $token
+            'Authorization' => 'Bearer '.$token,
         ]);
 
         $this->assertTrue($response->json('success'));

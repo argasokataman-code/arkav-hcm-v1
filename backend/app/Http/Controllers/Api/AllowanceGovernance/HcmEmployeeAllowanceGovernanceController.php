@@ -7,9 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
 use App\Models\HcmEmployeeAllowanceAssignment;
 use App\Models\HcmEmployeeAllowanceAssignmentHistory;
-use App\Models\HcmEmployeePayrollItemAssignment;
 use App\Models\HcmEmployeeAllowancePolicy;
 use App\Models\HcmEmployeeAllowancePolicyHistory;
+use App\Models\HcmEmployeePayrollItemAssignment;
 use App\Models\HcmPayrollItem;
 use App\Models\HcmSalaryComponent;
 use App\Models\User;
@@ -770,11 +770,11 @@ class HcmEmployeeAllowanceGovernanceController extends Controller
         $report = $this->reports($request);
         $payload = (string) $report->getContent();
 
-        $filename = 'allowance-compliance-report-' . now()->format('Ymd-His') . '.json';
+        $filename = 'allowance-compliance-report-'.now()->format('Ymd-His').'.json';
 
         return response($payload, 200, [
             'Content-Type' => 'application/json',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
@@ -944,14 +944,14 @@ class HcmEmployeeAllowanceGovernanceController extends Controller
             $category,
             HcmSalaryComponent::SOURCE_MODULE_ALLOWANCE,
             [
-                'tax_treatment_code'           => $taxTreatmentCode,
-                'include_pph21_ter_gross'       => $isTaxable,
+                'tax_treatment_code' => $taxTreatmentCode,
+                'include_pph21_ter_gross' => $isTaxable,
                 'include_pph21_annual_reconciliation' => $isTaxable,
-                'include_thr_calculation_base'  => true,
+                'include_thr_calculation_base' => true,
                 'include_bpjs_health_wage_base' => false,
-                'include_bpjs_tk_wage_base'     => false,
-                'affects_net_pay'               => true,
-                'employer_cost_line'            => false,
+                'include_bpjs_tk_wage_base' => false,
+                'affects_net_pay' => true,
+                'employer_cost_line' => false,
             ]
         );
     }

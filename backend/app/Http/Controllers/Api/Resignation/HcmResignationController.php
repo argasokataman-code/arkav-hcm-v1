@@ -209,14 +209,14 @@ class HcmResignationController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-            $resolvedUserId = $this->resolveUserIdFromIdentifier((string) $v['userId'], $activeCompanyId);
-            if ($resolvedUserId === null) {
-                return $this->invalidActiveCompanyUserResponse();
-            }
+        $resolvedUserId = $this->resolveUserIdFromIdentifier((string) $v['userId'], $activeCompanyId);
+        if ($resolvedUserId === null) {
+            return $this->invalidActiveCompanyUserResponse();
+        }
 
         $r = HcmResignation::query()->create([
             'company_id' => $activeCompanyId,
-                'user_id' => $resolvedUserId,
+            'user_id' => $resolvedUserId,
             'department' => isset($v['department']) ? trim((string) $v['department']) : null,
             'reason' => trim((string) $v['reason']),
             'notice_date' => $v['noticeDate'],

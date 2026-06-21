@@ -2,30 +2,26 @@
 
 namespace App\Http\Controllers\Api\Performance\Concerns;
 
-use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\LeaveRequest;
 use App\Models\PerformanceCycle;
 use App\Models\PerformanceIndicatorItem;
 use App\Models\PerformanceIndicatorTemplate;
-use App\Models\PerformanceGoal;
-use App\Models\PerformanceGoalType;
 use App\Models\PerformanceReview;
 use App\Models\PerformanceReviewScore;
-use App\Modelsser;
 use App\Notifications\PerformanceReviewCreatedNotification;
-use App\Notifications\PerformanceReviewSubmittedNotification;
-use App\Notifications\PerformanceReviewManagerReviewedNotification;
 use App\Notifications\PerformanceReviewFinalizedNotification;
-use Illuminate\Database\Eloquent\Builder;
+use App\Notifications\PerformanceReviewManagerReviewedNotification;
+use App\Notifications\PerformanceReviewSubmittedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 trait HandlesPerformanceReviews
-{    private function userBelongsToActiveCompany(int $userId, ?int $companyId): bool
+{
+    private function userBelongsToActiveCompany(int $userId, ?int $companyId): bool
     {
         if (! $companyId) {
             return true;
@@ -199,6 +195,7 @@ trait HandlesPerformanceReviews
 
         $payloadItems = $items->map(function (PerformanceIndicatorItem $i) use ($scoreByItem) {
             $s = $scoreByItem->get($i->id);
+
             return [
                 'id' => $i->id,
                 'section' => $i->section,
@@ -508,6 +505,7 @@ trait HandlesPerformanceReviews
         }
         $isOwner = $review->user_id === $user->id;
         $isManager = $review->manager_user_id !== null && $review->manager_user_id === $user->id;
+
         return $isOwner || $isManager;
     }
 
@@ -524,9 +522,15 @@ trait HandlesPerformanceReviews
         foreach ($items as $item) {
             $s = $scores->get($item->id);
             $val = null;
-            if ($kind === 'self') $val = $s?->self_score;
-            if ($kind === 'manager') $val = $s?->manager_score;
-            if ($kind === 'final') $val = $s?->final_score;
+            if ($kind === 'self') {
+                $val = $s?->self_score;
+            }
+            if ($kind === 'manager') {
+                $val = $s?->manager_score;
+            }
+            if ($kind === 'final') {
+                $val = $s?->final_score;
+            }
             if ($val === null) {
                 continue;
             }
@@ -558,7 +562,7 @@ trait HandlesPerformanceReviews
      */
     private function calculateLeaveFrequencyMetrics(PerformanceReview $review): ?array
     {
-        if (!$review->cycle || !$review->cycle->period_start || !$review->cycle->period_end) {
+        if (! $review->cycle || ! $review->cycle->period_start || ! $review->cycle->period_end) {
             return null;
         }
 
@@ -589,7 +593,7 @@ trait HandlesPerformanceReviews
         $leavesByType = [];
         foreach ($approvedLeaves as $leave) {
             $type = (string) $leave->leave_type;
-            if (!isset($leavesByType[$type])) {
+            if (! isset($leavesByType[$type])) {
                 $leavesByType[$type] = 0;
             }
             $leavesByType[$type] += (float) $leave->days;

@@ -119,7 +119,7 @@ return new class extends Migration
                     $foreign->restrictOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $msg = strtolower($e->getMessage());
             if (
                 str_contains($msg, 'duplicate')
@@ -150,7 +150,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $blueprint) use ($column, $indexName): void {
                 $blueprint->index($column, $indexName);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $msg = strtolower($e->getMessage());
             if (str_contains($msg, 'duplicate') || str_contains($msg, 'exists') || str_contains($msg, 'already')) {
                 return;

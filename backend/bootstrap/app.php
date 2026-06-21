@@ -2,26 +2,28 @@
 
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 
-use Illuminate\Foundation\Application;
-use Illuminate\Foundation\Configuration\Exceptions;
-use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Request;
-use App\Http\Middleware\AuthenticateApiToken;
 use App\Http\Middleware\ApplyLocalizationSettings;
+use App\Http\Middleware\AuthenticateApiToken;
 use App\Http\Middleware\EnsureAssetManagementWebAccess;
 use App\Http\Middleware\EnsureCompanyFeatureForApi;
-use App\Http\Middleware\EnsureGlobalHcmApiAdmin;
 use App\Http\Middleware\EnsureCompanyFeatureForWebPage;
 use App\Http\Middleware\EnsureEmployeeScopedWebPage;
+use App\Http\Middleware\EnsureGlobalHcmApiAdmin;
 use App\Http\Middleware\EnsureGlobalHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebAdminPage;
 use App\Http\Middleware\EnsureHcmWebPagesAuthenticated;
 use App\Http\Middleware\EnsurePrimarySuperAdminCodeOnePage;
-use App\Http\Middleware\EncryptCookiesExceptApiToken;
 use App\Http\Middleware\HandleCorsRequests;
+use App\Http\Middleware\RequiresBiometricConsent;
 use App\Http\Middleware\ResolveTenantContext;
 use App\Http\Middleware\SecurityHeadersMiddleware;
 use App\Http\Middleware\TraceIdMiddleware;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -63,11 +65,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'hcm.web.asset-management' => EnsureAssetManagementWebAccess::class,
             'hcm.web.feature' => EnsureCompanyFeatureForWebPage::class,
             'hcm.web.employee' => EnsureEmployeeScopedWebPage::class,
-            'biometric.consent' => \App\Http\Middleware\RequiresBiometricConsent::class,
+            'biometric.consent' => RequiresBiometricConsent::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        $exceptions->render(function (\Illuminate\Validation\ValidationException $e, \Illuminate\Http\Request $request) {
+        $exceptions->render(function (ValidationException $e, Request $request) {
             if (! $request->is('v1/*')) {
                 return null;
             }
@@ -93,7 +95,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'code' => 'VALIDATION_ERROR',
                     'message' => 'Validation failed',
                     'details' => $details,
-                    'traceId' => $traceId !== '' ? $traceId : (string) \Illuminate\Support\Str::uuid(),
+                    'traceId' => $traceId !== '' ? $traceId : (string) Str::uuid(),
                 ],
             ], 422);
         });

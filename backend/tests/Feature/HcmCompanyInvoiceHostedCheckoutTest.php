@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Api\Billing\HcmCompanyInvoiceController;
 use App\Http\Controllers\Api\Payment\MockPaymentController;
-use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\HcmBillingTaxPolicy;
 use App\Models\Invoice;

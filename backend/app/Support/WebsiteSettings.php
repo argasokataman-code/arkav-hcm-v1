@@ -59,6 +59,7 @@ class WebsiteSettings
     ];
 
     private const DEFAULT_LOCALE = 'en';
+
     private const DEFAULT_TIMEZONE = 'UTC';
 
     /**
@@ -149,12 +150,12 @@ class WebsiteSettings
     public static function brandingPath(string $field): ?string
     {
         $normalized = strtolower(trim($field));
-        if (!in_array($normalized, self::BRANDING_FIELDS, true)) {
+        if (! in_array($normalized, self::BRANDING_FIELDS, true)) {
             return null;
         }
 
         $stored = Setting::get('business_'.$normalized.'_path');
-        if (!is_string($stored)) {
+        if (! is_string($stored)) {
             return null;
         }
 

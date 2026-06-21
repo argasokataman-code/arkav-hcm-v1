@@ -10,19 +10,26 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PlatformRevenueTransaction extends Model
 {
-    use HasFactory, AssignsUuid;
+    use AssignsUuid, HasFactory;
 
     public const TYPE_SUBSCRIPTION = 'subscription';
+
     public const TYPE_PAYROLL_SERVICE = 'payroll_service';
+
     public const TYPE_ADDON_FEATURE = 'addon_feature';
 
     public const STATUS_POSTED = 'posted';
+
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_CANCELLED = 'cancelled';
 
     public const CLEARING_UNCLEARED = 'uncleared';
+
     public const CLEARING_CLEARED = 'cleared';
+
     public const CLEARING_DISPUTED = 'disputed';
+
     public const CLEARING_REVERSED = 'reversed';
 
     protected $fillable = [
@@ -71,7 +78,7 @@ class PlatformRevenueTransaction extends Model
 
     public function scopeForMonth(Builder $query, string $month): Builder
     {
-        $periodStart = $month . '-01';
+        $periodStart = $month.'-01';
         $periodEnd = date('Y-m-t', strtotime($periodStart));
 
         return $query->whereBetween('occurred_at', [$periodStart, $periodEnd]);

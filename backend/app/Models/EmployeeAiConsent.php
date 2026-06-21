@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -12,10 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property string $employee_uuid UUID of EmployeeProfile
  * @property string|null $user_uuid UUID of User giving consent
- * @property \Carbon\Carbon $consent_given_at When employee gave consent
+ * @property Carbon $consent_given_at When employee gave consent
  * @property string|null $consent_ip_address IP address of consent
  * @property string|null $consent_text Snapshot of consent notice
- * @property \Carbon\Carbon|null $withdrawn_at When employee withdrew consent (NULL = active)
+ * @property Carbon|null $withdrawn_at When employee withdrew consent (NULL = active)
  */
 class EmployeeAiConsent extends Model
 {

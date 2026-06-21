@@ -2,6 +2,8 @@
 
 namespace App\Services\Ai;
 
+use App\Models\EmployeeAiConsent;
+use App\Models\EmployeeProfile;
 use App\Models\Setting;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -25,9 +27,13 @@ use Illuminate\Support\Facades\Log;
 class AiLlmService
 {
     private string $baseUrl;
+
     private string $model;
+
     private string $apiKey;
+
     private int $timeoutSeconds;
+
     private int $maxTokens;
 
     public function __construct()
@@ -98,17 +104,17 @@ class AiLlmService
             $response = Http::withToken($this->apiKey)
                 ->timeout($this->timeoutSeconds)
                 ->post("{$this->baseUrl}/chat/completions", [
-                    'model'       => $this->model,
-                    'messages'    => $messages,
-                    'max_tokens'  => $this->maxTokens,
+                    'model' => $this->model,
+                    'messages' => $messages,
+                    'max_tokens' => $this->maxTokens,
                     'temperature' => 0.2,  // low temp → factual, less creative
-                    'stream'      => false,
+                    'stream' => false,
                 ]);
 
             if (! $response->successful()) {
                 Log::warning('AiLlmService: non-2xx response', [
                     'status' => $response->status(),
-                    'body'   => $response->body(),
+                    'body' => $response->body(),
                 ]);
                 throw new \RuntimeException('LLM provider returned HTTP '.$response->status());
             }
@@ -134,7 +140,7 @@ class AiLlmService
      */
     public function checkUserHasAiConsent(string $userUuid): bool
     {
-        $employeeProfile = \App\Models\EmployeeProfile::query()
+        $employeeProfile = EmployeeProfile::query()
             ->where('user_uuid', $userUuid)
             ->first();
 
@@ -142,11 +148,10 @@ class AiLlmService
             return false;
         }
 
-        $consent = \App\Models\EmployeeAiConsent::getActiveForEmployee($employeeProfile->uuid);
+        $consent = EmployeeAiConsent::getActiveForEmployee($employeeProfile->uuid);
 
         return $consent !== null && $consent->isActive();
     }
-
 
     /**
      * Build a hardened message array from system prompt + data context + user question.
@@ -155,7 +160,7 @@ class AiLlmService
      * These are injected AFTER the system prompt but BEFORE the current data context,
      * giving the LLM memory of the last few exchanges without repeating full context.
      *
-     * @param  array<string, mixed>                               $dataContext
+     * @param  array<string, mixed>  $dataContext
      * @param  array<int, array{role: string, content: string}>  $priorTurns
      * @return array<int, array{role: string, content: string}>
      */
@@ -165,7 +170,7 @@ class AiLlmService
 
         $messages = [
             [
-                'role'    => 'system',
+                'role' => 'system',
                 'content' => $systemPrompt,
             ],
         ];
@@ -176,7 +181,7 @@ class AiLlmService
         }
 
         $messages[] = [
-            'role'    => 'user',
+            'role' => 'user',
             'content' => "DATA CONTEXT (use ONLY this to answer):\n{$contextJson}\n\nUSER QUESTION:\n{$userQuestion}",
         ];
 

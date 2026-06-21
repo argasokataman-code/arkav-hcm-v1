@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // Check if subscriptions table exists and doesn't have package_id yet
-        if (Schema::hasTable('subscriptions') && !Schema::hasColumn('subscriptions', 'package_id')) {
+        if (Schema::hasTable('subscriptions') && ! Schema::hasColumn('subscriptions', 'package_id')) {
             Schema::table('subscriptions', function (Blueprint $table) {
                 $table->foreignId('package_id')->nullable()->after('company_id')->constrained('packages')->onDelete('restrict');
                 $table->string('billing_cycle')->default('monthly')->after('auto_renew');

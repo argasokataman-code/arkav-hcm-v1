@@ -7,10 +7,6 @@ use App\Models\HcmApprovalConfigApprover;
 use App\Models\LeaveApproval;
 use App\Models\LeaveRequest;
 use App\Models\User;
-use App\Notifications\LeaveApprovalRequestedNotification;
-use App\Notifications\LeaveNextApproverNotification;
-use App\Notifications\LeaveApprovedNotification;
-use App\Notifications\LeaveRejectedNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -175,6 +171,7 @@ class ApprovalConfigService
 
                 if ($nextLevelRow) {
                     $nextUser = User::query()->find($nextLevelRow->approver_id);
+
                     return [
                         'status' => 'pending',
                         'next_approvers' => $nextUser ? collect([$nextUser]) : collect(),
@@ -227,7 +224,7 @@ class ApprovalConfigService
             ->join('company_users', 'company_users.user_id', '=', 'users.id')
             ->leftJoin('employee_profiles as ep', function ($join) use ($companyId) {
                 $join->on('ep.user_id', '=', 'users.id')
-                     ->where('ep.company_id', '=', $companyId);
+                    ->where('ep.company_id', '=', $companyId);
             })
             ->where('company_users.company_id', $companyId)
             ->where('company_users.status', 'active')
@@ -235,19 +232,19 @@ class ApprovalConfigService
             ->limit(20);
 
         if ($search !== '') {
-            $like = '%' . $search . '%';
+            $like = '%'.$search.'%';
             $query->where(function ($q) use ($like): void {
                 $q->where('users.name', 'LIKE', $like)
-                  ->orWhere('users.email', 'LIKE', $like)
-                  ->orWhere('ep.designation', 'LIKE', $like);
+                    ->orWhere('users.email', 'LIKE', $like)
+                    ->orWhere('ep.designation', 'LIKE', $like);
             });
         }
 
         return $query->get()->map(fn (User $u) => [
-            'id'          => $u->id,
-            'uuid'        => (string) ($u->uuid ?? ''),
-            'name'        => (string) $u->name,
-            'email'       => (string) $u->email,
+            'id' => $u->id,
+            'uuid' => (string) ($u->uuid ?? ''),
+            'name' => (string) $u->name,
+            'email' => (string) $u->email,
             'designation' => (string) ($u->designation ?? ''),
         ]);
     }

@@ -16,6 +16,7 @@ final class HcmFeatureFlags
 {
     /**
      * @template T
+     *
      * @param  T  $default
      * @return T|mixed
      */
@@ -23,7 +24,7 @@ final class HcmFeatureFlags
     {
         // Config value (global) takes precedence over the caller-supplied
         // default — default hanya dipakai bila config tidak menyediakan nilai.
-        $configValue = config('hcm.' . $key, null);
+        $configValue = config('hcm.'.$key, null);
         $resolvedDefault = $configValue ?? $default;
 
         if ($companyId === null || $companyId <= 0) {

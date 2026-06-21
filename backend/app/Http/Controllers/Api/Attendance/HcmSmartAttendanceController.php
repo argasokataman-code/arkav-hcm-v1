@@ -9,8 +9,9 @@ use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
 use App\Models\HcmResignation;
 use App\Models\HcmScheduleRoster;
-use App\Models\HcmSmartPlannerSetting;
+use App\Models\HcmScheduleTiming;
 use App\Models\HcmShift;
+use App\Models\HcmSmartPlannerSetting;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Services\Hcm\SmartAttendanceShiftingService;
@@ -18,6 +19,7 @@ use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class HcmSmartAttendanceController extends Controller
@@ -34,9 +36,7 @@ class HcmSmartAttendanceController extends Controller
         'overtime_threshold_minutes' => 30,
     ];
 
-    public function __construct(private readonly SmartAttendanceShiftingService $service)
-    {
-    }
+    public function __construct(private readonly SmartAttendanceShiftingService $service) {}
 
     public function generate(Request $request): JsonResponse
     {
@@ -504,12 +504,13 @@ class HcmSmartAttendanceController extends Controller
             ->with('shift:id,name,start_time,end_time,shift_type')
             ->get();
 
-        $buildAssignments = function (int $userId) use ($rosterRows, $timezone): array {
+        $buildAssignments = function (int $userId) use ($rosterRows): array {
             return $rosterRows
                 ->where('user_id', $userId)
                 ->map(function (HcmScheduleRoster $r): array {
                     $startTime = $r->start_time ? Carbon::parse((string) $r->start_time)->format('H:i') : null;
                     $endTime = $r->end_time ? Carbon::parse((string) $r->end_time)->format('H:i') : null;
+
                     return [
                         'date' => (string) $r->work_date?->toDateString(),
                         'shift_id' => $r->hcm_shift_id ? (string) $r->hcm_shift_id : 'OFF',
@@ -529,7 +530,7 @@ class HcmSmartAttendanceController extends Controller
         foreach ([$swapDateA => $userAId, $swapDateB => $userBId] as $date => $uid) {
             $assignments = $uid === $userAId ? $assignmentsA : $assignmentsB;
             if ($assignments->firstWhere('date', $date) === null) {
-                $timing = \App\Models\HcmScheduleTiming::query()
+                $timing = HcmScheduleTiming::query()
                     ->where('company_id', $companyId)
                     ->where('user_id', $uid)
                     ->first();
@@ -714,8 +715,8 @@ class HcmSmartAttendanceController extends Controller
     }
 
     /**
-     * @param array<int,int>|null $employeeIds
-     * @return \Illuminate\Support\Collection<int,array{id:int,name:string,jobTitle:string,availability:array<string,mixed>}>
+     * @param  array<int,int>|null  $employeeIds
+     * @return Collection<int,array{id:int,name:string,jobTitle:string,availability:array<string,mixed>}>
      */
     private function loadEmployees(int $companyId, ?array $employeeIds, ?CarbonImmutable $weekStart = null, ?CarbonImmutable $weekEnd = null)
     {
@@ -831,7 +832,7 @@ class HcmSmartAttendanceController extends Controller
     }
 
     /**
-     * @param array<string,mixed> $runtimeRules
+     * @param  array<string,mixed>  $runtimeRules
      * @return array<string,mixed>
      */
     private function resolveRules(int $companyId, ?string $companyUuid, array $runtimeRules, string $shiftCategory): array
@@ -858,7 +859,7 @@ class HcmSmartAttendanceController extends Controller
     }
 
     /**
-     * @param array<int,string> $keys
+     * @param  array<int,string>  $keys
      * @return array<int,string>
      */
     private function transitionKeysToLegacyRules(array $keys): array

@@ -20,6 +20,7 @@ final class StubThrDisbursementGateway implements ThrDisbursementGatewayInterfac
                     'ref' => null,
                     'failureReason' => 'Stub: user ID termasuk daftar gagal (HCM_THR_DISBURSEMENT_FAIL_USER_IDS).',
                 ];
+
                 continue;
             }
             if ($bank === '') {
@@ -29,6 +30,7 @@ final class StubThrDisbursementGateway implements ThrDisbursementGatewayInterfac
                     'ref' => null,
                     'failureReason' => 'Rekening bank belum diisi di profil karyawan.',
                 ];
+
                 continue;
             }
             $ref = 'stub-thr-'.$uid.'-'.time();

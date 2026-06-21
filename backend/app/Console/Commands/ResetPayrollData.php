@@ -4,11 +4,11 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class ResetPayrollData extends Command
 {
     protected $signature = 'payroll:reset {--year= : Tahun spesifik (opsional)} {--month= : Bulan spesifik (opsional)}';
+
     protected $description = 'Reset semua data payroll (monthly + THR) untuk testing';
 
     public function handle(): int
@@ -16,16 +16,17 @@ class ResetPayrollData extends Command
         $year = $this->option('year');
         $month = $this->option('month');
 
-        $this->info("=== RESET PAYROLL DATA ===");
-        
+        $this->info('=== RESET PAYROLL DATA ===');
+
         if ($year) {
-            $this->info("Filter: Tahun $year" . ($month ? " Bulan $month" : ""));
+            $this->info("Filter: Tahun $year".($month ? " Bulan $month" : ''));
         } else {
-            $this->warn("⚠️  HAPUS SEMUA DATA PAYROLL!");
+            $this->warn('⚠️  HAPUS SEMUA DATA PAYROLL!');
         }
 
-        if (!$this->confirm("Lanjutkan?")) {
-            $this->info("Dibatalkan.");
+        if (! $this->confirm('Lanjutkan?')) {
+            $this->info('Dibatalkan.');
+
             return 0;
         }
 
@@ -55,11 +56,11 @@ class ResetPayrollData extends Command
         }
 
         // Delete payroll lines
-        if (!empty($periodIds)) {
+        if (! empty($periodIds)) {
             $deletedLines = DB::table('hcm_payroll_lines')
-                ->whereIn('hcm_payroll_run_id', function($q) use ($periodIds) {
+                ->whereIn('hcm_payroll_run_id', function ($q) use ($periodIds) {
                     $q->select('id')->from('hcm_payroll_runs')
-                      ->whereIn('hcm_payroll_period_id', $periodIds);
+                        ->whereIn('hcm_payroll_period_id', $periodIds);
                 })->delete();
         } else {
             $deletedLines = DB::table('hcm_payroll_lines')->delete();
@@ -67,7 +68,7 @@ class ResetPayrollData extends Command
         $this->info("\n✓ Deleted payroll lines: $deletedLines");
 
         // Delete payroll runs
-        if (!empty($periodIds)) {
+        if (! empty($periodIds)) {
             $deletedRuns = DB::table('hcm_payroll_runs')
                 ->whereIn('hcm_payroll_period_id', $periodIds)->delete();
         } else {
@@ -76,7 +77,7 @@ class ResetPayrollData extends Command
         $this->info("✓ Deleted payroll runs: $deletedRuns");
 
         // Delete payroll periods
-        if (!empty($periodIds)) {
+        if (! empty($periodIds)) {
             $deletedPeriods = DB::table('hcm_payroll_periods')
                 ->whereIn('id', $periodIds)->delete();
         } else {
@@ -101,7 +102,7 @@ class ResetPayrollData extends Command
         // Delete THR disbursements
         $disbQuery = DB::table('hcm_thr_disbursements');
         if ($year) {
-            $disbQuery->whereIn('hcm_thr_batch_id', function($q) use ($year) {
+            $disbQuery->whereIn('hcm_thr_batch_id', function ($q) use ($year) {
                 $q->select('id')->from('hcm_thr_batches')->where('calendar_year', $year);
             });
         }
@@ -111,7 +112,7 @@ class ResetPayrollData extends Command
         // Reset THR batch lines
         $linesQuery = DB::table('hcm_thr_batch_lines');
         if ($year) {
-            $linesQuery->whereIn('hcm_thr_batch_id', function($q) use ($year) {
+            $linesQuery->whereIn('hcm_thr_batch_id', function ($q) use ($year) {
                 $q->select('id')->from('hcm_thr_batches')->where('calendar_year', $year);
             });
         }
@@ -143,6 +144,7 @@ class ResetPayrollData extends Command
         }
 
         $this->info("\n✅ Reset selesai!");
+
         return 0;
     }
 }

@@ -15,7 +15,7 @@ class BackfillAttendanceLocationNames extends Command
     public function handle()
     {
         $dryRun = $this->option('dry-run');
-        
+
         // Find all records with coordinates but missing location names
         $query = AttendanceRecord::query()
             ->where(function ($q) {
@@ -34,6 +34,7 @@ class BackfillAttendanceLocationNames extends Command
 
         if ($count === 0) {
             $this->info('No records to backfill.');
+
             return 0;
         }
 
@@ -47,16 +48,16 @@ class BackfillAttendanceLocationNames extends Command
 
         foreach ($records as $record) {
             // Backfill check-in location
-            if ($record->check_in_latitude && $record->check_in_longitude && !$record->check_in_location_name) {
+            if ($record->check_in_latitude && $record->check_in_longitude && ! $record->check_in_location_name) {
                 $locationData = LocationService::reverseGeocode(
                     (float) $record->check_in_latitude,
                     (float) $record->check_in_longitude
                 );
-                
-                if (!$dryRun) {
+
+                if (! $dryRun) {
                     $record->check_in_location_name = $locationData['name'];
                     $record->check_in_location_address = $locationData['address'];
-                    if (!$record->check_in_location_source) {
+                    if (! $record->check_in_location_source) {
                         $record->check_in_location_source = $locationData['source'];
                     }
                 }
@@ -64,23 +65,23 @@ class BackfillAttendanceLocationNames extends Command
             }
 
             // Backfill check-out location
-            if ($record->check_out_latitude && $record->check_out_longitude && !$record->check_out_location_name) {
+            if ($record->check_out_latitude && $record->check_out_longitude && ! $record->check_out_location_name) {
                 $locationData = LocationService::reverseGeocode(
                     (float) $record->check_out_latitude,
                     (float) $record->check_out_longitude
                 );
-                
-                if (!$dryRun) {
+
+                if (! $dryRun) {
                     $record->check_out_location_name = $locationData['name'];
                     $record->check_out_location_address = $locationData['address'];
-                    if (!$record->check_out_location_source) {
+                    if (! $record->check_out_location_source) {
                         $record->check_out_location_source = $locationData['source'];
                     }
                 }
                 $checkOutCount++;
             }
 
-            if (!$dryRun) {
+            if (! $dryRun) {
                 $record->save();
             }
 

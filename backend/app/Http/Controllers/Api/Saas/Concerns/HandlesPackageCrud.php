@@ -4,18 +4,16 @@ namespace App\Http\Controllers\Api\Saas\Concerns;
 
 use App\Models\FeatureClassification;
 use App\Models\Package;
-use App\Models\PackageAddon;
-use App\Models\PackageFeature;
 use App\Services\PackageFeatureCatalogRuntimeService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Str;
 
 trait HandlesPackageCrud
-{    public function __construct(
+{
+    public function __construct(
         private readonly PackageFeatureCatalogRuntimeService $featureCatalogRuntimeService
     ) {}
 
@@ -67,13 +65,13 @@ trait HandlesPackageCrud
             ])
             ->paginate($perPage);
 
-        $items = collect($packages->items())->map(fn($pkg) => [
+        $items = collect($packages->items())->map(fn ($pkg) => [
             'id' => $pkg->uuid,
             'code' => $pkg->code,
             'name' => $pkg->name,
             'description' => $pkg->description,
-            'monthlyPrice' => (float)$pkg->monthly_price,
-            'yearlyPrice' => (float)$pkg->yearly_price,
+            'monthlyPrice' => (float) $pkg->monthly_price,
+            'yearlyPrice' => (float) $pkg->yearly_price,
             'billingUnit' => $pkg->billing_unit,
             'status' => $pkg->status,
             'isGlobalAdminOnly' => (bool) $pkg->is_global_admin_only,
@@ -82,7 +80,7 @@ trait HandlesPackageCrud
             'activeSubscriptionsCount' => (int) ($pkg->active_subscriptions_count ?? 0),
             'totalSubscriptionsCount' => (int) ($pkg->total_subscriptions_count ?? 0),
             'purchasableAddonsCount' => (int) ($pkg->purchasable_addons_count ?? 0),
-            'features' => $pkg->features->map(fn($f) => [
+            'features' => $pkg->features->map(fn ($f) => [
                 'id' => $f->id,
                 'code' => $f->feature_code,
                 'name' => $f->feature_name,
@@ -144,8 +142,8 @@ trait HandlesPackageCrud
                 'code' => $package->code,
                 'name' => $package->name,
                 'description' => $package->description,
-                'monthlyPrice' => (float)$package->monthly_price,
-                'yearlyPrice' => (float)$package->yearly_price,
+                'monthlyPrice' => (float) $package->monthly_price,
+                'yearlyPrice' => (float) $package->yearly_price,
                 'billingUnit' => $package->billing_unit,
                 'status' => $package->status,
                 'isGlobalAdminOnly' => (bool) $package->is_global_admin_only,
@@ -153,7 +151,7 @@ trait HandlesPackageCrud
                 'sortOrder' => $package->sort_order,
                 'activeSubscriptionsCount' => (int) ($package->active_subscriptions_count ?? 0),
                 'totalSubscriptionsCount' => (int) ($package->total_subscriptions_count ?? 0),
-                'features' => $package->features->map(fn($f) => [
+                'features' => $package->features->map(fn ($f) => [
                     'id' => $f->id,
                     'code' => $f->feature_code,
                     'name' => $f->feature_name,
@@ -174,7 +172,7 @@ trait HandlesPackageCrud
      */
     public function store(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -203,8 +201,8 @@ trait HandlesPackageCrud
                 'code' => $package->code,
                 'name' => $package->name,
                 'description' => $package->description,
-                'monthlyPrice' => (float)$package->monthly_price,
-                'yearlyPrice' => (float)$package->yearly_price,
+                'monthlyPrice' => (float) $package->monthly_price,
+                'yearlyPrice' => (float) $package->yearly_price,
                 'billingUnit' => $package->billing_unit,
                 'isGlobalAdminOnly' => (bool) $package->is_global_admin_only,
                 'color' => $package->color,
@@ -220,7 +218,7 @@ trait HandlesPackageCrud
      */
     public function update(Request $request, Package $package): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -249,8 +247,8 @@ trait HandlesPackageCrud
                 'code' => $package->code,
                 'name' => $package->name,
                 'description' => $package->description,
-                'monthlyPrice' => (float)$package->monthly_price,
-                'yearlyPrice' => (float)$package->yearly_price,
+                'monthlyPrice' => (float) $package->monthly_price,
+                'yearlyPrice' => (float) $package->yearly_price,
                 'billingUnit' => $package->billing_unit,
                 'status' => $package->status,
                 'isGlobalAdminOnly' => (bool) $package->is_global_admin_only,
@@ -267,7 +265,7 @@ trait HandlesPackageCrud
      */
     public function destroy(Request $request, Package $package): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -299,6 +297,7 @@ trait HandlesPackageCrud
     private function isHcmAdmin(Request $request): bool
     {
         $user = $request->user();
+
         return $user ? $user->isGlobalHcmAdmin() : false;
     }
 

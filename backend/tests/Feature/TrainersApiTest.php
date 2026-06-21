@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -86,12 +87,12 @@ class TrainersApiTest extends TestCase
 
     public function test_trainers_list_is_tenant_scoped(): void
     {
-        $companyA = \App\Models\Company::query()->create([
+        $companyA = Company::query()->create([
             'code' => 'TRAINER_A',
             'name' => 'Trainer Company A',
             'domain' => 'trainer-a.local',
         ]);
-        $companyB = \App\Models\Company::query()->create([
+        $companyB = Company::query()->create([
             'code' => 'TRAINER_B',
             'name' => 'Trainer Company B',
             'domain' => 'trainer-b.local',
@@ -127,4 +128,3 @@ class TrainersApiTest extends TestCase
             ->assertJsonMissing(['name' => 'Tenant Trainer B']);
     }
 }
-

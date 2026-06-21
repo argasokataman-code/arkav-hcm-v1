@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PurchaseTransaction extends Model
 {
-    use HasFactory, AssignsUuid;
+    use AssignsUuid, HasFactory;
+
     protected $fillable = [
         'transaction_code',
         'company_id',
@@ -100,6 +101,7 @@ class PurchaseTransaction extends Model
     {
         $year = date('Y');
         $randomId = str_pad(rand(1, 999999), 6, '0', STR_PAD_LEFT);
+
         return "TXN-{$year}-{$randomId}";
     }
 }

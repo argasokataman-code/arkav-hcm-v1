@@ -80,10 +80,10 @@ return new class extends Migration
 
         DB::statement(
             'UPDATE hcm_salary_components c '
-            . 'JOIN hcm_salary_component_categories cat '
-            . 'ON cat.kind = c.kind AND cat.code = c.category '
-            . 'SET c.category_uuid = cat.uuid '
-            . 'WHERE c.category_uuid IS NULL'
+            .'JOIN hcm_salary_component_categories cat '
+            .'ON cat.kind = c.kind AND cat.code = c.category '
+            .'SET c.category_uuid = cat.uuid '
+            .'WHERE c.category_uuid IS NULL'
         );
     }
 
@@ -95,9 +95,9 @@ return new class extends Migration
 
         DB::statement(
             'UPDATE hcm_salary_components c '
-            . 'LEFT JOIN hcm_salary_component_categories cat ON c.category_uuid = cat.uuid '
-            . 'SET c.category_uuid = NULL '
-            . 'WHERE c.category_uuid IS NOT NULL AND cat.uuid IS NULL'
+            .'LEFT JOIN hcm_salary_component_categories cat ON c.category_uuid = cat.uuid '
+            .'SET c.category_uuid = NULL '
+            .'WHERE c.category_uuid IS NOT NULL AND cat.uuid IS NULL'
         );
     }
 
@@ -111,7 +111,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $blueprint) use ($column, $name): void {
                 $blueprint->index($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $message = strtolower($e->getMessage());
             if (! str_contains($message, 'duplicate') && ! str_contains($message, 'exists')) {
                 throw $e;
@@ -150,7 +150,7 @@ return new class extends Migration
                     $foreign->nullOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $message = strtolower($e->getMessage());
             if (! str_contains($message, 'duplicate') && ! str_contains($message, 'exists')) {
                 throw $e;

@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\Subscription;
+use App\Models\EmployeeProfile;
 use App\Models\Invoice;
+use App\Models\Subscription;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -16,9 +18,7 @@ use Illuminate\Support\Facades\Log;
  */
 class SubscriptionTerminationService
 {
-    public function __construct(private readonly CompanyStatusSynchronizer $companyStatusSynchronizer)
-    {
-    }
+    public function __construct(private readonly CompanyStatusSynchronizer $companyStatusSynchronizer) {}
 
     /**
      * Terminate subscription due to expiration.
@@ -56,8 +56,8 @@ class SubscriptionTerminationService
     }
 
     /**
-    * Inactivate service due to overdue invoice (payment not received).
-    * Billing delinquency should not be classified as suspended enforcement.
+     * Inactivate service due to overdue invoice (payment not received).
+     * Billing delinquency should not be classified as suspended enforcement.
      */
     public function suspendDueToOverdueInvoice(Subscription $subscription, Invoice $invoice): bool
     {
@@ -160,7 +160,7 @@ class SubscriptionTerminationService
     /**
      * Get subscriptions that should be terminated.
      */
-    public function getExpiredSubscriptions(?CarbonInterface $as = null): \Illuminate\Database\Eloquent\Collection
+    public function getExpiredSubscriptions(?CarbonInterface $as = null): Collection
     {
         $date = $as ?? now();
 
@@ -222,19 +222,19 @@ class SubscriptionTerminationService
             ->get();
 
         foreach ($subscriptions as $subscription) {
-            if (!$subscription->package) {
+            if (! $subscription->package) {
                 continue;
             }
 
             $employeeFeature = $subscription->package->features
                 ->firstWhere('feature_code', 'max_employees');
 
-            if (!$employeeFeature || $employeeFeature->limit === null || $employeeFeature->limit === 0) {
+            if (! $employeeFeature || $employeeFeature->limit === null || $employeeFeature->limit === 0) {
                 // No employee limit on this plan
                 continue;
             }
 
-            $currentCount = \App\Models\EmployeeProfile::query()
+            $currentCount = EmployeeProfile::query()
                 ->where('company_id', $subscription->company_id)
                 ->where('employment_status', '!=', 'terminated')
                 ->count();

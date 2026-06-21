@@ -13,9 +13,7 @@ use Illuminate\Support\Facades\Auth;
 
 class EnsureCompanyFeatureForApi
 {
-    public function __construct(private readonly TenantContextResolver $tenantContextResolver)
-    {
-    }
+    public function __construct(private readonly TenantContextResolver $tenantContextResolver) {}
 
     public function handle(Request $request, Closure $next, string ...$featureCodes)
     {

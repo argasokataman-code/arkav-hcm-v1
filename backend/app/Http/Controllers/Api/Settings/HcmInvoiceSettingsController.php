@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\Settings;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
+use App\Http\Controllers\Controller;
 use App\Models\CompanySetting;
 use App\Models\HcmPayrollRun;
 use App\Models\HcmThrBatchLine;
@@ -39,13 +39,13 @@ class HcmInvoiceSettingsController extends Controller
 
     /** Defaults used when no value is stored yet */
     private const DEFAULTS = [
-        'invoice_prefix'            => 'INV-',
-        'invoice_due_days'          => '30',
-        'invoice_round_off'         => 'none',
+        'invoice_prefix' => 'INV-',
+        'invoice_due_days' => '30',
+        'invoice_round_off' => 'none',
         'invoice_round_off_enabled' => '0',
-        'invoice_show_tax'          => '1',
-        'invoice_header_terms'      => '',
-        'invoice_footer_terms'      => '',
+        'invoice_show_tax' => '1',
+        'invoice_header_terms' => '',
+        'invoice_footer_terms' => '',
     ];
 
     private const PAYROLL_PURPOSES = [
@@ -103,13 +103,13 @@ class HcmInvoiceSettingsController extends Controller
         }
 
         $validated = $request->validate([
-            'invoice_prefix'            => 'nullable|string|max:20',
-            'invoice_due_days'          => 'nullable|integer|min:1|max:365',
-            'invoice_round_off'         => 'nullable|string|in:none,round_up,round_down',
+            'invoice_prefix' => 'nullable|string|max:20',
+            'invoice_due_days' => 'nullable|integer|min:1|max:365',
+            'invoice_round_off' => 'nullable|string|in:none,round_up,round_down',
             'invoice_round_off_enabled' => 'nullable|boolean',
-            'invoice_show_tax'          => 'nullable|boolean',
-            'invoice_header_terms'      => 'nullable|string|max:2000',
-            'invoice_footer_terms'      => 'nullable|string|max:2000',
+            'invoice_show_tax' => 'nullable|boolean',
+            'invoice_header_terms' => 'nullable|string|max:2000',
+            'invoice_footer_terms' => 'nullable|string|max:2000',
             'invoice_document_status_map' => 'nullable|array',
             'invoice_document_status_map.*' => 'boolean',
         ]);
@@ -177,6 +177,7 @@ class HcmInvoiceSettingsController extends Controller
         if ($message !== null && $message !== '') {
             $payload['message'] = $message;
         }
+
         return response()->json($payload, $status);
     }
 
@@ -216,7 +217,7 @@ class HcmInvoiceSettingsController extends Controller
     }
 
     /**
-     * @param array<string, bool> $statusMap
+     * @param  array<string, bool>  $statusMap
      * @return array<int, array<string, mixed>>
      */
     private function invoiceDocuments(int $companyId, array $statusMap): array

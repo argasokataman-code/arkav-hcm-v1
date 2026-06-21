@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Subscription extends Model
 {
-    use HasFactory, AssignsUuid;
+    use AssignsUuid, HasFactory;
 
     protected $fillable = [
         'company_id',
@@ -121,9 +121,10 @@ class Subscription extends Model
     public function getPrice(): float
     {
         if ($this->billing_cycle === 'yearly') {
-            return (float)$this->package->yearly_price;
+            return (float) $this->package->yearly_price;
         }
-        return (float)$this->package->monthly_price;
+
+        return (float) $this->package->monthly_price;
     }
 
     /**
@@ -131,7 +132,10 @@ class Subscription extends Model
      */
     public function getDurationDays(): int
     {
-        if ($this->ends_at === null) return 0;
+        if ($this->ends_at === null) {
+            return 0;
+        }
+
         return $this->starts_at->diffInDays($this->ends_at);
     }
 }

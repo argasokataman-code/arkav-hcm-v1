@@ -43,7 +43,7 @@ class DomainSuperAdminSeeder extends Seeder
             foreach ($rows as $idx => $row) {
                 $company = $companies[$idx % $companies->count()];
                 $domainName = sprintf('%s.%s.arcav-demo.test', $row['sub'], $company->code ?: 'company');
-                $token = 'verify_' . Str::lower(Str::random(24));
+                $token = 'verify_'.Str::lower(Str::random(24));
 
                 $verifiedAt = null;
                 if ($row['status'] === 'verified') {
@@ -54,7 +54,7 @@ class DomainSuperAdminSeeder extends Seeder
                     ? [
                         'host' => '@',
                         'record_type' => 'TXT',
-                        'record_value' => 'arcav-verification=' . $token,
+                        'record_value' => 'arcav-verification='.$token,
                         'last_check_at' => Carbon::now()->subHours(($idx % 12) + 1)->toIso8601String(),
                         'last_check_result' => $row['status'],
                     ]

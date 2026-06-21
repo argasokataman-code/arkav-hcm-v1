@@ -66,6 +66,7 @@ return new class extends Migration
             foreach ($ids as $id) {
                 if ($skipFirst) {
                     $skipFirst = false;
+
                     continue;
                 }
 
@@ -270,7 +271,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $blueprint) use ($column, $name): void {
                 $blueprint->index($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }
@@ -287,7 +288,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $blueprint) use ($column, $name): void {
                 $blueprint->unique($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }
@@ -319,7 +320,7 @@ return new class extends Migration
                     $foreign->nullOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             if (stripos($e->getMessage(), 'Duplicate') === false && stripos($e->getMessage(), 'exists') === false) {
                 throw $e;
             }

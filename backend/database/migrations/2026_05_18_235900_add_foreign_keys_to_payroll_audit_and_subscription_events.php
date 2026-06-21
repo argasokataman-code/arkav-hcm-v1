@@ -129,6 +129,7 @@ return new class extends Migration
 
                 if ($onDelete === 'cascade') {
                     $foreign->cascadeOnDelete();
+
                     return;
                 }
 
@@ -136,7 +137,7 @@ return new class extends Migration
                     $foreign->nullOnDelete();
                 }
             });
-        } catch (\Throwable $_e) {
+        } catch (Throwable $_e) {
             // Constraint may already exist or the current connection may not support altering it safely.
         }
     }
@@ -151,7 +152,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $blueprint) use ($constraint): void {
                 $blueprint->dropForeign($constraint);
             });
-        } catch (\Throwable $_e) {
+        } catch (Throwable $_e) {
             // Ignore if the constraint was never created or has already been dropped.
         }
     }

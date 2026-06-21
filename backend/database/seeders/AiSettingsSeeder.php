@@ -23,11 +23,11 @@ use Illuminate\Database\Seeder;
 class AiSettingsSeeder extends Seeder
 {
     private array $defaults = [
-        'ai_provider_url'      => ['value' => 'http://localhost:11434/v1', 'group' => 'ai'],
-        'ai_model'             => ['value' => 'llama3.2',                   'group' => 'ai'],
-        'ai_api_key'           => ['value' => 'ollama',                     'group' => 'ai'],
-        'ai_timeout_seconds'   => ['value' => '30',                         'group' => 'ai'],
-        'ai_max_tokens'        => ['value' => '512',                        'group' => 'ai'],
+        'ai_provider_url' => ['value' => 'http://localhost:11434/v1', 'group' => 'ai'],
+        'ai_model' => ['value' => 'llama3.2',                   'group' => 'ai'],
+        'ai_api_key' => ['value' => 'ollama',                     'group' => 'ai'],
+        'ai_timeout_seconds' => ['value' => '30',                         'group' => 'ai'],
+        'ai_max_tokens' => ['value' => '512',                        'group' => 'ai'],
     ];
 
     public function run(): void

@@ -55,7 +55,7 @@ return new class extends Migration
         // ─────────────────────────────────────────────────────────────────────
         $featureNames = [
             'attendance_shift_scheduling' => 'Shift Scheduling',
-            'leave_approval_flow'         => 'Leave Approval Flow',
+            'leave_approval_flow' => 'Leave Approval Flow',
         ];
 
         $allPackages = DB::table('packages')
@@ -75,9 +75,9 @@ return new class extends Migration
                         'package_uuid' => $package->uuid,
                         'feature_code' => $featureCode,
                         'feature_name' => $featureNames[$featureCode],
-                        'limit'        => null, // unlimited
-                        'created_at'   => $now,
-                        'updated_at'   => $now,
+                        'limit' => null, // unlimited
+                        'created_at' => $now,
+                        'updated_at' => $now,
                     ]);
                 }
             }
@@ -102,34 +102,34 @@ return new class extends Migration
 
         $addons = [
             [
-                'code'           => 'tickets',
-                'name'           => 'Tickets',
-                'description'    => 'Sistem tiket internal untuk pelaporan masalah dan permintaan.',
+                'code' => 'tickets',
+                'name' => 'Tickets',
+                'description' => 'Sistem tiket internal untuk pelaporan masalah dan permintaan.',
                 'price_per_unit' => 49000,
-                'unit_name'      => 'tenant / month',
-                'status'         => 'active',
-                'created_at'     => $now,
-                'updated_at'     => $now,
+                'unit_name' => 'tenant / month',
+                'status' => 'active',
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
             [
-                'code'           => 'attendance_shift_scheduling',
-                'name'           => 'Shift Scheduling',
-                'description'    => 'Penjadwalan shift kerja dan rotasi jadwal karyawan.',
+                'code' => 'attendance_shift_scheduling',
+                'name' => 'Shift Scheduling',
+                'description' => 'Penjadwalan shift kerja dan rotasi jadwal karyawan.',
                 'price_per_unit' => 49000,
-                'unit_name'      => 'tenant / month',
-                'status'         => 'active',
-                'created_at'     => $now,
-                'updated_at'     => $now,
+                'unit_name' => 'tenant / month',
+                'status' => 'active',
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
             [
-                'code'           => 'leave_approval_flow',
-                'name'           => 'Leave Approval Flow',
-                'description'    => 'Alur persetujuan cuti multi-level.',
+                'code' => 'leave_approval_flow',
+                'name' => 'Leave Approval Flow',
+                'description' => 'Alur persetujuan cuti multi-level.',
                 'price_per_unit' => 49000,
-                'unit_name'      => 'tenant / month',
-                'status'         => 'active',
-                'created_at'     => $now,
-                'updated_at'     => $now,
+                'unit_name' => 'tenant / month',
+                'status' => 'active',
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
         ];
 

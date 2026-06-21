@@ -1,10 +1,12 @@
 <?php
-require_once __DIR__ . '/bootstrap/autoload.php';
 
-$app = require_once __DIR__ . '/bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+require_once __DIR__.'/bootstrap/autoload.php';
+
+$app = require_once __DIR__.'/bootstrap/app.php';
+$kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\DB;
 
 echo "Registering missing features...\n";
@@ -24,4 +26,3 @@ DB::table('feature_classifications')->updateOrCreate(
 echo "✅ Added timesheet as addon\n";
 
 echo "\n✅ Done! Features are now in feature_classifications\n";
-?>

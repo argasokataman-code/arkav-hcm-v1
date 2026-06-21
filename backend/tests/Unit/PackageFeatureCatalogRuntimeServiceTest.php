@@ -2,10 +2,10 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\FeatureClassification;
 use App\Services\PackageFeatureCatalogRuntimeService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class PackageFeatureCatalogRuntimeServiceTest extends TestCase
 {
@@ -16,7 +16,7 @@ class PackageFeatureCatalogRuntimeServiceTest extends TestCase
         // Mark tickets as addon via DB override (updateOrCreate — backfill migration may pre-populate)
         FeatureClassification::updateOrCreate(['feature_code' => 'tickets'], ['tier' => 'addon']);
 
-        $service = new PackageFeatureCatalogRuntimeService();
+        $service = new PackageFeatureCatalogRuntimeService;
         $built = $service->build();
 
         $this->assertIsArray($built);

@@ -4,16 +4,16 @@ namespace App\Providers;
 
 use App\Contracts\Hcm\ThrDisbursementGatewayInterface;
 use App\Services\EmailSettingsService;
-use App\Support\RuntimeLocalization;
-use App\Support\WebsiteSettings;
 use App\Services\Hcm\StubThrDisbursementGateway;
 use App\Services\Media\AvatarStorageService;
 use App\Services\Media\ImageProcessor;
 use App\Services\Media\MediaFileDeleter;
 use App\Services\Media\PolicyAttachmentStorageService;
-use Illuminate\Support\ServiceProvider;
+use App\Support\RuntimeLocalization;
+use App\Support\WebsiteSettings;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 use Intervention\Image\ImageManager;
 
 class AppServiceProvider extends ServiceProvider
@@ -107,12 +107,12 @@ class AppServiceProvider extends ServiceProvider
 
         $fromAddress = trim((string) ($profile['fromAddress'] ?? ''));
         $fromName = trim((string) ($profile['fromName'] ?? ''));
-        
+
         // Skip default "Laravel" value to allow env fallback
         if ($fromName === 'Laravel') {
             $fromName = '';
         }
-        
+
         if ($fromAddress !== '' || $fromName !== '') {
             config([
                 'mail.from.address' => $fromAddress !== '' ? $fromAddress : config('mail.from.address'),
@@ -163,7 +163,7 @@ class AppServiceProvider extends ServiceProvider
 
             if ($isNgrokHost || $forwardedProto === 'https') {
                 URL::forceScheme('https');
-                URL::forceRootUrl('https://' . $host);
+                URL::forceRootUrl('https://'.$host);
             }
         } catch (\Throwable) {
             // Ignore request-scoped URL forcing failures to avoid breaking boot.

@@ -9,8 +9,9 @@ use Illuminate\Support\Facades\Cache;
 class Setting extends Model
 {
     use AssignsUuid;
+
     protected $fillable = ['key', 'value', 'group'];
-    
+
     protected $casts = [
         'value' => 'string', // Keep as string for flexibility, parse JSON when needed
     ];
@@ -53,17 +54,19 @@ class Setting extends Model
                 return self::where('key', $key)->first();
             });
 
-            if (!$setting) {
+            if (! $setting) {
                 return $default;
             }
-            
+
             // Try to decode as JSON
             $value = json_decode($setting->value, true);
+
             return $value !== null ? $value : $setting->value;
         } catch (\Throwable $e) {
             // If database is unavailable, return default value gracefully
             // Log the error for debugging but don't crash
             \Log::warning('Setting::get() failed for key: '.$key, ['error' => $e->getMessage()]);
+
             return $default;
         }
     }
@@ -96,6 +99,7 @@ class Setting extends Model
                 ->get()
                 ->mapWithKeys(function ($item) {
                     $value = json_decode($item->value, true);
+
                     return [$item->key => ($value !== null ? $value : $item->value)];
                 })
                 ->all();
@@ -128,6 +132,7 @@ class Setting extends Model
     {
         if (self::isSensitive($key)) {
             $raw = self::get($key);
+
             // Return masked placeholder only when a value actually exists
             return ($raw !== null && $raw !== '') ? '***' : null;
         }
@@ -152,4 +157,3 @@ class Setting extends Model
         return $all;
     }
 }
-

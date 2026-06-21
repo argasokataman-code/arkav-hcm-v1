@@ -14,10 +14,10 @@ return new class extends Migration
         if (Schema::hasTable('hcm_tax_governance_anomalies')) {
             Schema::table('hcm_tax_governance_anomalies', function (Blueprint $table) {
                 // Add acknowledgment fields if they don't exist
-                if (!Schema::hasColumn('hcm_tax_governance_anomalies', 'acknowledged_by_user_id')) {
+                if (! Schema::hasColumn('hcm_tax_governance_anomalies', 'acknowledged_by_user_id')) {
                     $table->unsignedBigInteger('acknowledged_by_user_id')->nullable()->after('resolution_note');
                 }
-                if (!Schema::hasColumn('hcm_tax_governance_anomalies', 'acknowledged_at')) {
+                if (! Schema::hasColumn('hcm_tax_governance_anomalies', 'acknowledged_at')) {
                     $table->timestamp('acknowledged_at')->nullable()->after('acknowledged_by_user_id');
                 }
             });

@@ -27,6 +27,7 @@ class NotificationErrorNormalizer
             if (str_contains($lower, 'tls') || str_contains($lower, 'ssl')) {
                 return 'smtp_tls_error';
             }
+
             return 'smtp_error';
         }
 
@@ -35,6 +36,7 @@ class NotificationErrorNormalizer
             if (str_contains($lower, 'address') || str_contains($lower, 'email')) {
                 return 'invalid_recipient';
             }
+
             return 'bounce_error';
         }
 

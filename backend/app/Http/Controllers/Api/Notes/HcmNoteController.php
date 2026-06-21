@@ -42,19 +42,19 @@ class HcmNoteController extends Controller
         $userId = $request->user()->id;
 
         $validated = $request->validate([
-            'title'    => ['required', 'string', 'max:300'],
-            'content'  => ['nullable', 'string', 'max:10000'],
-            'tag'      => ['nullable', 'in:personal,social,work,others'],
+            'title' => ['required', 'string', 'max:300'],
+            'content' => ['nullable', 'string', 'max:10000'],
+            'tag' => ['nullable', 'in:personal,social,work,others'],
             'priority' => ['nullable', 'in:low,medium,high'],
         ]);
 
         $note = Note::query()->create([
-            'user_id'    => $userId,
+            'user_id' => $userId,
             'company_id' => $companyId,
-            'title'      => $validated['title'],
-            'content'    => $validated['content'] ?? null,
-            'tag'        => $validated['tag'] ?? 'personal',
-            'priority'   => $validated['priority'] ?? 'medium',
+            'title' => $validated['title'],
+            'content' => $validated['content'] ?? null,
+            'tag' => $validated['tag'] ?? 'personal',
+            'priority' => $validated['priority'] ?? 'medium',
             'is_important' => false,
             'is_trashed' => false,
         ]);
@@ -74,12 +74,12 @@ class HcmNoteController extends Controller
             ->firstOrFail();
 
         $validated = $request->validate([
-            'title'        => ['sometimes', 'string', 'max:300'],
-            'content'      => ['nullable', 'string', 'max:10000'],
-            'tag'          => ['sometimes', 'in:personal,social,work,others'],
-            'priority'     => ['sometimes', 'in:low,medium,high'],
+            'title' => ['sometimes', 'string', 'max:300'],
+            'content' => ['nullable', 'string', 'max:10000'],
+            'tag' => ['sometimes', 'in:personal,social,work,others'],
+            'priority' => ['sometimes', 'in:low,medium,high'],
             'is_important' => ['sometimes', 'boolean'],
-            'is_trashed'   => ['sometimes', 'boolean'],
+            'is_trashed' => ['sometimes', 'boolean'],
         ]);
 
         $note->update($validated);
@@ -106,16 +106,16 @@ class HcmNoteController extends Controller
     private function formatNote(Note $n): array
     {
         return [
-            'id'          => $n->id,
-            'uuid'        => $n->uuid,
-            'title'       => $n->title,
-            'content'     => $n->content ?? '',
-            'tag'         => $n->tag,
-            'priority'    => $n->priority,
+            'id' => $n->id,
+            'uuid' => $n->uuid,
+            'title' => $n->title,
+            'content' => $n->content ?? '',
+            'tag' => $n->tag,
+            'priority' => $n->priority,
             'isImportant' => (bool) $n->is_important,
-            'isTrashed'   => (bool) $n->is_trashed,
-            'updatedAt'   => $n->updated_at?->toIso8601String(),
-            'createdAt'   => $n->created_at?->toIso8601String(),
+            'isTrashed' => (bool) $n->is_trashed,
+            'updatedAt' => $n->updated_at?->toIso8601String(),
+            'createdAt' => $n->created_at?->toIso8601String(),
         ];
     }
 }

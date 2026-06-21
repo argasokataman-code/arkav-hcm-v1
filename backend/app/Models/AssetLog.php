@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schema;
 
 class AssetLog extends Model
 {
-    use HasFactory, AssignsUuid;
+    use AssignsUuid, HasFactory;
 
     protected static function booted(): void
     {

@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers\Api\Reports;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
+use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Subscription;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,7 +24,7 @@ class ReportController extends Controller
         if ($forbidden = $this->ensurePermission($request, 'report.view')) {
             return $forbidden;
         }
-        
+
         if ($tenantScopeError = $this->tenantScopeError($request)) {
             return $tenantScopeError;
         }
@@ -48,7 +49,7 @@ class ReportController extends Controller
                 ->get()
                 ->map(function ($item) {
                     return [
-                        'month' => \Carbon\Carbon::createFromFormat('m', $item->month)->format('F'),
+                        'month' => Carbon::createFromFormat('m', $item->month)->format('F'),
                         'total' => (float) $item->total,
                         'count' => $item->count,
                     ];
@@ -72,7 +73,7 @@ class ReportController extends Controller
         }
 
         $totalRevenue = Payment::where('status', 'completed')
-            ->when($company_id, fn($q) => $q->where('company_id', $company_id))
+            ->when($company_id, fn ($q) => $q->where('company_id', $company_id))
             ->sum('amount');
 
         return response()->json([
@@ -95,7 +96,7 @@ class ReportController extends Controller
         if ($forbidden = $this->ensurePermission($request, 'report.view')) {
             return $forbidden;
         }
-        
+
         if ($tenantScopeError = $this->tenantScopeError($request)) {
             return $tenantScopeError;
         }
@@ -112,6 +113,7 @@ class ReportController extends Controller
         $overdueInvoices = $query->get()
             ->map(function ($invoice) {
                 $daysOverdue = now()->diffInDays($invoice->due_date);
+
                 return [
                     'id' => $invoice->id,
                     'invoiceNumber' => $invoice->invoice_number,
@@ -125,10 +127,10 @@ class ReportController extends Controller
 
         // Bucket analysis
         $buckets = [
-            'current' => $overdueInvoices->filter(fn($i) => $i['daysOverdue'] < 30)->count(),
-            '30-60' => $overdueInvoices->filter(fn($i) => $i['daysOverdue'] >= 30 && $i['daysOverdue'] < 60)->count(),
-            '60-90' => $overdueInvoices->filter(fn($i) => $i['daysOverdue'] >= 60 && $i['daysOverdue'] < 90)->count(),
-            '90+' => $overdueInvoices->filter(fn($i) => $i['daysOverdue'] >= 90)->count(),
+            'current' => $overdueInvoices->filter(fn ($i) => $i['daysOverdue'] < 30)->count(),
+            '30-60' => $overdueInvoices->filter(fn ($i) => $i['daysOverdue'] >= 30 && $i['daysOverdue'] < 60)->count(),
+            '60-90' => $overdueInvoices->filter(fn ($i) => $i['daysOverdue'] >= 60 && $i['daysOverdue'] < 90)->count(),
+            '90+' => $overdueInvoices->filter(fn ($i) => $i['daysOverdue'] >= 90)->count(),
         ];
 
         $totalOverdue = $overdueInvoices->sum('amountDue');
@@ -153,7 +155,7 @@ class ReportController extends Controller
         if ($forbidden = $this->ensurePermission($request, 'report.view')) {
             return $forbidden;
         }
-        
+
         if ($tenantScopeError = $this->tenantScopeError($request)) {
             return $tenantScopeError;
         }
@@ -177,7 +179,7 @@ class ReportController extends Controller
                 ->get()
                 ->map(function ($item) {
                     return [
-                        'month' => \Carbon\Carbon::createFromFormat('m', $item->month)->format('F'),
+                        'month' => Carbon::createFromFormat('m', $item->month)->format('F'),
                         'churnCount' => $item->count,
                         'churnValue' => (float) $item->totalValue,
                     ];
@@ -280,5 +282,4 @@ class ReportController extends Controller
 
         return is_numeric($value) ? (int) $value : 0;
     }
-
 }

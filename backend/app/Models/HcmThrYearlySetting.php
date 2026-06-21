@@ -4,12 +4,10 @@ namespace App\Models;
 
 use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
 class HcmThrYearlySetting extends Model
 {
     use AssignsUuid;
-
 
     protected $fillable = [
         'company_id',

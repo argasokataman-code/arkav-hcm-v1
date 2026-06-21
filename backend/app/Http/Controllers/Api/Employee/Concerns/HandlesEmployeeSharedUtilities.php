@@ -99,7 +99,7 @@ trait HandlesEmployeeSharedUtilities
                     return;
                 }
 
-                fprintf($handle, "﻿");
+                fprintf($handle, '﻿');
                 fputcsv($handle, $headers);
                 foreach ($rows as $row) {
                     fputcsv($handle, $row);
@@ -111,7 +111,7 @@ trait HandlesEmployeeSharedUtilities
         }
 
         if ($format === 'pdf') {
-            $options = new Options();
+            $options = new Options;
             $options->set('isRemoteEnabled', true);
 
             $dompdf = new Dompdf($options);
@@ -142,7 +142,7 @@ trait HandlesEmployeeSharedUtilities
         }
 
         return response()->streamDownload(function () use ($headers, $rows): void {
-            $spreadsheet = new Spreadsheet();
+            $spreadsheet = new Spreadsheet;
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->fromArray($headers, null, 'A1');
             if ($rows !== []) {

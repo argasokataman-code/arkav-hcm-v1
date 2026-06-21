@@ -19,7 +19,6 @@ use App\Notifications\ProbationEndedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class HcmProbationTest extends TestCase
@@ -52,7 +51,7 @@ class HcmProbationTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
     private function validEmployeePayload(array $overrides = []): array
@@ -71,7 +70,7 @@ class HcmProbationTest extends TestCase
         );
 
         $province = WilayahProvince::query()->firstOrCreate(['code' => '31'], ['name' => 'DKI Jakarta']);
-        $regency  = WilayahRegency::query()->firstOrCreate(
+        $regency = WilayahRegency::query()->firstOrCreate(
             ['code' => '31.74'],
             ['province_id' => $province->id, 'name' => 'Jakarta Selatan'],
         );
@@ -136,7 +135,7 @@ class HcmProbationTest extends TestCase
 
         // startDate = 2025-01-01, probationEndDate = 2026-02-01 (13 months) → must fail
         $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $this->company->id,
         ])->postJson('/v1/hcm/employees', $this->validEmployeePayload([
             'name' => 'Over Limit',
@@ -144,7 +143,7 @@ class HcmProbationTest extends TestCase
             'startDate' => '2025-01-01',
             'probationEndDate' => '2026-02-01',
         ]))->assertStatus(422)
-          ->assertJsonValidationErrors(['probationEndDate']);
+            ->assertJsonValidationErrors(['probationEndDate']);
     }
 
     public function test_probation_end_date_exactly_12_months_is_accepted(): void
@@ -153,7 +152,7 @@ class HcmProbationTest extends TestCase
 
         // startDate = 2025-01-01, probationEndDate = 2026-01-01 (exactly 12 months) → must pass
         $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $this->company->id,
         ])->postJson('/v1/hcm/employees', $this->validEmployeePayload([
             'name' => 'Exact Limit',
@@ -161,7 +160,7 @@ class HcmProbationTest extends TestCase
             'startDate' => '2025-01-01',
             'probationEndDate' => '2026-01-01',
         ]))->assertStatus(201)
-          ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true);
     }
 
     public function test_probation_end_date_within_12_months_is_accepted(): void
@@ -170,7 +169,7 @@ class HcmProbationTest extends TestCase
 
         // startDate = 2025-01-01, probationEndDate = 2025-07-01 (6 months) → must pass
         $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $this->company->id,
         ])->postJson('/v1/hcm/employees', $this->validEmployeePayload([
             'name' => 'Half Year',
@@ -178,7 +177,7 @@ class HcmProbationTest extends TestCase
             'startDate' => '2025-01-01',
             'probationEndDate' => '2025-07-01',
         ]))->assertStatus(201)
-          ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true);
     }
 
     // ============================================================
@@ -210,21 +209,21 @@ class HcmProbationTest extends TestCase
         ]);
 
         $profile = EmployeeProfile::query()->create([
-            'user_id'           => $empUser->id,
-            'company_id'        => $company->id,
-            'company_uuid'      => (string) ($company->uuid ?? (string) $company->id),
-            'team'              => 'Engineering',
-            'designation'       => 'Developer',
+            'user_id' => $empUser->id,
+            'company_id' => $company->id,
+            'company_uuid' => (string) ($company->uuid ?? (string) $company->id),
+            'team' => 'Engineering',
+            'designation' => 'Developer',
             'employment_status' => 'probation',
-            'contract_type'     => 'permanent',
+            'contract_type' => 'permanent',
         ]);
 
         $today = now()->toDateString();
 
         EmployeeEmploymentHistory::query()->create([
-            'employee_id'       => $profile->id,
+            'employee_id' => $profile->id,
             'employment_status' => 'probation',
-            'start_date'        => now()->subMonths(3)->toDateString(),
+            'start_date' => now()->subMonths(3)->toDateString(),
             'probation_end_date' => $today,
         ]);
 
@@ -259,18 +258,18 @@ class HcmProbationTest extends TestCase
         ]);
 
         $profile = EmployeeProfile::query()->create([
-            'user_id'           => $empUser->id,
-            'company_id'        => $company->id,
-            'team'              => 'Engineering',
+            'user_id' => $empUser->id,
+            'company_id' => $company->id,
+            'team' => 'Engineering',
             'employment_status' => 'probation',
-            'contract_type'     => 'permanent',
+            'contract_type' => 'permanent',
         ]);
 
         // probation_end_date is tomorrow → should not trigger today
         EmployeeEmploymentHistory::query()->create([
-            'employee_id'       => $profile->id,
+            'employee_id' => $profile->id,
             'employment_status' => 'probation',
-            'start_date'        => now()->subMonths(3)->toDateString(),
+            'start_date' => now()->subMonths(3)->toDateString(),
             'probation_end_date' => now()->addDay()->toDateString(),
         ]);
 

@@ -13,8 +13,7 @@ class SubscriptionChangeApprovalNeededNotification extends Notification
 
     public function __construct(
         private readonly HcmSubscriptionChangeRequest $record,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {

@@ -192,4 +192,3 @@ class EmployeeLimitEnforcementTest extends TestCase
         $this->assertSame(5, $validator->getPlanEmployeeLimit($company->fresh()));
     }
 }
-

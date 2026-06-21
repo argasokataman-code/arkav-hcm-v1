@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class HcmPayrollRun extends Model
 {
     use AssignsUuid;
+
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_FINALIZED = 'finalized';
@@ -21,7 +22,6 @@ class HcmPayrollRun extends Model
     public const PURPOSE_THR = 'thr';
 
     public const PURPOSE_PKWT_COMPENSATION = 'pkwt_compensation';
-
 
     protected $fillable = [
         'company_id',
@@ -75,5 +75,4 @@ class HcmPayrollRun extends Model
     {
         return $this->belongsTo(HcmTaxGovernancePolicy::class, 'hcm_tax_governance_policy_id');
     }
-
 }

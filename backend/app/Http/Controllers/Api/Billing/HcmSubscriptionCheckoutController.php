@@ -8,12 +8,12 @@ use App\Jobs\SendInvoiceEmailJob;
 use App\Models\Company;
 use App\Models\HcmBillingTaxPolicy;
 use App\Models\Invoice;
-use App\Models\PackageAddon;
-use App\Services\AddonRecurringSubscriptionService;
-use App\Services\BillingTaxCalculationService;
 use App\Models\Package;
+use App\Models\PackageAddon;
 use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
+use App\Services\AddonRecurringSubscriptionService;
+use App\Services\BillingTaxCalculationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -174,7 +174,7 @@ class HcmSubscriptionCheckoutController
                 ->latest('id')
                 ->first();
 
-            $subscription = $trialSub ?: new Subscription();
+            $subscription = $trialSub ?: new Subscription;
             if (! $subscription->exists) {
                 $subscription->company_id = $company->id;
                 $subscription->starts_at = now();
@@ -208,7 +208,6 @@ class HcmSubscriptionCheckoutController
                     'Created from tenant subscription checkout.'
                 ),
             ]);
-
 
             // Unlimited / zero-priced plans should not be locked in pending payment.
             if ($amountDue <= 0) {
@@ -667,6 +666,7 @@ class HcmSubscriptionCheckoutController
         ];
 
         $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE);
+
         return is_string($encoded) ? $encoded : $fallbackMessage;
     }
 }

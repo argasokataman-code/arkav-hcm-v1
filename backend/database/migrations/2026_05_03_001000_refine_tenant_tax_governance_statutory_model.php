@@ -59,6 +59,7 @@ return new class extends Migration
 
                             if (isset($schedule['category']) && isset($schedule['calculationMode'])) {
                                 $normalizedSchedules[] = $schedule;
+
                                 continue;
                             }
 

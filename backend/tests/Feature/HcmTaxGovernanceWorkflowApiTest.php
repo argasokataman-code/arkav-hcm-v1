@@ -17,7 +17,7 @@ class HcmTaxGovernanceWorkflowApiTest extends TestCase
     private function taxHeaders(array $admin): array
     {
         return $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
     }
 
@@ -74,12 +74,12 @@ class HcmTaxGovernanceWorkflowApiTest extends TestCase
         $policyId = (int) HcmTaxGovernancePolicy::query()->where('uuid', $policyUuid)->value('id');
 
         $this->withHeaders($this->taxHeaders($admin))
-            ->getJson('/v1/hcm/tax-governance/policies/' . $policyId)
+            ->getJson('/v1/hcm/tax-governance/policies/'.$policyId)
             ->assertStatus(404)
             ->assertJsonPath('error.code', 'TAX_POLICY_NOT_FOUND');
 
         $this->withHeaders($this->taxHeaders($admin))
-            ->postJson('/v1/hcm/tax-governance/policies/' . $policyUuid . '/submit', [
+            ->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/submit', [
                 'submissionNote' => 'Submit for compliance review',
             ])
             ->assertStatus(200)
@@ -87,7 +87,7 @@ class HcmTaxGovernanceWorkflowApiTest extends TestCase
             ->assertJsonPath('data.status', 'submitted');
 
         $this->withHeaders($this->taxHeaders($admin))
-            ->postJson('/v1/hcm/tax-governance/policies/' . $policyUuid . '/approve', [
+            ->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/approve', [
                 'approvalNote' => 'Approved by tenant owner',
             ])
             ->assertStatus(200)
@@ -95,7 +95,7 @@ class HcmTaxGovernanceWorkflowApiTest extends TestCase
             ->assertJsonPath('data.status', 'approved');
 
         $this->withHeaders($this->taxHeaders($admin))
-            ->postJson('/v1/hcm/tax-governance/policies/' . $policyUuid . '/reject', [
+            ->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/reject', [
                 'rejectionNote' => 'Need rule update',
             ])
             ->assertStatus(200)
@@ -103,7 +103,7 @@ class HcmTaxGovernanceWorkflowApiTest extends TestCase
             ->assertJsonPath('data.status', 'draft');
 
         $this->withHeaders($this->taxHeaders($admin))
-            ->postJson('/v1/hcm/tax-governance/policies/' . $policyUuid . '/publish', [
+            ->postJson('/v1/hcm/tax-governance/policies/'.$policyUuid.'/publish', [
                 'publishReason' => 'Direct publish after owner review',
             ])
             ->assertStatus(200)
@@ -149,7 +149,7 @@ class HcmTaxGovernanceWorkflowApiTest extends TestCase
         $requestUuid = (string) $request->json('data.requestUuid');
 
         $this->withHeaders($this->taxHeaders($admin))
-            ->postJson('/v1/hcm/tax-governance/governance/break-glass/requests/' . $requestUuid . '/approve', [
+            ->postJson('/v1/hcm/tax-governance/governance/break-glass/requests/'.$requestUuid.'/approve', [
                 'approvalNote' => 'Approved for 24-hour audit window.',
                 'expiresAt' => now()->addDay()->toIso8601String(),
             ])

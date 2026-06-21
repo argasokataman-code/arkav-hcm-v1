@@ -23,7 +23,7 @@ class ErasureRequest extends Model
     ];
 
     protected $casts = [
-        'reviewed_at'  => 'datetime',
+        'reviewed_at' => 'datetime',
         'completed_at' => 'datetime',
     ];
 

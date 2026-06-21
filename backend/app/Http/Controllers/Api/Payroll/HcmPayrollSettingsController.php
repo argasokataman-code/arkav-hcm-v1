@@ -6,8 +6,8 @@ use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\CompanySetting;
-use App\Models\PayrollSettingsSnapshot;
 use App\Models\PayrollSettingsAuditLog;
+use App\Models\PayrollSettingsSnapshot;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -152,6 +152,7 @@ class HcmPayrollSettingsController extends Controller
 
         $data = $logs->map(function (PayrollSettingsAuditLog $log) {
             $changedBy = $log->changedBy;
+
             return [
                 'id' => $log->id,
                 'uuid' => $log->uuid,

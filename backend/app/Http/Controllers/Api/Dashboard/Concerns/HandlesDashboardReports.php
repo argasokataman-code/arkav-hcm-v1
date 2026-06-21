@@ -2,12 +2,9 @@
 
 namespace App\Http\Controllers\Api\Dashboard\Concerns;
 
-use App\Http\Controllers\Api\Concerns\ChecksPermissions;
-use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\Department;
 use App\Models\EmployeeProfile;
-use App\Models\HcmLeaveTypeSetting;
 use App\Models\HcmManualActivity;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
@@ -15,22 +12,13 @@ use App\Models\HcmPayrollRun;
 use App\Models\HcmPromotion;
 use App\Models\HcmResignation;
 use App\Models\HcmTermination;
-use App\Models\HcmTraining;
-use App\Models\Holiday;
-use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\LeaveRequest;
-use App\Models\Subscription;
 use App\Models\OvertimeRequest;
 use App\Models\PerformanceReview;
-use App\Modelsser;
-use App\Support\Exports\TabularExportResponse;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 trait HandlesDashboardReports
 {
@@ -44,7 +32,6 @@ trait HandlesDashboardReports
         $monthStart = $today->copy()->startOfMonth();
         $monthEnd = $today->copy()->endOfMonth();
         $companyId = $this->activeCompanyId($request);
-
 
         // --- Patch: Add totalEmployees and inactiveEmployees ---
         $allProfiles = EmployeeProfile::query()
@@ -88,6 +75,7 @@ trait HandlesDashboardReports
                 return false;
             }
             $days = $today->diffInDays(Carbon::parse($profile->contract_end_date), false);
+
             return $days >= 0 && $days <= 30;
         })->count();
 
@@ -295,6 +283,7 @@ trait HandlesDashboardReports
                 $punctualityRate = max(0, 1 - min(1, ((float) $row['averageLateMinutes']) / 30));
                 $score = (int) round((($attendanceRate * 0.7) + ($punctualityRate * 0.3)) * 100);
                 $row['score'] = max(0, min(100, $score));
+
                 return $row;
             })
             ->sortByDesc('score')
@@ -446,6 +435,7 @@ trait HandlesDashboardReports
             ->take(5)
             ->map(function (EmployeeProfile $profile) use ($userDirectory): array {
                 $userId = (int) ($profile->user_id ?? 0);
+
                 return [
                     'name' => (string) ($userDirectory->get($userId)?->name ?? 'Employee'),
                     'role' => trim((string) ($profile->designation ?? '')) !== ''
@@ -460,6 +450,7 @@ trait HandlesDashboardReports
             ->take(5)
             ->map(function (EmployeeProfile $profile) use ($userDirectory): array {
                 $userId = (int) ($profile->user_id ?? 0);
+
                 return [
                     'name' => (string) ($userDirectory->get($userId)?->name ?? 'Employee'),
                     'role' => trim((string) ($profile->designation ?? '')) !== ''

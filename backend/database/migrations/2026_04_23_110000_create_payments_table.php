@@ -12,12 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         // Check if companies table exists first
-        if (!Schema::hasTable('companies')) {
+        if (! Schema::hasTable('companies')) {
             return;
         }
 
         // Check if payments table exists; if not, create it
-        if (!Schema::hasTable('payments')) {
+        if (! Schema::hasTable('payments')) {
             Schema::create('payments', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('company_id')->constrained('companies')->onDelete('cascade');
@@ -43,16 +43,16 @@ return new class extends Migration
         } else {
             // If payments table exists, add missing columns
             Schema::table('payments', function (Blueprint $table) {
-                if (!Schema::hasColumn('payments', 'purchase_transaction_id')) {
+                if (! Schema::hasColumn('payments', 'purchase_transaction_id')) {
                     $table->foreignId('purchase_transaction_id')->nullable()->default(null)->constrained('purchase_transactions')->onDelete('set null');
                 }
-                if (!Schema::hasColumn('payments', 'invoice_id')) {
+                if (! Schema::hasColumn('payments', 'invoice_id')) {
                     $table->foreignId('invoice_id')->nullable()->default(null)->constrained('invoices')->onDelete('set null');
                 }
-                if (!Schema::hasColumn('payments', 'payment_method')) {
+                if (! Schema::hasColumn('payments', 'payment_method')) {
                     $table->enum('payment_method', ['bank_transfer', 'credit_card', 'e_wallet', 'cash', 'check'])->nullable();
                 }
-                if (!Schema::hasColumn('payments', 'verified_at')) {
+                if (! Schema::hasColumn('payments', 'verified_at')) {
                     $table->dateTime('verified_at')->nullable();
                 }
             });

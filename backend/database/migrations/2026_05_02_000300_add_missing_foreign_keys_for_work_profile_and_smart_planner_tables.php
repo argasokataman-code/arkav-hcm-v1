@@ -71,7 +71,7 @@ return new class extends Migration
                     $foreign->restrictOnDelete();
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $msg = strtolower($e->getMessage());
             if (
                 str_contains($msg, 'duplicate')
@@ -98,7 +98,7 @@ return new class extends Migration
             Schema::table($table, function (Blueprint $blueprint) use ($column, $name): void {
                 $blueprint->index($column, $name);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $msg = strtolower($e->getMessage());
             if (str_contains($msg, 'duplicate') || str_contains($msg, 'exists') || str_contains($msg, 'already')) {
                 return;
@@ -111,9 +111,9 @@ return new class extends Migration
     private function canApplyForeignKey(string $table, string $column, string $parentTable, string $parentColumn): bool
     {
         $query = "SELECT COUNT(*) AS total\n"
-            . "FROM {$table} t\n"
-            . "LEFT JOIN {$parentTable} p ON t.{$column} = p.{$parentColumn}\n"
-            . "WHERE t.{$column} IS NOT NULL AND p.{$parentColumn} IS NULL";
+            ."FROM {$table} t\n"
+            ."LEFT JOIN {$parentTable} p ON t.{$column} = p.{$parentColumn}\n"
+            ."WHERE t.{$column} IS NOT NULL AND p.{$parentColumn} IS NULL";
 
         $result = DB::selectOne($query);
         $count = (int) ($result->total ?? 0);

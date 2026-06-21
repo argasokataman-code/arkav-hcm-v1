@@ -123,7 +123,7 @@ class PlatformTaxSummaryController extends Controller
         $month = $this->resolveMonth($request->query('month'));
         $ppnRate = $this->resolvePpnRate($request->query('ppn_rate'));
 
-        $periodStart = $month . '-01';
+        $periodStart = $month.'-01';
         $periodEnd = date('Y-m-t', strtotime($periodStart));
 
         $invoices = DB::table('invoices as i')
@@ -204,12 +204,12 @@ class PlatformTaxSummaryController extends Controller
     {
         $month = $this->resolveMonth($request->query('month'));
 
-        $periodStart = $month . '-01';
+        $periodStart = $month.'-01';
         $periodEnd = date('Y-m-t', strtotime($periodStart));
 
         $payments = DB::table('payments as p')
             ->join('companies as c', 'c.id', '=', 'p.company_id')
-            ->whereBetween('p.paid_at', [$periodStart, ' ' . $periodEnd . ' 23:59:59'])
+            ->whereBetween('p.paid_at', [$periodStart, ' '.$periodEnd.' 23:59:59'])
             ->where('p.status', 'completed')
             ->select(
                 'p.id',
@@ -662,7 +662,7 @@ class PlatformTaxSummaryController extends Controller
     private function summarizePpnInvoices(string $month, float $defaultRate, $invoiceRows = null): array
     {
         if ($invoiceRows === null) {
-            $periodStart = $month . '-01';
+            $periodStart = $month.'-01';
             $periodEnd = date('Y-m-t', strtotime($periodStart));
 
             $invoiceRows = DB::table('invoices as i')
@@ -726,7 +726,7 @@ class PlatformTaxSummaryController extends Controller
 
     private function getPaidRevenueForMonth(string $month): float
     {
-        $periodStart = $month . '-01';
+        $periodStart = $month.'-01';
         $periodEnd = date('Y-m-t', strtotime($periodStart));
 
         return (float) DB::table('invoices')
@@ -739,8 +739,8 @@ class PlatformTaxSummaryController extends Controller
 
     private function getCompletedPaymentGrossForMonth(string $month): float
     {
-        $periodStart = $month . '-01 00:00:00';
-        $periodEnd = date('Y-m-t', strtotime($month . '-01')) . ' 23:59:59';
+        $periodStart = $month.'-01 00:00:00';
+        $periodEnd = date('Y-m-t', strtotime($month.'-01')).' 23:59:59';
 
         return round((float) (DB::table('payments')
             ->whereBetween('paid_at', [$periodStart, $periodEnd])
@@ -750,7 +750,7 @@ class PlatformTaxSummaryController extends Controller
 
     private function getInvoiceCountForMonth(string $month): int
     {
-        $periodStart = $month . '-01';
+        $periodStart = $month.'-01';
         $periodEnd = date('Y-m-t', strtotime($periodStart));
 
         return (int) DB::table('invoices')
@@ -778,33 +778,33 @@ class PlatformTaxSummaryController extends Controller
 
     private function getBatasSetor(string $month, int $dayOfFollowingMonth): string
     {
-        $nextMonth = date('Y-m', strtotime($month . '-01 +1 month'));
+        $nextMonth = date('Y-m', strtotime($month.'-01 +1 month'));
 
-        return $nextMonth . '-' . str_pad((string) $dayOfFollowingMonth, 2, '0', STR_PAD_LEFT);
+        return $nextMonth.'-'.str_pad((string) $dayOfFollowingMonth, 2, '0', STR_PAD_LEFT);
     }
 
     private function getBatasLapor(string $month, string $type): string
     {
         // PPN: akhir bulan berikutnya
         // PPh 23: tanggal 20 bulan berikutnya
-        $nextMonth = date('Y-m', strtotime($month . '-01 +1 month'));
+        $nextMonth = date('Y-m', strtotime($month.'-01 +1 month'));
 
         return match ($type) {
-            'ppn'       => date('Y-m-t', strtotime($nextMonth . '-01')),
-            'pph23'     => $nextMonth . '-20',
-            'pph_final' => $nextMonth . '-15',
-            default     => $nextMonth . '-30',
+            'ppn' => date('Y-m-t', strtotime($nextMonth.'-01')),
+            'pph23' => $nextMonth.'-20',
+            'pph_final' => $nextMonth.'-15',
+            default => $nextMonth.'-30',
         };
     }
 
     private function getAnnualPphBadanSettlementDeadline(int $year): string
     {
-        return ($year + 1) . '-04-30';
+        return ($year + 1).'-04-30';
     }
 
     private function getAnnualPphBadanReportDeadline(int $year): string
     {
-        return ($year + 1) . '-04-30';
+        return ($year + 1).'-04-30';
     }
 
     private function resolveYear(mixed $year): int
@@ -837,7 +837,7 @@ class PlatformTaxSummaryController extends Controller
     private function buildMonthlyPphBadanSummary(string $month): array
     {
         $invoiceRows = DB::table('invoices')
-            ->whereBetween('issue_date', [$month . '-01', date('Y-m-t', strtotime($month . '-01'))])
+            ->whereBetween('issue_date', [$month.'-01', date('Y-m-t', strtotime($month.'-01'))])
             ->where('amount_due', '>', 0)
             ->select('company_id', 'amount_due', 'billing_tax_rate_snapshot', 'issue_date')
             ->get();
@@ -934,7 +934,7 @@ class PlatformTaxSummaryController extends Controller
     }
 
     /**
-     * @param Collection<int, HcmBillingTaxPolicy> $policies
+     * @param  Collection<int, HcmBillingTaxPolicy>  $policies
      * @return array<int, array{corporate_tax_rate: float, transaction_tax_rate: float}>
      */
     private function buildLatestPolicyByCompany(Collection $policies): array

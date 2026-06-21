@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\EmployeeProfile;
 use App\Models\Company;
+use App\Models\EmployeeProfile;
 use App\Models\HcmPayrollItem;
 use App\Models\HcmSalaryComponent;
 use App\Models\User;

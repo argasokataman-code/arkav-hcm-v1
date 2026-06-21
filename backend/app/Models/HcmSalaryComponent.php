@@ -1,8 +1,8 @@
 <?php
 
 namespace App\Models;
-use App\Models\Concerns\AssignsUuid;
 
+use App\Models\Concerns\AssignsUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Schema;
 class HcmSalaryComponent extends Model
 {
     use AssignsUuid;
+
     protected $table = 'hcm_salary_components';
 
     public const TAX_TREATMENT_PPH21_TAXABLE_FULL = 'pph21_taxable_full';
@@ -47,30 +48,49 @@ class HcmSalaryComponent extends Model
     public const TAX_TREATMENT_EMPLOYER_DISPLAY_ONLY = 'employer_display_only';
 
     /** Valid values for source_module column */
-    public const SOURCE_MODULE_BPJS      = 'bpjs';
+    public const SOURCE_MODULE_BPJS = 'bpjs';
+
     public const SOURCE_MODULE_ALLOWANCE = 'allowance';
-    public const SOURCE_MODULE_PPH21     = 'pph21';
-    public const SOURCE_MODULE_OVERTIME  = 'overtime';
-    public const SOURCE_MODULE_THR       = 'thr';
-    public const SOURCE_MODULE_PKWT      = 'pkwt';
-    public const SOURCE_MODULE_SYSTEM    = 'system';
+
+    public const SOURCE_MODULE_PPH21 = 'pph21';
+
+    public const SOURCE_MODULE_OVERTIME = 'overtime';
+
+    public const SOURCE_MODULE_THR = 'thr';
+
+    public const SOURCE_MODULE_PKWT = 'pkwt';
+
+    public const SOURCE_MODULE_SYSTEM = 'system';
 
     public const CODE_BASIC_WAGE = 'upah_pokok';
-    public const CODE_FIXED_ALLOWANCE = 'tunjangan_tetap';
-    public const CODE_OVERTIME_PAY = 'upah_lembur';
-    public const CODE_THR = 'thr';
-    public const CODE_PKWT_COMPENSATION = 'kompensasi_pkwt';
-    public const CODE_BPJS_HEALTH_EMPLOYEE = 'iuran_bpjs_kes_pekerja';
-    public const CODE_BPJS_JHT_EMPLOYEE = 'iuran_jht_pekerja';
-    public const CODE_BPJS_JP_EMPLOYEE = 'iuran_jp_pekerja';
-    public const CODE_BPJS_HEALTH_EMPLOYER = 'iuran_bpjs_kes_pk';
-    public const CODE_BPJS_JHT_EMPLOYER = 'iuran_jht_pk';
-    public const CODE_BPJS_JP_EMPLOYER = 'iuran_jp_pk';
-    public const CODE_BPJS_JKK_EMPLOYER = 'premi_jkk_pk';
-    public const CODE_BPJS_JKM_EMPLOYER = 'premi_jkm_pk';
-    public const CODE_PPH21_TER = 'pph21_ter';
-    public const CODE_PPH21_RECONCILIATION = 'pph21_rekonsiliasi';
 
+    public const CODE_FIXED_ALLOWANCE = 'tunjangan_tetap';
+
+    public const CODE_OVERTIME_PAY = 'upah_lembur';
+
+    public const CODE_THR = 'thr';
+
+    public const CODE_PKWT_COMPENSATION = 'kompensasi_pkwt';
+
+    public const CODE_BPJS_HEALTH_EMPLOYEE = 'iuran_bpjs_kes_pekerja';
+
+    public const CODE_BPJS_JHT_EMPLOYEE = 'iuran_jht_pekerja';
+
+    public const CODE_BPJS_JP_EMPLOYEE = 'iuran_jp_pekerja';
+
+    public const CODE_BPJS_HEALTH_EMPLOYER = 'iuran_bpjs_kes_pk';
+
+    public const CODE_BPJS_JHT_EMPLOYER = 'iuran_jht_pk';
+
+    public const CODE_BPJS_JP_EMPLOYER = 'iuran_jp_pk';
+
+    public const CODE_BPJS_JKK_EMPLOYER = 'premi_jkk_pk';
+
+    public const CODE_BPJS_JKM_EMPLOYER = 'premi_jkm_pk';
+
+    public const CODE_PPH21_TER = 'pph21_ter';
+
+    public const CODE_PPH21_RECONCILIATION = 'pph21_rekonsiliasi';
 
     /** @var list<string> */
     public const ADDITION_CATEGORIES = [
@@ -155,8 +175,8 @@ class HcmSalaryComponent extends Model
             'is_system_locked' => 'boolean',
             'sort_order' => 'integer',
             'is_active' => 'boolean',
-                'source_module' => 'string',
-            ];
+            'source_module' => 'string',
+        ];
     }
 
     public static function categoriesForKind(string $kind, bool $activeOnly = false): array
@@ -266,7 +286,7 @@ class HcmSalaryComponent extends Model
     }
 
     /**
-    * Komponen pendapatan untuk menautkan pengajuan lembur ke slip.
+     * Komponen pendapatan untuk menautkan pengajuan lembur ke slip.
      */
     public static function resolveForOvertimePay(): ?self
     {
@@ -374,10 +394,9 @@ class HcmSalaryComponent extends Model
      * Daftarkan komponen gaji dari modul governance secara idempoten.
      * Jika komponen dengan `code` yang sama sudah ada, perbarui source_module dan is_system_locked saja.
      *
-     * @param  int  $companyId
-     * @param  string  $code   Kode unik komponen (snake_case)
-     * @param  string  $name   Nama tampilan komponen
-     * @param  string  $kind   'addition' | 'deduction'
+     * @param  string  $code  Kode unik komponen (snake_case)
+     * @param  string  $name  Nama tampilan komponen
+     * @param  string  $kind  'addition' | 'deduction'
      * @param  string  $category  Harus valid sesuai categoriesForKind($kind)
      * @param  string  $sourceModule  Salah satu SOURCE_MODULE_* constant
      * @param  array<string, mixed>  $extra  Override field lain (tax flags, legal_basis, dll)
@@ -432,24 +451,24 @@ class HcmSalaryComponent extends Model
         $taxFlags = self::taxFlagsForTreatment($taxTreatmentCode);
 
         return static::query()->create(array_merge([
-            'company_id'                      => $targetCompanyId,
-            'code'                            => $code,
-            'name'                            => $name,
-            'kind'                            => $kind,
-            'category'                        => $category,
-            'source_module'                   => $sourceModule,
-            'is_system_locked'                => true,
-            'is_active'                       => true,
-            'sort_order'                      => 0,
-            'include_bpjs_health_wage_base'   => false,
-            'include_bpjs_tk_wage_base'       => false,
-            'include_thr_calculation_base'    => false,
-            'include_pph21_ter_gross'         => $taxFlags['include_pph21_ter_gross'],
+            'company_id' => $targetCompanyId,
+            'code' => $code,
+            'name' => $name,
+            'kind' => $kind,
+            'category' => $category,
+            'source_module' => $sourceModule,
+            'is_system_locked' => true,
+            'is_active' => true,
+            'sort_order' => 0,
+            'include_bpjs_health_wage_base' => false,
+            'include_bpjs_tk_wage_base' => false,
+            'include_thr_calculation_base' => false,
+            'include_pph21_ter_gross' => $taxFlags['include_pph21_ter_gross'],
             'include_pph21_annual_reconciliation' => $taxFlags['include_pph21_annual_reconciliation'],
-            'tax_treatment_code'              => $taxTreatmentCode,
-            'subject_overtime_regulation'     => false,
-            'affects_net_pay'                 => true,
-            'employer_cost_line'              => false,
+            'tax_treatment_code' => $taxTreatmentCode,
+            'subject_overtime_regulation' => false,
+            'affects_net_pay' => true,
+            'employer_cost_line' => false,
         ], $extra, ['tax_treatment_code' => $taxTreatmentCode]));
     }
 }

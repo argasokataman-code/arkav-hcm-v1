@@ -20,7 +20,7 @@ final class ArcavAccessTokenResolver
         if (! $rawToken) {
             $cookieName = (string) config('auth.api_token_cookie.name', 'arcav_access_token');
             $rawToken = $request->cookie($cookieName);
-            
+
             if (! $rawToken) {
                 $cookieHeader = (string) $request->headers->get('cookie', '');
                 if ($cookieHeader !== '' && preg_match('/(?:^|;\s*)'.preg_quote($cookieName, '/').'=([^;]+)/', $cookieHeader, $m)) {
@@ -35,7 +35,7 @@ final class ArcavAccessTokenResolver
     public static function validTokenFromRequest(Request $request): ?AuthToken
     {
         $raw = self::rawTokenFromRequest($request);
-        
+
         if (! $raw) {
             return null;
         }

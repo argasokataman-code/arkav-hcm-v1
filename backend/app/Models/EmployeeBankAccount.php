@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class EmployeeBankAccount extends Model
 {
     use AssignsUuid;
-    protected $table = 'employee_bank_accounts';
 
+    protected $table = 'employee_bank_accounts';
 
     protected $fillable = [
         'employee_id',

@@ -22,8 +22,7 @@ class ProbationEndedNotification extends Notification
         public readonly string $companyUuid,
         public readonly string $contractType,
         public readonly string $employmentHistoryUuid,
-    ) {
-    }
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -34,12 +33,12 @@ class ProbationEndedNotification extends Notification
     {
         $contractLabel = match ($this->contractType) {
             'permanent' => 'pegawai tetap',
-            'contract'  => 'pegawai kontrak',
-            default     => $this->contractType,
+            'contract' => 'pegawai kontrak',
+            default => $this->contractType,
         };
 
         $message = "Selamat {$this->employeeName}! Masa probasi Anda di {$this->companyName} telah selesai. "
-            . "Anda kini resmi menjadi {$contractLabel} di perusahaan tersebut.";
+            ."Anda kini resmi menjadi {$contractLabel} di perusahaan tersebut.";
 
         return NotificationPayloadFactory::make('employee.probation.ended', [
             'companyUuid' => $this->companyUuid,
@@ -49,13 +48,13 @@ class ProbationEndedNotification extends Notification
             'message' => $message,
             'occurredAt' => now(),
         ], [
-            'event'                  => 'employee.probation.ended',
-            'employeeName'           => $this->employeeName,
-            'companyName'            => $this->companyName,
-            'companyUuid'            => $this->companyUuid,
-            'contractType'           => $this->contractType,
-            'contractLabel'          => $contractLabel,
-            'employmentHistoryUuid'  => $this->employmentHistoryUuid,
+            'event' => 'employee.probation.ended',
+            'employeeName' => $this->employeeName,
+            'companyName' => $this->companyName,
+            'companyUuid' => $this->companyUuid,
+            'contractType' => $this->contractType,
+            'contractLabel' => $contractLabel,
+            'employmentHistoryUuid' => $this->employmentHistoryUuid,
         ]);
     }
 }

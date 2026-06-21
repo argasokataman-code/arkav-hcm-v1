@@ -21,7 +21,6 @@ class HcmTraining extends Model
         });
     }
 
-
     protected $fillable = [
         'company_id',
         'company_uuid',
@@ -58,4 +57,3 @@ class HcmTraining extends Model
             ->withTimestamps();
     }
 }
-

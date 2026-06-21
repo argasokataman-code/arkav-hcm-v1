@@ -17,9 +17,9 @@ class EmployeeBiometricConsent extends Model
     ];
 
     protected $casts = [
-        'selfie_consent'       => 'boolean',
-        'gps_consent'          => 'boolean',
-        'consent_given_at'     => 'datetime',
+        'selfie_consent' => 'boolean',
+        'gps_consent' => 'boolean',
+        'consent_given_at' => 'datetime',
         'consent_withdrawn_at' => 'datetime',
     ];
 }

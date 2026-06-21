@@ -22,7 +22,7 @@ class HcmTaxGovernancePhase8Phase9Test extends TestCase
     private function complianceHeaders(array $admin): array
     {
         return $this->withCompanyContext([
-            'Authorization' => 'Bearer ' . $admin['token'],
+            'Authorization' => 'Bearer '.$admin['token'],
         ], $admin['company_id']);
     }
 

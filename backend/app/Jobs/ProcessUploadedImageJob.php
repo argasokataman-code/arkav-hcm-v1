@@ -24,8 +24,7 @@ class ProcessUploadedImageJob implements ShouldQueue
         public string $finalRelativePath,
         public string $disk = 'public',
         public string $preset = 'policy_attachment',
-    ) {
-    }
+    ) {}
 
     public function handle(): void
     {

@@ -92,17 +92,17 @@ return new class extends Migration
         if ($ultimateUuid) {
             foreach (['goal_tracking', 'training', 'employee_document_center'] as $featureCode) {
                 $names = [
-                    'goal_tracking'            => 'Goal Tracking',
-                    'training'                 => 'Training',
+                    'goal_tracking' => 'Goal Tracking',
+                    'training' => 'Training',
                     'employee_document_center' => 'Employee Document Center',
                 ];
                 DB::table('package_features')->updateOrInsert(
                     ['package_uuid' => $ultimateUuid, 'feature_code' => $featureCode],
                     [
                         'feature_name' => $names[$featureCode],
-                        'limit'        => null,
-                        'created_at'   => $now,
-                        'updated_at'   => $now,
+                        'limit' => null,
+                        'created_at' => $now,
+                        'updated_at' => $now,
                     ]
                 );
             }
@@ -119,19 +119,19 @@ return new class extends Migration
         //    unlimited (global-admin-only) → limit = NULL
         // ──────────────────────────────────────────────────────────────────────
         $mvpPlatformFeatures = [
-            'notifications'          => 'Notifications',
-            'tax_governance'         => 'Tax Governance',
-            'trial_billing_dashboard'=> 'Trial Billing Dashboard',
+            'notifications' => 'Notifications',
+            'tax_governance' => 'Tax Governance',
+            'trial_billing_dashboard' => 'Trial Billing Dashboard',
         ];
 
         $limitsPerPackage = [
-            'trial'      => 1,
-            'starter'    => 1,
-            'growth'     => 1,
-            'business'   => 1,
+            'trial' => 1,
+            'starter' => 1,
+            'growth' => 1,
+            'business' => 1,
             'enterprise' => null,
-            'ultimate'   => null,
-            'unlimited'  => null,
+            'ultimate' => null,
+            'unlimited' => null,
         ];
 
         $publicPackages = DB::table('packages')
@@ -148,9 +148,9 @@ return new class extends Migration
                     ['package_uuid' => (string) $pkg->uuid, 'feature_code' => $code],
                     [
                         'feature_name' => $name,
-                        'limit'        => $limit,
-                        'created_at'   => $now,
-                        'updated_at'   => $now,
+                        'limit' => $limit,
+                        'created_at' => $now,
+                        'updated_at' => $now,
                     ]
                 );
             }

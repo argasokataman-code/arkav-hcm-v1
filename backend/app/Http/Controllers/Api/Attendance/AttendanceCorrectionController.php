@@ -4,7 +4,12 @@ namespace App\Http\Controllers\Api\Attendance;
 
 use App\Models\AttendanceRecord;
 use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\CompanyUser;
+use App\Models\User;
+use App\Notifications\AttendanceCorrectionApprovedNotification;
+use App\Notifications\AttendanceCorrectionDismissedNotification;
+use App\Notifications\AttendanceCorrectionRequestedNotification;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,17 +27,17 @@ class AttendanceCorrectionController extends BaseAttendanceController
         if (! $activeCompanyId) {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context required.'],
+                'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context required.'],
             ], 422);
         }
 
         $validated = $request->validate([
-            'page'    => ['nullable', 'integer', 'min:1'],
+            'page' => ['nullable', 'integer', 'min:1'],
             'perPage' => ['nullable', 'integer', 'min:1', 'max:500'],
         ]);
 
         $perPage = min(500, (int) ($validated['perPage'] ?? 100));
-        $tz      = $this->tz();
+        $tz = $this->tz();
 
         $paginator = AttendanceRecord::query()
             ->where('company_id', $activeCompanyId)
@@ -44,17 +49,17 @@ class AttendanceCorrectionController extends BaseAttendanceController
 
         $rows = collect($paginator->items())->map(function (AttendanceRecord $rec) use ($tz) {
             return [
-                'recordId'              => $rec->id,
-                'userId'                => $rec->user_id,
-                'employeeName'          => $rec->user?->name ?? '—',
-                'workDate'              => $rec->work_date->toDateString(),
-                'checkIn'               => $this->formatTime($rec->check_in_at),
-                'checkInTime24'         => $rec->check_in_at ? $rec->check_in_at->copy()->timezone($tz)->format('H:i') : '',
-                'checkOut'              => $this->formatTime($rec->check_out_at),
-                'checkOutTime24'        => $rec->check_out_at ? $rec->check_out_at->copy()->timezone($tz)->format('H:i') : '',
-                'breakMinutesRaw'       => (int) $rec->break_minutes,
-                'lateMinutesRaw'        => (int) $rec->late_minutes,
-                'correctionReason'      => (string) ($rec->correction_reason ?? ''),
+                'recordId' => $rec->id,
+                'userId' => $rec->user_id,
+                'employeeName' => $rec->user?->name ?? '—',
+                'workDate' => $rec->work_date->toDateString(),
+                'checkIn' => $this->formatTime($rec->check_in_at),
+                'checkInTime24' => $rec->check_in_at ? $rec->check_in_at->copy()->timezone($tz)->format('H:i') : '',
+                'checkOut' => $this->formatTime($rec->check_out_at),
+                'checkOutTime24' => $rec->check_out_at ? $rec->check_out_at->copy()->timezone($tz)->format('H:i') : '',
+                'breakMinutesRaw' => (int) $rec->break_minutes,
+                'lateMinutesRaw' => (int) $rec->late_minutes,
+                'correctionReason' => (string) ($rec->correction_reason ?? ''),
                 'correctionRequestedAt' => $rec->correction_requested_at
                     ? $rec->correction_requested_at->copy()->timezone($tz)->format('d M Y H:i')
                     : null,
@@ -63,13 +68,13 @@ class AttendanceCorrectionController extends BaseAttendanceController
 
         return response()->json([
             'success' => true,
-            'data'    => $rows,
-            'meta'    => [
-                'total'      => $paginator->total(),
+            'data' => $rows,
+            'meta' => [
+                'total' => $paginator->total(),
                 'pagination' => [
-                    'page'       => $paginator->currentPage(),
-                    'perPage'    => $paginator->perPage(),
-                    'total'      => $paginator->total(),
+                    'page' => $paginator->currentPage(),
+                    'perPage' => $paginator->perPage(),
+                    'total' => $paginator->total(),
                     'totalPages' => $paginator->lastPage(),
                 ],
             ],
@@ -83,13 +88,13 @@ class AttendanceCorrectionController extends BaseAttendanceController
             return $forbidden;
         }
 
-        $validated       = $request->validate(['recordId' => ['required', 'integer']]);
+        $validated = $request->validate(['recordId' => ['required', 'integer']]);
         $activeCompanyId = $this->activeCompanyId($request);
 
         if (! $activeCompanyId) {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context required.'],
+                'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context required.'],
             ], 422);
         }
 
@@ -101,30 +106,30 @@ class AttendanceCorrectionController extends BaseAttendanceController
         if (! $rec) {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'NOT_FOUND', 'message' => 'Attendance record not found.'],
+                'error' => ['code' => 'NOT_FOUND', 'message' => 'Attendance record not found.'],
             ], 404);
         }
 
         if ((string) ($rec->correction_status ?? 'none') !== 'requested') {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'CORRECTION_NOT_PENDING', 'message' => 'No pending correction to approve.'],
+                'error' => ['code' => 'CORRECTION_NOT_PENDING', 'message' => 'No pending correction to approve.'],
             ], 422);
         }
 
         $tz = $this->tz();
-        $rec->correction_status    = 'approved';
+        $rec->correction_status = 'approved';
         $rec->corrected_by_user_id = $request->user()?->id;
-        $rec->corrected_at         = Carbon::now($tz);
+        $rec->corrected_at = Carbon::now($tz);
         if ((string) $rec->status === 'needs_review') {
             $rec->status = 'present';
         }
         $rec->save();
 
-        $company     = Company::query()->find($activeCompanyId);
+        $company = Company::query()->find($activeCompanyId);
         $companyUuid = (string) ($company?->uuid ?? '');
-        $employee    = \App\Models\User::query()->find($rec->user_id);
-        $employee?->notify(new \App\Notifications\AttendanceCorrectionApprovedNotification(
+        $employee = User::query()->find($rec->user_id);
+        $employee?->notify(new AttendanceCorrectionApprovedNotification(
             companyUuid: $companyUuid,
             workDate: $rec->work_date->toDateString(),
             attendanceRecordId: (int) $rec->id,
@@ -140,13 +145,13 @@ class AttendanceCorrectionController extends BaseAttendanceController
             return $forbidden;
         }
 
-        $validated       = $request->validate(['recordId' => ['required', 'integer']]);
+        $validated = $request->validate(['recordId' => ['required', 'integer']]);
         $activeCompanyId = $this->activeCompanyId($request);
 
         if (! $activeCompanyId) {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context required.'],
+                'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context required.'],
             ], 422);
         }
 
@@ -158,27 +163,27 @@ class AttendanceCorrectionController extends BaseAttendanceController
         if (! $rec) {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'NOT_FOUND', 'message' => 'Attendance record not found.'],
+                'error' => ['code' => 'NOT_FOUND', 'message' => 'Attendance record not found.'],
             ], 404);
         }
 
         if ((string) ($rec->correction_status ?? 'none') !== 'requested') {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'CORRECTION_NOT_PENDING', 'message' => 'No pending correction to dismiss.'],
+                'error' => ['code' => 'CORRECTION_NOT_PENDING', 'message' => 'No pending correction to dismiss.'],
             ], 422);
         }
 
         $tz = $this->tz();
-        $rec->correction_status    = 'dismissed';
+        $rec->correction_status = 'dismissed';
         $rec->corrected_by_user_id = $request->user()?->id;
-        $rec->corrected_at         = Carbon::now($tz);
+        $rec->corrected_at = Carbon::now($tz);
         $rec->save();
 
-        $company     = Company::query()->find($activeCompanyId);
+        $company = Company::query()->find($activeCompanyId);
         $companyUuid = (string) ($company?->uuid ?? '');
-        $employee    = \App\Models\User::query()->find($rec->user_id);
-        $employee?->notify(new \App\Notifications\AttendanceCorrectionDismissedNotification(
+        $employee = User::query()->find($rec->user_id);
+        $employee?->notify(new AttendanceCorrectionDismissedNotification(
             companyUuid: $companyUuid,
             workDate: $rec->work_date->toDateString(),
             attendanceRecordId: (int) $rec->id,
@@ -191,27 +196,27 @@ class AttendanceCorrectionController extends BaseAttendanceController
     {
         $validated = $request->validate([
             'workDate' => ['required', 'date'],
-            'reason'   => ['required', 'string', 'min:5', 'max:500'],
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
         ]);
 
-        $user            = $request->user();
-        $tz              = $this->tz();
+        $user = $request->user();
+        $tz = $this->tz();
         $activeCompanyId = $this->activeCompanyId($request);
-        $workDate        = Carbon::parse($validated['workDate'], $tz)->toDateString();
+        $workDate = Carbon::parse($validated['workDate'], $tz)->toDateString();
 
-        $windowDays = (int) (\App\Models\CompanySetting::query()
+        $windowDays = (int) (CompanySetting::query()
             ->where('company_id', $activeCompanyId)
             ->where('key', 'attendance_correction_window_days')
             ->value('value') ?? 30);
 
         if ($windowDays > 0) {
-            $oldestAllowed   = Carbon::now($tz)->subDays($windowDays)->startOfDay();
-            $workDateCarbon  = Carbon::parse($workDate, $tz)->startOfDay();
+            $oldestAllowed = Carbon::now($tz)->subDays($windowDays)->startOfDay();
+            $workDateCarbon = Carbon::parse($workDate, $tz)->startOfDay();
             if ($workDateCarbon->lt($oldestAllowed)) {
                 return response()->json([
                     'success' => false,
-                    'error'   => [
-                        'code'    => 'CORRECTION_WINDOW_EXCEEDED',
+                    'error' => [
+                        'code' => 'CORRECTION_WINDOW_EXCEEDED',
                         'message' => "Koreksi hanya dapat diajukan untuk absensi dalam {$windowDays} hari terakhir.",
                     ],
                 ], 422);
@@ -228,14 +233,14 @@ class AttendanceCorrectionController extends BaseAttendanceController
         if (! $rec) {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'ATTENDANCE_NOT_FOUND', 'message' => 'Attendance record not found for selected date.'],
+                'error' => ['code' => 'ATTENDANCE_NOT_FOUND', 'message' => 'Attendance record not found for selected date.'],
             ], 404);
         }
 
         if (! $rec->check_in_at || ! $rec->check_out_at) {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'ATTENDANCE_NOT_COMPLETE', 'message' => 'Correction can be requested after check-out is recorded.'],
+                'error' => ['code' => 'ATTENDANCE_NOT_COMPLETE', 'message' => 'Correction can be requested after check-out is recorded.'],
             ], 422);
         }
 
@@ -243,33 +248,33 @@ class AttendanceCorrectionController extends BaseAttendanceController
         if ($existingCorrStatus === 'requested') {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'CORRECTION_ALREADY_PENDING', 'message' => 'Koreksi untuk tanggal ini sudah diajukan dan sedang menunggu persetujuan admin.'],
+                'error' => ['code' => 'CORRECTION_ALREADY_PENDING', 'message' => 'Koreksi untuk tanggal ini sudah diajukan dan sedang menunggu persetujuan admin.'],
             ], 422);
         }
         if ($existingCorrStatus === 'dismissed') {
             return response()->json([
                 'success' => false,
-                'error'   => ['code' => 'CORRECTION_ALREADY_REVIEWED', 'message' => 'Koreksi untuk tanggal ini sudah ditinjau oleh admin.'],
+                'error' => ['code' => 'CORRECTION_ALREADY_REVIEWED', 'message' => 'Koreksi untuk tanggal ini sudah ditinjau oleh admin.'],
             ], 422);
         }
 
-        $rec->correction_status       = 'requested';
-        $rec->correction_reason       = trim((string) $validated['reason']);
+        $rec->correction_status = 'requested';
+        $rec->correction_reason = trim((string) $validated['reason']);
         $rec->correction_requested_at = Carbon::now($tz);
-        $rec->corrected_by_user_id    = null;
-        $rec->corrected_at            = null;
+        $rec->corrected_by_user_id = null;
+        $rec->corrected_at = null;
         $rec->save();
 
-        $company     = Company::query()->find($activeCompanyId);
+        $company = Company::query()->find($activeCompanyId);
         $companyUuid = (string) ($company?->uuid ?? '');
-        $adminUsers  = CompanyUser::query()
+        $adminUsers = CompanyUser::query()
             ->where('company_id', $activeCompanyId)
             ->whereIn('role', ['owner', 'admin', 'hcm_admin', 'super_admin'])
             ->with('user')
             ->get();
 
         foreach ($adminUsers as $adminUser) {
-            $adminUser->user?->notify(new \App\Notifications\AttendanceCorrectionRequestedNotification(
+            $adminUser->user?->notify(new AttendanceCorrectionRequestedNotification(
                 employeeName: (string) $user->name,
                 companyUuid: $companyUuid,
                 workDate: $workDate,
@@ -280,7 +285,7 @@ class AttendanceCorrectionController extends BaseAttendanceController
 
         return response()->json([
             'success' => true,
-            'data'    => ['correctionStatus' => $rec->correction_status],
+            'data' => ['correctionStatus' => $rec->correction_status],
         ]);
     }
 }

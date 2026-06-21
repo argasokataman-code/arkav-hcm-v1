@@ -23,7 +23,7 @@ return new class extends Migration
             // ============================================================================
             // PHASE 1: CLEANUP ORPHAN RECORDS
             // ============================================================================
-            
+
             // Remove orphan records from child tables before adding constraints
             $this->cleanupOrphanRecords();
 
@@ -44,7 +44,7 @@ return new class extends Migration
                             ->on('companies')
                             ->cascadeOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Constraint already exists, skip
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
@@ -80,7 +80,7 @@ return new class extends Migration
                             ->on('departments')
                             ->nullOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -96,7 +96,7 @@ return new class extends Migration
                             ->on('designations')
                             ->nullOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -112,7 +112,7 @@ return new class extends Migration
                             ->on('hcm_trainings')
                             ->cascadeOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -128,7 +128,7 @@ return new class extends Migration
                             ->on('users')
                             ->cascadeOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -144,7 +144,7 @@ return new class extends Migration
                             ->on('tickets')
                             ->cascadeOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -160,7 +160,7 @@ return new class extends Migration
                             ->on('users')
                             ->cascadeOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -176,7 +176,7 @@ return new class extends Migration
                             ->on('tickets')
                             ->cascadeOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -192,7 +192,7 @@ return new class extends Migration
                             ->on('users')
                             ->cascadeOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -208,7 +208,7 @@ return new class extends Migration
                             ->on('tickets')
                             ->cascadeOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -223,7 +223,7 @@ return new class extends Migration
                             ->on('users')
                             ->cascadeOnDelete();
                     });
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     if (strpos($e->getMessage(), 'Duplicate') === false) {
                         throw $e;
                     }
@@ -233,7 +233,7 @@ return new class extends Migration
             // ============================================================================
             // PHASE 3: VERIFY DATA INTEGRITY
             // ============================================================================
-            
+
             $this->verifyIntegrity();
 
         } finally {
@@ -398,7 +398,7 @@ return new class extends Migration
         }
 
         $constraints = DB::select(
-            "SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = ? AND TABLE_SCHEMA = ? AND CONSTRAINT_NAME = ?",
+            'SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_NAME = ? AND TABLE_SCHEMA = ? AND CONSTRAINT_NAME = ?',
             [$table, env('DB_DATABASE'), $constraintName]
         );
 
@@ -431,10 +431,10 @@ return new class extends Migration
         }
 
         if (count($issues) > 0) {
-            \Log::warning('Foreign Key Integrity Issues Found:', $issues);
+            Log::warning('Foreign Key Integrity Issues Found:', $issues);
         }
 
-        \Log::info('Foreign key constraints migration completed successfully', [
+        Log::info('Foreign key constraints migration completed successfully', [
             'timestamp' => now(),
             'issues_found' => count($issues),
         ]);

@@ -129,6 +129,7 @@ class CleanupPayrollDemoDataCommand extends Command
             if (isset($seenSignature[$signature])) {
                 $line->delete();
                 $stats['lines_deleted_duplicates']++;
+
                 continue;
             }
             $seenSignature[$signature] = true;

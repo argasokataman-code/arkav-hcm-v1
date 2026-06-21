@@ -43,7 +43,7 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table): void {
             try {
                 $table->dropIndex('users_is_super_admin_idx');
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 // Ignore if the index was already dropped or never created.
             }
 

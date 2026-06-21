@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         // Check if column already exists
-        if (!Schema::hasColumn('users', 'company_id')) {
+        if (! Schema::hasColumn('users', 'company_id')) {
             // Add company_id to users table for platform vs tenant users
             Schema::table('users', function (Blueprint $table): void {
                 $table->unsignedBigInteger('company_id')->nullable()->after('id');

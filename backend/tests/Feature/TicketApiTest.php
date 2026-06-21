@@ -2,13 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\EmployeeProfile;
+use App\Models\CompanyUser;
 use App\Models\Package;
 use App\Models\PackageFeature;
 use App\Models\Subscription;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
-use App\Models\CompanyUser;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -259,7 +258,7 @@ class TicketApiTest extends TestCase
 
         $response = $this->withHeaders(['Authorization' => 'Bearer '.$admin['token']])
             ->getJson('/v1/hcm/tickets/999999');
-        
+
         // Status will be 403 because ticket doesn't belong to user + user is not admin
         // OR ticket doesn't exist (in admin case). Either way, non-existent resources are handled.
         $this->assertTrue(in_array($response->status(), [403, 404]));
@@ -479,4 +478,3 @@ class TicketApiTest extends TestCase
             ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
     }
 }
-

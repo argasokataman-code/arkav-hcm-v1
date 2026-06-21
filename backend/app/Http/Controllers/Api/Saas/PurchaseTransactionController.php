@@ -70,7 +70,7 @@ class PurchaseTransactionController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -131,7 +131,7 @@ class PurchaseTransactionController extends Controller
      */
     public function update(Request $request, PurchaseTransaction $transaction): JsonResponse
     {
-        if (!$this->isHcmAdmin($request)) {
+        if (! $this->isHcmAdmin($request)) {
             return response()->json([
                 'success' => false,
                 'error' => ['code' => 'ADMIN_REQUIRED', 'message' => 'Admin access required.'],
@@ -183,10 +183,10 @@ class PurchaseTransactionController extends Controller
             ] : null,
             'transactionType' => $t->transaction_type,
             'description' => $t->description,
-            'amount' => (float)$t->amount,
-            'taxAmount' => (float)$t->tax_amount,
-            'discountAmount' => (float)$t->discount_amount,
-            'totalAmount' => (float)$t->total_amount,
+            'amount' => (float) $t->amount,
+            'taxAmount' => (float) $t->tax_amount,
+            'discountAmount' => (float) $t->discount_amount,
+            'totalAmount' => (float) $t->total_amount,
             'billingPeriodStart' => $t->billing_period_start?->toDateString(),
             'billingPeriodEnd' => $t->billing_period_end?->toDateString(),
             'dueDate' => $t->due_date?->toIso8601String(),

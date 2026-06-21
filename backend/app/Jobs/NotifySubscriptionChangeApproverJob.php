@@ -20,8 +20,7 @@ class NotifySubscriptionChangeApproverJob implements ShouldQueue
 
     public function __construct(
         public readonly string $changeRequestId,
-    ) {
-    }
+    ) {}
 
     public function handle(): void
     {

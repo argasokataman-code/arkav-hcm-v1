@@ -43,11 +43,11 @@ class HcmTerminationChecklistItem extends Model
     protected function casts(): array
     {
         return [
-            'termination_id'     => 'integer',
-            'mandatory'          => 'boolean',
-            'due_date'           => 'date',
-            'completed_at'       => 'datetime',
-            'completed_by'       => 'integer',
+            'termination_id' => 'integer',
+            'mandatory' => 'boolean',
+            'due_date' => 'date',
+            'completed_at' => 'datetime',
+            'completed_by' => 'integer',
         ];
     }
 

@@ -20,9 +20,7 @@ class SubscriptionController extends Controller
     public function __construct(
         private readonly NotificationService $notificationService,
         private readonly CompanyStatusSynchronizer $companyStatusSynchronizer
-    )
-    {
-    }
+    ) {}
 
     /**
      * GET /v1/saas/subscriptions
@@ -67,13 +65,13 @@ class SubscriptionController extends Controller
 
         if ($search !== '') {
             $query->where(function ($subQuery) use ($search) {
-                $subQuery->where('plan_code', 'like', '%' . $search . '%')
+                $subQuery->where('plan_code', 'like', '%'.$search.'%')
                     ->orWhereHas('company', function ($companyQuery) use ($search) {
-                        $companyQuery->where('name', 'like', '%' . $search . '%');
+                        $companyQuery->where('name', 'like', '%'.$search.'%');
                     })
                     ->orWhereHas('package', function ($packageQuery) use ($search) {
-                        $packageQuery->where('name', 'like', '%' . $search . '%')
-                            ->orWhere('code', 'like', '%' . $search . '%');
+                        $packageQuery->where('name', 'like', '%'.$search.'%')
+                            ->orWhere('code', 'like', '%'.$search.'%');
                     });
             });
         }
@@ -149,7 +147,7 @@ class SubscriptionController extends Controller
         $validated['plan_code'] = $package->code;
 
         // Calculate amount if not provided
-        if (!isset($validated['amount']) || $validated['amount'] === null) {
+        if (! isset($validated['amount']) || $validated['amount'] === null) {
             if ($validated['billing_cycle'] === 'yearly') {
                 $validated['amount'] = $package->yearly_price;
             } else {
@@ -602,7 +600,7 @@ class SubscriptionController extends Controller
             'trialEndsAt' => $subscription->trial_ends_at?->toIso8601String(),
             'autoRenew' => $subscription->auto_renew,
             'billingCycle' => $subscription->billing_cycle,
-            'amount' => (float)$subscription->amount,
+            'amount' => (float) $subscription->amount,
             'durationDays' => $subscription->getDurationDays(),
             'isActive' => $subscription->isActive(),
             'isInTrial' => $subscription->isInTrial(),

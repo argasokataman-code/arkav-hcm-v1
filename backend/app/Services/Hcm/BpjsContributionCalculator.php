@@ -51,10 +51,10 @@ final class BpjsContributionCalculator
     /**
      * Hitung iuran BPJS Kesehatan (pekerja atau perusahaan).
      *
-     * @param  float       $grossSalary   Gaji bruto (pokok + tunjangan tetap)
-     * @param  float       $ratePercent   Tarif dari policy (mis. 1.0 untuk 1%)
-     * @param  string      $party         'employee' | 'employer'
-     * @param  float|null  $salaryCap     Override cap tenant; null → pakai default
+     * @param  float  $grossSalary  Gaji bruto (pokok + tunjangan tetap)
+     * @param  float  $ratePercent  Tarif dari policy (mis. 1.0 untuk 1%)
+     * @param  string  $party  'employee' | 'employer'
+     * @param  float|null  $salaryCap  Override cap tenant; null → pakai default
      * @return array<string, mixed>
      */
     public function calculateBpjsKesehatan(
@@ -73,9 +73,6 @@ final class BpjsContributionCalculator
     /**
      * Hitung iuran JHT (pekerja atau perusahaan) — tidak ada cap, rate flat.
      *
-     * @param  float   $grossSalary
-     * @param  float   $ratePercent
-     * @param  string  $party
      * @return array<string, mixed>
      */
     public function calculateJht(float $grossSalary, float $ratePercent, string $party = 'employee'): array
@@ -86,10 +83,7 @@ final class BpjsContributionCalculator
     /**
      * Hitung iuran JP (pekerja atau perusahaan) dengan salary cap.
      *
-     * @param  float       $grossSalary
-     * @param  float       $ratePercent
-     * @param  string      $party
-     * @param  float|null  $salaryCap   Override cap tenant; null → pakai default
+     * @param  float|null  $salaryCap  Override cap tenant; null → pakai default
      * @return array<string, mixed>
      */
     public function calculateJp(
@@ -109,9 +103,8 @@ final class BpjsContributionCalculator
      * Hitung iuran JKK — hanya untuk porsi perusahaan (employer).
      * Rate ditentukan dari risk_category, bukan tarif bebas.
      *
-     * @param  float    $grossSalary
-     * @param  int      $riskCategory  1–5
-     * @param  float|null $overrideRate  Jika diisi (tenant set), pakai ini (harus dalam range risk category)
+     * @param  int  $riskCategory  1–5
+     * @param  float|null  $overrideRate  Jika diisi (tenant set), pakai ini (harus dalam range risk category)
      * @return array<string, mixed>
      *
      * @throws \InvalidArgumentException jika risk_category di luar 1–5
@@ -144,8 +137,6 @@ final class BpjsContributionCalculator
     /**
      * Hitung iuran JKM — hanya untuk porsi perusahaan, rate flat dari policy.
      *
-     * @param  float   $grossSalary
-     * @param  float   $ratePercent
      * @return array<string, mixed>
      */
     public function calculateJkm(float $grossSalary, float $ratePercent): array
@@ -156,16 +147,15 @@ final class BpjsContributionCalculator
     /**
      * Entry point generik — dispatch ke metode spesifik berdasarkan programCode.
      *
-     * @param  string      $programCode       'bpjs_kesehatan' | 'jht' | 'jp' | 'jkk' | 'jkm'
-     * @param  string      $party             'employee' | 'employer'
-     * @param  float       $grossSalary
-     * @param  float       $ratePercent       Tarif dari policy/baseline
-     * @param  array<string, mixed>  $options {
-     *     riskCategory?: int,        // Untuk JKK
-     *     jkkOverrideRate?: float,   // Optional override JKK dalam batas regulasi
-     *     jpSalaryCap?: float,       // Override cap JP
-     *     bpjsKesSalaryCap?: float,  // Override cap BPJS Kesehatan
-     * }
+     * @param  string  $programCode  'bpjs_kesehatan' | 'jht' | 'jp' | 'jkk' | 'jkm'
+     * @param  string  $party  'employee' | 'employer'
+     * @param  float  $ratePercent  Tarif dari policy/baseline
+     * @param  array<string, mixed>  $options  {
+     *                                         riskCategory?: int,        // Untuk JKK
+     *                                         jkkOverrideRate?: float,   // Optional override JKK dalam batas regulasi
+     *                                         jpSalaryCap?: float,       // Override cap JP
+     *                                         bpjsKesSalaryCap?: float,  // Override cap BPJS Kesehatan
+     *                                         }
      * @return array<string, mixed>
      */
     public function calculate(
@@ -183,7 +173,7 @@ final class BpjsContributionCalculator
                 $options['bpjsKesSalaryCap'] ?? null
             ),
             'jht' => $this->calculateJht($grossSalary, $ratePercent, $party),
-            'jp'  => $this->calculateJp(
+            'jp' => $this->calculateJp(
                 $grossSalary,
                 $ratePercent,
                 $party,
@@ -216,14 +206,14 @@ final class BpjsContributionCalculator
         $amount = round($baseUsed * ($ratePercent / 100), 2);
 
         return array_merge([
-            'program'             => $program,
-            'contribution_party'  => $party,
-            'gross_salary'        => round($grossSalary, 2),
-            'base_salary_used'    => round($baseUsed, 2),
-            'rate_used'           => $ratePercent,
+            'program' => $program,
+            'contribution_party' => $party,
+            'gross_salary' => round($grossSalary, 2),
+            'base_salary_used' => round($baseUsed, 2),
+            'rate_used' => $ratePercent,
             'contribution_amount' => $amount,
-            'rate_source'         => $rateSource,
-            'cap_applied'         => $capApplied,
+            'rate_source' => $rateSource,
+            'cap_applied' => $capApplied,
         ], $extra);
     }
 }

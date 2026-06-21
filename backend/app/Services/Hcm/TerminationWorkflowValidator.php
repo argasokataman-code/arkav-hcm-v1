@@ -29,17 +29,17 @@ final class TerminationWorkflowValidator
      * Keys = current stage, values = allowed next stages.
      */
     private const TRANSITIONS = [
-        'draft_review'        => ['legal_review', 'cancelled'],
-        'legal_review'        => ['approved_internal', 'cancelled'],
-        'approved_internal'   => ['finalized_execution', 'cancelled'],
+        'draft_review' => ['legal_review', 'cancelled'],
+        'legal_review' => ['approved_internal', 'cancelled'],
+        'approved_internal' => ['finalized_execution', 'cancelled'],
         'finalized_execution' => [],  // terminal — no further transitions
-        'cancelled'           => [],  // terminal
+        'cancelled' => [],  // terminal
     ];
 
     /**
      * Validate that a stage transition is allowed.
      *
-     * @return string|null  null = ok; non-null = human-readable error reason
+     * @return string|null null = ok; non-null = human-readable error reason
      */
     public function validateTransition(?string $currentStage, string $nextStage): ?string
     {
@@ -60,8 +60,9 @@ final class TerminationWorkflowValidator
         }
 
         $allowedList = implode(', ', $allowed);
+
         return "Invalid workflow transition '{$current}' → '{$nextStage}'. "
-            . "Allowed from '{$current}': [{$allowedList}].";
+            ."Allowed from '{$current}': [{$allowedList}].";
     }
 
     /**
@@ -80,7 +81,7 @@ final class TerminationWorkflowValidator
         $serverVersion = (int) ($termination->workflow_version ?? 0);
         if ($clientVersion !== $serverVersion) {
             return "Workflow version conflict: client has version {$clientVersion}, "
-                . "server has version {$serverVersion}. Reload and retry.";
+                ."server has version {$serverVersion}. Reload and retry.";
         }
 
         return null;
@@ -89,8 +90,6 @@ final class TerminationWorkflowValidator
     /**
      * Build the updated workflow_history array by appending a new audit event.
      *
-     * @param  HcmTermination     $termination
-     * @param  WorkflowAuditEvent $event
      * @return list<array<string, mixed>>
      */
     public function appendHistory(HcmTermination $termination, WorkflowAuditEvent $event): array
@@ -107,11 +106,11 @@ final class TerminationWorkflowValidator
     public function stageToAction(string $nextStage): string
     {
         return match ($nextStage) {
-            'legal_review'        => 'submit_review',
-            'approved_internal'   => 'approve',
+            'legal_review' => 'submit_review',
+            'approved_internal' => 'approve',
             'finalized_execution' => 'finalize',
-            'cancelled'           => 'cancel',
-            default               => 'update',
+            'cancelled' => 'cancel',
+            default => 'update',
         };
     }
 

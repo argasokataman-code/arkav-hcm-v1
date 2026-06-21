@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest';
-import { validateComplianceFields } from '../resources/js/employees/employees-compensation-forms';
+import { validateComplianceFields } from '../../../frontend/resources/js/employees/employees-compensation-forms';
 
 describe('validateComplianceFields', () => {
     let form;

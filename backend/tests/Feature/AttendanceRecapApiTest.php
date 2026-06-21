@@ -8,6 +8,9 @@ use App\Models\CompanyUser;
 use App\Models\HcmPermission;
 use App\Models\HcmRole;
 use App\Models\HcmUserRole;
+use App\Models\Package;
+use App\Models\PackageFeature;
+use App\Models\Subscription;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -77,6 +80,31 @@ class AttendanceRecapApiTest extends TestCase
             'company_id' => $this->company->id,
             'role_id' => $role->id,
             'status' => 'active',
+        ]);
+
+        // Active subscription with attendance feature
+        $pkg = Package::query()->create([
+            'code' => 'recap-test-pkg',
+            'name' => 'Recap Test Package',
+            'monthly_price' => 0,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+        PackageFeature::query()->create([
+            'package_uuid' => $pkg->uuid,
+            'feature_code' => 'attendance',
+            'feature_name' => 'Attendance',
+            'limit' => null,
+        ]);
+        Subscription::query()->create([
+            'company_id' => $this->company->id,
+            'package_uuid' => $pkg->uuid,
+            'plan_code' => $pkg->code,
+            'status' => 'active',
+            'starts_at' => now()->subMonth(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 0,
         ]);
 
         // Create 2 employees

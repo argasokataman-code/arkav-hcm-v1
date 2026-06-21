@@ -66,6 +66,68 @@ jobs:
               core.setFailed('Failed to create Pint comment: ' + (err.message || err));
             }
 
+      - name: Generate Pint summary
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+            const pintFailed = process.env.PINT_FAILED === 'true';
+
+            let byFile = {};
+            let totalViolations = 0;
+            let errorMsg = null;
+
+            if (pintFailed) {
+              let diff = '';
+              try {
+                diff = execSync('cd backend && vendor/bin/pint --diff --ansi', { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
+              } catch (err) {
+                diff = (err.stdout || err.message || '').toString();
+              }
+
+              // Parse diff → per-file violation count
+              const hunks = diff.split(/\ndiff --git a\//);
+              for (const hunk of hunks) {
+                const fileMatch = hunk.match(/^(.+?) b\//m);
+                if (!fileMatch) continue;
+                const file = fileMatch[1];
+                // Count @@ lines = number of change hunks
+                const changes = (hunk.match(/^@@/gm) || []).length;
+                // Count +/- lines (excluding header)
+                const addLines = (hunk.match(/^\+(?!\+)/gm) || []).length;
+                const delLines = (hunk.match(/^-(?!-)/gm) || []).length;
+                const styleChanges = changes + addLines + delLines;
+                byFile[file] = (byFile[file] || 0) + styleChanges;
+                totalViolations += styleChanges;
+              }
+              errorMsg = `Pint found style violations in ${Object.keys(byFile).length} files (${totalViolations} changes)`;
+            } else {
+              errorMsg = 'No style violations found';
+            }
+
+            const report = {
+              tool: 'Pint (Laravel Code Style)',
+              status: pintFailed ? 'failed' : 'passed',
+              total_violations: totalViolations,
+              files_affected: Object.keys(byFile).length,
+              violations_by_file: byFile,
+              summary: errorMsg,
+              dimension: 'code_style',
+              timestamp: new Date().toISOString(),
+            };
+
+            fs.writeFileSync('backend/pint-report.json', JSON.stringify(report, null, 2));
+
+      - name: Upload Pint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pint-report
+          path: backend/pint-report.json
+          retention-days: 30
+
   phpstan:
     name: PHPStan (Static Analysis)
     runs-on: ubuntu-latest
@@ -95,6 +157,78 @@ jobs:
         id: phpstan
         run: vendor/bin/phpstan analyse --error-format=github --memory-limit=2G | tee phpstan-report.txt
 
+      - name: Generate PHPStan summary
+        id: phpstan-summary
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'backend/phpstan-report.txt';
+
+            let status = 'passed';
+            let totalErrors = 0;
+            let byFile = {};
+            let byType = {};
+            let errors = [];
+
+            if (fs.existsSync(reportPath)) {
+              const raw = fs.readFileSync(reportPath, 'utf8');
+              const lines = raw.split('\n');
+
+              for (const line of lines) {
+                // GitHub annotation format: ::error file=X,line=Y::message
+                const errMatch = line.match(/::error file=(.+?),line=(\d+),.*?::(.+)/);
+                if (errMatch) {
+                  const file = errMatch[1].replace(process.cwd() + '/', '');
+                  const lineNum = errMatch[2];
+                  const message = errMatch[3];
+                  byFile[file] = (byFile[file] || 0) + 1;
+                  // Extract error type (first word/pattern)
+                  const typeMatch = message.match(/^(\w[\w\\]+)/);
+                  const type = typeMatch ? typeMatch[1] : 'unknown';
+                  byType[type] = (byType[type] || 0) + 1;
+                  totalErrors++;
+                  errors.push({ file, line: lineNum, message: message.substring(0, 200), type });
+                  continue;
+                }
+                // Also match plain format: file.php:line:error
+                const plainMatch = line.match(/^(.+?):(\d+):(.+)/);
+                if (plainMatch && !line.includes('[') && line.includes('Error')) {
+                  const file = plainMatch[1].replace(process.cwd() + '/', '');
+                  const lineNum = plainMatch[2];
+                  const message = plainMatch[3].trim();
+                  byFile[file] = (byFile[file] || 0) + 1;
+                  totalErrors++;
+                  errors.push({ file, line: lineNum, message: message.substring(0, 200), type: 'phpstan' });
+                }
+              }
+            }
+
+            if (totalErrors > 0) status = 'failed';
+
+            // Find top files
+            const topFiles = Object.entries(byFile)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 10)
+              .reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {});
+
+            const report = {
+              tool: 'PHPStan (Static Analysis)',
+              status,
+              total_errors: totalErrors,
+              files_affected: Object.keys(byFile).length,
+              errors_by_file: byFile,
+              errors_by_type: byType,
+              top_files: topFiles,
+              errors: errors,
+              dimension: 'static_analysis',
+              timestamp: new Date().toISOString(),
+            };
+
+            fs.writeFileSync('backend/phpstan-report.json', JSON.stringify(report, null, 2));
+            core.setOutput('error-count', totalErrors.toString());
+
       - name: Upload PHPStan report
         if: always()
         uses: actions/upload-artifact@v4
@@ -102,3 +236,11 @@ jobs:
           name: phpstan-report
           path: backend/phpstan-report.txt
           retention-days: 7
+
+      - name: Upload PHPStan JSON summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpstan-summary
+          path: backend/phpstan-report.json
+          retention-days: 30

@@ -4,13 +4,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'backend/**'
-      - 'release/shared-hosting/**'
-      - '.github/workflows/shared-hosting-deploy.yml'
+  # push trigger disabled — shared hosting not in use
   workflow_dispatch:
 
 jobs:

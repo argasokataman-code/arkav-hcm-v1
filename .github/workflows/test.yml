@@ -35,8 +35,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: mbstring, pdo, pdo_mysql, bcmath, intl
-          coverage: pcov
-          ini-values: pcov.directory=app
+          coverage: none
 
       - name: Cache Composer dependencies
         uses: actions/cache@v4
@@ -49,35 +48,28 @@ jobs:
         working-directory: backend
         run: composer install --no-interaction --prefer-dist
 
+      - name: Prepare testing environment
+        working-directory: backend
+        run: |
+          cp .env.testing .env
+          php -v
+          echo "MySQL: waiting for connection..."
+          for i in $(seq 1 30); do
+            php -r "try { new PDO('mysql:host=127.0.0.1;port=3306;dbname=arcav_hcm_test', 'root', ''); echo 'OK'; exit(0); } catch (PDOException \$e) { echo '.'; sleep(1); }"
+            if [ $? -eq 0 ]; then break; fi
+          done
+          echo ""
+          echo "MySQL connection OK"
+
       - name: Run database migrations
         working-directory: backend
-        run: php artisan migrate --force --env=testing
-        env:
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: arcav_hcm_test
-          DB_USERNAME: root
-          DB_PASSWORD: ""
+        run: php artisan migrate --force
 
-      - name: Run PHPUnit tests with JUnit output
+      - name: Run PHPUnit tests
         working-directory: backend
         id: phpunit
         continue-on-error: true
-        run: php artisan test --env=testing --log-junit=test-results.xml --coverage-clover=coverage.xml
-        env:
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: arcav_hcm_test
-          DB_USERNAME: root
-          DB_PASSWORD: ""
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-${{ matrix.php }}
-          path: backend/coverage.xml
-          retention-days: 7
+        run: vendor/bin/phpunit --log-junit=test-results.xml
 
       - name: Upload JUnit results
         if: always()

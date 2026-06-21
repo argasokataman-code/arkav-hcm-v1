@@ -50,27 +50,51 @@
             ->unique('package_addon_id')
             ->values();
     }
-    $checkoutPageTitle = $isActiveCheckoutOnly ? 'Langganan Aktif' : 'Checkout Paket & Add-on';
-    $checkoutBreadcrumbLabel = $isActiveCheckoutOnly ? 'Langganan Aktif' : 'Checkout';
+    // ── Professional copywriting per context ─────────────────────────
+    $checkoutPageTitle = $isActiveCheckoutOnly
+        ? 'Langganan Aktif'
+        : ($isPendingPaymentLock
+            ? 'Selesaikan Pembayaran'
+            : ($isInactiveContext
+                ? 'Langganan Berakhir — Perbarui Sekarang'
+                : 'Pilih Paket Baru'));
+
+    $checkoutBreadcrumbLabel = $isActiveCheckoutOnly
+        ? 'Langganan Aktif'
+        : ($isPendingPaymentLock
+            ? 'Pembayaran'
+            : ($isInactiveContext
+                ? 'Perbarui Langganan'
+                : 'Checkout'));
 
     $checkoutHeading = $isPendingPaymentLock
-        ? 'Aktifkan langganan'
-        : ($isInactiveContext ? 'Aktifkan kembali langganan' : ($isTrialContext ? 'Mulai langganan' : 'Upgrade paket'));
-    $checkoutSubheading = $isPendingPaymentLock
-        ? 'Invoice pendaftaran kamu sudah dibuat — selesaikan pembayaran untuk membuka akses aplikasi.'
+        ? 'Aktifkan Langganan'
         : ($isInactiveContext
-            ? 'Langganan perusahaan sedang nonaktif. Pilih paket atau lanjutkan pembayaran untuk mengaktifkan akses kembali.'
+            ? 'Perbarui Langganan'
             : ($isTrialContext
-            ? 'Lanjutkan ke paket berbayar sebelum masa trial berakhir.'
-            : 'Pilih paket baru dan buat invoice untuk menambah/meng-upgrade langganan.'));
+                ? 'Pilih Paket Berbayar'
+                : 'Upgrade Paket'));
+
+    $checkoutSubheading = $isPendingPaymentLock
+        ? 'Invoice pendaftaran telah dibuat. Selesaikan pembayaran untuk membuka akses aplikasi.'
+        : ($isInactiveContext
+            ? 'Langganan Anda telah berakhir. Pilih paket dan lakukan pembayaran untuk mengaktifkan kembali akses aplikasi.'
+            : ($isTrialContext
+                ? 'Masa trial akan segera berakhir. Pilih paket untuk melanjutkan layanan.'
+                : 'Pilih paket baru untuk menambah atau meningkatkan layanan langganan Anda.'));
+
     $checkoutCtaLabel = $isPendingPaymentLock
-        ? 'Buat invoice baru'
-        : ($isInactiveContext ? 'Buat invoice & aktifkan kembali' : 'Buat invoice & lanjut bayar');
+        ? 'Buat Invoice Baru'
+        : ($isInactiveContext
+            ? 'Buat Invoice & Aktifkan Kembali'
+            : 'Buat Invoice & Lanjut Bayar');
+
     $packageHintLabel = $isPendingPaymentLock
-        ? 'Paket trial tidak tersedia di sini karena registrasi kamu memilih langganan berbayar.'
+        ? 'Paket trial tidak tersedia karena Anda memilih langganan berbayar saat pendaftaran.'
         : 'Paket trial tidak ditampilkan. Halaman ini khusus untuk paket berbayar.';
+
     $pendingLockSupportText = $isInactiveContext
-        ? 'Setelah pembayaran berhasil, akses aplikasi akan aktif kembali.'
+        ? 'Setelah pembayaran berhasil, akses aplikasi akan aktif kembali secara otomatis.'
         : 'Setelah pembayaran berhasil, akses aplikasi langsung terbuka.';
 @endphp
 
@@ -478,7 +502,7 @@
                         <i class="ti ti-arrow-left me-1"></i> Kembali ke dashboard
                     </a>
                     <a href="{{ url('/company/invoices') }}" class="btn btn-outline-primary">
-                        <i class="ti ti-file-invoice me-1"></i> Semua invoice
+                        <i class="ti ti-file-invoice me-1"></i> Semua Tagihan
                     </a>
                 @endif
             </div>
@@ -502,15 +526,15 @@
 
                         <div class="checkout-focus-meta checkout-meta-list">
                             <div>
-                                <div class="label">Company</div>
+                                <div class="label">Perusahaan</div>
                                 <div class="value" data-checkout-company-name>—</div>
                             </div>
                             <div>
-                                <div class="label">Company ID</div>
+                                <div class="label">ID Perusahaan</div>
                                 <div class="value" data-checkout-company-id>—</div>
                             </div>
                             <div>
-                                <div class="label">Company Code</div>
+                                <div class="label">Kode Perusahaan</div>
                                 <div class="value-row">
                                     <span class="value" data-checkout-company-code>—</span>
                                     <button type="button" class="btn btn-sm btn-outline-secondary" data-checkout-copy-code title="Copy company code" aria-label="Copy company code">
@@ -570,13 +594,13 @@
                             <div class="row g-3 mb-4">
                                 <div class="col-12 col-md-4">
                                     <div class="active-meta-card">
-                                        <div class="label">Company</div>
+                                        <div class="label">Perusahaan</div>
                                         <div class="value">{{ $checkoutCompany?->name ?: '—' }}</div>
                                     </div>
                                 </div>
                                 <div class="col-12 col-md-4">
                                     <div class="active-meta-card">
-                                        <div class="label">Company Code</div>
+                                        <div class="label">Kode Perusahaan</div>
                                         <div class="value">{{ $checkoutCompany?->code ?: '—' }}</div>
                                     </div>
                                 </div>
@@ -660,7 +684,7 @@
                     <div class="card mb-3">
                         <div class="card-body">
                             <div class="d-flex align-items-start justify-content-between gap-2 mb-2 flex-wrap">
-                                <div class="checkout-section-title mb-0">Invoice pembayaran</div>
+                                <div class="checkout-section-title mb-0">Ringkasan Tagihan</div>
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="badge bg-info-subtle text-info" data-checkout-company-badge>—</span>
                                     <span class="badge bg-warning-subtle text-warning d-none" data-checkout-trial-badge>Trial</span>
@@ -668,14 +692,14 @@
                             </div>
                             <div class="checkout-section-lead mb-3">
                                 {{ $isInactiveContext
-                                    ? 'Untuk langganan nonaktif, panel ini hanya fokus ke satu invoice reaktivasi yang perlu dibayar.'
-                                    : 'Setelah membuat invoice, detail pembayarannya muncul di sini.' }}
+                                    ? 'Panel ini menampilkan tagihan yang perlu dibayar untuk mengaktifkan kembali langganan Anda.'
+                                    : 'Setelah membuat invoice, detail pembayaran akan muncul di sini.' }}
                             </div>
 
                             <div class="border rounded p-3 d-none" role="status" data-checkout-invoice-box>
                                 <div class="d-flex align-items-start justify-content-between gap-3">
                                     <div>
-                                        <div class="checkout-invoice-title" data-checkout-invoice-title>Invoice siap</div>
+                                        <div class="checkout-invoice-title" data-checkout-invoice-title>Tagihan Siap</div>
                                         <div class="small text-muted mt-1" data-checkout-invoice-subtitle>—</div>
                                     </div>
                                     <div class="text-end">
@@ -692,7 +716,7 @@
                                 </div>
                                 <div class="small text-muted mt-2 d-none" data-checkout-invoice-breakdown></div>
                                 <div class="d-flex align-items-center justify-content-end gap-2 mt-3 flex-wrap">
-                                    <a class="btn btn-sm btn-outline-secondary" href="{{ url('/company/invoices') }}" data-checkout-open-invoices>Lihat riwayat invoice</a>
+                                    <a class="btn btn-sm btn-outline-secondary" href="{{ url('/company/invoices') }}" data-checkout-open-invoices>Lihat Riwayat Tagihan</a>
                                     <button type="button" class="btn btn-sm btn-primary d-none" data-checkout-pay-now>
                                         <i class="ti ti-credit-card me-1"></i> Bayar sekarang
                                     </button>
@@ -704,7 +728,7 @@
 
                             <div class="text-muted small" data-checkout-invoice-hint>
                                 {{ $isInactiveContext
-                                    ? 'Belum ada invoice reaktivasi aktif. Pilih paket lalu klik ' : 'Belum ada invoice. Pilih paket lalu klik ' }}<strong>{{ $checkoutCtaLabel }}</strong>.
+                                    ? 'Belum ada tagihan aktif. Pilih paket lalu klik ' : 'Belum ada tagihan. Pilih paket lalu klik ' }}<strong>{{ $checkoutCtaLabel }}</strong>.
                             </div>
                         </div>
                     </div>
@@ -714,13 +738,13 @@
                             <div class="checkout-section-title mb-2" style="font-size:1rem;">Catatan</div>
                             <ul class="checkout-notes mb-0 ps-3">
                                 @if ($isInactiveContext)
-                                    <li>Jika ada invoice reaktivasi yang masih aktif, fokus utamanya hanya bayar invoice itu dulu.</li>
-                                    <li>Tombol <strong>Semua invoice</strong> di header dipakai untuk cek histori tagihan, bukan langkah utama reaktivasi.</li>
-                                    <li>Setelah pembayaran berhasil, akses aplikasi aktif kembali dan kamu baru bisa lanjut ke perubahan paket lain.</li>
+                                    <li>Jika masih ada tagihan yang belum dibayar, selesaikan pembayaran tersebut terlebih dahulu.</li>
+                                    <li>Gunakan tombol <strong>Semua tagihan</strong> di atas untuk melihat histori pembayaran.</li>
+                                    <li>Setelah pembayaran berhasil, akses aplikasi akan aktif kembali dan Anda dapat melanjutkan ke perubahan paket lainnya.</li>
                                 @else
-                                    <li>Invoice dibuat untuk company yang sedang aktif (tenant context).</li>
-                                    <li>Jika sudah ada invoice pending yang belum dibayar, form di-lock — selesaikan pembayaran terlebih dulu.</li>
-                                    <li>Setelah pembayaran berhasil, kamu bisa kembali ke halaman ini untuk upgrade atau perpanjang paket.</li>
+                                    <li>Tagihan dibuat untuk perusahaan yang sedang aktif.</li>
+                                    <li>Jika sudah ada tagihan yang belum dibayar, selesaikan pembayaran terlebih dahulu sebelum membuat tagihan baru.</li>
+                                    <li>Setelah pembayaran berhasil, Anda dapat kembali ke halaman ini untuk upgrade atau perpanjangan paket.</li>
                                 @endif
                             </ul>
                         </div>
@@ -737,15 +761,15 @@
 
                             <div class="checkout-meta-list mb-3">
                                 <div>
-                                    <div class="label">Company</div>
+                                    <div class="label">Perusahaan</div>
                                     <div class="value" data-checkout-company-name>—</div>
                                 </div>
                                 <div>
-                                    <div class="label">Company ID</div>
+                                    <div class="label">ID Perusahaan</div>
                                     <div class="value" data-checkout-company-id>—</div>
                                 </div>
                                 <div>
-                                    <div class="label">Company Code</div>
+                                    <div class="label">Kode Perusahaan</div>
                                     <div class="value-row">
                                         <span class="value" data-checkout-company-code>—</span>
                                         <button type="button" class="btn btn-sm btn-outline-secondary" data-checkout-copy-code title="Copy company code" aria-label="Copy company code">
@@ -762,10 +786,10 @@
                                     <div class="d-flex align-items-start gap-2 mb-3">
                                         <i class="ti ti-circle-check text-success mt-1"></i>
                                         <div>
-                                            <div class="fw-semibold text-success mb-2">Checkout Berhasil!</div>
-                                            <div class="small text-muted mb-2" data-checkout-success-message>Invoice telah dibuat dan siap untuk pembayaran.</div>
+                                        <div class="fw-semibold text-success mb-2">Pembayaran Berhasil!</div>
+                                        <div class="small text-muted mb-2" data-checkout-success-message>Tagihan telah dibuat dan siap untuk pembayaran.</div>
                                             <div class="card bg-white border-0 p-3 mb-3">
-                                                <div class="small mb-2"><strong>Paket Aktif Sekarang:</strong></div>
+                                                <div class="small mb-2"><strong>Paket Aktif:</strong></div>
                                                 <div class="d-flex align-items-start justify-content-between gap-2">
                                                     <div>
                                                         <div class="fw-semibold" data-checkout-active-package-name>—</div>
@@ -778,11 +802,11 @@
                                                 </div>
                                             </div>
                                             <div class="d-flex align-items-center gap-2 flex-wrap">
-                                                <a href="{{ route('upgrade') }}" class="btn btn-sm btn-primary">
-                                                    <i class="ti ti-chevron-left me-1"></i> Kembali ke Upgrade Plan
+                                                <a href="{{ url('/index') }}" class="btn btn-sm btn-primary">
+                                                    <i class="ti ti-layout-dashboard me-1"></i> Buka Dashboard
                                                 </a>
                                                 <a href="{{ url('/company/invoices') }}" class="btn btn-sm btn-outline-secondary">
-                                                    <i class="ti ti-file-invoice me-1"></i> Lihat Invoice
+                                                    <i class="ti ti-file-invoice me-1"></i> Lihat Tagihan
                                                 </a>
                                             </div>
                                                 </div>
@@ -793,22 +817,22 @@
                                 <form action="javascript:void(0);" data-checkout-form class="checkout-form checkout-upgrade-form">
                                     <div class="row g-3">
                                         <div class="col-md-6">
-                                            <label class="form-label">Billing cycle</label>
+                                            <label class="form-label">Siklus Tagihan</label>
                                             <div class="d-flex align-items-center gap-3">
                                                 <div class="form-check form-check-md mb-0">
                                                     <input class="form-check-input" type="radio" name="billing_cycle" value="monthly" id="billing_cycle_monthly" checked>
-                                                    <label class="form-check-label mt-0" for="billing_cycle_monthly">Monthly</label>
+                                                    <label class="form-check-label mt-0" for="billing_cycle_monthly">Bulanan</label>
                                                 </div>
                                                 <div class="form-check form-check-md mb-0">
                                                     <input class="form-check-input" type="radio" name="billing_cycle" value="yearly" id="billing_cycle_yearly">
-                                                    <label class="form-check-label mt-0" for="billing_cycle_yearly">Yearly</label>
+                                                    <label class="form-check-label mt-0" for="billing_cycle_yearly">Tahunan</label>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label class="form-label" for="checkout_billing_email">Billing email <span class="text-muted fw-normal">(opsional)</span></label>
-                                            <input type="email" class="form-control" id="checkout_billing_email" placeholder="email untuk invoice" data-checkout-billing-email>
+                                            <label class="form-label" for="checkout_billing_email">Email Tagihan <span class="text-muted fw-normal">(opsional)</span></label>
+                                            <input type="email" class="form-control" id="checkout_billing_email" placeholder="email untuk tagihan" data-checkout-billing-email>
                                         </div>
 
                                         <div class="col-12">
@@ -821,7 +845,7 @@
                                     </div>
 
                                     <div class="d-flex align-items-center justify-content-end gap-2 mt-4 flex-wrap">
-                                        <a href="{{ url('/landing#pricing') }}" class="btn btn-outline-secondary">Lihat paket</a>
+                                        <a href="{{ url('/landing#pricing') }}" class="btn btn-outline-secondary">Lihat Semua Paket</a>
                                         <button type="submit" class="btn btn-primary" data-checkout-submit>
                                             <i class="ti ti-receipt me-1"></i> <span data-checkout-submit-label>{{ $checkoutCtaLabel }}</span>
                                         </button>
@@ -832,8 +856,8 @@
                                     <hr class="my-4">
 
                                     <div class="mb-3">
-                                        <div class="checkout-section-title">Checkout Add-on</div>
-                                        <div class="checkout-section-lead">Beli add-on secara terpisah tanpa ganti paket aktif. Pilih dari katalog fitur tambahan yang tersedia.</div>
+                                    <div class="checkout-section-title">Tambah Add-on</div>
+                                    <div class="checkout-section-lead">Beli add-on secara terpisah tanpa mengganti paket aktif. Pilih dari katalog fitur tambahan yang tersedia.</div>
                                     </div>
 
                                     <form action="javascript:void(0);" data-checkout-form class="checkout-form checkout-addon-form">
@@ -847,51 +871,51 @@
                                                     <select class="form-select" id="checkout_addon_select" required data-checkout-addon-select>
                                                         <option value="">Memuat add-on…</option>
                                                     </select>
-                                                    <div class="form-text">Harga add-on mengikuti katalog global dan ditagihkan sebagai invoice terpisah.</div>
+                                                    <div class="form-text">Harga add-on mengikuti katalog yang berlaku dan akan ditagihkan sebagai tagihan terpisah.</div>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="d-flex align-items-center justify-content-end gap-2 mt-4 flex-wrap">
                                             <button type="submit" class="btn btn-outline-primary" data-checkout-addon-submit disabled>
-                                                <i class="ti ti-puzzle me-1"></i> Buat invoice add-on
+                                                <i class="ti ti-puzzle me-1"></i> Buat Tagihan Add-on
                                             </button>
                                         </div>
                                     </form>
                                 @endif
                             @else
                                 <div class="checkout-block-card" data-checkout-creation-locked-state>
-                                    <div class="checkout-block-kicker">{{ $isInactiveContext ? 'Reactivation Focus' : 'Invoice Active' }}</div>
-                                    <div class="checkout-block-title">{{ $isInactiveContext ? 'Selesaikan invoice reaktivasi dulu' : 'Selesaikan invoice aktif sebelum buat yang baru' }}</div>
+                                    <div class="checkout-block-kicker">{{ $isInactiveContext ? 'Aktivasi Diperlukan' : 'Tagihan Aktif' }}</div>
+                                    <div class="checkout-block-title">{{ $isInactiveContext ? 'Selesaikan Pembayaran untuk Mengaktifkan Kembali' : 'Selesaikan Tagihan Aktif' }}</div>
                                     <p class="checkout-block-lead">
                                         {{ $isInactiveContext
-                                            ? 'Form paket dan add-on disembunyikan sementara sampai invoice reaktivasi terbayar.'
-                                            : 'Masih ada invoice aktif yang harus diselesaikan. Form paket dan add-on disembunyikan sementara untuk mencegah duplikasi invoice.' }}
+                                            ? 'Form pemilihan paket disembunyikan sementara sampai tagihan aktif terselesaikan.'
+                                            : 'Masih ada tagihan yang harus diselesaikan. Form pemilihan paket disembunyikan untuk mencegah duplikasi tagihan.' }}
                                     </p>
                                     <ol class="checkout-block-steps">
                                         <li class="checkout-block-step">
                                             <span class="checkout-block-step-index">1</span>
                                             <div>
-                                                <div class="checkout-block-step-title">Bayar invoice yang sedang aktif</div>
-                                                <p class="checkout-block-step-note">Gunakan panel invoice di kanan sebagai langkah utama. Di state ini, itu satu-satunya tindakan yang relevan.</p>
+                                                <div class="checkout-block-step-title">Bayar Tagihan Aktif</div>
+                                                <p class="checkout-block-step-note">Gunakan panel tagihan di sebelah kanan untuk melakukan pembayaran.</p>
                                             </div>
                                         </li>
                                         <li class="checkout-block-step">
                                             <span class="checkout-block-step-index">2</span>
                                             <div>
-                                                <div class="checkout-block-step-title">Tunggu akses dipulihkan</div>
-                                                <p class="checkout-block-step-note">Begitu invoice berhasil dibayar, akses company akan aktif kembali tanpa perlu membuat invoice tambahan.</p>
+                                                <div class="checkout-block-step-title">Tunggu Konfirmasi</div>
+                                                <p class="checkout-block-step-note">Setelah pembayaran berhasil, akses aplikasi akan aktif kembali secara otomatis.</p>
                                             </div>
                                         </li>
                                         <li class="checkout-block-step">
                                             <span class="checkout-block-step-index">3</span>
                                             <div>
-                                                <div class="checkout-block-step-title">Lanjut ke perubahan paket lain (Jika ada)</div>
-                                                <p class="checkout-block-step-note">Setelah status aktif, barulah halaman ini kembali menampilkan opsi paket atau add-on yang sesuai.</p>
+                                                <div class="checkout-block-step-title">Lanjutkan Perubahan (Opsional)</div>
+                                                <p class="checkout-block-step-note">Setelah aktif, halaman ini akan menampilkan kembali opsi paket dan add-on yang tersedia.</p>
                                             </div>
                                         </li>
                                     </ol>
-                                    <div class="checkout-block-footnote">Segera lakukan pembayaran untuk menikmati layanan kami.</div>
+                                    <div class="checkout-block-footnote">Lakukan pembayaran sekarang untuk menikmati layanan kembali.</div>
                                 </div>
                             @endif
 

@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // list.js belum ada → import akan fail dengan module not found
 // Ini TDD: test dulu, implementasi menyusul
-import { makeListHandlers } from '../resources/js/employees/list';
+import { makeListHandlers } from '../../../frontend/resources/js/employees/list';
 
 describe('makeListHandlers', () => {
     let handlers;

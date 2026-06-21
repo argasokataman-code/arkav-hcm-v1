@@ -9,7 +9,7 @@ import {
     downloadBlob,
     toCsv,
     normalizeEmployeeScope,
-} from '../resources/js/employees/helpers';
+} from '../../../frontend/resources/js/employees/helpers';
 
 describe('escapeHtml', () => {
     test('escapes HTML special chars', () => {

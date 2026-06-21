@@ -663,7 +663,7 @@ class HcmCompanyInvoiceController
 
     private function canUseMockCheckout(Request $request): bool
     {
-        return app()->isLocal() || (bool) config('app.mock_payments_enabled');
+        return app()->environment(['local', 'testing']) || (bool) config('app.mock_payments_enabled');
     }
 
     private function shouldUseMidtransCheckout(string $gatewayMode): bool

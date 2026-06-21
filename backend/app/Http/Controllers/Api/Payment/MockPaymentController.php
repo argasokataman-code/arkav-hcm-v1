@@ -291,7 +291,7 @@ class MockPaymentController extends Controller
     private function isMockModeEnabled(): bool
     {
         // Only allow in development or if explicitly enabled
-        if (! app()->isLocal() && ! config('app.mock_payments_enabled')) {
+        if (! app()->environment(['local', 'testing']) && ! config('app.mock_payments_enabled')) {
             return false;
         }
 

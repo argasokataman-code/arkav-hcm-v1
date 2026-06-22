@@ -187,19 +187,22 @@ class NotificationService
             $amount = number_format((float) $invoice->amount_due, 2);
             $currency = $company->currency ?? 'IDR';
             $dueDate = $invoice->due_date->format('d/m/Y');
+            $billingUrl = route('subscription', [], true);
 
             $message = <<<EOT
 Dear {$billingContact->name},
 
-We've issued an invoice for {$company->name}.
+An invoice has been issued for {$company->name}.
 
 Invoice Details:
 - Invoice Number: {$invoice->invoice_number}
 - Amount: {$amount} {$currency}
 - Due Date: {$dueDate}
-- Description: {$invoice->description}
 
-Please complete payment by the due date to avoid service interruption.
+To review your subscription and complete payment, please visit:
+{$billingUrl}
+
+From there, you can renew your current plan or choose a different package.
 
 Thank you!
 EOT;
@@ -245,14 +248,18 @@ EOT;
             $packageName = $subscription->package->name ?? 'Your subscription';
 
             $subject = "Subscription Renewal Required - {$packageName}";
+            $billingUrl = route('subscription', [], true);
             $message = <<<EOT
 Dear {$billingContact->name},
 
 Your subscription to {$packageName} will expire in 7 days (on {$expiryDate}).
 
-To avoid any service interruption, please ensure your payment method is up to date. Your subscription will automatically renew if auto-invoice is enabled.
+To renew your subscription, please visit the subscription page:
+{$billingUrl}
 
-If you have any questions or wish to upgrade/downgrade your plan, please contact our sales team.
+From there, you can renew your current plan or choose a different package.
+
+If you have any questions, please contact our sales team.
 
 Thank you!
 EOT;

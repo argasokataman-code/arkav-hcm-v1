@@ -10,12 +10,32 @@ use App\Models\Invoice;
 use App\Models\InvoiceEmailLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class SendPaymentReminderJobTest extends TestCase
 {
     use RefreshDatabase;
+
+    private int $queryCount = 0;
+
+    private function startQueryTracking(): void
+    {
+        $this->queryCount = 0;
+        DB::listen(function ($query): void {
+            ++$this->queryCount;
+        });
+    }
+
+    private function assertQueryCountLessThan(int $max, string $label = 'dispatch'): void
+    {
+        $this->assertLessThanOrEqual(
+            $max,
+            $this->queryCount,
+            "Query count exceeded limit for {$label}. Expected ≤{$max}, got {$this->queryCount}. Consider adding ->select(...) to queries in this code path."
+        );
+    }
 
     public function test_job_sends_reminder_to_owner_email_and_logs_canonical_event_key(): void
     {
@@ -50,7 +70,9 @@ class SendPaymentReminderJobTest extends TestCase
             'notes' => null,
         ]);
 
+        $this->startQueryTracking();
         (new SendPaymentReminder)->handle();
+        $this->assertQueryCountLessThan(10, 'payment_reminder_owner');
 
         Mail::assertSent(PaymentReminderMailable::class);
 
@@ -112,7 +134,9 @@ class SendPaymentReminderJobTest extends TestCase
             'notes' => null,
         ]);
 
+        $this->startQueryTracking();
         (new SendPaymentReminder)->handle();
+        $this->assertQueryCountLessThan(10, 'payment_reminder_fallback');
 
         Mail::assertSent(PaymentReminderMailable::class, 1);
         Mail::assertSent(PaymentReminderMailable::class, function (PaymentReminderMailable $mail) use ($invoice): bool {

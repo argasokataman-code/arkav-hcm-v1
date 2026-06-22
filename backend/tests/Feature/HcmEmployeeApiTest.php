@@ -1550,9 +1550,9 @@ class HcmEmployeeApiTest extends TestCase
             'X-Company-Id' => (string) $company->id,
         ])->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
 
-        $blocked->assertStatus(422)
+        $blocked->assertStatus(403)
             ->assertJsonPath('success', false)
-            ->assertJsonPath('error.code', 'EMPLOYEE_COUNT_EXCEEDED');
+            ->assertJsonPath('error.code', 'SUBSCRIPTION_EXPIRED');
         $this->assertDatabaseMissing('users', ['email' => 'payment.activated@example.com']);
 
         $this->postJson('/v1/identity/auth/register', [

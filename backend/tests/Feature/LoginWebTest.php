@@ -187,8 +187,8 @@ class LoginWebTest extends TestCase
         $this->actingAs($user)
             ->get('/subscription')
             ->assertOk()
-            ->assertSee('Aktifkan kembali langganan')
-            ->assertSee('sedang nonaktif');
+            ->assertSee('Langganan Berakhir — Perbarui Sekarang')
+            ->assertSee('Buat Invoice & Aktifkan Kembali');
     }
 
     public function test_inactive_company_with_unpaid_invoice_hides_checkout_forms_on_first_paint(): void
@@ -243,8 +243,8 @@ class LoginWebTest extends TestCase
         $this->actingAs($user)
             ->get('/subscription')
             ->assertOk()
-            ->assertSee('Selesaikan invoice reaktivasi dulu')
-            ->assertSee('Form paket dan add-on disembunyikan sementara')
+            ->assertSee('Aktivasi Diperlukan')
+            ->assertSee('Form pemilihan paket disembunyikan sementara sampai tagihan aktif terselesaikan.')
             ->assertDontSee('checkout-upgrade-form', false)
             ->assertDontSee('checkout-addon-form', false);
     }
@@ -301,7 +301,7 @@ class LoginWebTest extends TestCase
 
         $this->assertDatabaseHas('subscriptions', [
             'company_id' => $company->id,
-            'status' => 'inactive',
+            'status' => 'expired',
         ]);
     }
 

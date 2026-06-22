@@ -13,6 +13,7 @@ use App\Models\SubscriptionEvent;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -20,6 +21,25 @@ use Tests\TestCase;
 class ProcessRecurringSubscriptionBillingJobTest extends TestCase
 {
     use RefreshDatabase;
+
+    private int $queryCount = 0;
+
+    private function startQueryTracking(): void
+    {
+        $this->queryCount = 0;
+        DB::listen(function ($query): void {
+            ++$this->queryCount;
+        });
+    }
+
+    private function assertQueryCountLessThan(int $max, string $label = 'dispatch'): void
+    {
+        $this->assertLessThanOrEqual(
+            $max,
+            $this->queryCount,
+            "Query count exceeded limit for {$label}. Expected ≤{$max}, got {$this->queryCount}. Consider adding ->select(...) to queries in this code path."
+        );
+    }
 
     public function test_job_creates_tax_inclusive_renewal_invoice_with_valid_invoice_schema(): void
     {
@@ -77,7 +97,9 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             ],
         ]);
 
+        $this->startQueryTracking();
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        $this->assertQueryCountLessThan(25, 'renewal_invoice_creation');
 
         $invoice = Invoice::query()
             ->where('company_id', $company->id)
@@ -92,6 +114,16 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
         $this->assertStringContainsString('"source":"recurring_subscription_renewal"', (string) $invoice->notes);
         $this->assertNotNull($invoice->renewal_period_key);
         $this->assertSame('RENEWAL_INVOICE_CREATED', $invoice->renewal_reason_code);
+
+        // Guard: data integrity — no stray grace/retry events
+        $this->assertDatabaseMissing('subscription_events', [
+            'subscription_id' => $subscription->id,
+            'event_type' => 'grace_started',
+        ]);
+        $this->assertDatabaseMissing('subscription_events', [
+            'subscription_id' => $subscription->id,
+            'event_type' => 'renewal_retry_attempted',
+        ]);
     }
 
     public function test_job_is_idempotent_per_subscription_and_period(): void
@@ -133,8 +165,10 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             ],
         ]);
 
+        $this->startQueryTracking();
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        $this->assertQueryCountLessThan(40, 'idempotent_double_dispatch');
 
         $invoices = Invoice::query()
             ->where('company_id', $company->id)
@@ -161,7 +195,9 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             'notes' => json_encode(['source' => 'recurring_subscription_renewal'], JSON_UNESCAPED_SLASHES),
         ]);
 
+        $this->startQueryTracking();
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        $this->assertQueryCountLessThan(22, 'retry_attempt');
 
         $payment = Payment::query()->where('invoice_id', $invoice->id)->latest('id')->firstOrFail();
         $this->assertSame(1, (int) ($payment->metadata['attempt_count'] ?? 0));
@@ -198,8 +234,10 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
         ]);
 
         // Simulate two workers picking the same due invoice in a tight window.
+        $this->startQueryTracking();
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        $this->assertQueryCountLessThan(35, 'parallel_worker');
 
         $payment = Payment::query()->where('invoice_id', $invoice->id)->latest('id')->firstOrFail();
         $this->assertSame(1, (int) ($payment->metadata['attempt_count'] ?? 0));
@@ -241,7 +279,9 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             ],
         ]);
 
+        $this->startQueryTracking();
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        $this->assertQueryCountLessThan(27, 'grace_period_moved');
 
         $subscription->refresh();
         $this->assertSame('grace_period', $subscription->status);
@@ -317,7 +357,9 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             ],
         ]);
 
+        $this->startQueryTracking();
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        $this->assertQueryCountLessThan(28, 'failure_spike');
 
         Log::shouldHaveReceived('warning')->withArgs(function (string $message, array $context): bool {
             return $message === 'renewal_monitoring.alert'
@@ -337,7 +379,9 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             'grace_ends_at' => now()->subDay(),
         ])->save();
 
+        $this->startQueryTracking();
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        $this->assertQueryCountLessThan(17, 'grace_expired_escalation');
 
         $subscription->refresh();
         $company->refresh();
@@ -391,7 +435,9 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             'metadata' => ['attempt_count' => 3],
         ]);
 
+        $this->startQueryTracking();
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        $this->assertQueryCountLessThan(29, 'grace_notif');
 
         $subscription->refresh();
         $this->assertSame('grace_period', $subscription->status);
@@ -421,7 +467,9 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             'grace_ends_at' => now()->addDay(),
         ])->save();
 
+        $this->startQueryTracking();
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        $this->assertQueryCountLessThan(10, 'suspension_warning');
 
         Log::shouldHaveReceived('info')->withArgs(function ($message, $context = []): bool {
             return ($context['event_key'] ?? null) === 'billing.subscription.suspension_warning';
@@ -455,7 +503,9 @@ class ProcessRecurringSubscriptionBillingJobTest extends TestCase
             'grace_ends_at' => now()->subDay(),
         ])->save();
 
+        $this->startQueryTracking();
         dispatch_sync(new ProcessRecurringSubscriptionBilling);
+        $this->assertQueryCountLessThan(18, 'grace_expired_notif');
 
         $subscription->refresh();
         $company->refresh();

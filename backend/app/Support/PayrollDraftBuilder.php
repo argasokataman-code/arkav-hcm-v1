@@ -264,7 +264,10 @@ final class PayrollDraftBuilder
             $blockedUserIds = collect(array_merge($resignedUserIds, $terminatedUserIds))->unique()->values()->all();
 
             $users = User::query()
-                ->with('employeeProfile')
+                ->select('id', 'name')
+                ->with(['employeeProfile' => function ($q): void {
+                    $q->select(['id', 'user_id', 'company_id', 'employment_status', 'base_salary', 'fixed_allowance', 'hire_date']);
+                }])
                 ->whereHas('employeeProfile', function ($q) use ($companyId): void {
                     if ($companyId !== null) {
                         $q->where(function ($q2) use ($companyId): void {
@@ -295,7 +298,13 @@ final class PayrollDraftBuilder
                 ->values();
 
             $assignmentQuery = HcmEmployeePayrollItemAssignment::query()
-                ->with(['payrollItem.salaryComponent'])
+                ->select('id', 'user_id', 'hcm_payroll_item_id', 'amount', 'effective_start_date', 'effective_end_date', 'created_at')
+                ->with(['payrollItem' => function ($q): void {
+                    $q->select('id', 'hcm_salary_component_id', 'code', 'name', 'kind', 'category', 'is_active', 'sort_order')
+                        ->with(['salaryComponent' => function ($q): void {
+                            $q->select('id', 'affects_net_pay', 'include_pph21_ter_gross');
+                        }]);
+                }])
                 ->where('is_active', true)
                 ->whereIn('user_id', $users->pluck('id')->all())
                 ->where(function ($q) use ($asOf): void {
@@ -318,6 +327,7 @@ final class PayrollDraftBuilder
                 : [];
 
             $lateOvertimeQuery = OvertimeRequest::query()
+                ->select('id', 'user_id', 'work_date', 'minutes', 'status', 'created_at')
                 ->whereIn('user_id', $users->pluck('id')->all())
                 ->where('status', 'approved')
                 ->whereDate('work_date', '>', $asOf->toDateString())
@@ -342,7 +352,10 @@ final class PayrollDraftBuilder
                 ->all();
 
             $lateAssignmentQuery = HcmEmployeePayrollItemAssignment::query()
-                ->with(['payrollItem'])
+                ->select('id', 'user_id', 'hcm_payroll_item_id', 'amount', 'effective_start_date', 'effective_end_date', 'created_at')
+                ->with(['payrollItem' => function ($q): void {
+                    $q->select('id', 'code');
+                }])
                 ->where('is_active', true)
                 ->whereIn('user_id', $users->pluck('id')->all())
                 ->whereNotNull('effective_start_date')
@@ -500,6 +513,7 @@ final class PayrollDraftBuilder
                 }
 
                 $approvedOvertimeQuery = OvertimeRequest::query()
+                    ->select('id', 'user_id', 'work_date', 'minutes', 'status', 'day_type', 'weekly_work_days', 'created_at')
                     ->where('user_id', $user->id)
                     ->where('status', 'approved')
                     ->whereDate('work_date', '>=', $periodStart->toDateString())
@@ -866,7 +880,7 @@ final class PayrollDraftBuilder
     private static function resolveCarryoverOvertimeForPeriod(HcmPayrollPeriod $period, Carbon $asOf, ?int $companyId): array
     {
         $sourceRunsQuery = HcmPayrollRun::query()
-            ->with('period')
+            ->select('id', 'meta')
             ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
             ->where('status', HcmPayrollRun::STATUS_FINALIZED)
             ->where('hcm_payroll_period_id', '!=', $period->id)
@@ -918,6 +932,7 @@ final class PayrollDraftBuilder
         }
 
         $carryoverRequests = OvertimeRequest::query()
+            ->select('id', 'user_id', 'work_date', 'minutes', 'status', 'day_type', 'weekly_work_days', 'created_at')
             ->whereIn('id', $carryoverRequestIds)
             ->where('status', 'approved')
             ->whereDate('work_date', '<=', $asOf->toDateString())

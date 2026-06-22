@@ -34,7 +34,11 @@ class SendPaymentReminder implements ShouldQueue
 
         // Find invoices due soon (within 7 days) or overdue
         $invoices = Invoice::query()
-            ->with('company.owner')
+            ->select(['id', 'company_id', 'uuid', 'invoice_number', 'due_date', 'is_paid', 'amount_due', 'status', 'subscription_id', 'notes'])
+            ->with([
+                'company' => fn ($q) => $q->select(['id', 'uuid', 'name', 'owner_user_id']),
+                'company.owner' => fn ($q) => $q->select(['id', 'email', 'name']),
+            ])
             ->where('is_paid', false)
             ->where(function ($query) {
                 $query->whereBetween('due_date', [now(), now()->addDays(7)])

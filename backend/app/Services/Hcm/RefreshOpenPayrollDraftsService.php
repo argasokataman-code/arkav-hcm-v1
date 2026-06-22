@@ -22,6 +22,7 @@ class RefreshOpenPayrollDraftsService
         $skippedAfterCutoffPeriodIds = [];
 
         $periods = HcmPayrollPeriod::query()
+            ->select(['id', 'company_id', 'period_year', 'period_month', 'status'])
             ->where('status', HcmPayrollPeriod::STATUS_OPEN)
             ->orderBy('company_id')
             ->orderBy('period_year')

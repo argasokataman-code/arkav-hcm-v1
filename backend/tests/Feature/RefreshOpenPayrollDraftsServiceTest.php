@@ -9,6 +9,7 @@ use App\Models\HcmPayrollRun;
 use App\Services\Hcm\RefreshOpenPayrollDraftsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
 
@@ -16,6 +17,25 @@ use Tests\TestCase;
 class RefreshOpenPayrollDraftsServiceTest extends TestCase
 {
     use RefreshDatabase;
+
+    private int $queryCount = 0;
+
+    private function startQueryTracking(): void
+    {
+        $this->queryCount = 0;
+        DB::listen(function ($query): void {
+            ++$this->queryCount;
+        });
+    }
+
+    private function assertQueryCountLessThan(int $max, string $label = 'dispatch'): void
+    {
+        $this->assertLessThanOrEqual(
+            $max,
+            $this->queryCount,
+            "Query count exceeded limit for {$label}. Expected ≤{$max}, got {$this->queryCount}. Consider adding ->select(...) to queries in this code path."
+        );
+    }
 
     public function test_refresh_rebuilds_open_periods_for_multiple_tenants_before_cutoff(): void
     {
@@ -68,9 +88,11 @@ class RefreshOpenPayrollDraftsServiceTest extends TestCase
             'status' => HcmPayrollPeriod::STATUS_OPEN,
         ]);
 
+        $this->startQueryTracking();
         $result = app(RefreshOpenPayrollDraftsService::class)->refresh(
             CarbonImmutable::parse('2026-03-24 00:00:00', 'Asia/Jakarta')
         );
+        $this->assertQueryCountLessThan(100, 'refresh_two_tenants_before_cutoff');
 
         $this->assertSame([$periodA->id, $periodB->id], $result['refreshedPeriodIds']);
         $this->assertCount(2, HcmPayrollRun::query()->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)->get());
@@ -109,9 +131,11 @@ class RefreshOpenPayrollDraftsServiceTest extends TestCase
             'status' => HcmPayrollPeriod::STATUS_OPEN,
         ]);
 
+        $this->startQueryTracking();
         $result = app(RefreshOpenPayrollDraftsService::class)->refresh(
             CarbonImmutable::parse('2026-03-26 00:00:00', 'Asia/Jakarta')
         );
+        $this->assertQueryCountLessThan(50, 'refresh_after_cutoff_skip');
 
         $this->assertSame([$period->id], $result['skippedAfterCutoffPeriodIds']);
         $this->assertCount(0, HcmPayrollRun::query()->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)->get());
@@ -145,9 +169,11 @@ class RefreshOpenPayrollDraftsServiceTest extends TestCase
             'finalized_at' => now(),
         ]);
 
+        $this->startQueryTracking();
         $result = app(RefreshOpenPayrollDraftsService::class)->refresh(
             CarbonImmutable::parse('2026-03-20 00:00:00', 'Asia/Jakarta')
         );
+        $this->assertQueryCountLessThan(50, 'refresh_finalized_skip');
 
         $this->assertSame([$period->id], $result['skippedFinalizedPeriodIds']);
     }

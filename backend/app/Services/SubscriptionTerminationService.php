@@ -165,6 +165,7 @@ class SubscriptionTerminationService
         $date = $as ?? now();
 
         return Subscription::query()
+            ->select(['id', 'company_id', 'uuid', 'status', 'ends_at', 'auto_renew', 'billing_cycle', 'amount', 'package_uuid', 'plan_code', 'metadata', 'starts_at', 'created_at', 'company_uuid'])
             ->where(function ($q) use ($date): void {
                 $q->where(function ($q2) use ($date): void {
                     $q2->whereIn('status', ['active', 'trial'])
@@ -186,18 +187,28 @@ class SubscriptionTerminationService
     public function getSubscriptionsWithOverdueInvoices(int $graceDays = 1): array
     {
         $invoices = Invoice::query()
+            ->select(['id', 'company_id', 'uuid', 'invoice_number', 'amount_due', 'due_date', 'is_paid', 'status', 'subscription_id'])
             ->where('is_paid', false)
             ->whereNotNull('due_date')
             ->where('due_date', '<', now()->subDays($graceDays))
             ->get();
 
+        $companyIds = $invoices->pluck('company_id')->unique()->filter()->values()->all();
+        if ($companyIds === []) {
+            return [];
+        }
+
+        $subscriptions = Subscription::query()
+            ->select(['id', 'company_id', 'uuid', 'status', 'ends_at', 'auto_renew', 'billing_cycle', 'amount', 'package_uuid', 'plan_code', 'metadata', 'starts_at', 'created_at', 'company_uuid'])
+            ->whereIn('company_id', $companyIds)
+            ->whereIn('status', ['active', 'trial'])
+            ->get()
+            ->keyBy('company_id');
+
         $result = [];
 
         foreach ($invoices as $invoice) {
-            $subscription = Subscription::query()
-                ->where('company_id', $invoice->company_id)
-                ->whereIn('status', ['active', 'trial'])
-                ->first();
+            $subscription = $subscriptions->get($invoice->company_id);
 
             if ($subscription) {
                 $result[] = [$subscription, $invoice];
@@ -217,7 +228,11 @@ class SubscriptionTerminationService
 
         // Get active subscriptions with employee limits
         $subscriptions = Subscription::query()
-            ->with('package.features')
+            ->select(['id', 'company_id', 'uuid', 'status', 'package_uuid', 'plan_code', 'auto_renew', 'ends_at', 'billing_cycle', 'amount', 'starts_at', 'created_at', 'metadata', 'company_uuid'])
+            ->with([
+                'package' => fn ($q) => $q->select(['uuid', 'name', 'monthly_price', 'yearly_price']),
+                'package.features' => fn ($q) => $q->select(['package_uuid', 'feature_code', 'limit']),
+            ])
             ->whereIn('status', ['active', 'trial', 'suspended'])
             ->get();
 

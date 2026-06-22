@@ -73,7 +73,12 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
     {
         $subscriptions = Subscription::where('status', 'active')
             ->whereDate('ends_at', $expiringDate->toDateString())
-            ->with(['company'])
+            ->select(['id', 'ends_at', 'company_id', 'package_uuid', 'uuid', 'auto_renew', 'metadata', 'starts_at', 'created_at', 'billing_cycle', 'amount', 'plan_code', 'status'])
+            ->with([
+                'company' => fn ($q) => $q->select(['id', 'owner_user_id', 'uuid', 'name', 'status', 'code', 'timezone', 'currency', 'legal_name']),
+                'company.owner',
+                'package' => fn ($q) => $q->select(['uuid', 'name', 'monthly_price', 'yearly_price']),
+            ])
             ->get();
 
         Log::info('Found subscriptions expiring in 7 days', ['count' => $subscriptions->count()]);
@@ -104,7 +109,11 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
     {
         $subscriptions = Subscription::where('status', 'active')
             ->whereDate('ends_at', $today->toDateString())
-            ->with(['company', 'package'])
+            ->select(['id', 'auto_renew', 'company_id', 'package_uuid', 'uuid', 'metadata', 'starts_at', 'created_at', 'billing_cycle', 'amount', 'plan_code', 'status', 'ends_at'])
+            ->with([
+                'company' => fn ($q) => $q->select(['id', 'owner_user_id', 'uuid', 'name', 'status', 'code', 'timezone', 'currency', 'legal_name']),
+                'package' => fn ($q) => $q->select(['uuid', 'name', 'monthly_price', 'yearly_price']),
+            ])
             ->get();
 
         Log::info('Found subscriptions expiring today', ['count' => $subscriptions->count()]);
@@ -140,6 +149,7 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
 
         // Find due renewal invoices created by this recurring renewal job.
         $invoices = Invoice::query()
+            ->select(['id', 'company_id', 'subscription_id', 'uuid', 'invoice_number', 'amount_due', 'due_date', 'is_paid', 'status', 'renewal_period_key', 'renewal_reason_code', 'renewal_reason_message', 'notes', 'purchase_transaction_id', 'billing_tax_rate_snapshot'])
             ->where('is_paid', false)
             ->whereIn('status', ['draft', 'issued', 'sent'])
             ->whereDate('due_date', '<=', $today->toDateString())
@@ -152,7 +162,11 @@ class ProcessRecurringSubscriptionBilling implements ShouldQueue
                 $query->whereNotNull('renewal_period_key')
                     ->orWhere('notes', 'like', '%"source":"recurring_subscription_renewal"%');
             })
-            ->with(['subscription.company', 'subscription.package', 'company'])
+            ->with([
+                'subscription' => fn ($q) => $q->select(['id', 'company_id', 'package_uuid', 'uuid', 'status', 'auto_renew', 'billing_cycle', 'ends_at', 'starts_at', 'created_at', 'amount', 'metadata', 'plan_code', 'company_uuid']),
+                'subscription.company' => fn ($q) => $q->select(['id', 'owner_user_id', 'uuid', 'name', 'status', 'code', 'timezone', 'currency', 'legal_name']),
+                'subscription.package' => fn ($q) => $q->select(['uuid', 'name', 'monthly_price', 'yearly_price']),
+            ])
             ->get();
 
         Log::info('Found renewal invoices to process', ['count' => $invoices->count()]);

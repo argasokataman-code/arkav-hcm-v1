@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Jobs\ProcessRecurringSubscriptionBilling;
+use App\Jobs\SubscriptionRenewalNotifier;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -10,7 +10,7 @@ class ProcessSubscriptionBilling extends Command
 {
     protected $signature = 'billing:process-renewals';
 
-    protected $description = 'Process subscription renewals and attempt payment collection';
+    protected $description = 'Send renewal notifications and create renewal invoices';
 
     public function handle(): int
     {
@@ -18,13 +18,13 @@ class ProcessSubscriptionBilling extends Command
         $this->line('Processing subscription renewals...');
 
         try {
-            ProcessRecurringSubscriptionBilling::dispatch();
-            $this->info('✓ Subscription billing job dispatched successfully');
+            SubscriptionRenewalNotifier::dispatch();
+            $this->info('✓ Renewal notifier dispatched successfully');
             Log::info('Subscription billing job dispatched');
 
             return 0;
         } catch (\Exception $e) {
-            $this->error('✗ Failed to dispatch subscription billing job: '.$e->getMessage());
+            $this->error('''✗ Failed to dispatch renewal notifier: .$e->getMessage());
             Log::error('Failed to dispatch subscription billing job', ['error' => $e->getMessage()]);
 
             return 1;

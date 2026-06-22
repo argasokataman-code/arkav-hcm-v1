@@ -250,7 +250,7 @@ Dear {$billingContact->name},
 
 Your subscription to {$packageName} will expire in 7 days (on {$expiryDate}).
 
-To avoid any service interruption, please ensure your payment method is up to date. Your subscription will automatically renew if auto-renewal is enabled.
+To avoid any service interruption, please ensure your payment method is up to date. Your subscription will automatically renew if auto-invoice is enabled.
 
 If you have any questions or wish to upgrade/downgrade your plan, please contact our sales team.
 

@@ -754,7 +754,7 @@
                     <th>Status</th>
                     <th>Start Date</th>
                     <th>End Date</th>
-                    <th>Auto Renew</th>
+                    <th>Perpanjangan</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -811,7 +811,7 @@
                         <td>${formatDate(endDate)}</td>
                         <td>
                           <span class="badge ${sub.autoRenew ? "badge-success" : "badge-warning"} d-inline-flex align-items-center badge-xs">
-                            <i class="ti ti-point-filled me-1"></i>${sub.autoRenew ? "Yes" : "No"}
+                            <i class="ti ti-point-filled me-1"></i>${sub.autoRenew ? "Ya" : "Tidak"}
                           </span>
                         </td>
                         <td>
@@ -1181,7 +1181,7 @@
             "Status: " + (sub.status || "-") + "\n" +
             "Start Date: " + formatDate(sub.startDate || sub.startsAt) + "\n" +
             "End Date: " + formatDate(sub.endDate || sub.endsAt) + "\n" +
-            "Auto Renew: " + (sub.autoRenew ? "Yes" : "No") + "\n" +
+            "Perpanjangan: " + (sub.autoRenew ? "Ya" : "Tidak") + "\n" +
             "Billing Cycle: " + (sub.billingCycle || "-") + "\n" +
             "Amount: " + formatCurrency(sub.amount || 0) +
             trialLine;

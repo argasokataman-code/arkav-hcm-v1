@@ -17,6 +17,21 @@ Route::prefix('v1/hcm/data-privacy')->middleware(['api.token', 'tenant.context']
     Route::delete('/me/ai-consent', [HcmDataPrivacyAiController::class, 'withdrawAiConsent']);
     Route::get('/me/ai-consent-status', [HcmDataPrivacyAiController::class, 'checkAiConsentStatus']);
 
+    // M8: Session re-verification for sensitive operations (UU PDP Pasal 35)
+    Route::post('/me/session-check', [HcmDataPrivacyController::class, 'sessionCheck']);
+
+    // M6: Photo consent — profile photo = biometric data (UU PDP Pasal 4 ayat 2)
+    Route::post('/me/photo-consent', [HcmDataPrivacyController::class, 'grantPhotoConsent']);
+    Route::delete('/me/photo-consent', [HcmDataPrivacyController::class, 'withdrawPhotoConsent']);
+
+    // H7: Cookie consent preferences (UU PDP Pasal 20a — persetujuan pengumpulan data)
+    Route::post('/me/cookie-consent', [HcmDataPrivacyController::class, 'saveCookieConsent']);
+    Route::get('/me/cookie-consent', [HcmDataPrivacyController::class, 'getCookieConsent']);
+
+    // L2: "Data Saya" Portal (UU PDP Pasal 8 + 13 — hak akses & portabilitas)
+    Route::get('/me/my-data', [HcmDataPrivacyController::class, 'myData']);
+    Route::get('/me/my-data/export', [HcmDataPrivacyController::class, 'exportMyData']);
+
     // Employee: request own data erasure (Pasal 43-44 UU PDP)
     Route::post('/me/erasure-requests', [HcmDataPrivacyController::class, 'requestErasure']);
     Route::get('/me/erasure-requests', [HcmDataPrivacyController::class, 'listMyErasureRequests']);

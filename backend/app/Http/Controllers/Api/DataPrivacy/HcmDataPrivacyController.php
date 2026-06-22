@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessApprovedErasure;
 use App\Mail\ConsentWithdrawalConfirmationMail;
+use App\Models\CookieConsent;
 use App\Models\EmployeeAiConsent;
 use App\Models\EmployeeBiometricConsent;
 use App\Models\EmployeeProfile;
@@ -344,6 +345,136 @@ class HcmDataPrivacyController extends Controller
         ]);
     }
 
+    // -------------------------------------------------------------------------
+    // M8: Session re-verification for sensitive operations
+    // -------------------------------------------------------------------------
+
+    public function sessionCheck(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->errorResponse('UNAUTHENTICATED', 'Authentication required.', 401);
+        }
+
+        $validated = $request->validate([
+            'password' => ['required', 'string'],
+        ]);
+
+        if (! \Illuminate\Support\Facades\Hash::check($validated['password'], $user->password)) {
+            return $this->errorResponse('INVALID_CREDENTIALS', 'Password tidak sesuai.', 422);
+        }
+
+        $user->forceFill(['last_sensitive_verified_at' => now()])->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'verified' => true,
+                'verifiedAt' => $user->last_sensitive_verified_at->toIso8601String(),
+            ],
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // L2: "Data Saya" Portal (UU PDP Pasal 8 + 13 — hak akses & portabilitas)
+    // -------------------------------------------------------------------------
+
+    public function myData(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->errorResponse('UNAUTHENTICATED', 'Authentication required.', 401);
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        $profile = EmployeeProfile::query()
+            ->where('user_id', $user->id)
+            ->where('company_id', $companyId)
+            ->first();
+
+        $biometricConsent = null;
+        if ($profile) {
+            $biometricConsent = EmployeeBiometricConsent::query()
+                ->where('employee_uuid', (string) $profile->uuid)
+                ->where('company_id', $companyId)
+                ->first();
+        }
+
+        $aiConsent = null;
+        if ($profile) {
+            $aiConsent = EmployeeAiConsent::getActiveForEmployee((string) $profile->uuid);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'identity' => [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'uuid' => (string) $user->uuid,
+                    'emailVerifiedAt' => $user->email_verified_at?->toIso8601String(),
+                    'createdAt' => $user->created_at?->toIso8601String(),
+                ],
+                'profile' => $profile ? [
+                    'uuid' => (string) $profile->uuid,
+                    'nik' => $profile->nik,
+                    'phone' => $profile->phone,
+                    'address' => $profile->address,
+                    'place_of_birth' => $profile->place_of_birth,
+                    'date_of_birth' => $profile->date_of_birth,
+                    'gender' => $profile->gender,
+                    'marital_status' => $profile->marital_status,
+                    'religion' => $profile->religion,
+                    'nationality' => $profile->nationality,
+                    'bank_name' => $profile->bank_name,
+                    'bank_account_no' => $profile->bank_account_no,
+                    'base_salary' => $profile->base_salary,
+                    'fixed_allowance' => $profile->fixed_allowance,
+                    'hire_date' => $profile->hire_date,
+                ] : null,
+                'consent' => [
+                    'biometric' => $biometricConsent ? [
+                        'selfieConsent' => $biometricConsent->selfie_consent,
+                        'gpsConsent' => $biometricConsent->gps_consent,
+                        'photoConsent' => $biometricConsent->photo_consent,
+                        'consentGivenAt' => $biometricConsent->consent_given_at?->toIso8601String(),
+                    ] : null,
+                    'ai_chat' => $aiConsent ? [
+                        'hasConsent' => true,
+                        'consentGivenAt' => $aiConsent->consent_given_at?->toIso8601String(),
+                    ] : null,
+                ],
+            ],
+        ]);
+    }
+
+    public function exportMyData(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->errorResponse('UNAUTHENTICATED', 'Authentication required.', 401);
+        }
+
+        $companyId = $this->activeCompanyId($request);
+
+        // Re-use myData logic
+        $myDataResponse = $this->myData($request);
+        $myData = json_decode($myDataResponse->getContent(), true);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'format' => 'json',
+                'exportedAt' => now()->toIso8601String(),
+                'payload' => $myData['data'] ?? null,
+            ],
+        ]);
+    }
+
     /**
      * GET: /v1/hcm/data-privacy/me/biometric-consent-status
      * Return current employee biometric consent status for the active company.
@@ -380,10 +511,154 @@ class HcmDataPrivacyController extends Controller
                 'biometric' => $consent ? [
                     'selfieConsent' => $consent->selfie_consent,
                     'gpsConsent' => $consent->gps_consent,
+                    'photoConsent' => $consent->photo_consent,
                     'consentGivenAt' => $consent->consent_given_at,
                     'consentWithdrawnAt' => $consent->consent_withdrawn_at,
                 ] : null,
             ],
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // M6: Photo consent (profile photo = biometric data, UU PDP Pasal 4 ayat 2)
+    // -------------------------------------------------------------------------
+
+    public function grantPhotoConsent(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->errorResponse('UNAUTHENTICATED', 'Authentication required.', 401);
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        $profile = EmployeeProfile::query()
+            ->where('user_id', $user->id)
+            ->where('company_id', $companyId)
+            ->firstOrFail();
+
+        $consent = EmployeeBiometricConsent::query()->updateOrCreate(
+            [
+                'employee_uuid' => (string) $profile->uuid,
+                'company_id' => $companyId,
+            ],
+            [
+                'photo_consent' => true,
+                'consent_given_at' => now(),
+                'consent_ip' => $request->ip(),
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'photoConsent' => $consent->photo_consent,
+                'consentGivenAt' => $consent->consent_given_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function withdrawPhotoConsent(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->errorResponse('UNAUTHENTICATED', 'Authentication required.', 401);
+        }
+
+        $companyId = $this->activeCompanyId($request);
+        if (! $companyId) {
+            return $this->errorResponse('TENANT_CONTEXT_REQUIRED', 'Active company context is required.', 422);
+        }
+
+        $profile = EmployeeProfile::query()
+            ->where('user_id', $user->id)
+            ->where('company_id', $companyId)
+            ->firstOrFail();
+
+        EmployeeBiometricConsent::query()
+            ->where('employee_uuid', (string) $profile->uuid)
+            ->where('company_id', $companyId)
+            ->update([
+                'photo_consent' => false,
+                'consent_withdrawn_at' => now(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['withdrawn' => true],
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // H7: Cookie consent management
+    // -------------------------------------------------------------------------
+
+    public function saveCookieConsent(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->errorResponse('UNAUTHENTICATED', 'Authentication required.', 401);
+        }
+
+        $companyId = $this->activeCompanyId($request);
+
+        $validated = $request->validate([
+            'essential' => ['nullable', 'boolean'],
+            'analytics' => ['nullable', 'boolean'],
+            'marketing' => ['nullable', 'boolean'],
+        ]);
+
+        // Essential cookies are always required (cannot be rejected)
+        $consent = CookieConsent::query()->updateOrCreate(
+            [
+                'user_uuid' => (string) $user->uuid,
+                'company_id' => $companyId,
+            ],
+            [
+                'essential' => true, // forced
+                'analytics' => (bool) ($validated['analytics'] ?? false),
+                'marketing' => (bool) ($validated['marketing'] ?? false),
+                'consent_ip' => $request->ip(),
+                'consented_at' => now(),
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'essential' => $consent->essential,
+                'analytics' => $consent->analytics,
+                'marketing' => $consent->marketing,
+                'consentedAt' => $consent->consented_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function getCookieConsent(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->errorResponse('UNAUTHENTICATED', 'Authentication required.', 401);
+        }
+
+        $companyId = $this->activeCompanyId($request);
+
+        $consent = CookieConsent::query()
+            ->where('user_uuid', (string) $user->uuid)
+            ->where('company_id', $companyId)
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => $consent ? [
+                'essential' => $consent->essential,
+                'analytics' => $consent->analytics,
+                'marketing' => $consent->marketing,
+                'consentedAt' => $consent->consented_at?->toIso8601String(),
+            ] : null,
         ]);
     }
 }

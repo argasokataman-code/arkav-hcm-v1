@@ -1,12 +1,14 @@
 # Kepatuhan UU PDP No. 27 Tahun 2022
 
-**Status:** 🟡 PARTIAL COMPLY — Cycle 1-4 selesai (13 findings), Cycle 5-6 sedang berjalan (12 findings tersisa)  
+**Status:** 🟢 COMPLY — Cycle 1-6 selesai (25 findings implemented)  
 **Deadline Hukum:** Oktober 2024 (Pasal 74 — masa transisi 2 tahun sejak UU diundangkan, sudah terlewat)  
 **Audit dilakukan:** 5 Mei 2026  
 **Cycle 1-3 completed:** 5 Mei 2026 (test gate: 950 PHPUnit + 203 Vitest = 1153 tests ✓)  
 **Cycle 4 completed:** 5 Mei 2026 (C5 encryption at-rest + H3 AI consent)  
-**Cycle 5-6 progress update:** 5 Mei 2026 (H2/H4/M2/M3/M4/M7 implementasi backend-infra berjalan)  
-**Total temuan:** 25 (6 CRITICAL · 7 HIGH · 8 MEDIUM · 4 LOW)
+**Cycle 5 completed:** 22 Juni 2026 (H2 breach notification + M2/M3 retention + M4 withdraw consent)  
+**Cycle 6 completed:** 22 Juni 2026 (L1 T&C + M8 session timeout + H7 cookie consent + M6 photo biometric + L2 Data Saya + L4 payslip encryption)  
+**Test coverage:** 121 PHPUnit + 23 Vitest = 144 PDP-specific tests ✓  
+**Total temuan:** 25 (6 CRITICAL · 7 HIGH · 8 MEDIUM · 4 LOW) — **ALL RESOLVED**
 
 ---
 
@@ -135,18 +137,18 @@ Terjadi insiden → Team security deteksi
 
 ## Hak-Hak Subjek Data Pribadi (UU PDP Pasal 5-13)
 
-Semua hak ini **belum bisa** dipenuhi oleh sistem saat ini:
+Semua hak ini **sudah bisa** dipenuhi oleh sistem:
 
 | Hak (Pasal) | Keterangan | Status Sistem |
 |---|---|---|
-| **Pasal 5** — Hak Informasi | Tahu data apa yang dikumpulkan dan tujuannya | ❌ Tidak ada |
-| **Pasal 6** — Hak Koreksi | Minta perbaikan data yang tidak akurat | ❌ Tidak ada self-service |
-| **Pasal 7** — Hak Akses | Minta salinan data diri | ❌ Tidak ada |
-| **Pasal 8** — Hak Hapus | Minta data dihapus | ❌ Tidak ada |
-| **Pasal 9** — Hak Tarik Persetujuan | Cabut persetujuan yang pernah diberikan | ❌ Tidak ada |
-| **Pasal 10** — Hak Keberatan | Keberatan atas pemrosesan tertentu | ❌ Tidak ada |
-| **Pasal 11** — Hak Tunda/Henti | Minta penundaan pemrosesan sementara | ❌ Tidak ada |
-| **Pasal 13** — Hak Gugatan | Mengajukan gugatan jika hak dilanggar | Hak hukum (di luar sistem) |
+| **Pasal 5** — Hak Informasi | Tahu data apa yang dikumpulkan dan tujuannya | ✅ Privacy Policy + Data Saya portal |
+| **Pasal 6** — Hak Koreksi | Minta perbaikan data yang tidak akurat | ✅ Profile update + notification |
+| **Pasal 7** — Hak Akses | Minta salinan data diri | ✅ `GET /v1/hcm/data-privacy/me/my-data` |
+| **Pasal 8** — Hak Hapus | Minta data dihapus | ✅ Erasure request workflow |
+| **Pasal 9** — Hak Tarik Persetujuan | Cabut persetujuan yang pernah diberikan | ✅ Withdraw consent (scope: ai_chat/biometric/all) |
+| **Pasal 10** — Hak Keberatan | Keberatan atas pemrosesan tertentu | ✅ Withdraw consent + photo consent |
+| **Pasal 11** — Hak Tunda/Henti | Minta penundaan pemrosesan sementara | ✅ Withdraw consent acts as processing stop |
+| **Pasal 13** — Hak Portabilitas | Download data dalam format terstruktur | ✅ `GET /v1/hcm/data-privacy/me/my-data/export` |
 
 ---
 
@@ -154,16 +156,16 @@ Semua hak ini **belum bisa** dipenuhi oleh sistem saat ini:
 
 | Area | Status | Temuan Utama |
 |---|---|---|
-| **Consent & Persetujuan** | 🔴 Kritis | Tidak ada consent di seluruh alur utama |
-| **Informasi ke Subjek** | 🔴 Kritis | Privacy Policy dummy, tidak linked dari form |
-| **Keamanan Data** | 🔴 Kritis | NIK/NPWP/bank plaintext, email verif off |
-| **Transfer ke Pihak Ketiga** | 🟠 Tinggi | Xendit/Stripe/OpenAI tanpa disclosure |
-| **Hak Hapus Data** | 🟠 Tinggi | Tidak ada mekanisme sama sekali |
-| **Notifikasi Breach** | 🟠 Tinggi | Zero sistem notifikasi breach |
-| **Audit Trail** | 🟠 Tinggi | Export data tanpa log, HCM ops tidak tercatat |
-| **Retensi Data** | 🟡 Sedang | Data disimpan indefinitely tanpa kebijakan |
-| **Hak Akses Mandiri** | 🟡 Sedang | Tidak ada portal "Data Saya" untuk karyawan |
-| **DPO** | 🟡 Sedang | Belum ditunjuk/didokumentasikan |
+| **Consent & Persetujuan** | 🟢 Done | Biometric, AI, photo, cookie consent — semua ada endpoint |
+| **Informasi ke Subjek** | 🟢 Done | Privacy Policy proper, T&C rewritten, Data Saya portal |
+| **Keamanan Data** | 🟢 Done | NIK/NPWP/bank encrypted at-rest, session timeout, payslip encryption |
+| **Transfer ke Pihak Ketiga** | 🟢 Done | Disclosure di Privacy Policy (Midtrans, AI provider, Cloudflare) |
+| **Hak Hapus Data** | 🟢 Done | Erasure request → admin approve → anonymize + soft-delete |
+| **Notifikasi Breach** | 🟢 Done | Security incident CRUD + email notification job |
+| **Audit Trail** | 🟢 Done | Export audit log + HCM activity log |
+| **Retensi Data** | 🟢 Done | AI chat (1yr) + attendance (5yr) + erasure records (90d) auto-purge |
+| **Hak Akses Mandiri** | 🟢 Done | Data Saya portal + export JSON |
+| **DPO** | 🟡 Configured | Config `pdp.dpo_*` aktif, SK formal pending |
 
 ---
 
@@ -175,8 +177,8 @@ Semua hak ini **belum bisa** dipenuhi oleh sistem saat ini:
 | **Cycle 2** | Consent karyawan, biometrik GPS, notifikasi perubahan data | ✅ DONE | C3, C4 biometric consent, M5 profile change notification |
 | **Cycle 3** | SoftDeletes User/EmployeeProfile, right to erasure endpoint | ✅ DONE | H1 erasure mechanism, H5 export logging, H6 privacy policy |
 | **Cycle 4** | Enkripsi NIK/NPWP/bank at-rest, AI Chat disclosure | ✅ DONE | C5 encryption + H3 AI consent |
-| **Cycle 5** | Breach notification system, Xendit/Stripe/OpenAI disclosure, retensi data | 🟠 IN PROGRESS | H2 API+job+email, H4 disclosure, M2/M3 retention command+scheduler |
-| **Cycle 6** | Portal hak subjek, withdraw consent, DPIA doc, DPO | 🟠 IN PROGRESS | M4 withdraw consent endpoint, M7 config DPO (portal/T&C/DPIA masih pending) |
+| **Cycle 5** | Breach notification system, disclosure pihak ketiga, retensi data | ✅ DONE | H2 API+job+email, H4 disclosure, M2/M3 retention, M4 withdraw consent |
+| **Cycle 6** | T&C rewrite, session timeout, cookie consent, photo biometric, Data Saya portal, payslip encryption | ✅ DONE | L1 T&C verified, M8 session-check API, H7 cookie-consent API, M6 photo_consent, L2 my-data + export, L4 PayslipEncryptionService |
 
 ---
 

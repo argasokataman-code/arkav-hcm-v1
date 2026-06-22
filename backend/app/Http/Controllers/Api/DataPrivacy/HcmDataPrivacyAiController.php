@@ -7,24 +7,31 @@ use App\Models\EmployeeAiConsent;
 use App\Models\EmployeeProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class HcmDataPrivacyAiController extends Controller
 {
+    private function errorResponse(string $code, string $message, int $status): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => [
+                'code' => $code,
+                'message' => $message,
+            ],
+        ], $status);
+    }
+
     /**
      * Grant AI Chat consent.
-     * POST /v1/hcm/me/ai-consent
+     * POST /v1/hcm/data-privacy/me/ai-consent
      *
      * UU PDP H3: Employees must explicitly consent before AI Chat data is sent to external service.
      */
     public function grantAiConsent(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
         if (! $user) {
-            return response()->json([
-                'success' => false,
-                'error' => 'UNAUTHORIZED',
-            ], 401);
+            return $this->errorResponse('UNAUTHENTICATED', 'Authentication required.', 401);
         }
 
         $employee = EmployeeProfile::query()
@@ -32,10 +39,7 @@ class HcmDataPrivacyAiController extends Controller
             ->first();
 
         if (! $employee) {
-            return response()->json([
-                'success' => false,
-                'error' => 'EMPLOYEE_PROFILE_NOT_FOUND',
-            ], 404);
+            return $this->errorResponse('EMPLOYEE_PROFILE_NOT_FOUND', 'Employee profile not found.', 404);
         }
 
         // Check if already consented
@@ -74,12 +78,9 @@ class HcmDataPrivacyAiController extends Controller
      */
     public function withdrawAiConsent(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
         if (! $user) {
-            return response()->json([
-                'success' => false,
-                'error' => 'UNAUTHORIZED',
-            ], 401);
+            return $this->errorResponse('UNAUTHENTICATED', 'Authentication required.', 401);
         }
 
         $employee = EmployeeProfile::query()
@@ -87,18 +88,12 @@ class HcmDataPrivacyAiController extends Controller
             ->first();
 
         if (! $employee) {
-            return response()->json([
-                'success' => false,
-                'error' => 'EMPLOYEE_PROFILE_NOT_FOUND',
-            ], 404);
+            return $this->errorResponse('EMPLOYEE_PROFILE_NOT_FOUND', 'Employee profile not found.', 404);
         }
 
         $consent = EmployeeAiConsent::getActiveForEmployee($employee->uuid);
         if (! $consent) {
-            return response()->json([
-                'success' => false,
-                'error' => 'NO_ACTIVE_CONSENT',
-            ], 404);
+            return $this->errorResponse('NO_ACTIVE_CONSENT', 'No active AI consent found.', 404);
         }
 
         // Withdraw consent
@@ -119,12 +114,9 @@ class HcmDataPrivacyAiController extends Controller
      */
     public function checkAiConsentStatus(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
         if (! $user) {
-            return response()->json([
-                'success' => false,
-                'error' => 'UNAUTHORIZED',
-            ], 401);
+            return $this->errorResponse('UNAUTHENTICATED', 'Authentication required.', 401);
         }
 
         $employee = EmployeeProfile::query()
@@ -132,10 +124,7 @@ class HcmDataPrivacyAiController extends Controller
             ->first();
 
         if (! $employee) {
-            return response()->json([
-                'success' => false,
-                'error' => 'EMPLOYEE_PROFILE_NOT_FOUND',
-            ], 404);
+            return $this->errorResponse('EMPLOYEE_PROFILE_NOT_FOUND', 'Employee profile not found.', 404);
         }
 
         $consent = EmployeeAiConsent::getActiveForEmployee($employee->uuid);

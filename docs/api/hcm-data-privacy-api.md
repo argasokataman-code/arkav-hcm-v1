@@ -112,3 +112,81 @@ Queue job pengiriman notifikasi breach ke subjek terdampak.
 ### POST `/v1/admin/security-incidents/{uuid}/resolve`
 
 Menandai incident menjadi `resolved`.
+
+## Photo Consent Endpoints (Cycle 6 — M6)
+
+### POST `/v1/hcm/data-privacy/me/photo-consent`
+
+Memberikan persetujuan untuk penyimpanan foto profil sebagai data biometrik (Pasal 4 ayat 2 UU PDP).
+
+Response:
+- `photoConsent` (boolean)
+- `consentGivenAt` (datetime)
+
+### DELETE `/v1/hcm/data-privacy/me/photo-consent`
+
+Mencabut persetujuan foto profil.
+
+Response:
+- `withdrawn` (boolean)
+
+## Cookie Consent Endpoints (Cycle 6 — H7)
+
+### POST `/v1/hcm/data-privacy/me/cookie-consent`
+
+Menyimpan preferensi cookie user.
+
+Request body:
+- `essential` (boolean, optional) — default true, forced
+- `analytics` (boolean, optional)
+- `marketing` (boolean, optional)
+
+Response:
+- `essential` (boolean)
+- `analytics` (boolean)
+- `marketing` (boolean)
+- `consentedAt` (datetime)
+
+### GET `/v1/hcm/data-privacy/me/cookie-consent`
+
+Mengambil preferensi cookie user.
+
+Response:
+- `data` (null jika belum ada preferensi)
+
+## Session Re-verification (Cycle 6 — M8)
+
+### POST `/v1/hcm/data-privacy/me/session-check`
+
+Re-authentication untuk operasi sensitif (Pasal 35 UU PDP). Membutuhkan password.
+
+Request body:
+- `password` (string, required)
+
+Response success:
+- `verified` (true)
+- `verifiedAt` (datetime)
+
+Error:
+- 401 jika tidak terautentikasi
+- 422 jika password salah (`INVALID_CREDENTIALS`)
+
+## Data Saya Portal (Cycle 6 — L2)
+
+### GET `/v1/hcm/data-privacy/me/my-data`
+
+Menampilkan seluruh data pribadi user (Pasal 8 — Hak Akses).
+
+Response data sections:
+- `identity` — nama, email, uuid, created_at
+- `profile` — NIK, phone, address, bank, salary (nullable jika belum ada profil)
+- `consent` — biometric consent status, AI chat consent status
+
+### GET `/v1/hcm/data-privacy/me/my-data/export`
+
+Export data pribadi user dalam format JSON (Pasal 13 — Hak Portabilitas).
+
+Response:
+- `format` (string) — `"json"`
+- `exportedAt` (datetime)
+- `payload` — seluruh data dari my-data endpoint

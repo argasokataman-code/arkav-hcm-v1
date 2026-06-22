@@ -259,6 +259,28 @@ Jalankan cek anomali untuk perubahan substantif. Pilih sesuai jenis:
 - Update matriks HCM + docs planning.
 - Backend enforce (bukan hanya hide button).
 
+### TDD Layer Trinity (WAJIB — Cegah Integration Blindspot)
+Sebelum tutup task, PASTIKAN test sudah ada di **3 layer berikut**. Jika ada layer yang kosong, WAJIB tambah test dulu:
+
+```
+✅ BE (PHPUnit Feature/Unit)
+   - Business logic, API endpoint, auth, validation
+   - Minimal: happy path + error path + RBAC
+   - Contoh: test encrypt() return ciphertext ✅
+
+✅ FE (Vitest Wiring)
+   - DOM interaction, API mock, user flow
+   - Minimal: render + action + error state
+
+✅ Integration (BE↔FE Link)
+   - Service benar-benar dipakai di alur bisnis, bukan cuma ada
+   - Contoh SALAH: "PayslipEncryptionService ada → test selesai"
+   - Contoh BENAR: "Waktu payroll finalize, email payslip terenkripsi"
+   - Tanya: "Apakah fitur ini benar-benar ngefek ke user flow?"
+```
+
+**Trigger:** Setiap task fitur baru / bugfix / refactor substantif.
+
 ---
 
 ## 9. Deployment Runtime Guard
@@ -335,6 +357,12 @@ Jika Context7 tidak tersedia → catat eksplisit ke user, lanjut dengan training
 2. Urutkan dari paling wajib ke opsional.
 3. Dilarang saran bertahap satu-per-satu.
 4. Konflik instruksi user vs rule repo → sebutkan konflik, minta konfirmasi.
+5. **100% Read Rule — Wajib baca tuntas sebelum simpulkan.**
+   - Agent DILARANG memberi kesimpulan hanya berdasarkan scan permukaan.
+   - Baca minimal 100% file yang relevan sebelum menyimpulkan status/test/cakupan.
+   - Jika user bertanya "udah baca semua?" dan ternyata belum → akui, jangan bohong.
+   - Contoh pelanggaran: "Feat X sudah di-test" padahal cuma baca daftar nama test file, bukan isi tiap test method.
+   - Sanksi: user berhak minta baca ulang + tolak kesimpulan yang premature.
 
 ---
 

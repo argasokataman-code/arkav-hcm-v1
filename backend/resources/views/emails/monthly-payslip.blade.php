@@ -39,6 +39,19 @@
     </table>
 
     <p>File PDF slip gaji terlampir pada email ini.</p>
+
+    @if($isEncrypted ?? false)
+    <div style="margin: 20px 0; padding: 16px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+        <p style="margin: 0 0 8px; font-weight: 600; color: #856404;">🔒 Dokumen Terenkripsi</p>
+        <p style="margin: 0; font-size: 13px; color: #856404;">
+            File PDF ini telah dienkripsi untuk keamanan data Anda.<br>
+            Gunakan password berikut untuk membuka file:<br>
+            <strong style="font-size: 18px; font-family: monospace;">{{ $decryptionPassword }}</strong><br>
+            <small>Password: <strong>SLIP</strong> + 6 digit terakhir NIK Anda.</small>
+        </p>
+    </div>
+    @endif
+
     <p>Salam,<br>{{ $appName }}</p>
 </body>
 </html>

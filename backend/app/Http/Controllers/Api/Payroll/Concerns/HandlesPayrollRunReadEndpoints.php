@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api\Payroll\Concerns;
 
 use App\Mail\MonthlyPayslipMail;
+use App\Models\Company;
+use App\Models\EmployeeProfile;
 use App\Models\HcmPayrollLine;
 use App\Models\HcmPayrollPeriod;
 use App\Models\HcmPayrollRun;
 use App\Models\User;
+use App\Services\PayslipEncryptionService;
 use App\Support\Exports\TabularExportResponse;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -222,8 +225,39 @@ trait HandlesPayrollRunReadEndpoints
                 $companyId,
             );
 
+            $pdfContent = $pdf;
+            $isEncrypted = false;
+            $decryptionPassword = '';
+            $companyName = Company::query()->where('id', $companyId)->value('name') ?? '';
+
+            if (config('pdp.payslip_encryption_enabled', false)) {
+                try {
+                    $profile = $user->employeeProfile;
+                    $nik = $profile?->nik ?? '';
+                    if ($nik) {
+                        $service = new PayslipEncryptionService;
+                        $decryptionPassword = $service->deriveDefaultPassword($nik);
+                        $pdfContent = $service->encrypt($pdf, $decryptionPassword);
+                        $isEncrypted = true;
+                    }
+                } catch (\Throwable $e) {
+                    // Encryption failure is non-fatal — send as plain PDF
+                    \Illuminate\Support\Facades\Log::warning('Payslip encryption skipped', [
+                        'user_id' => $user->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             try {
-                Mail::to($email)->send(new MonthlyPayslipMail($user, $slip, $pdf));
+                Mail::to($email)->send(new MonthlyPayslipMail(
+                    $user,
+                    $slip,
+                    $pdfContent,
+                    $companyName,
+                    $isEncrypted,
+                    $decryptionPassword,
+                ));
                 $sentUserIds[] = (int) $userId;
             } catch (\Throwable $exception) {
                 $skipped[] = [

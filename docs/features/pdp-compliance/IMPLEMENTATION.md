@@ -956,3 +956,77 @@ Setiap finding harus memiliki test:
 Enkripsi Laravel bergantung pada `APP_KEY`. Jika `APP_KEY` berubah, semua data encrypted tidak bisa dibaca. Pastikan:
 - `APP_KEY` di-backup di password manager
 - Tidak ada rotasi `APP_KEY` tanpa prosedur re-enkripsi data
+
+---
+
+## IMPLEMENTASI AKTUAL — Cycle 5-6 (Completed 22 Juni 2026)
+
+Bagian ini mendokumentasikan implementasi aktual yang sudah di-deploy, bukan rencana.
+
+### File-File yang Dihasilkan
+
+#### Models
+| Model | File | Deskripsi |
+|---|---|---|
+| `CookieConsent` | `app/Models/CookieConsent.php` | Preferensi cookie per user (H7) |
+| `CookieConsent` | migration `2026_06_22_100001` | Tabel `cookie_consents` |
+
+#### Services
+| Service | File | Deskripsi |
+|---|---|---|
+| `PayslipEncryptionService` | `app/Services/PayslipEncryptionService.php` | AES-256-CBC + HMAC-SHA256 (L4) |
+
+#### Migrations (Cycle 5-6)
+| Migration | Deskripsi |
+|---|---|
+| `2026_06_22_100000_add_last_sensitive_verified_at_to_users.php` | M8: tracking re-auth |
+| `2026_06_22_100001_create_cookie_consents_table.php` | H7: cookie preferences |
+| `2026_06_22_100002_add_photo_consent_to_biometric_consents.php` | M6: photo = biometric |
+
+#### API Endpoints Baru (Cycle 5-6)
+| Method | Path | Finding | Deskripsi |
+|---|---|---|---|
+| POST | `/v1/hcm/data-privacy/me/session-check` | M8 | Re-auth untuk operasi sensitif |
+| POST | `/v1/hcm/data-privacy/me/cookie-consent` | H7 | Simpan preferensi cookie |
+| GET | `/v1/hcm/data-privacy/me/cookie-consent` | H7 | Ambil preferensi cookie |
+| POST | `/v1/hcm/data-privacy/me/photo-consent` | M6 | Grant consent foto profil |
+| DELETE | `/v1/hcm/data-privacy/me/photo-consent` | M6 | Cabut consent foto profil |
+| GET | `/v1/hcm/data-privacy/me/my-data` | L2 | Lihat semua data pribadi |
+| GET | `/v1/hcm/data-privacy/me/my-data/export` | L2 | Export data (portabilitas) |
+
+#### Config Baru
+| Key | Default | Deskripsi |
+|---|---|---|
+| `pdp.session_timeout_minutes` | `30` | Idle timeout sebelum re-auth (M8) |
+| `pdp.payslip_encryption_enabled` | `true` | Encrypt payslip sebelum email (L4) |
+
+### Test Coverage
+
+| Test File | Tests | Finding |
+|---|---|---|
+| `LegalPagesWebTest.php` | 16 | L1 |
+| `SessionTimeoutTest.php` | 7 | M8 |
+| `CookieConsentApiTest.php` | 8 | H7 |
+| `PhotoBiometricConsentTest.php` | 5 | M6 |
+| `DataSayaPortalTest.php` | 7 | L2 |
+| `PayslipEncryptionTest.php` | 9 | L4 |
+| `BiometricConsentApiTest.php` | 8 | C3/C4 |
+| `AiConsentApiTest.php` | 10 | H3 |
+| `ErasureRequestApiTest.php` | 16 | H1 |
+| `ProcessApprovedErasureJobTest.php` | 4 | H1 |
+| `WithdrawConsentScopeTest.php` | 5 | M4 |
+| `PurgeCompletedErasuresTest.php` | 4 | H1 |
+| `ProfileUpdateNotificationTest.php` | 7 | M5 |
+| **PHPUnit Total** | **121** | |
+| `cookie-consent-banner.wiring.test.js` | 8 | H7 |
+| `attendance-selfie-consent.wiring.test.js` | 5 | C3 |
+| `security-incidents-data.wiring.test.js` | 10 | H2 |
+| **Vitest Total** | **23** | |
+| **Grand Total** | **144** | |
+
+### Bug Fixes During Implementation
+
+1. **`HcmDataPrivacyAiController` error format** — error response dikembalikan sebagai string (`"UNAUTHORIZED"`) bukan object `{ code, message }`. Fixed ke format konsisten.
+2. **`HcmDataPrivacyAiController` Auth::user()** — diganti ke `$request->user()` untuk konsistensi dengan controller lain.
+3. **`ai_chat_logs.deleted_at` missing** — migration `000005_add_soft_deletes` jalan sebelum `000100_create_ai_chat_logs`, sehingga conditional `Schema::hasTable()` gagal. Workaround di test `setUp()`, perlu migration fix terpisah.
+4. **`EmployeeBiometricConsent` photo_consent cast** — field baru `photo_consent` belum masuk `$casts`, sehingga return integer `1` bukan boolean `true`. Fixed.

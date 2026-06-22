@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\User;
+use App\Services\PayslipEncryptionService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -23,6 +24,8 @@ class MonthlyPayslipMail extends Mailable
         public array $slip,
         public string $pdfContent,
         public string $companyName = '',
+        public bool $isEncrypted = false,
+        public string $decryptionPassword = '',
     ) {}
 
     public function envelope(): Envelope
@@ -47,6 +50,8 @@ class MonthlyPayslipMail extends Mailable
                 'user' => $this->user,
                 'slip' => $this->slip,
                 'appName' => $this->companyName,
+                'isEncrypted' => $this->isEncrypted,
+                'decryptionPassword' => $this->decryptionPassword,
             ],
         );
     }
@@ -54,10 +59,12 @@ class MonthlyPayslipMail extends Mailable
     public function attachments(): array
     {
         $slipNumber = (string) ($this->slip['slipNumber'] ?? 'payslip');
+        $extension = $this->isEncrypted ? 'enc' : 'pdf';
+        $content = $this->pdfContent;
 
         return [
-            Attachment::fromData(fn () => $this->pdfContent, $slipNumber.'.pdf')
-                ->withMime('application/pdf'),
+            Attachment::fromData(fn () => $content, $slipNumber.'.'.$extension)
+                ->withMime($this->isEncrypted ? 'application/octet-stream' : 'application/pdf'),
         ];
     }
 }

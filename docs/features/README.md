@@ -68,6 +68,7 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 45 | Export Governance | 🚧 In Progress | [→](export-governance/) | [📋 Audit](export-governance/EXPORT-FORMAT-AUDIT-2026-05-07.md) | [🧭 Tracker](export-governance/TRACKING.md), standar default XLSX + backlog migrasi endpoint CSV |
 | 46 | **Approval Settings** | ✅ Complete | [→](approval-settings/) | [📘 Implementation](approval-settings/IMPLEMENTATION.md) | [📋 API](approval-settings/API.md), [🧪 E2E Testing](approval-settings/E2E-TESTING.md) |
 | **SOP** | **Security Check** | ✅ Cycles 0-4 | [→](security-check/) | [📘 Implementation](security-check/IMPLEMENTATION.md) | [🧭 Tracker](security-check/TRACKER.md), [📋 Audit Report](security-check/AUDIT-REPORT-2026-04-22.md), 3-tier gate system (pre-push, CI, DAST) |
+| 47 | **PDP Compliance (UU No. 27/2022)** | ✅ Cycles 1-6 Complete | [→](pdp-compliance/) | [📘 Implementation](pdp-compliance/IMPLEMENTATION.md) | [📋 Audit Report](pdp-compliance/AUDIT-REPORT.md), [🧭 Tracker](pdp-compliance/TRACKER.md), [📋 Fix Plan](pdp-compliance/FIX-PLAN-CYCLES.md), [📋 DPO](pdp-compliance/DPO-APPOINTMENT.md), 144 tests (121 PHPUnit + 23 Vitest) |
 
 ---
 
@@ -153,6 +154,12 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 - `spt-masa-pph21/README.md` - **SPT Masa PPh 21 (Bulanan):** blueprint modul rekap pajak bulanan dari payroll locked dengan lifecycle draft-ready-submitted.
 - `spt-masa-pph21/IMPLEMENTATION.md` - Rencana implementasi 3 fase: FE shell, BE UUID-only snapshot engine, dan integrasi end-to-end + build gate.
 - `spt-masa-pph21/tracker.md` - Tracker fase implementasi beserta gap, DoD MVP, dan evidence checklist.
+- `pdp-compliance/README.md` - **PDP Compliance (UU No. 27/2022):** kepatuhan perlindungan data pribadi — consent, enkripsi, erasure, breach notification, retensi, cookie, Data Saya portal, payslip encryption. 25 findings, 6 cycles, semua selesai.
+- `pdp-compliance/IMPLEMENTATION.md` - Panduan teknis implementasi per finding, API endpoints, migrations, models, services, dan test coverage.
+- `pdp-compliance/AUDIT-REPORT.md` - 25 findings lengkap dengan evidence kode dan tingkat keparahan.
+- `pdp-compliance/TRACKER.md` - Status tracker real-time per finding.
+- `pdp-compliance/FIX-PLAN-CYCLES.md` - Rencana teknis 6 siklus perbaikan + exit criteria.
+- `pdp-compliance/DPO-APPOINTMENT.md` - Dokumentasi penunjukan Data Protection Officer.
 
 ---
 

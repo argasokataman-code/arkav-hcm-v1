@@ -306,13 +306,13 @@ describe('subscription checkout wiring', () => {
     await import('../../../frontend/resources/js/subscription-checkout.js');
     await flush();
 
-    expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice reaktivasi aktif');
+    expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Tagihan Aktif');
     expect(document.querySelector('[data-checkout-invoice-due]')?.textContent).toContain('Lewat jatuh tempo');
-    expect(document.querySelector('[data-checkout-invoice-state-badge]')?.textContent).toContain('Reaktivasi tertunda');
-    expect(document.querySelector('[data-checkout-invoice-state-note]')?.textContent).toContain('Bayar sekarang');
+    expect(document.querySelector('[data-checkout-invoice-state-badge]')?.textContent).toContain('Terlambat');
+    expect(document.querySelector('[data-checkout-invoice-state-note]')?.textContent).toContain('Lakukan pembayaran');
     expect(document.querySelector('[data-checkout-pay-now]')?.textContent).toContain('Bayar & aktifkan kembali');
     expect(document.querySelector('[data-checkout-open-invoices]')?.classList.contains('d-none')).toBe(true);
-    expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('invoice reaktivasi');
+    expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Selesaikan tagihan ini');
   });
 
   it('skips loading package and addon catalogs when server already locked the page to a pending invoice', async () => {
@@ -347,7 +347,7 @@ describe('subscription checkout wiring', () => {
     expect(fetchUrls).toContain('/v1/identity/auth/me');
     expect(fetchUrls).not.toContain('/v1/saas/packages?status=active&per_page=100');
     expect(fetchUrls).not.toContain('/v1/saas/package-addons?status=active&per_page=100');
-    expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice reaktivasi aktif');
+    expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Tagihan Aktif');
   });
 
   it('submits add-on checkout separately from package checkout', async () => {

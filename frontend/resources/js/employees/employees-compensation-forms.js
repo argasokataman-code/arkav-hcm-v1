@@ -2,6 +2,34 @@ import { bindEmployeeCompensationFormsLifecycle } from "./compensation-forms/lif
 import { createEmployeeCompensationValidationTools } from "./compensation-forms/validation.js";
 import { createEmployeeCompensationWilayah } from "./compensation-forms/wilayah.js";
 
+/**
+ * Validate NPWP, BPJS Kesehatan, and BPJS Ketenagakerjaan compliance fields.
+ * Exported separately for direct unit testing.
+ */
+export function validateComplianceFields(form) {
+    if (!form) {
+        return true;
+    }
+
+    var npwpInput = form.querySelector('[data-employee-add-field="npwp"], [data-employee-edit-field="npwp"]');
+    var bpjsKesInput = form.querySelector('[data-employee-add-field="bpjsKesehatanNo"], [data-employee-edit-field="bpjsKesehatanNo"]');
+    var bpjsKetInput = form.querySelector('[data-employee-add-field="bpjsKetenagakerjaanNo"], [data-employee-edit-field="bpjsKetenagakerjaanNo"]');
+
+    var npwp = String(npwpInput && npwpInput.value ? npwpInput.value : "").trim();
+    var bpjsKes = String(bpjsKesInput && bpjsKesInput.value ? bpjsKesInput.value : "").trim();
+    var bpjsKet = String(bpjsKetInput && bpjsKetInput.value ? bpjsKetInput.value : "").trim();
+
+    var NPWP_REGEX = /^[0-9]{15}$/;
+    var BPJS_KES_REGEX = /^[0-9]{11}$/;
+    var BPJS_KET_REGEX = /^[0-9]{12}$/;
+
+    if (npwp && !NPWP_REGEX.test(npwp)) return false;
+    if (bpjsKes && !BPJS_KES_REGEX.test(bpjsKes)) return false;
+    if (bpjsKet && !BPJS_KET_REGEX.test(bpjsKet)) return false;
+
+    return true;
+}
+
 export function bindEmployeeCompensationFormsModule(deps) {
     var PASSWORD_RULE_REGEX = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d@$!%*?&._-]{8,64}$/;
     var LETTER_SPACE_PUNCT_150_REGEX = /^[\p{L}\p{M} .,'-]{2,150}$/u;

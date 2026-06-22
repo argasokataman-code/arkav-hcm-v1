@@ -5,7 +5,7 @@ use App\Jobs\CheckEmployeeCountLimitsJob;
 use App\Jobs\ClearRevenueTransactionsJob;
 use App\Jobs\CloseMonthlyFinancialReportJob;
 use App\Jobs\ConvertExpiredTrialsToPendingPaymentJob;
-use App\Jobs\ProcessRecurringSubscriptionBilling;
+use App\Jobs\SubscriptionRenewalNotifier;
 use App\Jobs\ReconcilePendingRenewalPayments;
 use App\Jobs\SendPaymentReminder;
 use App\Jobs\SuspendServicesForOverdueInvoicesJob;
@@ -149,7 +149,7 @@ if (! (config('app.saas.employee_limit_enforcement_enabled', true)) || (($checkE
 }
 
 $recurringBilling = CronjobSettings::get('saas_recurring_billing');
-$recurringBillingTask = Schedule::job(new ProcessRecurringSubscriptionBilling)
+$recurringBillingTask = Schedule::job(new SubscriptionRenewalNotifier)
     ->name('saas-recurring-billing')
     ->description('Process subscription renewals and recurring billing tasks')
     ->timezone((string) ($recurringBilling['timezone'] ?? 'Asia/Jakarta'))

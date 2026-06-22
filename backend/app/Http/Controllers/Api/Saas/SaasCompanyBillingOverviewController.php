@@ -254,9 +254,6 @@ class SaasCompanyBillingOverviewController extends Controller
         } elseif ($terminationReason !== '' && str_contains($terminationReason, 'tenant-initiated cancellation request')) {
             $reason = 'tenant_request';
             $description = 'Pembatalan berasal dari permintaan tenant.';
-        } elseif ($terminationReason !== '' && str_contains($terminationReason, 'stripe_subscription_deleted')) {
-            $reason = 'system_webhook';
-            $description = 'Pembatalan tersinkron otomatis dari gateway pembayaran.';
         } elseif ($terminationReason !== '') {
             $reason = 'manual_stop';
             $description = 'Langganan dihentikan dengan catatan internal: '.(string) $subscription->termination_reason;

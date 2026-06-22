@@ -159,3 +159,4 @@ Catatan:
 - `HcmRoleManagementController`, `HcmPermissionController`: added missing `Controller` base class import
 - `ReconciliationExportController`: fixed undefined variable in second payroll loop
 - All changes are internal implementation fixes; API request/response contracts unchanged.
+## 2026-06-22: Stripe removed from codebase. All billing now uses Midtrans only.

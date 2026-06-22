@@ -61,12 +61,6 @@ return [
         ],
     ],
 
-    'stripe' => [
-        'public_key' => env('STRIPE_PUBLIC_KEY'),
-        'secret_key' => env('STRIPE_SECRET_KEY'),
-        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
-    ],
-
     'midtrans' => [
         'server_key' => env('MIDTRANS_SERVER_KEY'),
         'client_key' => env('MIDTRANS_CLIENT_KEY'),

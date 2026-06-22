@@ -26,8 +26,6 @@ class Setting extends Model
         'ai_api_key',
         'ai_openai_api_key',
         'openai_api_key',
-        'stripe_secret_key',
-        'stripe_webhook_secret',
         'payment_secret',
         'smtp_password',
         'mail_password',

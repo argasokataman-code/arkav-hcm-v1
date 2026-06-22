@@ -108,74 +108,86 @@ No Composer/npm on server — all dependencies pre-built in artifact.
 
 ## Feature Matrix
 
-45+ features across HCM + SaaS domains. Source: `docs/features/README.md`.
+50+ features across HCM + SaaS domains. Status berdasarkan route runtime di `backend/routes/api/` — **bukan** dokumentasi fitur (beberapa dokumen di `docs/features/` mungkin outdated).
 
-### HCM Core — Complete
+### HCM Core ✅
 
-| # | Feature | Status | Key Details |
-|---|---------|--------|-------------|
-| 1 | Identity & Auth | ✅ Complete | Register, login, logout, token, RBAC |
-| 2 | Organization & Employees | ✅ Complete | CRUD, profile, departments, designations |
-| 3 | Attendance & Shift | ✅ Complete | Check-in/out, GPS/location, selfie, timesheets, shift scheduling |
-| 4 | Overtime | ✅ Complete | PP 35/2021 calculator, overtime types |
-| 5 | Leave & Holidays | ✅ Complete | Request, approval, settings, holiday calendar |
-| 6 | Company Policies | ✅ Complete | Policy CRUD, attachment |
-| 7 | Ticketing | ✅ Complete | Helpdesk, SLA, assignment history |
-| 8 | Performance Review | ✅ Complete | Cycles, indicator templates, review workflow |
-| 9 | Goal Tracking | ✅ Complete | Goal types, scope me/team/all, CSV export |
-| 10 | Training | ✅ Complete | Trainers, trainings, participants |
-| 11 | Promotion | ✅ Complete | Records, admin-only, modal CRUD |
-| 12 | Resignation | ✅ Complete | Records, self read + admin mutasi process |
-| 13 | Termination | ✅ Complete | Type + dates + reason |
-| 14 | Asset Management | 🚧 In Progress | Category, master, assignment, issues |
-| 15 | Knowledge Base | ✅ Complete | Config-driven `/knowledgebase`, categories |
-| 16 | Global HRMS Search | ✅ Complete | Ctrl+/, RBAC-aware catalog, quick + full panel |
+| # | Feature | Key Details |
+|---|---------|-------------|
+| 1 | Identity & Auth | Register, login, logout, token, RBAC |
+| 2 | Organization & Employees | CRUD employees, departments, designations, company structure |
+| 3 | Attendance & Shift | Check-in/out, GPS/location, selfie (biometric consent), timesheets, shift CRUD + schedule timing, corrections, reports |
+| 4 | Overtime | PP 35/2021 calculator, overtime types, requests |
+| 5 | Leave & Holidays | Leave requests + approval workflow, holiday calendar, leave settings (types, policies, accrual) |
+| 6 | Company Policies | Policy CRUD with attachment |
+| 7 | Ticketing | Helpdesk, SLA, assignment history, comments, attachments |
+| 8 | Performance Review | Cycles, indicator templates/items, review workflow employee→manager→admin |
+| 9 | Goal Tracking | Goal types (admin), goals scope me/team/all, CSV export |
+| 10 | Training | Training types, trainers, trainings, participants, tenant/RBAC guard |
+| 11 | Promotion | Promotion records (admin-only), list + modal CRUD |
+| 12 | Resignation | Resignation records (admin list/mutasi), self read + employee detail section |
+| 13 | Termination | Termination records (type + dates + reason) |
+| 14 | Asset Management | Asset categories CRUD, assets CRUD + assign/return/issue-report/attachments, feature-gated |
+| 15 | Document Center | Employee documents CRUD + categories + download, feature-gated |
+| 16 | Calendar Events | Calendar events CRUD, feature-gated |
+| 17 | Notes | Notes CRUD |
+| 18 | FAQ | FAQ CRUD + bulk delete |
+| 19 | Knowledge Base | Config-driven `/knowledgebase`, categories, articles |
+| 20 | Global HRMS Search | Ctrl+/, RBAC-aware catalog, quick dropdown + full result panel |
+| 21 | Data Privacy (UU PDP) | Biometric consent, AI consent, erasure requests (self + admin), security incident management |
 
-### Payroll — Complete
+### Payroll ✅
 
-| # | Feature | Status | Key Details |
-|---|---------|--------|-------------|
-| 17 | Salary Components | ✅ Complete | Master komponen gaji (Indonesia flags) |
-| 18 | Payroll Runs | ✅ Complete | Periods, draft/final, slip lines |
-| 19 | Payroll Items | ✅ Complete | Custom items / taut master |
-| 20 | Employee Salary | ✅ Complete | Base salary, fixed allowance, overtime integration |
-| 21 | Payslip | ✅ Complete | Self-service, monthly + THR + PKWT, PDF |
-| 22 | Payroll THR | ✅ Complete | Yearly setup, batch generate/disburse/post |
-| 23 | Payroll PKWT Compensation | ✅ Complete | Contract-end compensation, preview, payment |
-| 24 | Tax Governance | 🚧 In Progress | `/tax-rates`, employee tax profile, payroll tax engine |
-| 25 | SPT Masa PPh 21 | 🚧 Planning | Bulanan, UUID snapshot engine |
-| 26 | Employee Allowance Governance | 🚧 In Progress | Policy, assignment, compliance score |
-| 27 | BPJS Governance | ✅ Route exists | BPJS Kesehatan + Ketenagakerjaan |
-| 28 | Export Governance | 🚧 In Progress | XLSX standard, endpoint migration |
+| # | Feature | Key Details |
+|---|---------|-------------|
+| 22 | Salary Components | Master komponen gaji (Indonesia flags: PTKP, BPJS, THR, etc.), company_id null = global |
+| 23 | Payroll Runs | Periods CRUD, draft/final runs, slip lines, employee self-service payslip |
+| 24 | Payroll Items | Custom items / taut master, CRUD |
+| 25 | Employee Salary | Base salary, fixed allowance, overtime integration, compliance |
+| 26 | Payslip | Self-service, monthly + THR + PKWT aggregation, PDF download |
+| 27 | Payroll THR | Yearly setup, batch generate/disburse/post-payroll, slip PDF, reconciliation gate |
+| 28 | Payroll PKWT Compensation | Contract-end compensation preview, standalone payroll generate, payment flow |
+| 29 | Tax Governance | `/tax-rates`, employee tax profile, salary component tax flags, PP 21 engine, platform tax compliance |
+| 30 | SPT Masa PPh 21 | Generate snapshot from finalized payroll, mark-ready/submit lifecycle, CSV export DJP-style |
+| 31 | Employee Allowance Governance | Reference, policies (CRUD + activate + history), assignments (CRUD), reports + export |
+| 32 | BPJS Governance | Policies CRUD, employee membership, reports + export, rate baselines per program |
+| 33 | Email Settings | Show/update settings, mailtrap status, test connection (throttled) |
 
-### SaaS / Platform — Complete
+### SaaS / Platform ✅
 
-| # | Feature | Status | Key Details |
-|---|---------|--------|-------------|
-| 29 | Packages | ✅ Complete | CRUD, add-on catalog, feature-per-package |
-| 30 | Subscriptions | ✅ Complete | Lifecycle, renewal, status filters |
-| 31 | Purchase Transactions | ✅ Complete | Invoices, payment tracking, reminders |
-| 32 | Domain Management | ✅ Complete | Domain CRUD, verify, monitor |
-| 33 | User Management | ✅ Complete (BE) | Role-permission assignment, audit |
-| 34 | Mock Payment (Dev) | ✅ Dev Ready | Simulate gateway without Midtrans |
-| 35 | Super Admin Dashboard | 🚧 In Progress | Global SaaS analytics |
+| # | Feature | Key Details |
+|---|---------|-------------|
+| 34 | Packages | CRUD + feature mapping + add-on catalog, feature classification DB override |
+| 35 | Subscriptions | Lifecycle CRUD + renew, change requests (downgrade/cancel approval), status filters |
+| 36 | Purchase Transactions | CRUD + export, payment tracking |
+| 37 | Domain Management | Domain CRUD + verify + verification details |
+| 38 | Invoices | CRUD + mark-paid/sent + PDF preview/download + send email |
+| 39 | Payments | CRUD + verify + bulk upload (CSV import) |
+| 40 | Reconciliation | Export CRUD with download |
+| 41 | User Management | Role-permission CRUD + assignment, audit trail |
+| 42 | Super Admin Dashboard | KPI/metrics, companies list + detail, user stats + retention, revenue (monthly/forecast/by-plan), subscription health, audit logs |
+| 43 | Landing Pages | Public landing page with packages/trial signup (PublicLandingController) |
+| 44 | Mock Payment (Dev) | Stub payment gateway for dev/testing |
+| 45 | Billing Overview | Company billing status, renewal monitoring + anomaly detection |
+| 46 | Platform Tax (SaaS) | SPT PPN, SPT PPh 23, SPT PPh Badan, dashboard export |
 
-### In Planning / Proposed
+### Partial / Early Stage 🚧
 
-| # | Feature | Status |
-|---|---------|--------|
-| 36 | Tenant Management | 🚧 Planning |
-| 37 | Reporting System | 🚧 In Progress (Phase 3) |
-| 38 | Locations / Wilayah Sync | ✅ Complete |
-| 39 | Cronjob Scheduler UI | ✅ Complete |
-| 40 | Export Reconciliation | 🚧 Planning |
-| 41 | Recovery Vault | 🚧 Proposed |
-| 42 | Notifications & Alerts | 🚧 Planning (Design Ready) |
-| 43 | Email Settings & Templates | 🚧 In Progress |
-| 44 | Landing Pages (Marketing) | 🚧 In Progress |
-| 45 | Trial & Billing Dashboard | 🚧 Planning |
-| 46 | AI Assistant | 🚧 Planning |
-| 47 | Security Check (SOP) | ✅ Cycles 0-4 |
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 47 | Notifications | 🚧 Partial | Only send-email compose route |
+| 48 | Reporting System | 🚧 Phase 3 | Snapshot-based reporting API, live/archive |
+| 49 | AI Assistant | 🚧 Design Ready | AiIntentGate service with RBAC matrix (10 self-intents, 10 admin-intents), no UI yet |
+| 50 | Trial & Billing Dashboard | 🚧 Planning | Trial conversion job exists, no dedicated controller |
+
+### Not Yet Implemented 📋
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 51 | Tenant Management | Backend design only |
+| 52 | Recovery Vault | No code in repo |
+| 53 | Export Governance | No code in repo |
+| 54 | Locations / Wilayah Sync | Data only via command (no API endpoint) |
 
 ---
 

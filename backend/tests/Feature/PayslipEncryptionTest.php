@@ -19,9 +19,9 @@ class PayslipEncryptionTest extends TestCase
         $service = new PayslipEncryptionService;
 
         $plaintext = '{"employee_name":"John Doe","base_salary":10000000,"npwp":"01.234.567.8-901.000"}';
-        $password = 'NIK3201234567890001';
+        $passphrase = 'NIK3201234567890001';
 
-        $encrypted = $service->encrypt($plaintext, $password);
+        $encrypted = $service->encrypt($plaintext, $passphrase);
 
         $this->assertNotEquals($plaintext, $encrypted);
         $this->assertNotEmpty($encrypted);
@@ -32,10 +32,10 @@ class PayslipEncryptionTest extends TestCase
         $service = new PayslipEncryptionService;
 
         $plaintext = '{"employee_name":"Jane Doe","base_salary":15000000,"bank_account":"1234567890"}';
-        $password = 'MySecretPass123';
+        $passphrase = 'MySecretPass123';
 
-        $encrypted = $service->encrypt($plaintext, $password);
-        $decrypted = $service->decrypt($encrypted, $password);
+        $encrypted = $service->encrypt($plaintext, $passphrase);
+        $decrypted = $service->decrypt($encrypted, $passphrase);
 
         $this->assertEquals($plaintext, $decrypted);
     }
@@ -45,11 +45,11 @@ class PayslipEncryptionTest extends TestCase
         $service = new PayslipEncryptionService;
 
         $plaintext = '{"employee_name":"John","base_salary":10000000}';
-        $password = 'CorrectPassword';
-        $wrongPassword = 'WrongPassword';
+        $passphrase = 'CorrectPassword';
+        $wrongPassphrase = 'WrongPassword';
 
-        $encrypted = $service->encrypt($plaintext, $password);
-        $result = $service->decrypt($encrypted, $wrongPassword);
+        $encrypted = $service->encrypt($plaintext, $passphrase);
+        $result = $service->decrypt($encrypted, $wrongPassphrase);
 
         $this->assertFalse($result);
     }
@@ -59,16 +59,16 @@ class PayslipEncryptionTest extends TestCase
         $service = new PayslipEncryptionService;
 
         $plaintext = '{"test":"data"}';
-        $password = 'password';
+        $passphrase = 'password';
 
         // OpenSSL with random IV means each encryption is different
-        $encrypted1 = $service->encrypt($plaintext, $password);
-        $encrypted2 = $service->encrypt($plaintext, $password);
+        $encrypted1 = $service->encrypt($plaintext, $passphrase);
+        $encrypted2 = $service->encrypt($plaintext, $passphrase);
 
         // Different ciphertexts but both should decrypt to same plaintext
         $this->assertEquals(
-            $service->decrypt($encrypted1, $password),
-            $service->decrypt($encrypted2, $password)
+            $service->decrypt($encrypted1, $passphrase),
+            $service->decrypt($encrypted2, $passphrase)
         );
     }
 
@@ -77,10 +77,10 @@ class PayslipEncryptionTest extends TestCase
         $service = new PayslipEncryptionService;
 
         $plaintext = '{"nama":"Budi Santoso","alamat":"Jl. Merdeka No. 1, Jakarta Pusat","gaji":10000000}';
-        $password = 'UnicodeTest123';
+        $passphrase = 'UnicodeTest123';
 
-        $encrypted = $service->encrypt($plaintext, $password);
-        $decrypted = $service->decrypt($encrypted, $password);
+        $encrypted = $service->encrypt($plaintext, $passphrase);
+        $decrypted = $service->decrypt($encrypted, $passphrase);
 
         $this->assertEquals($plaintext, $decrypted);
     }
@@ -90,10 +90,10 @@ class PayslipEncryptionTest extends TestCase
         $service = new PayslipEncryptionService;
 
         $plaintext = '';
-        $password = 'password';
+        $passphrase = 'password';
 
-        $encrypted = $service->encrypt($plaintext, $password);
-        $decrypted = $service->decrypt($encrypted, $password);
+        $encrypted = $service->encrypt($plaintext, $passphrase);
+        $decrypted = $service->decrypt($encrypted, $passphrase);
 
         $this->assertEquals($plaintext, $decrypted);
     }

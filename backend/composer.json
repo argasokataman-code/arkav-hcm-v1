@@ -16,6 +16,7 @@
         "midtrans/midtrans-php": "^2.6",
         "nesbot/carbon": "^3.10",
         "phpoffice/phpspreadsheet": "^5.5",
+        "predis/predis": "^3.5",
         "symfony/clock": "^7.4",
         "symfony/css-selector": "^7.4",
         "symfony/event-dispatcher": "^7.4",

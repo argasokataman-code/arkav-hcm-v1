@@ -118,7 +118,7 @@ No Composer/npm on server — all dependencies pre-built in artifact.
 | 2 | Organization & Employees | CRUD employees, departments, designations, company structure |
 | 3 | Attendance & Shift | Check-in/out, GPS/location, selfie (biometric consent), timesheets, shift CRUD + schedule timing, corrections, reports |
 | 4 | Overtime | PP 35/2021 calculator, overtime types, requests |
-| 5 | Leave & Holidays | Leave requests + approval workflow, holiday calendar, leave settings (types, policies, accrual) |
+| 5 | Leave & Holidays | Leave requests + approval workflow, holiday calendar, leave settings (types, policies, accrual), yearly carry-forward, monthly accrual |
 | 6 | Company Policies | Policy CRUD with attachment |
 | 7 | Ticketing | Helpdesk, SLA, assignment history, comments, attachments |
 | 8 | Performance Review | Cycles, indicator templates/items, review workflow employee→manager→admin |
@@ -135,6 +135,12 @@ No Composer/npm on server — all dependencies pre-built in artifact.
 | 19 | Knowledge Base | Config-driven `/knowledgebase`, categories, articles |
 | 20 | Global HRMS Search | Ctrl+/, RBAC-aware catalog, quick dropdown + full result panel |
 | 21 | Data Privacy (UU PDP) | Biometric consent, AI consent, erasure requests (self + admin), security incident management |
+| 22 | AI Assistant | Intent-classifier chat, RBAC gate (self/admin/global intents), LLM integration, conversation memory, audit log |
+| 23 | Notifications | 40+ events, multi-channel (database/mail), delivery monitoring + retry, preferences per event, inbox read/unread |
+| 24 | Approval Settings | 6 modules (leave, overtime, resignation, termination, expense, offer), chain/single mode, approver sequencing |
+| 25 | Reporting System | Snapshot-based async reports, CSV/Excel/PDF export, live + archive mode, RBAC gated |
+| 26 | Settings | Generic key-value store, invoice settings (prefix, due days, tax, rounding), file upload |
+| 27 | Locations / Wilayah Sync | Sync from wilayah.id, cascading province/regency/district/village lookup, monthly scheduler |
 
 ### Payroll ✅
 
@@ -171,23 +177,14 @@ No Composer/npm on server — all dependencies pre-built in artifact.
 | 45 | Billing Overview | Company billing status, renewal monitoring + anomaly detection |
 | 46 | Platform Tax (SaaS) | SPT PPN, SPT PPh 23, SPT PPh Badan, dashboard export |
 
-### Partial / Early Stage 🚧
-
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 47 | Notifications | 🚧 Partial | Only send-email compose route |
-| 48 | Reporting System | 🚧 Phase 3 | Snapshot-based reporting API, live/archive |
-| 49 | AI Assistant | 🚧 Design Ready | AiIntentGate service with RBAC matrix (10 self-intents, 10 admin-intents), no UI yet |
-| 50 | Trial & Billing Dashboard | 🚧 Planning | Trial conversion job exists, no dedicated controller |
-
 ### Not Yet Implemented 📋
+
+Tidak ada fitur partial. Hanya 2 fitur yg belum ada implementasi sama sekali:
 
 | # | Feature | Notes |
 |---|---------|-------|
-| 51 | Tenant Management | Backend design only |
-| 52 | Recovery Vault | No code in repo |
-| 53 | Export Governance | No code in repo |
-| 54 | Locations / Wilayah Sync | Data only via command (no API endpoint) |
+| 47 | Recovery Vault | No code in repo |
+| 48 | Export Governance | No code in repo |
 
 ---
 

@@ -51,4 +51,4 @@ Index:
 
 - **Leave Management:** `docs/database/leave-attendance/leave-management.md`
 - **Feature Docs:** `docs/features/approval-settings/`
-- **API:** `docs/api/hcm-approval-settings-api.md`
+- **API:** `docs/features/approval-settings/API.md`

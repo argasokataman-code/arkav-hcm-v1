@@ -66,6 +66,7 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 43 | Employee Allowance Governance | 🚧 In Progress | [→](employee-allowance-governance/) | [📘 Implementation](employee-allowance-governance/IMPLEMENTATION.md) | [🧭 Tracker](employee-allowance-governance/tracker.md), policy + assignment + compliance runtime baseline active |
 | 44 | SPT Masa PPh 21 (Bulanan) | 🚧 Planning | [→](spt-masa-pph21/) | [📘 Implementation](spt-masa-pph21/IMPLEMENTATION.md) | [🧭 Tracker](spt-masa-pph21/tracker.md), FE->BE(UUID)->integrasi roadmap |
 | 45 | Export Governance | 🚧 In Progress | [→](export-governance/) | [📋 Audit](export-governance/EXPORT-FORMAT-AUDIT-2026-05-07.md) | [🧭 Tracker](export-governance/TRACKING.md), standar default XLSX + backlog migrasi endpoint CSV |
+| 46 | **Approval Settings** | ✅ Complete | [→](approval-settings/) | [📘 Implementation](approval-settings/IMPLEMENTATION.md) | [📋 API](approval-settings/API.md), [🧪 E2E Testing](approval-settings/E2E-TESTING.md) |
 | **SOP** | **Security Check** | ✅ Cycles 0-4 | [→](security-check/) | [📘 Implementation](security-check/IMPLEMENTATION.md) | [🧭 Tracker](security-check/TRACKER.md), [📋 Audit Report](security-check/AUDIT-REPORT-2026-04-22.md), 3-tier gate system (pre-push, CI, DAST) |
 
 ---

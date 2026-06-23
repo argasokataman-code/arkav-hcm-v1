@@ -512,7 +512,7 @@ export function bindLeaves(deps, scope, isAdmin) {
                             titleEl.textContent = codeDisplay;
                             msgEl.textContent = errorText;
                             errorAlert.classList.remove("d-none");
-                            errorAlert.scrollIntoView({ behavior: "smooth", block: "start" });
+                            if (typeof errorAlert.scrollIntoView === "function") { errorAlert.scrollIntoView({ behavior: "smooth", block: "start" }); }
                         }
                     }
 
@@ -716,7 +716,7 @@ export function bindLeaves(deps, scope, isAdmin) {
                             titleEl.textContent = codeDisplay;
                             msgEl.textContent = errorText;
                             errorAlert.classList.remove("d-none");
-                            errorAlert.scrollIntoView({ behavior: "smooth", block: "start" });
+                            if (typeof errorAlert.scrollIntoView === "function") { errorAlert.scrollIntoView({ behavior: "smooth", block: "start" }); }
                         }
                     }
 

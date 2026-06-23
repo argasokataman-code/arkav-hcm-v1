@@ -11,11 +11,11 @@ Single-repository Human Capital Management system — SaaS multi-tenant untuk pe
 1. [Architecture](#architecture)
 2. [Feature Matrix](#feature-matrix)
 3. [Tech Stack](#tech-stack)
-4. [RBAC & Multi-Tenant](#rbac--multi-tenant)
+4. [RBAC and Multi-Tenant](#rbac-and-multi-tenant)
 5. [SaaS Platform](#saas-platform)
 6. [Frontend Architecture](#frontend-architecture)
 7. [Security Architecture](#security-architecture)
-8. [Background Jobs & Scheduler](#background-jobs--scheduler)
+8. [Background Jobs and Scheduler](#background-jobs-and-scheduler)
 9. [Indonesia Compliance](#indonesia-compliance)
 10. [Database Schema](#database-schema)
 11. [API Conventions](#api-conventions)
@@ -23,9 +23,9 @@ Single-repository Human Capital Management system — SaaS multi-tenant untuk pe
 13. [Testing Strategy](#testing-strategy)
 14. [Deployment](#deployment)
 15. [Project Structure](#project-structure)
-16. [Key Decisions & Protected Patterns](#key-decisions--protected-patterns)
+16. [Key Decisions and Protected Patterns](#key-decisions-and-protected-patterns)
 17. [Documentation Map](#documentation-map)
-18. [📊 Feature Flowcharts](#feature-flowcharts)
+18. [Feature Flowcharts](#feature-flowcharts)
 19. [Performance Optimizations](#performance-optimizations)
 
 ---
@@ -212,7 +212,7 @@ Tidak ada fitur partial. Hanya 2 fitur yg belum ada implementasi sama sekali:
 
 ---
 
-## RBAC & Multi-Tenant
+## RBAC and Multi-Tenant
 
 ### Role Model
 
@@ -404,7 +404,7 @@ Applied via `bootstrap/app.php`:
 
 ---
 
-## Background Jobs & Scheduler
+## Background Jobs and Scheduler
 
 All scheduled tasks defined in `backend/routes/console.php`. Configurable via UI (`/cronjob`) with `CronjobSettings` helper.
 
@@ -864,7 +864,7 @@ arcav_new_v2/
 
 ---
 
-## Key Decisions & Protected Patterns
+## Key Decisions and Protected Patterns
 
 ### Repository Protection (DO NOT CHANGE without explicit approval)
 
@@ -944,7 +944,7 @@ README template: Ringkasan → Akses → UI Aktif → Flow Bisnis → Lifecycle 
 
 ---
 
-## 📊 Feature Flowcharts
+## Feature Flowcharts
 
 > 65 flowcharts — setiap modul HCM + SaaS. Berdasarkan runtime aktual (`backend/routes/api/`, controller, model, docs/features/).
 

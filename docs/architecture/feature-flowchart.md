@@ -10,7 +10,7 @@
 flowchart TD
     A[Guest] -->|Buka /landing| B[Landing Page]
     A -->|Buka /register| C[Register / Trial]
-    A --> Buka /login D[Login Page]
+    A -->|Buka /login| D[Login Page]
     D -->|POST /v1/identity/auth/login| E{Valid?}
     E -->|Ya| F[HttpOnly cookie + accessToken]
     F --> G[Dashboard / Halaman tujuan]

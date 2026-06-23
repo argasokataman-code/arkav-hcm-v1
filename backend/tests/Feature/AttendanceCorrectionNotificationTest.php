@@ -7,6 +7,9 @@ use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
+use App\Models\Package;
+use App\Models\PackageFeature;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Notifications\AttendanceCorrectionApprovedNotification;
 use App\Notifications\AttendanceCorrectionRequestedNotification;
@@ -322,5 +325,231 @@ class AttendanceCorrectionNotificationTest extends TestCase
         $this->withHeaders($this->adminHeaders())
             ->putJson('/v1/hcm/attendance/settings', ['correctionWindowDays' => 400])
             ->assertStatus(422);
+    }
+
+    // ================================================================
+    // B3: Employee can cancel pending correction
+    // ================================================================
+
+    public function test_employee_can_cancel_pending_correction(): void
+    {
+        // Create needs_review record + request correction
+        $record = $this->makeAttendanceRecord([
+            'status' => 'needs_review',
+            'correction_status' => 'requested',
+            'correction_reason' => 'I need to fix my time',
+            'correction_requested_at' => Carbon::now(),
+        ]);
+
+        // Cancel
+        $response = $this->withHeaders($this->employeeHeaders())
+            ->postJson('/v1/hcm/attendance/me/correction-cancel', [
+                'workDate' => $record->work_date->toDateString(),
+            ]);
+
+        $response->assertOk()->assertJsonPath('success', true);
+
+        $record->refresh();
+        $this->assertSame('none', (string) $record->correction_status);
+        $this->assertNull($record->correction_reason);
+        $this->assertNull($record->correction_requested_at);
+    }
+
+    public function test_employee_cannot_cancel_non_pending_correction(): void
+    {
+        // Already approved
+        $record = $this->makeAttendanceRecord([
+            'correction_status' => 'approved',
+        ]);
+
+        $this->withHeaders($this->employeeHeaders())
+            ->postJson('/v1/hcm/attendance/me/correction-cancel', [
+                'workDate' => $record->work_date->toDateString(),
+            ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'CORRECTION_NOT_PENDING');
+    }
+
+    public function test_employee_cannot_cancel_others_correction(): void
+    {
+        // Create record for a different user
+        $otherUser = User::factory()->create([
+            'name' => 'Other User',
+            'email' => 'other-b3@test.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        $record = $this->makeAttendanceRecord([
+            'user_id' => $otherUser->id,
+            'status' => 'needs_review',
+            'correction_status' => 'requested',
+            'correction_reason' => 'Other user issue',
+            'correction_requested_at' => Carbon::now(),
+        ]);
+
+        $this->withHeaders($this->employeeHeaders())
+            ->postJson('/v1/hcm/attendance/me/correction-cancel', [
+                'workDate' => $record->work_date->toDateString(),
+            ])->assertStatus(404);
+    }
+
+    // ================================================================
+    // B1: Max break limit
+    // ================================================================
+
+    public function test_break_start_rejected_when_at_max_limit(): void
+    {
+        // Set max break to 60 minutes
+        $this->withHeaders($this->adminHeaders())
+            ->putJson('/v1/hcm/attendance/settings', [
+                'correctionWindowDays' => 30,
+                'maxBreakMinutes' => 60,
+            ])->assertOk();
+
+        // Create record with break already at max, punch in, no active break
+        $this->makeAttendanceRecord([
+            'status' => 'present',
+            'check_in_at' => Carbon::now()->subHours(4),
+            'check_out_at' => null,
+            'break_minutes' => 60,
+            'break_started_at' => null,
+        ]);
+
+        // Try to start a new break → should be rejected
+        $this->withHeaders($this->employeeHeaders())
+            ->postJson('/v1/hcm/attendance/me/break')
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'BREAK_LIMIT_REACHED');
+    }
+
+    public function test_break_start_allowed_when_under_max_limit(): void
+    {
+        // Set max break to 120 minutes
+        $this->withHeaders($this->adminHeaders())
+            ->putJson('/v1/hcm/attendance/settings', [
+                'correctionWindowDays' => 30,
+                'maxBreakMinutes' => 120,
+            ])->assertOk();
+
+        // Create record with 30 min break, not at max
+        $this->makeAttendanceRecord([
+            'status' => 'present',
+            'check_in_at' => Carbon::now()->subHours(4),
+            'check_out_at' => null,
+            'break_minutes' => 30,
+            'break_started_at' => null,
+        ]);
+
+        $this->withHeaders($this->employeeHeaders())
+            ->postJson('/v1/hcm/attendance/me/break')
+            ->assertOk()
+            ->assertJsonPath('data.action', 'break_start');
+    }
+
+    public function test_max_break_zero_means_unlimited(): void
+    {
+        // maxBreakMinutes = 0 means unlimited
+        $this->withHeaders($this->adminHeaders())
+            ->putJson('/v1/hcm/attendance/settings', [
+                'correctionWindowDays' => 30,
+                'maxBreakMinutes' => 0,
+            ])->assertOk();
+
+        // Create record with lots of break
+        $this->makeAttendanceRecord([
+            'status' => 'present',
+            'check_in_at' => Carbon::now()->subHours(4),
+            'check_out_at' => null,
+            'break_minutes' => 480,
+            'break_started_at' => null,
+        ]);
+
+        $this->withHeaders($this->employeeHeaders())
+            ->postJson('/v1/hcm/attendance/me/break')
+            ->assertOk()
+            ->assertJsonPath('data.action', 'break_start');
+    }
+
+    // ================================================================
+    // B4: Feature gate middleware for attendance_correction
+    // ================================================================
+
+    public function test_correction_endpoints_are_feature_gated(): void
+    {
+        $company = Company::query()->create([
+            'code' => 'no_correction_feature',
+            'name' => 'No Correction Feature',
+            'legal_name' => 'No Correction Feature Ltd',
+            'status' => 'active',
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $package = Package::query()->create([
+            'code' => 'basic-no-corr',
+            'name' => 'Basic No Correction',
+            'monthly_price' => 99000,
+            'yearly_price' => 990000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+        ]);
+
+        // Package has OTHER features but NOT attendance_correction
+        PackageFeature::query()->create([
+            'package_uuid' => $package->uuid,
+            'feature_code' => 'attendance',
+            'feature_name' => 'Attendance',
+            'limit' => 1,
+        ]);
+
+        Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => $package->code,
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 99000,
+        ]);
+
+        $user = User::query()->create([
+            'name' => 'Corr Gate Admin',
+            'email' => 'corr.gate@test.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $user->id,
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'corr.gate@test.com',
+            'password' => 'StrongPass1',
+            'companyCode' => $company->code,
+        ])->assertOk();
+        $token = (string) $login->json('data.accessToken');
+
+        // correction-request should be blocked
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $company->id,
+        ])->postJson('/v1/hcm/attendance/me/correction-request', [
+            'workDate' => now()->toDateString(),
+            'reason' => 'Test feature gate.',
+        ])->assertStatus(403)
+            ->assertJsonPath('error.code', 'FEATURE_DISABLED');
+
+        // correction-cancel should also be blocked
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'X-Company-Id' => (string) $company->id,
+        ])->postJson('/v1/hcm/attendance/me/correction-cancel', [
+            'workDate' => now()->toDateString(),
+        ])->assertStatus(403)
+            ->assertJsonPath('error.code', 'FEATURE_DISABLED');
     }
 }

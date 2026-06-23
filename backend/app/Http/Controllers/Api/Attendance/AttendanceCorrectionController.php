@@ -192,6 +192,51 @@ class AttendanceCorrectionController extends BaseAttendanceController
         return response()->json(['success' => true, 'data' => ['recordId' => $rec->id]]);
     }
 
+    public function cancelCorrection(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'workDate' => ['required', 'date'],
+        ]);
+
+        $user = $request->user();
+        $tz = $this->tz();
+        $activeCompanyId = $this->activeCompanyId($request);
+        $workDate = Carbon::parse($validated['workDate'], $tz)->toDateString();
+
+        $recQuery = AttendanceRecord::query();
+        $this->applyTenantScope($recQuery, $activeCompanyId);
+        $rec = $recQuery
+            ->where('user_id', $user->id)
+            ->whereDate('work_date', $workDate)
+            ->first();
+
+        if (! $rec) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'ATTENDANCE_NOT_FOUND', 'message' => 'Attendance record not found for selected date.'],
+            ], 404);
+        }
+
+        if ((string) ($rec->correction_status ?? 'none') !== 'requested') {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'CORRECTION_NOT_PENDING', 'message' => 'No pending correction to cancel.'],
+            ], 422);
+        }
+
+        $rec->correction_status = 'none';
+        $rec->correction_reason = null;
+        $rec->correction_requested_at = null;
+        $rec->corrected_by_user_id = null;
+        $rec->corrected_at = null;
+        $rec->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => ['correctionStatus' => $rec->correction_status],
+        ]);
+    }
+
     public function requestCorrection(Request $request): JsonResponse
     {
         $validated = $request->validate([

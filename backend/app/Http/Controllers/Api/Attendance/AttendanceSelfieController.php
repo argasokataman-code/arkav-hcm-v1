@@ -191,9 +191,8 @@ class AttendanceSelfieController extends BaseAttendanceController
                 'data' => [
                     'has_selfie' => (bool) $attendance->selfie_path,
                     'selfie' => $attendance->selfie_path ? [
-                        'path' => $attendance->selfie_path,
+                        'filename' => basename((string) $attendance->selfie_path),
                         'uploaded_at' => $attendance->updated_at,
-                        'is_encrypted' => true,
                     ] : null,
                 ],
             ]);
@@ -264,6 +263,21 @@ class AttendanceSelfieController extends BaseAttendanceController
 
         $fullPath = Storage::disk('private')->path($path);
         $downloadName = basename($path);
+
+        // Verify file integrity via stored hash
+        $storedHash = (string) ($rec->selfie_encrypted_hash ?? '');
+        if ($storedHash !== '') {
+            $actualHash = hash_file('sha256', $fullPath);
+            if ($actualHash !== $storedHash) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'SELFIE_HASH_MISMATCH',
+                        'message' => 'File integrity check failed. The selfie file may have been corrupted or tampered with.',
+                    ],
+                ], 409);
+            }
+        }
 
         return response()->download($fullPath, $downloadName);
     }

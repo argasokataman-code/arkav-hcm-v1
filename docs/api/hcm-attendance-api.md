@@ -1,6 +1,6 @@
 # Attendance API (Phase 1)
 
-Sumber kebenaran: `backend/routes/api.php` + `backend/app/Http/Controllers/Api/AttendanceController.php`.
+Sumber kebenaran: `backend/routes/api/attendance.php` + `Controllers/Api/Attendance/` (9 controller).
 
 ## Base path
 
@@ -589,4 +589,53 @@ Rekap absensi per karyawan — total hadir, bolos, dan rincian tanggal bolos.
 - `absentDates` hanya terisi untuk status `absent` (tidak termasuk `leave` / `present`).
 - `attendanceRate` = `totalPresent / (totalPresent + totalAbsent) * 100`, dibulatkan.
 - Karyawan tanpa record attendance di periode tsb tetap muncul dgn `totalAbsent=0, totalPresent=0`.
+
+---
+
+## Attendance Settings
+
+**Controller:** `HcmAttendanceSettingsController`
+**RBAC:** Admin only (`ensureHcmAdmin`)
+
+### GET `/attendance/settings`
+
+Returns current attendance configuration for the active company.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "correctionWindowDays": 30,
+    "defaultCheckInTime": "09:00",
+    "earlyPunchOutThresholdMinutes": 240,
+    "maxBreakMinutes": 0
+  }
+}
+```
+
+### PUT `/attendance/settings`
+
+Saves attendance settings (all fields optional — partial update supported).
+
+**Request Body:**
+```json
+{
+  "correctionWindowDays": 14,
+  "defaultCheckInTime": "08:00",
+  "earlyPunchOutThresholdMinutes": 120,
+  "maxBreakMinutes": 60
+}
+```
+
+**Validation:**
+
+| Field | Rules |
+|---|---|
+| `correctionWindowDays` | integer, 0–365 |
+| `defaultCheckInTime` | format `H:i` |
+| `earlyPunchOutThresholdMinutes` | integer, 1–720 |
+| `maxBreakMinutes` | integer, 0–1440 (0 = unlimited) |
+
+**Response (200):** Returns all current values (saved + existing defaults).
 

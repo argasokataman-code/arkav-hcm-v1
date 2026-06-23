@@ -8,27 +8,20 @@ use App\Models\CompanySetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/**
- * Manages per-company attendance configuration stored in company_settings.
- *
- * RBAC: ensureHcmAdmin (owner, admin, hcm_admin, super_admin)
- *
- * Routes:
- *   GET  /v1/hcm/attendance/settings
- *   PUT  /v1/hcm/attendance/settings
- */
 class HcmAttendanceSettingsController extends Controller
 {
     use EnsuresHcmAdmin;
 
     private const CORRECTION_WINDOW_KEY = 'attendance_correction_window_days';
+    private const DEFAULT_CHECK_IN_TIME_KEY = 'attendance_default_check_in_time';
+    private const EARLY_PUNCH_OUT_KEY = 'attendance_early_punch_out_threshold_minutes';
+    private const MAX_BREAK_KEY = 'attendance_max_break_minutes';
 
     private const CORRECTION_WINDOW_DEFAULT = 30;
+    private const DEFAULT_CHECK_IN_TIME_DEFAULT = '09:00';
+    private const EARLY_PUNCH_OUT_DEFAULT = 240;
+    private const MAX_BREAK_DEFAULT = 0;
 
-    /**
-     * GET /v1/hcm/attendance/settings
-     * Returns current attendance settings for the active company.
-     */
     public function show(Request $request): JsonResponse
     {
         if ($forbidden = $this->ensureHcmAdmin($request)) {
@@ -43,23 +36,28 @@ class HcmAttendanceSettingsController extends Controller
             ], 400);
         }
 
-        $windowDays = (int) (CompanySetting::query()
+        $settings = CompanySetting::query()
             ->where('company_id', $companyId)
-            ->where('key', self::CORRECTION_WINDOW_KEY)
-            ->value('value') ?? self::CORRECTION_WINDOW_DEFAULT);
+            ->whereIn('key', [
+                self::CORRECTION_WINDOW_KEY,
+                self::DEFAULT_CHECK_IN_TIME_KEY,
+                self::EARLY_PUNCH_OUT_KEY,
+                self::MAX_BREAK_KEY,
+            ])
+            ->get()
+            ->keyBy('key');
 
         return response()->json([
             'success' => true,
             'data' => [
-                'correctionWindowDays' => $windowDays,
+                'correctionWindowDays' => (int) ($settings->get(self::CORRECTION_WINDOW_KEY)?->value ?? self::CORRECTION_WINDOW_DEFAULT),
+                'defaultCheckInTime' => (string) ($settings->get(self::DEFAULT_CHECK_IN_TIME_KEY)?->value ?? self::DEFAULT_CHECK_IN_TIME_DEFAULT),
+                'earlyPunchOutThresholdMinutes' => (int) ($settings->get(self::EARLY_PUNCH_OUT_KEY)?->value ?? self::EARLY_PUNCH_OUT_DEFAULT),
+                'maxBreakMinutes' => (int) ($settings->get(self::MAX_BREAK_KEY)?->value ?? self::MAX_BREAK_DEFAULT),
             ],
         ]);
     }
 
-    /**
-     * PUT /v1/hcm/attendance/settings
-     * Saves attendance settings for the active company.
-     */
     public function update(Request $request): JsonResponse
     {
         if ($forbidden = $this->ensureHcmAdmin($request)) {
@@ -75,19 +73,69 @@ class HcmAttendanceSettingsController extends Controller
         }
 
         $validated = $request->validate([
-            'correctionWindowDays' => ['required', 'integer', 'min:0', 'max:365'],
+            'correctionWindowDays' => ['nullable', 'integer', 'min:0', 'max:365'],
+            'defaultCheckInTime' => ['nullable', 'date_format:H:i'],
+            'earlyPunchOutThresholdMinutes' => ['nullable', 'integer', 'min:1', 'max:720'],
+            'maxBreakMinutes' => ['nullable', 'integer', 'min:0', 'max:1440'],
         ]);
 
-        CompanySetting::query()->updateOrCreate(
-            ['company_id' => $companyId, 'key' => self::CORRECTION_WINDOW_KEY],
-            ['value' => (string) $validated['correctionWindowDays'], 'type' => 'integer']
-        );
+        $response = [];
+
+        if (array_key_exists('correctionWindowDays', $validated)) {
+            CompanySetting::query()->updateOrCreate(
+                ['company_id' => $companyId, 'key' => self::CORRECTION_WINDOW_KEY],
+                ['value' => (string) $validated['correctionWindowDays'], 'type' => 'integer']
+            );
+            $response['correctionWindowDays'] = (int) $validated['correctionWindowDays'];
+        } else {
+            $response['correctionWindowDays'] = (int) (CompanySetting::query()
+                ->where('company_id', $companyId)
+                ->where('key', self::CORRECTION_WINDOW_KEY)
+                ->value('value') ?? self::CORRECTION_WINDOW_DEFAULT);
+        }
+
+        if (array_key_exists('defaultCheckInTime', $validated)) {
+            CompanySetting::query()->updateOrCreate(
+                ['company_id' => $companyId, 'key' => self::DEFAULT_CHECK_IN_TIME_KEY],
+                ['value' => $validated['defaultCheckInTime'], 'type' => 'string']
+            );
+            $response['defaultCheckInTime'] = $validated['defaultCheckInTime'];
+        } else {
+            $response['defaultCheckInTime'] = (string) (CompanySetting::query()
+                ->where('company_id', $companyId)
+                ->where('key', self::DEFAULT_CHECK_IN_TIME_KEY)
+                ->value('value') ?? self::DEFAULT_CHECK_IN_TIME_DEFAULT);
+        }
+
+        if (array_key_exists('earlyPunchOutThresholdMinutes', $validated)) {
+            CompanySetting::query()->updateOrCreate(
+                ['company_id' => $companyId, 'key' => self::EARLY_PUNCH_OUT_KEY],
+                ['value' => (string) $validated['earlyPunchOutThresholdMinutes'], 'type' => 'integer']
+            );
+            $response['earlyPunchOutThresholdMinutes'] = (int) $validated['earlyPunchOutThresholdMinutes'];
+        } else {
+            $response['earlyPunchOutThresholdMinutes'] = (int) (CompanySetting::query()
+                ->where('company_id', $companyId)
+                ->where('key', self::EARLY_PUNCH_OUT_KEY)
+                ->value('value') ?? self::EARLY_PUNCH_OUT_DEFAULT);
+        }
+
+        if (array_key_exists('maxBreakMinutes', $validated)) {
+            CompanySetting::query()->updateOrCreate(
+                ['company_id' => $companyId, 'key' => self::MAX_BREAK_KEY],
+                ['value' => (string) $validated['maxBreakMinutes'], 'type' => 'integer']
+            );
+            $response['maxBreakMinutes'] = (int) $validated['maxBreakMinutes'];
+        } else {
+            $response['maxBreakMinutes'] = (int) (CompanySetting::query()
+                ->where('company_id', $companyId)
+                ->where('key', self::MAX_BREAK_KEY)
+                ->value('value') ?? self::MAX_BREAK_DEFAULT);
+        }
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'correctionWindowDays' => (int) $validated['correctionWindowDays'],
-            ],
+            'data' => $response,
         ]);
     }
 

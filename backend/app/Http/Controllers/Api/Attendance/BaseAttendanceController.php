@@ -97,9 +97,34 @@ abstract class BaseAttendanceController extends Controller
         });
     }
 
+    protected function companySetting(string $key, mixed $default): mixed
+    {
+        $companyId = $this->activeCompanyId(request());
+        if (! $companyId) {
+            return $default;
+        }
+
+        return \App\Models\CompanySetting::query()
+            ->where('company_id', $companyId)
+            ->where('key', $key)
+            ->value('value') ?? $default;
+    }
+
     protected function expectedCheckIn(string $dateYmd): Carbon
     {
-        return Carbon::parse($dateYmd.' 09:00:00', $this->tz());
+        $defaultTime = (string) ($this->companySetting('attendance_default_check_in_time', '09:00') ?: '09:00');
+
+        return Carbon::parse($dateYmd.' '.$defaultTime.':00', $this->tz());
+    }
+
+    protected function earlyPunchOutThresholdMinutes(): int
+    {
+        return (int) ($this->companySetting('attendance_early_punch_out_threshold_minutes', self::EARLY_PUNCH_OUT_REVIEW_MINUTES) ?: self::EARLY_PUNCH_OUT_REVIEW_MINUTES);
+    }
+
+    protected function maxBreakMinutes(): int
+    {
+        return (int) ($this->companySetting('attendance_max_break_minutes', 0) ?: 0);
     }
 
     protected function netProductionMinutes(
@@ -168,7 +193,7 @@ abstract class BaseAttendanceController extends Controller
      */
     protected function isCorrectionEligible(AttendanceRecord $rec, string $statusLabel, int $windowDays, string $tz): bool
     {
-        if ($statusLabel !== 'Needs Review') {
+        if (! $rec->check_in_at || ! $rec->check_out_at) {
             return false;
         }
         $corrStatus = (string) ($rec->correction_status ?? 'none');

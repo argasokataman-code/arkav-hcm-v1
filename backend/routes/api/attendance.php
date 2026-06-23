@@ -44,6 +44,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:attendance_correction'])->group(function () {
     // Correction request by employee
     Route::post('/attendance/me/correction-request', [AttendanceCorrectionController::class, 'requestCorrection']);
+    Route::post('/attendance/me/correction-cancel', [AttendanceCorrectionController::class, 'cancelCorrection']);
 });
 
 Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.feature:attendance_shift_scheduling'])->group(function () {

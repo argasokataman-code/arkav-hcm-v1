@@ -997,4 +997,70 @@ class AttendanceApiTest extends TestCase
         $this->assertStringContainsString('22:00', (string) $row->start_time);
         $this->assertStringContainsString('06:00', (string) $row->end_time);
     }
+
+    // ================================================================
+    // B2: Present status records are eligible for correction
+    // ================================================================
+
+    public function test_present_status_correction_eligible_in_ui(): void
+    {
+        $token = $this->bearerToken();
+        $user = User::query()->where('email', 'att@example.com')->firstOrFail();
+        $today = now(config('app.timezone'))->toDateString();
+
+        // Create present status record with check-in and check-out
+        AttendanceRecord::query()->updateOrCreate(
+            ['user_id' => $user->id, 'work_date' => $today],
+            [
+                'company_id' => $this->company->id,
+                'status' => 'present',
+                'check_in_at' => now(config('app.timezone'))->subHours(8),
+                'check_out_at' => now(config('app.timezone'))->subHour(),
+                'break_minutes' => 30,
+                'late_minutes' => 0,
+                'correction_status' => 'none',
+            ]
+        );
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id,
+        ])->getJson('/v1/hcm/attendance/me/history?days=1');
+
+        $response->assertOk();
+        $rows = $response->json('data');
+        $this->assertNotEmpty($rows);
+
+        $todayRow = collect($rows)->firstWhere('workDate', $today);
+        $this->assertNotNull($todayRow);
+        $this->assertTrue((bool) $todayRow['correctionEligible'], 'Present status record should be correction-eligible');
+    }
+
+    public function test_present_status_can_request_correction(): void
+    {
+        $token = $this->bearerToken();
+        $user = User::query()->where('email', 'att@example.com')->firstOrFail();
+        $today = now(config('app.timezone'))->toDateString();
+
+        AttendanceRecord::query()->updateOrCreate(
+            ['user_id' => $user->id, 'work_date' => $today],
+            [
+                'company_id' => $this->company->id,
+                'status' => 'present',
+                'check_in_at' => now(config('app.timezone'))->subHours(8),
+                'check_out_at' => now(config('app.timezone'))->subHour(),
+                'break_minutes' => 30,
+                'late_minutes' => 0,
+                'correction_status' => 'none',
+            ]
+        );
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/attendance/me/correction-request', [
+            'workDate' => $today,
+            'reason' => 'Wrong check-out time, should be 17:00.',
+        ])->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.correctionStatus', 'requested');
+    }
 }

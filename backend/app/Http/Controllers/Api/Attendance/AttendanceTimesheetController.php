@@ -71,9 +71,7 @@ class AttendanceTimesheetController extends BaseAttendanceController
             ->leftJoin('employee_profiles', 'employee_profiles.user_id', '=', 'users.id')
             ->whereBetween('attendance_records.work_date', [$dateFrom, $dateTo])
             ->when($activeCompanyId, function ($q, $cid): void {
-                $q->where(function ($inner) use ($cid): void {
-                    $inner->where('attendance_records.company_id', $cid)->orWhereNull('attendance_records.company_id');
-                });
+                $q->where('attendance_records.company_id', $cid);
             })
             ->selectRaw('DISTINCT '.$projectLabelExpr.' as project')
             ->orderBy('project')
@@ -87,9 +85,7 @@ class AttendanceTimesheetController extends BaseAttendanceController
             ->leftJoin('employee_profiles', 'employee_profiles.user_id', '=', 'users.id')
             ->whereBetween('attendance_records.work_date', [$dateFrom, $dateTo])
             ->when($activeCompanyId, function ($q, $cid): void {
-                $q->where(function ($inner) use ($cid): void {
-                    $inner->where('attendance_records.company_id', $cid)->orWhereNull('attendance_records.company_id');
-                });
+                $q->where('attendance_records.company_id', $cid);
             })
             ->select('attendance_records.*');
 

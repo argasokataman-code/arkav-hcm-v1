@@ -524,6 +524,17 @@ class AttendanceEmployeeController extends BaseAttendanceController
         }
 
         if (! $rec->break_started_at) {
+            $maxBreak = $this->maxBreakMinutes();
+            if ($maxBreak > 0 && (int) $rec->break_minutes >= $maxBreak) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'BREAK_LIMIT_REACHED',
+                        'message' => 'Break limit reached for today.',
+                    ],
+                ], 422);
+            }
+
             $rec->break_started_at = $now;
             $rec->save();
 

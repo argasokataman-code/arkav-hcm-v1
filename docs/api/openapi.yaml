@@ -4110,6 +4110,64 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '404': { $ref: '#/components/responses/NotFoundError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/attendance/me/correction-cancel:
+    post:
+      tags: [Attendance]
+      summary: Cancel pending correction (self)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: workDate, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/attendance/settings:
+    get:
+      tags: [Attendance]
+      summary: Get attendance settings (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      correctionWindowDays: { type: integer }
+                      defaultCheckInTime: { type: string }
+                      earlyPunchOutThresholdMinutes: { type: integer }
+                      maxBreakMinutes: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    put:
+      tags: [Attendance]
+      summary: Update attendance settings (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                correctionWindowDays: { type: integer, minimum: 0, maximum: 365 }
+                defaultCheckInTime: { type: string, pattern: "^([01]\\d|2[0-3]):([0-5]\\d)$" }
+                earlyPunchOutThresholdMinutes: { type: integer, minimum: 1, maximum: 720 }
+                maxBreakMinutes: { type: integer, minimum: 0, maximum: 1440 }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/attendance/me/selfie:
     post:
       tags: [Attendance]

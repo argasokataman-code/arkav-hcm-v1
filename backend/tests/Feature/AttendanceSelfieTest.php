@@ -212,6 +212,114 @@ class AttendanceSelfieTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.has_selfie', true)
-            ->assertJsonPath('data.selfie.is_encrypted', true);
+            ->assertJsonMissingPath('data.selfie.path');
+    }
+
+    // ================================================================
+    // S2: Selfie hash verification on download
+    // ================================================================
+
+    public function test_selfie_download_rejects_on_hash_mismatch(): void
+    {
+        Storage::fake('private');
+
+        // Create admin in same company as employee
+        $adminUser = User::factory()->create([
+            'name' => 'Selfie Admin',
+            'email' => 'selfie-admin-s2@test.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+        CompanyUser::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $adminUser->id,
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'selfie-admin-s2@test.com',
+            'password' => 'StrongPass1',
+            'companyCode' => $this->company->code,
+        ])->assertOk();
+        $adminToken = (string) $login->json('data.accessToken');
+
+        // Upload selfie
+        $testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2Yq5sAAAAASUVORK5CYII=';
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => $this->company->id,
+        ])->postJson("{$this->baseUrl}/attendance/me/selfie", [
+            'selfie_base64' => $testImage,
+        ])->assertOk();
+
+        $record = AttendanceRecord::query()
+            ->where('company_id', $this->company->id)
+            ->where('user_id', $this->user->id)
+            ->whereDate('work_date', now()->toDateString())
+            ->firstOrFail();
+
+        $storedHash = $record->selfie_encrypted_hash;
+        $this->assertNotNull($storedHash);
+
+        // Corrupt the file on disk
+        $fullPath = Storage::disk('private')->path((string) $record->selfie_path);
+        file_put_contents($fullPath, 'CORRUPTED_BINARY_DATA');
+
+        // Admin download → should fail hash check
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->getJson("{$this->baseUrl}/attendance/admin/records/{$record->id}/selfie/download");
+
+        $response->assertStatus(409);
+        $response->assertJsonPath('error.code', 'SELFIE_HASH_MISMATCH');
+    }
+
+    public function test_selfie_download_succeeds_when_hash_matches(): void
+    {
+        Storage::fake('private');
+
+        // Create admin in same company
+        $adminUser = User::factory()->create([
+            'name' => 'Selfie Admin 2',
+            'email' => 'selfie-admin-pass@test.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+        CompanyUser::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $adminUser->id,
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'selfie-admin-pass@test.com',
+            'password' => 'StrongPass1',
+            'companyCode' => $this->company->code,
+        ])->assertOk();
+        $adminToken = (string) $login->json('data.accessToken');
+
+        $testImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2Yq5sAAAAASUVORK5CYII=';
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => $this->company->id,
+        ])->postJson("{$this->baseUrl}/attendance/me/selfie", [
+            'selfie_base64' => $testImage,
+        ])->assertOk();
+
+        $record = AttendanceRecord::query()
+            ->where('company_id', $this->company->id)
+            ->where('user_id', $this->user->id)
+            ->whereDate('work_date', now()->toDateString())
+            ->firstOrFail();
+
+        // Download without corruption → should succeed
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->get("{$this->baseUrl}/attendance/admin/records/{$record->id}/selfie/download");
+
+        $response->assertOk();
+        $response->assertHeader('content-disposition');
     }
 }

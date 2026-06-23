@@ -327,7 +327,8 @@
       }
 
       if (deleteBtn) {
-        if (!confirm(`Hapus category "${deleteBtn.dataset.catName}"? Dokumen yang terkait akan kehilangan kategori.`)) return;
+        var catConfirm = window.ArcavUi && window.ArcavUi.confirmDelete ? await window.ArcavUi.confirmDelete(`Hapus category "${deleteBtn.dataset.catName}"? Dokumen yang terkait akan kehilangan kategori.`, "Hapus Category") : window.confirm(`Hapus category "${deleteBtn.dataset.catName}"? Dokumen yang terkait akan kehilangan kategori.`);
+        if (!catConfirm) return;
         try {
           await apiRequest('DELETE', `${BASE}/categories/${deleteBtn.dataset.catDelete}`);
           notify('success', 'Category dihapus.');

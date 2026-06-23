@@ -384,19 +384,24 @@
                     if (!deleteUuid || !deleteRow) { return; }
 
                     var confirmText = 'Hapus policy ' + programLabel(deleteRow.programCode) + ' (' + partyLabel(deleteRow.contributionParty) + ')?';
-                    if (!window.confirm(confirmText)) { return; }
-
-                    deleteBtn.disabled = true;
-                    apiDelete('/hcm/bpjs-governance/policies/' + deleteUuid)
-                        .then(function () {
-                            return Promise.all([loadPolicies(), loadPolicyHistory()]);
-                        })
-                        .catch(function (err) {
-                            alert(err && err.message ? err.message : 'Gagal menghapus policy BPJS.');
-                        })
-                        .finally(function () {
-                            deleteBtn.disabled = false;
-                        });
+                    function doDeletePolicy() {
+                        deleteBtn.disabled = true;
+                        apiDelete('/hcm/bpjs-governance/policies/' + deleteUuid)
+                            .then(function () {
+                                return Promise.all([loadPolicies(), loadPolicyHistory()]);
+                            })
+                            .catch(function (err) {
+                                alert(err && err.message ? err.message : 'Gagal menghapus policy BPJS.');
+                            })
+                            .finally(function () {
+                                deleteBtn.disabled = false;
+                            });
+                    }
+                    if (window.ArcavUi && window.ArcavUi.confirmDelete) {
+                        window.ArcavUi.confirmDelete(confirmText, "Hapus Policy").then(function(ok){ if (ok) doDeletePolicy(); });
+                    } else if (window.confirm(confirmText)) {
+                        doDeletePolicy();
+                    }
                 }
             });
         }

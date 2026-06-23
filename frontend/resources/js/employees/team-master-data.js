@@ -456,7 +456,7 @@
                 var id = deleteBtn.getAttribute('data-id');
                 var name = deleteBtn.getAttribute('data-name');
 
-                if (window.confirm('Delete team "' + name + '"? This cannot be undone.')) {
+                function doDeleteTeam() {
                     api('DELETE', '/v1/hcm/teams/' + id).then(function () {
                         notify('Team deleted successfully', false);
                         loadPage(currentPage, currentPerPage, currentSearch, currentStatus);
@@ -464,6 +464,11 @@
                         var msg = err.body && err.body.error ? err.body.error.message : 'Failed to delete team';
                         notify(msg, true);
                     });
+                }
+                if (window.ArcavUi && window.ArcavUi.confirmDelete) {
+                    window.ArcavUi.confirmDelete('Delete team "' + name + '"? This cannot be undone.', "Hapus Team").then(function(ok){ if (ok) doDeleteTeam(); });
+                } else if (window.confirm('Delete team "' + name + '"? This cannot be undone.')) {
+                    doDeleteTeam();
                 }
             }
         });
@@ -696,7 +701,7 @@
         function confirmTakeOut(memberName) {
             var label = memberName && String(memberName).trim() ? String(memberName).trim() : 'this member';
             if (window.ArcavUi && typeof window.ArcavUi.confirmDelete === 'function') {
-                return window.ArcavUi.confirmDelete('Take out ' + label + ' from this team?');
+                return window.ArcavUi.confirmDelete('Take out ' + label + ' from this team?', "Konfirmasi");
             }
             return Promise.resolve(window.confirm('Take out ' + label + ' from this team?'));
         }

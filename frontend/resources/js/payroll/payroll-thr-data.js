@@ -308,10 +308,19 @@
                 toast("Tahun tidak valid.", true);
                 return;
             }
+
+            var newCutoff = cutoffSettings.value || null;
+            var existing = settingsByYear[cy];
+            if (newCutoff && existing && existing.calculationCutoffDate && newCutoff < existing.calculationCutoffDate) {
+                if (!window.confirm("PERHATIAN: Tanggal cut-off baru (" + newCutoff + ") lebih awal dari sebelumnya (" + existing.calculationCutoffDate + "). Perubahan ini dapat memengaruhi eligible karyawan. Lanjutkan?")) {
+                    return;
+                }
+            }
+
             var payload = {
                 eidDate: eidInput.value,
                 paymentDate: payInput.value || null,
-                calculationCutoffDate: cutoffSettings.value || null,
+                calculationCutoffDate: newCutoff,
                 notes: notesTa.value || null,
             };
             apiRequest("put", "/v1/hcm/payroll/thr-settings/" + cy, payload)

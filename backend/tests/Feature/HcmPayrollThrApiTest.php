@@ -19,6 +19,12 @@ class HcmPayrollThrApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['hcm.export_reconciliation.enabled' => false]);
+    }
+
     private function adminToken(): string
     {
         $this->postJson('/v1/identity/auth/register', [

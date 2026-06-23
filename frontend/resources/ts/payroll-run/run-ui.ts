@@ -724,13 +724,19 @@ export async function disburseSelected(): Promise<void> {
             return;
         }
 
+        const data = response.data;
+        let message = `Pembayaran manual tercatat (${data?.gatewayReference || "OK"}).`;
+        if (data?.skippedAlreadyPaidUserIds && data.skippedAlreadyPaidUserIds.length > 0) {
+            message += ` (${data.skippedAlreadyPaidUserIds.length} karyawan diskip karena sudah dibayar).`;
+        }
+        
         const modalApi = (window as any).bootstrap?.Modal;
         if (modalApi?.getInstance && modal) {
             modalApi.getInstance(modal)?.hide?.();
         }
         setPayrollReconciliationHint("");
         clearReconciliationDownloaded();
-        toast(`Pembayaran manual tercatat (${response.data?.gatewayReference || "OK"}).`, false);
+        toast(message, false);
         await loadPeriod(false);
     } catch (error: any) {
         const code = getApiErrorCode(error.response?.data || {});

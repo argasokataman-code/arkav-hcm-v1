@@ -138,15 +138,15 @@ trait HandlesPayrollRunReadEndpoints
             'periodMonth' => ['required', 'integer', 'min:1', 'max:12'],
             'userIds' => ['required', 'array', 'min:1'],
             'userIds.*' => [function (string $attribute, mixed $value, Closure $fail): void {
-                if (! $this->userIdentifierExists($value)) {
+                $companyId = $this->activeCompanyId(request());
+                if (! $this->userIdentifierExists($value, $companyId)) {
                     $fail("The selected {$attribute} is invalid.");
                 }
             }],
         ]);
 
-        $resolvedUserIds = $this->resolveUserIdsFromIdentifiers($validated['userIds']);
-
         $companyId = $this->activeCompanyId($request);
+        $resolvedUserIds = $this->resolveUserIdsFromIdentifiers($validated['userIds'], $companyId);
         $periodQuery = HcmPayrollPeriod::query()
             ->where('period_year', $validated['periodYear'])
             ->where('period_month', $validated['periodMonth']);

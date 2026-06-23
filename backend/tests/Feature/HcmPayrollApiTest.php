@@ -29,6 +29,12 @@ class HcmPayrollApiTest extends TestCase
 
     private ?Company $company = null;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['hcm.export_reconciliation.enabled' => false]);
+    }
+
     private function payrollCompany(): Company
     {
         return Company::query()->firstOrCreate(
@@ -177,6 +183,11 @@ class HcmPayrollApiTest extends TestCase
             ->assertJsonPath('data.run.status', 'finalized')
             ->assertJsonPath('data.run.purpose', 'monthly')
             ->assertJsonCount(2, 'data.lines');
+
+        // Void the finalized run then recalculate draft
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/void')
+            ->assertOk();
 
         $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
@@ -1243,5 +1254,103 @@ class HcmPayrollApiTest extends TestCase
         Mail::assertSent(MonthlyPayslipMail::class, function (MonthlyPayslipMail $mail) use ($worker): bool {
             return $mail->hasTo($worker->email);
         });
+    }
+
+    public function test_finalize_enforces_reconciliation_gate_when_config_enabled(): void
+    {
+        $admin = $this->adminToken();
+
+        config([
+            'hcm.export_reconciliation.enabled' => true,
+            'hcm.export_reconciliation.enforce.payroll_run.finalize' => true,
+        ]);
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 12,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $runId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->json('data.run.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/finalize')
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'EXPORT_RECON_REQUIRED');
+    }
+
+    public function test_disburse_enforces_reconciliation_gate_when_config_enabled(): void
+    {
+        $admin = $this->adminToken();
+
+        config([
+            'hcm.export_reconciliation.enabled' => true,
+            'hcm.export_reconciliation.enforce.payroll_run.disburse' => true,
+        ]);
+
+        $periodId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 11,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        $runId = (int) $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
+            ->assertOk()
+            ->json('data.run.id');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/finalize')
+            ->assertOk();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/disburse', ['applyAll' => true])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'EXPORT_RECON_REQUIRED');
+    }
+
+    public function test_payroll_period_with_null_company_is_not_visible_to_other_tenant(): void
+    {
+        $tokA = $this->adminToken();
+
+        // Create another company B
+        $companyB = \App\Models\Company::query()->create([
+            'code' => 'company_b_tenant_isolation',
+            'name' => 'Company B',
+            'domain' => 'company-b.local',
+        ]);
+        $resultB = $this->createHcmAdminWithCompany([
+            'name' => 'Admin B',
+            'email' => 'admin-b@example.com',
+            'password' => 'StrongPass1',
+        ], $companyB);
+        $tokB = $resultB['token'];
+
+        // As company A, create a period (company_id is set by controller)
+        $periodA = (int) $this->withHeaders(['Authorization' => 'Bearer '.$tokA])
+            ->postJson('/v1/hcm/payroll-periods', [
+                'periodYear' => 2026,
+                'periodMonth' => 5,
+            ])
+            ->assertStatus(201)
+            ->json('data.id');
+
+        // As company B, list periods — should NOT see company A's period
+        $periodsB = $this->withHeaders([
+            'Authorization' => 'Bearer '.$tokB,
+            'X-Company-Id' => (string) $companyB->id,
+        ])->getJson('/v1/hcm/payroll-periods')
+            ->assertOk()
+            ->json('data');
+
+        $periodIdsB = collect($periodsB)->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+        $this->assertNotContains($periodA, $periodIdsB, 'Company B must not see Company A payroll period');
     }
 }

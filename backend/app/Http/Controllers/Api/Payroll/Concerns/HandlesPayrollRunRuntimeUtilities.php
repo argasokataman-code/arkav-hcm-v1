@@ -29,9 +29,13 @@ trait HandlesPayrollRunRuntimeUtilities
         return $userEmail !== '' && $userEmail === $primaryEmail;
     }
 
-    private function userIdentifierExists(mixed $identifier): bool
+    private function userIdentifierExists(mixed $identifier, ?int $companyId = null): bool
     {
         $query = User::query();
+
+        if ($companyId !== null) {
+            $query->whereHas('companyMemberships', fn (Builder $q) => $q->where('company_id', $companyId));
+        }
 
         if ($this->isNumericUserIdentifier($identifier)) {
             return $query->whereKey((int) $identifier)->exists();
@@ -48,7 +52,7 @@ trait HandlesPayrollRunRuntimeUtilities
      * @param  array<int, mixed>  $identifiers
      * @return Collection<int, int>
      */
-    private function resolveUserIdsFromIdentifiers(array $identifiers)
+    private function resolveUserIdsFromIdentifiers(array $identifiers, ?int $companyId = null)
     {
         $numericIds = collect($identifiers)
             ->filter(fn (mixed $identifier): bool => $this->isNumericUserIdentifier($identifier))
@@ -67,6 +71,7 @@ trait HandlesPayrollRunRuntimeUtilities
         }
 
         $users = User::query()
+            ->when($companyId !== null, fn ($q) => $q->whereHas('companyMemberships', fn (Builder $qMem) => $qMem->where('company_id', $companyId)))
             ->where(function (Builder $query) use ($numericIds, $uuids): void {
                 if ($numericIds->isNotEmpty()) {
                     $query->whereIn('id', $numericIds->all());
@@ -238,7 +243,7 @@ trait HandlesPayrollRunRuntimeUtilities
             return null;
         }
 
-        if (! (bool) config(sprintf('hcm.export_reconciliation.enforce.payroll_run.%s', $action), false)) {
+        if (! (bool) config(sprintf('hcm.export_reconciliation.enforce.payroll_run.%s', $action), true)) {
             return null;
         }
 

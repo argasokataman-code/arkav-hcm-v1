@@ -5174,6 +5174,7 @@ paths:
       description: |
         Menandai run `finalized` dan periode `posted`. `422` dengan `PAYROLL_RUN_EMPTY` jika tidak ada baris;
         `PAYROLL_RUN_NOT_DRAFT` / `PAYROLL_FINALIZED_EXISTS` (hanya jika sudah ada final dengan `purpose` yang sama).
+        `PAYROLL_RUN_FOREIGN_USERS` jika ada user_id dalam baris tidak terdaftar di perusahaan aktif.
         Saat fitur reconciliation enforcement aktif, endpoint juga dapat mengembalikan
         `EXPORT_RECON_REQUIRED` / `EXPORT_RECON_EXPIRED` / `EXPORT_RECON_SCOPE_MISMATCH` / `EXPORT_RECON_STALE_DATA`.
       security:
@@ -6291,6 +6292,7 @@ paths:
       summary: Upsert THR settings for a calendar year (HCM admin)
       description: |
         Menyimpan pengaturan THR tahunan untuk tenant aktif. Endpoint ini membutuhkan permission `payroll.thr.manage`.
+        `422` dengan `THR_CUTOFF_DATE_INVALID` jika `calculationCutoffDate` baru lebih awal dari tersimpan.
       security:
         - bearerAuth: []
       parameters:

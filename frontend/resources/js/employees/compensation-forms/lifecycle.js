@@ -207,6 +207,7 @@ export function bindEmployeeCompensationFormsLifecycle(deps) {
                 : ""
         );
         writeField(editForm, "baseSalary", item.baseSalary != null ? String(Math.round(Number(item.baseSalary || 0))) : "");
+        editForm.setAttribute("data-employee-orig-base-salary", item.baseSalary != null ? String(Math.round(Number(item.baseSalary || 0))) : "");
         writeField(editForm, "contractType", normalizeContractTypeValue(item.contract && item.contract.contractType ? item.contract.contractType : item.contractType || "permanent"));
         writeField(editForm, "contractStatus", item.contract && item.contract.status ? item.contract.status : "active");
         writeField(editForm, "contractStartDate", item.contract && item.contract.startDate ? item.contract.startDate : item.contractStartDate || "");
@@ -219,6 +220,7 @@ export function bindEmployeeCompensationFormsLifecycle(deps) {
         writeField(editForm, "bankBranch", item.bank && item.bank.branch && item.bank.branch !== "-" ? item.bank.branch : "");
         writeField(editForm, "npwp", item.taxProfile && item.taxProfile.npwp ? item.taxProfile.npwp : "");
         writeField(editForm, "taxStatus", item.taxProfile && item.taxProfile.taxStatus ? item.taxProfile.taxStatus : "");
+        editForm.setAttribute("data-employee-orig-tax-status", item.taxProfile && item.taxProfile.taxStatus ? item.taxProfile.taxStatus : "");
         writeField(editForm, "ptkpStatus", item.taxProfile && item.taxProfile.ptkpStatus ? item.taxProfile.ptkpStatus : "");
         writeField(editForm, "bpjsKesehatanNo", item.benefits && item.benefits.bpjsKesehatanNo ? item.benefits.bpjsKesehatanNo : "");
         writeField(editForm, "bpjsKetenagakerjaanNo", item.benefits && item.benefits.bpjsKetenagakerjaanNo ? item.benefits.bpjsKetenagakerjaanNo : "");
@@ -467,6 +469,24 @@ export function bindEmployeeCompensationFormsLifecycle(deps) {
                 }
                 return;
             }
+
+            var origSalary = editForm.getAttribute("data-employee-orig-base-salary");
+            var origTaxStatus = editForm.getAttribute("data-employee-orig-tax-status");
+            var newSalary = readField(editForm, "baseSalary");
+            var newTaxStatus = readText(editForm, "taxStatus");
+            if (
+                (origSalary !== null && newSalary !== origSalary)
+                || (origTaxStatus !== null && newTaxStatus !== origTaxStatus)
+            ) {
+                var changes = [];
+                if (origSalary !== null && newSalary !== origSalary) changes.push("Base Salary (" + origSalary + " → " + newSalary + ")");
+                if (origTaxStatus !== null && newTaxStatus !== origTaxStatus) changes.push("Tax Status (" + origTaxStatus + " → " + newTaxStatus + ")");
+                var msg = "PERHATIAN: Perubahan data berikut akan memengaruhi kalkulasi payroll:\n\n" + changes.join("\n") + "\n\nLanjutkan?";
+                if (!window.confirm(msg)) {
+                    return;
+                }
+            }
+
             var editSubmitBtn = editForm.querySelector("[data-employee-step-submit]");
             var editOriginalLabel = editSubmitBtn ? (editSubmitBtn.getAttribute("data-original-label") || editSubmitBtn.textContent) : "";
             if (editSubmitBtn) {

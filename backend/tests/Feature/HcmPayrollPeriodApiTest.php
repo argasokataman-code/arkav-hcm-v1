@@ -691,8 +691,11 @@ class HcmPayrollPeriodApiTest extends TestCase
 
         $this->assertSame('posted', $periodResponse->json('data.status'));
 
-        // Recalculate draft in dev mode should allow voiding finalized run
-        // (This behavior allows re-running payroll in testing/dev scenarios)
+        // Manual void then recalculate draft
+        $this->withHeaders(['Authorization' => 'Bearer '.$admin])
+            ->postJson('/v1/hcm/payroll-runs/'.$runId.'/void')
+            ->assertOk();
+
         $newDraft = $this->withHeaders(['Authorization' => 'Bearer '.$admin])
             ->postJson('/v1/hcm/payroll-periods/'.$periodId.'/calculate-draft')
             ->assertOk();

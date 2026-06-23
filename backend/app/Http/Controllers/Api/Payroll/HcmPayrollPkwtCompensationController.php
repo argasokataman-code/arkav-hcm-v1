@@ -213,7 +213,7 @@ class HcmPayrollPkwtCompensationController extends Controller
             return null;
         }
 
-        if (! (bool) config('hcm.export_reconciliation.enforce.pkwt_compensation.post_payroll', false)) {
+        if (! (bool) config('hcm.export_reconciliation.enforce.pkwt_compensation.post_payroll', true)) {
             return null;
         }
 

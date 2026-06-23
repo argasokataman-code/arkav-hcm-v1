@@ -467,7 +467,7 @@ class HcmPayrollThrBatchController extends Controller
             return null;
         }
 
-        if (! (bool) config(sprintf('hcm.export_reconciliation.enforce.thr_batch.%s', $action), false)) {
+        if (! (bool) config(sprintf('hcm.export_reconciliation.enforce.thr_batch.%s', $action), true)) {
             return null;
         }
 

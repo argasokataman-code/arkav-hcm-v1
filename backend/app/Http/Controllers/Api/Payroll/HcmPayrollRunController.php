@@ -142,6 +142,26 @@ class HcmPayrollRunController extends Controller
             return $error;
         }
 
+        // M4 — Company scope guard: verify all line user_ids belong to the active company
+        if ($companyId !== null) {
+            $lineUserIds = $run->lines()->pluck('user_id')->unique()->values()->all();
+            if ($lineUserIds !== []) {
+                $foreignCount = User::query()
+                    ->whereIn('id', $lineUserIds)
+                    ->whereDoesntHave('companyMemberships', fn ($q) => $q->where('company_id', $companyId))
+                    ->count();
+                if ($foreignCount > 0) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => [
+                            'code' => 'PAYROLL_RUN_FOREIGN_USERS',
+                            'message' => 'Satu atau lebih karyawan dalam run ini tidak terdaftar di perusahaan aktif.',
+                        ],
+                    ], 422);
+                }
+            }
+        }
+
         if ($run->status !== HcmPayrollRun::STATUS_DRAFT) {
             return response()->json([
                 'success' => false,
@@ -308,16 +328,17 @@ class HcmPayrollRunController extends Controller
         $validated = $request->validate([
             'userIds' => ['nullable', 'array', 'min:1'],
             'userIds.*' => [function (string $attribute, mixed $value, Closure $fail): void {
-                if (! $this->userIdentifierExists($value)) {
+                $companyId = $this->activeCompanyId(request());
+                if (! $this->userIdentifierExists($value, $companyId)) {
                     $fail("The selected {$attribute} is invalid.");
                 }
             }],
             'applyAll' => ['nullable', 'boolean'],
         ]);
 
-        $selectedUserIds = $this->resolveUserIdsFromIdentifiers($validated['userIds'] ?? []);
-        $applyAll = (bool) ($validated['applyAll'] ?? false);
         $companyId = $this->activeCompanyId($request);
+        $selectedUserIds = $this->resolveUserIdsFromIdentifiers($validated['userIds'] ?? [], $companyId);
+        $applyAll = (bool) ($validated['applyAll'] ?? false);
         $result = DB::transaction(function () use ($id, $request, $selectedUserIds, $applyAll, $companyId): array {
             $runQuery = HcmPayrollRun::query()->whereKey($id)->lockForUpdate();
             $this->applyTenantScope($runQuery, $companyId);

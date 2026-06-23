@@ -216,50 +216,13 @@ class HcmPayrollPeriodController extends Controller
         $finalizedExists = $finalizedExistsQuery->exists();
 
         if ($finalizedExists) {
-            if (! app()->environment(['local', 'development', 'testing'])) {
-                return response()->json([
-                    'success' => false,
-                    'error' => [
-                        'code' => 'PAYROLL_PERIOD_FINALIZED',
-                        'message' => 'This period already has a finalized payroll run; void or use a new period before recalculating.',
-                    ],
-                ], 422);
-            }
-
-            // Dev helper: void finalized monthly runs and clear payment metadata so draft can be recalculated.
-            DB::transaction(function () use ($period, $companyId): void {
-                $finalizedRunsQuery = HcmPayrollRun::query()
-                    ->where('hcm_payroll_period_id', $period->id)
-                    ->where('status', HcmPayrollRun::STATUS_FINALIZED)
-                    ->where('purpose', HcmPayrollRun::PURPOSE_MONTHLY)
-                    ->lockForUpdate();
-                $this->applyTenantScope($finalizedRunsQuery, $companyId);
-                $finalizedRuns = $finalizedRunsQuery->get();
-
-                foreach ($finalizedRuns as $finalizedRun) {
-                    $lines = HcmPayrollLine::query()
-                        ->where('hcm_payroll_run_id', $finalizedRun->id)
-                        ->lockForUpdate()
-                        ->get();
-
-                    foreach ($lines as $line) {
-                        $meta = is_array($line->meta)
-                            ? $line->meta
-                            : (json_decode((string) ($line->meta ?? '{}'), true) ?: []);
-                        unset($meta['paymentStatus'], $meta['paidAt'], $meta['gatewayReference'], $meta['paymentChannel']);
-                        $line->meta = $meta;
-                        $line->save();
-                    }
-
-                    $finalizedRun->update([
-                        'status' => HcmPayrollRun::STATUS_VOID,
-                    ]);
-                }
-
-                $period->update([
-                    'status' => HcmPayrollPeriod::STATUS_OPEN,
-                ]);
-            });
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'PAYROLL_PERIOD_FINALIZED',
+                    'message' => 'This period already has a finalized payroll run; void or use a new period before recalculating.',
+                ],
+            ], 422);
         }
 
         // Always rebuild draft from latest tenant-scoped employee source of truth.

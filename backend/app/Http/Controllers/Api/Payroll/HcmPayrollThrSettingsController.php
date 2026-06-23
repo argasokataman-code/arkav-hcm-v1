@@ -93,6 +93,21 @@ class HcmPayrollThrSettingsController extends Controller
             $notes = null;
         }
 
+        $existing = HcmThrYearlySetting::query()
+            ->where('company_id', $companyId)
+            ->where('calendar_year', $calendarYearInt)
+            ->first();
+
+        if ($existing && $existing->calculation_cutoff_date && $calculationCutoffDate && $calculationCutoffDate < $existing->calculation_cutoff_date->toDateString()) {
+             return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'THR_CUTOFF_DATE_INVALID',
+                    'message' => 'Tanggal cut-off tidak boleh lebih awal dari tanggal cut-off yang sudah tersimpan.',
+                ],
+            ], 422);
+        }
+
         $row = HcmThrYearlySetting::query()->updateOrCreate(
             [
                 'company_id' => $companyId,

@@ -749,6 +749,12 @@ Query wajib: `periodYear`, `periodMonth` (sama aturan seperti POST periode).
 | `THR_DISBURSE_LINE_NOT_PAYABLE` | 422 | Baris tidak eligible / THR nihil |
 | `THR_POST_UNPAID_PAYABLE_LINES` | 422 | Masih ada eligible THR&gt;0 yang belum `paid` |
 | `THR_SEND_SLIP_*` | 422 | Bulk kirim slip — validasi batch/line/PDF |
+| `THR_CUTOFF_DATE_INVALID` | 422 | Tanggal cut-off lebih awal dari tersimpan |
+| `PAYROLL_RUN_FOREIGN_USERS` | 422 | Finalize ditolak: ada user_id tidak terdaftar di perusahaan aktif |
+| `EXPORT_RECON_REQUIRED` | 422 | Aksi ditolak: export reconciliation evidence wajib diunduh dulu |
+| `EXPORT_RECON_EXPIRED` | 422 | Evidence sudah kedaluwarsa, export ulang |
+| `EXPORT_RECON_SCOPE_MISMATCH` | 422 | Scope evidence tidak cocok dengan konteks aksi |
+| `EXPORT_RECON_STALE_DATA` | 422 | Data sudah berubah sejak export, export ulang |
 
 ## Tes
 

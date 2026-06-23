@@ -24,6 +24,12 @@ class HcmPayrollRunApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['hcm.export_reconciliation.enabled' => false]);
+    }
+
     private ?Company $company = null;
 
     private function payrollCompany(): Company

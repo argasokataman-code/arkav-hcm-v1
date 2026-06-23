@@ -391,7 +391,9 @@
                                 return Promise.all([loadPolicies(), loadPolicyHistory()]);
                             })
                             .catch(function (err) {
-                                alert(err && err.message ? err.message : 'Gagal menghapus policy BPJS.');
+                                if (window.ArcavUi && typeof window.ArcavUi.showToast === 'function') {
+                                    window.ArcavUi.showToast(err && err.message ? err.message : 'Gagal menghapus policy BPJS.', 'danger');
+                                }
                             })
                             .finally(function () {
                                 deleteBtn.disabled = false;
@@ -399,7 +401,7 @@
                     }
                     if (window.ArcavUi && window.ArcavUi.confirmDelete) {
                         window.ArcavUi.confirmDelete(confirmText, "Hapus Policy").then(function(ok){ if (ok) doDeletePolicy(); });
-                    } else if (window.confirm(confirmText)) {
+                    } else {
                         doDeletePolicy();
                     }
                 }
@@ -760,7 +762,9 @@
                             URL.revokeObjectURL(objectUrl);
                         })
                         .catch(function (err) {
-                            alert(err && err.message ? err.message : 'Gagal mengunduh laporan.');
+                            if (window.ArcavUi && typeof window.ArcavUi.showToast === 'function') {
+                                window.ArcavUi.showToast(err && err.message ? err.message : 'Gagal mengunduh laporan.', 'danger');
+                            }
                         })
                         .finally(function () { exportBtnLanding.disabled = false; });
                 });
@@ -821,7 +825,9 @@
                             URL.revokeObjectURL(objectUrl);
                         })
                         .catch(function (err) {
-                            alert(err && err.message ? err.message : 'Gagal mengunduh laporan.');
+                            if (window.ArcavUi && typeof window.ArcavUi.showToast === 'function') {
+                                window.ArcavUi.showToast(err && err.message ? err.message : 'Gagal mengunduh laporan.', 'danger');
+                            }
                         })
                         .finally(function () { exportBtn.disabled = false; });
                 });

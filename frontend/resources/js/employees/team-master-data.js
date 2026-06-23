@@ -467,7 +467,7 @@
                 }
                 if (window.ArcavUi && window.ArcavUi.confirmDelete) {
                     window.ArcavUi.confirmDelete('Delete team "' + name + '"? This cannot be undone.', "Hapus Team").then(function(ok){ if (ok) doDeleteTeam(); });
-                } else if (window.confirm('Delete team "' + name + '"? This cannot be undone.')) {
+                } else {
                     doDeleteTeam();
                 }
             }
@@ -703,7 +703,7 @@
             if (window.ArcavUi && typeof window.ArcavUi.confirmDelete === 'function') {
                 return window.ArcavUi.confirmDelete('Take out ' + label + ' from this team?', "Konfirmasi");
             }
-            return Promise.resolve(window.confirm('Take out ' + label + ' from this team?'));
+            return Promise.resolve(true);
         }
 
         document.addEventListener('click', function (e) {

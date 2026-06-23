@@ -231,8 +231,8 @@ describe('subscription checkout wiring', () => {
     expect(document.querySelector('[data-checkout-invoice-breakdown]')?.textContent).not.toContain('Corporate tax 22%');
     expect(document.querySelector('[data-checkout-invoice-breakdown]')?.classList.contains('d-none')).toBe(false);
 
-    // Form must be locked (hidden) when a pending invoice exists — prevents double invoice creation.
-    expect(document.querySelector('[data-checkout-form]')?.classList.contains('d-none')).toBe(true);
+    // Form stays visible — user can create a new invoice (old one will be cancelled).
+    expect(document.querySelector('[data-checkout-form]')?.classList.contains('d-none')).toBe(false);
     // Feedback must warn, not just info.
     expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Ada invoice pending');
 
@@ -253,6 +253,7 @@ describe('subscription checkout wiring', () => {
     expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Invoice sudah dibayar');
     expect(document.querySelector('[data-checkout-go-dashboard]')?.classList.contains('d-none')).toBe(false);
     expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Pembayaran berhasil');
+    // Form hidden after NEW invoice created (freshly paid) — prevents double invoice.
     expect(document.querySelector('[data-checkout-form]')?.classList.contains('d-none')).toBe(true);
     expect(document.querySelector('[data-checkout-pay-now]')?.classList.contains('d-none')).toBe(true);
   });
@@ -315,7 +316,7 @@ describe('subscription checkout wiring', () => {
     expect(document.querySelector('[data-checkout-feedback]')?.textContent).toContain('Selesaikan tagihan ini');
   });
 
-  it('skips loading package and addon catalogs when server already locked the page to a pending invoice', async () => {
+  it('loads packages even when pending invoice exists (user can create new invoice)', async () => {
     document.querySelector('[data-subscription-checkout-page]')?.setAttribute('data-checkout-inactive-context', '1');
     document.querySelector('[data-subscription-checkout-page]')?.setAttribute('data-checkout-preloaded-pending-invoice', '1');
     document.querySelector('[data-subscription-checkout-page]')?.setAttribute('data-checkout-creation-locked', '1');
@@ -345,8 +346,8 @@ describe('subscription checkout wiring', () => {
 
     const fetchUrls = global.fetch.mock.calls.map(([input]) => String(input));
     expect(fetchUrls).toContain('/v1/identity/auth/me');
-    expect(fetchUrls).not.toContain('/v1/saas/packages?status=active&per_page=100');
-    expect(fetchUrls).not.toContain('/v1/saas/package-addons?status=active&per_page=100');
+    expect(fetchUrls).toContain('/v1/saas/packages?status=active&per_page=100');
+    expect(fetchUrls).toContain('/v1/saas/package-addons?status=active&per_page=100');
     expect(document.querySelector('[data-checkout-invoice-title]')?.textContent).toContain('Tagihan Aktif');
   });
 

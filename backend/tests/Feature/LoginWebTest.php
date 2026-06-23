@@ -191,7 +191,7 @@ class LoginWebTest extends TestCase
             ->assertSee('Buat Invoice & Aktifkan Kembali');
     }
 
-    public function test_inactive_company_with_unpaid_invoice_hides_checkout_forms_on_first_paint(): void
+    public function test_inactive_company_with_unpaid_invoice_shows_checkout_form_with_warning(): void
     {
         $user = User::query()->create([
             'name' => 'Owner Inactive Pending Invoice',
@@ -200,7 +200,7 @@ class LoginWebTest extends TestCase
         ]);
 
         $company = Company::query()->create([
-            'code' => 'inactive_pending_invoice',
+            'code' => 'inactive_pending_warning',
             'name' => 'Inactive Pending Invoice Co',
             'status' => 'inactive',
             'owner_user_id' => $user->id,
@@ -243,10 +243,13 @@ class LoginWebTest extends TestCase
         $this->actingAs($user)
             ->get('/subscription')
             ->assertOk()
-            ->assertSee('Aktivasi Diperlukan')
-            ->assertSee('Form pemilihan paket disembunyikan sementara sampai tagihan aktif terselesaikan.')
-            ->assertDontSee('checkout-upgrade-form', false)
-            ->assertDontSee('checkout-addon-form', false);
+            // Warning shown instead of locked block
+            ->assertSee('Tagihan belum dibayar ditemukan')
+            ->assertSee('membatalkan tagihan sebelumnya')
+            ->assertSee('Lihat tagihan')
+            // Form is still visible — user can create new invoice
+            ->assertSee('checkout-upgrade-form', false)
+            ->assertSee('Buat Invoice & Aktifkan Kembali');
     }
 
     public function test_legacy_suspended_company_is_normalized_to_inactive_and_redirected_to_subscription(): void

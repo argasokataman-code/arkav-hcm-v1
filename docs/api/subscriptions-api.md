@@ -567,6 +567,56 @@ Tenant self-service add-on checkout: create invoice add-on terpisah (tanpa ganti
 
 **Error Codes**
 
+### Current Subscription (Checkout Success)
+
+```
+GET /v1/hcm/subscriptions/current
+```
+
+Mengembalikan subscription terbaru untuk company aktif. Dipanggil oleh halaman checkout untuk menampilkan status sukses.
+
+**Response**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 7,
+    "status": "pending_payment",
+    "plan_code": "business",
+    "billing_cycle": "monthly",
+    "amount": "699000.00",
+    "package": {
+      "id": "uuid",
+      "uuid": "uuid",
+      "code": "business",
+      "name": "Business",
+      "monthly_price": "699000.00",
+      "yearly_price": "6990000.00"
+    }
+  }
+}
+```
+
+### Checkout — Paket Switching
+
+```
+POST /v1/hcm/billing/checkout
+```
+
+Saat checkout dengan `package_uuid` berbeda dari tagihan unpaid yang ada, sistem akan:
+1. Cancel tagihan lama (`status = cancelled`)
+2. Buat subscription + invoice baru untuk paket baru
+
+**Request**
+```json
+{
+  "package_uuid": "uuid-paket-baru",
+  "billing_cycle": "monthly",
+  "billingEmail": "user@example.com"
+}
+```
+
+**Errors**
 | Code | HTTP | When |
 |---|---|---|
 | `TENANT_CONTEXT_REQUIRED` | 422 | Missing `activeCompanyId` in request context. |

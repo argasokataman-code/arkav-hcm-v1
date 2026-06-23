@@ -101,21 +101,29 @@ class HcmSubscriptionCheckoutController
                     $anyUnpaid = $anyUnpaid->fresh();
                 }
 
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'invoice' => [
-                            'id' => $anyUnpaid->id,
-                            'invoiceNumber' => $anyUnpaid->invoice_number,
-                            'issueDate' => $anyUnpaid->issue_date?->toDateString(),
-                            'dueDate' => $anyUnpaid->due_date?->toDateString(),
-                            'amountDue' => (float) $anyUnpaid->amount_due,
-                            'isPaid' => (bool) $anyUnpaid->is_paid,
-                            'status' => (string) $anyUnpaid->status,
+                // If user selected a DIFFERENT package, cancel old invoice + create new one
+                $oldSub = Subscription::where('id', $anyUnpaid->subscription_id)->first();
+                $oldPkgUuid = $oldSub?->package_uuid;
+                if ($oldPkgUuid && $oldPkgUuid !== $package->uuid) {
+                    $anyUnpaid->status = 'cancelled';
+                    $anyUnpaid->save();
+                } else {
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'invoice' => [
+                                'id' => $anyUnpaid->id,
+                                'invoiceNumber' => $anyUnpaid->invoice_number,
+                                'issueDate' => $anyUnpaid->issue_date?->toDateString(),
+                                'dueDate' => $anyUnpaid->due_date?->toDateString(),
+                                'amountDue' => (float) $anyUnpaid->amount_due,
+                                'isPaid' => (bool) $anyUnpaid->is_paid,
+                                'status' => (string) $anyUnpaid->status,
+                            ],
+                            'reused' => true,
                         ],
-                        'reused' => true,
-                    ],
-                ]);
+                    ]);
+                }
             }
 
             // Reuse an existing unpaid invoice for an existing pending_payment subscription (if still valid).

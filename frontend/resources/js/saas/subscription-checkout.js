@@ -492,47 +492,45 @@
 
         updateInvoiceActions(currentInvoice);
 
-        // Load and display active subscription in success state
-        loadAndShowActiveSubscription();
-
-        // Once an invoice is the active focus of this page, keep the creation form locked.
-        // Pending invoices must be paid first, and paid-return states should not invite users
-        // to immediately create another invoice from the same success screen.
-        if (currentInvoice && upgradeForm) {
+        // Hide creation form only for fresh invoices (not pre-existing pending ones).
+        // Pre-existing pending invoices: user may create a new invoice (old will cancel).
+        if (currentInvoice && upgradeForm && (!reused || currentInvoice.isPaid)) {
             Array.prototype.slice.call(document.querySelectorAll("[data-checkout-form]")).forEach(function (checkoutForm) {
                 checkoutForm.classList.add("d-none");
             });
         }
     }
 
-    async function loadAndShowActiveSubscription() {
+    async function loadAndShowActiveSubscription(data) {
         if (!successState) return;
         try {
-            var payload = await api("get", "/v1/hcm/subscriptions/current");
-            if (!payload || payload.success !== true || !payload.data) {
-                successState.classList.add("d-none");
-                return;
+            var name = data && data.subscription ? String(data.subscription.packageName || data.subscription.package_code || "") : "";
+            var code = data && data.subscription ? String(data.subscription.packageCode || data.subscription.package_code || "") : "";
+
+            if (!name) {
+                var payload = await api("get", "/hcm/subscriptions/current");
+                if (!payload || payload.success !== true || !payload.data) {
+                    return;
+                }
+                var pkg = payload.data && payload.data.package ? payload.data.package : null;
+                if (!pkg) return;
+                name = String(pkg.name || "—");
+                code = String(pkg.code || "—");
             }
 
-            var subscription = payload.data;
-            var pkg = subscription && subscription.package ? subscription.package : null;
-            if (!pkg) {
-                successState.classList.add("d-none");
-                return;
-            }
-
-            // Populate active package info
-            if (activePackageName) activePackageName.textContent = String(pkg.name || "—");
-            if (activePackageCode) activePackageCode.textContent = String(pkg.code || "—");
-            if (activePackagePrice) activePackagePrice.textContent = formatRupiah(Number(pkg.monthlyPrice || pkg.monthly_price || 0));
+            if (activePackageName) activePackageName.textContent = name;
+            if (activePackageCode) activePackageCode.textContent = code;
+            if (activePackagePrice) activePackagePrice.textContent = data && data.invoice ? formatRupiah(Number(data.invoice.amountDue || 0)) : "—";
             if (activePackageUnit) activePackageUnit.textContent = "per bulan";
 
-            // Show success state
-            successState.classList.remove("d-none");
-        } catch (_e) {
-            // Silently fail - don't break the page if fetch fails
-            successState.classList.add("d-none");
-        }
+            // Show as modal instead of inline banner
+            try {
+                var modal = new bootstrap.Modal(successState);
+                modal.show();
+            } catch (_m) {
+                // fallback if bootstrap modal fails
+            }
+        } catch (_e) {}
     }
 
     function toTimestamp(value) {
@@ -898,6 +896,8 @@
                 showFeedback("success", body.data && body.data.reused ? "Invoice pending ditemukan. Silakan lanjut bayar." : "Invoice berhasil dibuat. Silakan lanjut bayar.");
             }
             renderInvoice(body.data, !!(body.data && body.data.reused));
+            // Show success banner with NEW package from checkout response, not stale subscription API
+            if (body.data) loadAndShowActiveSubscription(body.data);
             if (body.data && body.data.invoice && body.data.invoice.id) {
                 await loadInvoiceById(body.data.invoice.id);
             }
@@ -970,10 +970,8 @@
                 return;
             }
 
-            var pendingInvoice = await loadPendingInvoice();
-            if (pendingInvoice || hasPreloadedPendingInvoice || isCreationLocked) {
-                return;
-            }
+            await loadPendingInvoice(); // Show existing invoice in sidebar
+            // Don't block — user can create new invoice (old will be cancelled)
 
             await loadPackages();
             await loadAddons();

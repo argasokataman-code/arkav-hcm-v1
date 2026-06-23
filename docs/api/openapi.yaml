@@ -2362,11 +2362,13 @@ paths:
         Creates a new pending subscription + invoice for the active company, or returns an
         existing unpaid invoice with `reused: true` if one already exists.
 
-        **Global dedup guard**: if the company has ANY unpaid invoice (`status` in `draft`/`sent`,
-        `is_paid=false`), the endpoint reuses it and returns immediately — no new invoice or
-        subscription is created. This prevents double-billing when a user revisits the checkout
-        page after payment is already in progress. The client must hide the checkout form and
-        prompt the user to pay the existing invoice.
+        **Package switching**: if the company has an unpaid invoice but the requested
+        `package_uuid` is DIFFERENT from the old invoice's package, the old invoice is
+        cancelled (`status = cancelled`) and a new subscription + invoice is created for
+        the new package.
+
+        **Dedup guard**: if the unpaid invoice is for the SAME package, it is reused
+        (`reused: true`) and no new invoice is created.
       security:
         - bearerAuth: []
       requestBody:
@@ -2444,6 +2446,46 @@ paths:
                     error:
                       code: TENANT_CONTEXT_REQUIRED
                       message: Active company context is required.
+
+  /v1/hcm/subscriptions/current:
+    get:
+      tags: [SaaS, HCM]
+      summary: Get current subscription for checkout success state
+      description: Returns the latest subscription for the active company. Used by checkout page to display success state after invoice creation.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current subscription data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      status: { type: string }
+                      plan_code: { type: string }
+                      billing_cycle: { type: string }
+                      amount: { type: string }
+                      package:
+                        type: object
+                        properties:
+                          id: { type: string, format: uuid }
+                          uuid: { type: string, format: uuid }
+                          code: { type: string }
+                          name: { type: string }
+                          monthly_price: { type: string }
+                          yearly_price: { type: string }
+        '404':
+          description: No subscription found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 
   /v1/hcm/billing/invoices:
     get:

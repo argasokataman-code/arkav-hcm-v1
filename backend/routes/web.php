@@ -549,7 +549,21 @@ Route::get('/companies', function () {
 })->middleware('hcm.web.global-admin')->name('companies');
 
 Route::get('/subscription', function () {
-    return view('saas.subscription-checkout');
+    $displayFeatureCodes = ['max_employees', 'payroll', 'performance', 'attendance', 'leave_management', 'asset_management', 'training', 'tickets'];
+
+    $availablePackages = \App\Models\Package::active()
+        ->where('code', '!=', 'trial')
+        ->with(['features' => function ($q) use ($displayFeatureCodes) {
+            $q->whereIn('feature_code', $displayFeatureCodes)
+              ->where(function ($fq) { $fq->whereNull('limit')->orWhere('limit', '!=', 0); });
+        }])
+        ->orderBy('sort_order')
+        ->orderBy('name')
+        ->get(['uuid', 'code', 'name', 'description', 'monthly_price', 'yearly_price', 'color', 'sort_order']);
+
+    return view('saas.subscription-checkout', [
+        'availablePackages' => $availablePackages,
+    ]);
 })->middleware('hcm.web.admin')->name('subscription');
 
 // Invoice checkout preview (display breakdown before redirect to payment gateway)

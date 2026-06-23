@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -104,21 +105,23 @@ class Invoice extends Model
             return;
         }
 
-        $this->update([
-            'is_paid' => true,
-            'paid_date' => now(),
-            'status' => 'paid',
-        ]);
-
-        $transaction = $this->purchaseTransaction()->first();
-        if ($transaction && (string) ($transaction->transaction_type ?? '') === 'addon' && (string) ($transaction->status ?? '') !== 'paid') {
-            $transaction->update([
+        DB::transaction(function (): void {
+            $this->update([
+                'is_paid' => true,
+                'paid_date' => now(),
                 'status' => 'paid',
-                'paid_at' => now(),
             ]);
-            app(AddonRecurringSubscriptionService::class)
-                ->applyFromTransaction($transaction->fresh());
-        }
+
+            $transaction = $this->purchaseTransaction()->first();
+            if ($transaction && (string) ($transaction->transaction_type ?? '') === 'addon' && (string) ($transaction->status ?? '') !== 'paid') {
+                $transaction->update([
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                ]);
+                app(AddonRecurringSubscriptionService::class)
+                    ->applyFromTransaction($transaction->fresh());
+            }
+        });
 
         app(SubscriptionActivationFromInvoiceService::class)
             ->activateIfEligible($this->fresh());

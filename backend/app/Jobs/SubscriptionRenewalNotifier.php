@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\Company;
 use App\Models\Invoice;
+use App\Models\PackageAddon;
+use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
 use App\Models\SubscriptionEvent;
 use App\Services\BillingTaxCalculationService;
@@ -132,6 +134,34 @@ class SubscriptionRenewalNotifier implements ShouldQueue
                     $pricingBreakdown = $this->buildPricingBreakdown((int) $company->id, $baseAmount);
                     $amountDue = (float) ($pricingBreakdown['total_amount'] ?? $baseAmount);
 
+                    // Check for inactive addons — exclude their amounts from renewal
+                    $metadata = (array) ($locked->metadata ?? []);
+                    $appliedIds = array_values(array_filter((array) ($metadata['addon_applied_transaction_ids'] ?? []), fn ($v) => is_numeric($v)));
+                    $inactiveAddonAmount = 0.0;
+                    $inactiveAddonCodes = [];
+
+                    if ($appliedIds !== []) {
+                        $txns = PurchaseTransaction::query()
+                            ->whereIn('id', $appliedIds)
+                            ->where('transaction_type', 'addon')
+                            ->where('status', 'paid')
+                            ->get();
+
+                        foreach ($txns as $pt) {
+                            $addon = PackageAddon::find($pt->package_addon_id);
+                            if (! $addon || (string) $addon->status !== 'active') {
+                                $inactiveAddonAmount += (float) ($pt->total_amount ?? 0);
+                                if ($addon) {
+                                    $inactiveAddonCodes[] = $addon->code;
+                                }
+                            }
+                        }
+                    }
+
+                    if ($inactiveAddonAmount > 0) {
+                        $amountDue = round(max(0, $amountDue - $inactiveAddonAmount), 2);
+                    }
+
                     $taxRateSnapshot = app(BillingTaxCalculationService::class)
                         ->resolvePolicyRateSnapshot((int) $company->id, now()->format('Y-m'));
 
@@ -158,7 +188,7 @@ class SubscriptionRenewalNotifier implements ShouldQueue
                         'status' => 'draft',
                         'renewal_reason_code' => 'RENEWAL_INVOICE_CREATED',
                         'renewal_reason_message' => 'Renewal invoice created.',
-                        'notes' => $this->buildInvoiceNotes($locked, $pricingBreakdown, $billingCycle, $currentEnd, $nextEnd, $package),
+                        'notes' => $this->buildInvoiceNotes($locked, $pricingBreakdown, $billingCycle, $currentEnd, $nextEnd, $package, $inactiveAddonCodes, $inactiveAddonAmount),
                     ]);
 
                     $this->emitEvent($locked, 'renewal_invoice_created',
@@ -313,9 +343,9 @@ class SubscriptionRenewalNotifier implements ShouldQueue
         ];
     }
 
-    private function buildInvoiceNotes(Subscription $subscription, array $pricing, string $billingCycle, Carbon $currentEnd, Carbon $nextEnd, $package): string
+    private function buildInvoiceNotes(Subscription $subscription, array $pricing, string $billingCycle, Carbon $currentEnd, Carbon $nextEnd, $package, array $inactiveAddonCodes = [], float $inactiveAddonAmount = 0.0): string
     {
-        return json_encode([
+        $notes = [
             'source' => 'recurring_subscription_renewal',
             'pricing' => $pricing,
             'package_name' => $package?->name,
@@ -323,7 +353,16 @@ class SubscriptionRenewalNotifier implements ShouldQueue
             'billing_period_start' => $currentEnd->toDateString(),
             'billing_period_end' => $nextEnd->toDateString(),
             'auto_generated' => true,
-        ], JSON_UNESCAPED_SLASHES);
+        ];
+
+        if ($inactiveAddonAmount > 0) {
+            $notes['inactive_addons_removed'] = [
+                'addon_codes' => $inactiveAddonCodes,
+                'removed_amount' => $inactiveAddonAmount,
+            ];
+        }
+
+        return json_encode($notes, JSON_UNESCAPED_SLASHES);
     }
 
     private function extendSubscription(Subscription $subscription, Carbon $newEnd): void

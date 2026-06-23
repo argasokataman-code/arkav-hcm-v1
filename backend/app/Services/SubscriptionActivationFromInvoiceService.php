@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Invoice;
+use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
+use App\Services\AddonRecurringSubscriptionService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -61,6 +63,19 @@ class SubscriptionActivationFromInvoiceService
                 'pending_invoice_source' => null,
             ]),
         ]);
+
+        // Restore addon amounts from paid transactions
+        $paidAddons = PurchaseTransaction::query()
+            ->where('company_id', $subscription->company_id)
+            ->where('transaction_type', 'addon')
+            ->where('status', 'paid')
+            ->exists();
+
+        if ($paidAddons) {
+            app(AddonRecurringSubscriptionService::class)
+                ->restoreForSubscription($subscription);
+            $subscription = $subscription->fresh();
+        }
 
         $this->companyStatusSynchronizer->syncFromSubscription($subscription->fresh('company'));
 

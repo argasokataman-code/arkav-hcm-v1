@@ -9,6 +9,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     // Tenant billing checkout
     Route::post('/billing/checkout', [HcmSubscriptionCheckoutController::class, 'checkout']);
     Route::post('/billing/addons/checkout', [HcmSubscriptionCheckoutController::class, 'checkoutAddon']);
+    Route::post('/billing/addons/cancel', [HcmSubscriptionCheckoutController::class, 'cancelAddon']);
 
     // Tenant-initiated subscription plan change
     Route::post('/subscriptions/preview-change', [HcmSubscriptionChangeController::class, 'preview']);

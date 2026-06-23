@@ -15,6 +15,22 @@ Field tambahan penting pada setiap item `data[]`:
 - `currentPeriodStart`: awal periode aktif subscription saat ini.
 - `currentPeriodEnd`: akhir periode aktif subscription saat ini.
 - `nextBillingDate`: tanggal charge/perpanjangan berikutnya untuk recurring billing.
+- `billingPeriodStart`: awal periode billing, diisi jika invoice terkait `PurchaseTransaction` (misal checkout addon).
+- `billingPeriodEnd`: akhir periode billing, diisi jika invoice terkait `PurchaseTransaction`.
+
+### Addon Lifecycle
+
+Addon bersifat **recurring** — setelah dibayar via invoice terpisah, nominal addon ditambahkan ke `subscription.amount` dan otomatis ditagih ulang setiap renewal.
+
+| Skenario | Behavior |
+|---|---|
+| Checkout addon | Buat invoice + `PurchaseTransaction` terpisah. `billing_period_start/end` diisi dari `subscription.ends_at`. |
+| Bayar addon | `markAsPaid()` atomic: update invoice + transaction + apply ke subscription amount. |
+| Upgrade paket | Addon carry over. Addon built-in di target package → auto-remove (consolidated). |
+| Downgrade paket | Addon compatible tetap di amount. Addon tidak compatible tetap di amount (paid addon). |
+| Expired subscription | Addon `PurchaseTransaction` tetap `paid` — bisa di-restore ke subscription baru. |
+| Activation baru | `restoreForSubscription()` re-point paid addons + apply ke amount baru. |
+| `alreadyActiveAddon` | Scoped ke ACTIVE subscription saja. Expired subs tidak block repurchase. |
 
 Contoh respons ringkas:
 

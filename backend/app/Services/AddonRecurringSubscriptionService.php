@@ -4,9 +4,46 @@ namespace App\Services;
 
 use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
+use Illuminate\Support\Facades\DB;
 
 class AddonRecurringSubscriptionService
 {
+    /**
+     * Restore paid addon transactions for a company onto a given subscription.
+     * Dedup by package_addon_id — only the latest paid transaction per addon is restored.
+     * Skips transactions already applied to this subscription.
+     */
+    public function restoreForSubscription(Subscription $subscription): void
+    {
+        $paidAddons = PurchaseTransaction::query()
+            ->selectRaw('MAX(id) as id')
+            ->where('company_id', $subscription->company_id)
+            ->where('transaction_type', 'addon')
+            ->where('status', 'paid')
+            ->whereNotNull('package_addon_id')
+            ->groupBy('package_addon_id')
+            ->pluck('id');
+
+        if ($paidAddons->isEmpty()) {
+            return;
+        }
+
+        $transactions = PurchaseTransaction::query()
+            ->whereIn('id', $paidAddons)
+            ->get();
+
+        foreach ($transactions as $tx) {
+            if ((int) $tx->subscription_id === (int) $subscription->id) {
+                continue;
+            }
+
+            DB::transaction(function () use ($tx, $subscription): void {
+                $tx->update(['subscription_id' => $subscription->id]);
+                $this->applyFromTransaction($tx->fresh());
+            });
+        }
+    }
+
     /**
      * Apply paid addon transaction amount into recurring subscription amount once.
      */

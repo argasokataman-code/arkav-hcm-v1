@@ -5,6 +5,8 @@ namespace App\Jobs;
 use App\Models\HcmSubscriptionChangeRequest;
 use App\Models\Invoice;
 use App\Models\Package;
+use App\Models\PackageAddon;
+use App\Models\PurchaseTransaction;
 use App\Models\Subscription;
 use App\Services\BillingTaxCalculationService;
 use Illuminate\Bus\Queueable;
@@ -53,10 +55,6 @@ class ApplySubscriptionChangeJob implements ShouldQueue
                 return;
             }
 
-            if ($record->action === HcmSubscriptionChangeRequest::ACTION_UPGRADE) {
-                return;
-            }
-
             $subscription = $record->current_subscription_uuid
                 ? Subscription::query()->where('uuid', $record->current_subscription_uuid)->first()
                 : null;
@@ -77,34 +75,10 @@ class ApplySubscriptionChangeJob implements ShouldQueue
                     'terminated_at' => now(),
                     'termination_reason' => 'Tenant-initiated cancellation request '.$record->id,
                 ]);
+            } elseif ($record->action === HcmSubscriptionChangeRequest::ACTION_UPGRADE) {
+                $this->applyUpgradeWithAddons($subscription, $record);
             } elseif ($record->to_package_uuid) {
-                $target = Package::query()->where('uuid', $record->to_package_uuid)->first();
-                if ($target && (string) $target->status === 'active') {
-                    $billingCycle = (string) ($subscription->billing_cycle ?? 'monthly');
-                    $amount = (float) ($billingCycle === 'yearly' ? $target->yearly_price : $target->monthly_price);
-                    $provisionEndsAt = $subscription->ends_at && $subscription->ends_at->isFuture()
-                        ? $subscription->ends_at
-                        : now()->copy()->addHours(24);
-
-                    $subscription->update([
-                        'package_uuid' => $target->uuid,
-                        'plan_code' => $target->code,
-                        'amount' => $amount,
-                        'status' => 'pending_payment',
-                        'starts_at' => null,
-                        'ends_at' => $provisionEndsAt,
-                    ]);
-
-                    $invoice = $this->createOrGetDowngradeInvoice($subscription, $record, $amount);
-
-                    $metadata = (array) ($subscription->metadata ?? []);
-                    $metadata['pending_invoice_id'] = (int) $invoice->id;
-                    $metadata['pending_invoice_uuid'] = (string) $invoice->uuid;
-                    $metadata['pending_invoice_source'] = 'subscription_change_downgrade';
-                    $subscription->update(['metadata' => $metadata]);
-
-                    SendInvoiceEmailJob::dispatchAfterResponse((int) $invoice->id);
-                }
+                $this->applyDowngradeWithAddons($subscription, $record);
             }
 
             $record->update([
@@ -112,6 +86,114 @@ class ApplySubscriptionChangeJob implements ShouldQueue
                 'applied_at' => now(),
             ]);
         });
+    }
+
+    private function calculateAddonRecurringForTarget(Subscription $subscription, Package $target): float
+    {
+        $recurringTotal = 0.0;
+        $paidAddons = PurchaseTransaction::query()
+            ->where('subscription_id', $subscription->id)
+            ->where('transaction_type', 'addon')
+            ->where('status', 'paid')
+            ->get();
+
+        foreach ($paidAddons as $tx) {
+            $addon = PackageAddon::find($tx->package_addon_id);
+            if (! $addon || $addon->status !== 'active') {
+                continue;
+            }
+
+            $isBuiltIn = DB::table('package_addon_assignments')
+                ->where('package_uuid', $target->uuid)
+                ->where('package_addon_id', $addon->id)
+                ->exists();
+
+            if ($isBuiltIn) {
+                continue;
+            }
+
+            $recurringTotal += (float) ($tx->total_amount ?? 0);
+        }
+
+        return $recurringTotal;
+    }
+
+    private function applyUpgradeWithAddons(Subscription $subscription, HcmSubscriptionChangeRequest $record): void
+    {
+        $target = Package::query()->where('uuid', $record->to_package_uuid)->first();
+        if (! $target || (string) $target->status !== 'active') {
+            return;
+        }
+
+        $billingCycle = (string) ($subscription->billing_cycle ?? 'monthly');
+        $packagePrice = (float) ($billingCycle === 'yearly' ? $target->yearly_price : $target->monthly_price);
+        $addonRecurring = $this->calculateAddonRecurringForTarget($subscription, $target);
+        $newAmount = round($packagePrice + $addonRecurring, 2);
+
+        // Mark built-in addon transactions as consolidated
+        $paidAddons = PurchaseTransaction::query()
+            ->where('subscription_id', $subscription->id)
+            ->where('transaction_type', 'addon')
+            ->where('status', 'paid')
+            ->get();
+
+        foreach ($paidAddons as $tx) {
+            $isBuiltIn = DB::table('package_addon_assignments')
+                ->where('package_uuid', $target->uuid)
+                ->where('package_addon_id', $tx->package_addon_id)
+                ->exists();
+
+            if ($isBuiltIn) {
+                $tx->update(['status' => 'consolidated']);
+            }
+        }
+
+        $subscription->update([
+            'package_uuid' => $target->uuid,
+            'plan_code' => $target->code,
+            'amount' => $newAmount,
+        ]);
+
+        $record->update([
+            'status' => HcmSubscriptionChangeRequest::STATUS_APPLIED,
+            'applied_at' => now(),
+        ]);
+    }
+
+    private function applyDowngradeWithAddons(Subscription $subscription, HcmSubscriptionChangeRequest $record): void
+    {
+        $target = Package::query()->where('uuid', $record->to_package_uuid)->first();
+        if (! $target || (string) $target->status !== 'active') {
+            return;
+        }
+
+        $billingCycle = (string) ($subscription->billing_cycle ?? 'monthly');
+        $packagePrice = (float) ($billingCycle === 'yearly' ? $target->yearly_price : $target->monthly_price);
+        $addonRecurring = $this->calculateAddonRecurringForTarget($subscription, $target);
+        $newAmount = round($packagePrice + $addonRecurring, 2);
+
+        $provisionEndsAt = $subscription->ends_at && $subscription->ends_at->isFuture()
+            ? $subscription->ends_at
+            : now()->copy()->addHours(24);
+
+        $subscription->update([
+            'package_uuid' => $target->uuid,
+            'plan_code' => $target->code,
+            'amount' => $newAmount,
+            'status' => 'pending_payment',
+            'starts_at' => null,
+            'ends_at' => $provisionEndsAt,
+        ]);
+
+        $invoice = $this->createOrGetDowngradeInvoice($subscription, $record, $newAmount);
+
+        $metadata = (array) ($subscription->metadata ?? []);
+        $metadata['pending_invoice_id'] = (int) $invoice->id;
+        $metadata['pending_invoice_uuid'] = (string) $invoice->uuid;
+        $metadata['pending_invoice_source'] = 'subscription_change_downgrade';
+        $subscription->update(['metadata' => $metadata]);
+
+        SendInvoiceEmailJob::dispatchAfterResponse((int) $invoice->id);
     }
 
     private function createOrGetDowngradeInvoice(

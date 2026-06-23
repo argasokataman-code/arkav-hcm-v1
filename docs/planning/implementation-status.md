@@ -109,6 +109,16 @@ Lihat file di `backend/database/migrations/` untuk definisi kolom pasti.
 
 **SaaS subscriptions:** `GET/POST/PUT/DELETE /v1/saas/subscriptions`, `POST /v1/saas/subscriptions/{id}/renew`; list `per_page` (1–100); status termasuk **`pending_payment`**, **`suspended`**; **`status: trial` memerlukan `trial_ends_at`**; **`active|trial|pending_payment` wajib package `status=active`** (`422 PACKAGE_NOT_ACTIVE`); **`PUT` ganti `package_id` menyinkronkan `amount`** ke harga paket; **`pending_payment` + invoice `subscription_id` + mark paid** → aktivasi via `SubscriptionActivationFromInvoiceService`; renew ditolak untuk `pending_payment`. `Company::activeSubscription()` memakai `ends_at` di masa depan. **Packages → Subscribe:** `/subscription?packageId=&status=pending_payment`. Invoice: kolom `subscription_id` (`2026_04_23_160000_add_subscription_id_to_invoices`). UI + `public/build/js`: `subscriptions-management.js`, `packages-management.js`. OpenAPI: `docs/api/openapi.yaml`. Detail: `docs/features/subscriptions/`, `docs/features/packages/`.
 
+**Addon Lifecycle (2026-06-23 completed):** Addon bersifat recurring — setelah bayar, nominal nempel ke `subscription.amount` via `AddonRecurringSubscriptionService`. Key behaviors:
+- **Checkout addon**: invoice + `PurchaseTransaction` terpisah, `billing_period_start/end` diisi dari subscription `ends_at`.
+- **`markAsPaid()` atomic**: `DB::transaction()` wrap update invoice + transaction + apply addon.
+- **`alreadyActiveAddon`**: scoped ke ACTIVE subscription (expired subs tidak block repurchase).
+- **Restore on new subscription**: `restoreForSubscription()` re-point paid addon ke subscription baru + apply amount.
+- **Upgrade/downgrade**: `ApplySubscriptionChangeJob` handle addon carry-over; built-in addon di target package → `consolidated`.
+- **`InvoiceService::formatInvoice()`**: expose `billingPeriodStart`/`billingPeriodEnd` dari `PurchaseTransaction`.
+- **Migration**: `2026_06_23_144837_add_expired_status_to_purchase_transactions` (add `expired` + `consolidated` to ENUM).
+- **Tests**: `HcmAddonCheckoutFlowTest` (4 tests), `HcmAddonLifecycleTest` (8 tests), `HcmAddonPlanChangeTest` (4 tests).
+
 Semua pemanggilan mengasumsikan base path API yang di-proxy (mis. `/v1/...`) seperti pada server Node/Vite.
 
 ## Pengujian otomatis

@@ -198,6 +198,9 @@ class HcmSubscriptionCheckoutController
             $subscription->ends_at = now()->addHours(24);
             $subscription->save();
 
+            // Restore addon amounts from old paid transactions
+            $this->addonRecurringSubscriptionService->restoreForSubscription($subscription);
+
             $taxRateSnapshot = app(BillingTaxCalculationService::class)
                 ->resolvePolicyRateSnapshot($company->id, now()->format('Y-m'));
 
@@ -304,11 +307,30 @@ class HcmSubscriptionCheckoutController
         }
         $addon = $addonQuery->firstOrFail();
 
+        // Guard: must have active or pending_payment subscription
+        $hasActiveSub = Subscription::query()
+            ->where('company_id', $company->id)
+            ->whereIn('status', ['active', 'pending_payment'])
+            ->exists();
+
+        if (! $hasActiveSub) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'NO_ACTIVE_SUBSCRIPTION',
+                    'message' => 'Anda harus memiliki subscription aktif sebelum membeli add-on.',
+                ],
+            ], 422);
+        }
+
         $alreadyActiveAddon = PurchaseTransaction::query()
             ->where('company_id', $company->id)
             ->where('package_addon_id', $addon->id)
             ->where('transaction_type', 'addon')
             ->where('status', 'paid')
+            ->whereHas('subscription', function ($q): void {
+                $q->whereIn('status', ['active', 'grace_period']);
+            })
             ->exists();
 
         if ($alreadyActiveAddon) {
@@ -364,11 +386,18 @@ class HcmSubscriptionCheckoutController
 
             $activeSubscription = Subscription::query()
                 ->where('company_id', $company->id)
-                ->whereIn('status', ['active', 'trial', 'pending_payment'])
+                ->whereIn('status', ['active', 'pending_payment'])
+                ->lockForUpdate()
                 ->latest('id')
                 ->first();
 
             $addonTaxAmount = (float) ($pricingBreakdown['addon_tax_amount'] ?? 0);
+
+            $billingPeriodStart = $activeSubscription?->ends_at ?? now();
+            $billingPeriodEnd = $billingPeriodStart->copy()->addMonth();
+            if ($activeSubscription?->billing_cycle === 'yearly') {
+                $billingPeriodEnd = $billingPeriodStart->copy()->addYear();
+            }
 
             $transaction = PurchaseTransaction::query()->create([
                 'transaction_code' => PurchaseTransaction::generateCode(),
@@ -381,6 +410,8 @@ class HcmSubscriptionCheckoutController
                 'tax_amount' => $addonTaxAmount,
                 'discount_amount' => 0,
                 'total_amount' => $amountDue,
+                'billing_period_start' => $billingPeriodStart->toDateString(),
+                'billing_period_end' => $billingPeriodEnd->toDateString(),
                 'status' => 'issued',
                 'due_date' => now()->addDay(),
             ]);
@@ -447,6 +478,112 @@ class HcmSubscriptionCheckoutController
                     'reused' => false,
                 ],
             ], 201);
+        });
+    }
+
+    public function cancelAddon(Request $request): JsonResponse
+    {
+        if ($forbidden = $this->ensureHcmAdmin($request)) {
+            return $forbidden;
+        }
+
+        $activeCompanyId = (int) ($request->attributes->get('activeCompanyId') ?? 0);
+        if ($activeCompanyId <= 0) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'TENANT_CONTEXT_REQUIRED', 'message' => 'Active company context is required.'],
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'addon_id' => ['nullable', 'integer', Rule::exists('package_addons', 'id')],
+            'addon_uuid' => ['nullable', 'uuid', Rule::exists('package_addons', 'uuid')],
+        ]);
+
+        if (! isset($validated['addon_id']) && ! isset($validated['addon_uuid'])) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'VALIDATION_ERROR', 'message' => 'addon_id or addon_uuid is required.'],
+            ], 422);
+        }
+
+        return DB::transaction(function () use ($activeCompanyId, $validated): JsonResponse {
+            $subscription = Subscription::query()
+                ->where('company_id', $activeCompanyId)
+                ->whereIn('status', ['active', 'trial', 'grace_period'])
+                ->lockForUpdate()
+                ->latest('id')
+                ->first();
+
+            if (! $subscription) {
+                return response()->json([
+                    'success' => false,
+                    'error' => ['code' => 'NO_ACTIVE_SUBSCRIPTION', 'message' => 'Tidak ada subscription aktif.'],
+                ], 422);
+            }
+
+            $addonQuery = PackageAddon::query();
+            if (isset($validated['addon_id'])) {
+                $addonQuery->whereKey((int) $validated['addon_id']);
+            } else {
+                $addonQuery->where('uuid', (string) $validated['addon_uuid']);
+            }
+            $addon = $addonQuery->firstOrFail();
+
+            $transaction = PurchaseTransaction::query()
+                ->where('company_id', $activeCompanyId)
+                ->where('subscription_id', $subscription->id)
+                ->where('package_addon_id', $addon->id)
+                ->where('transaction_type', 'addon')
+                ->where('status', 'paid')
+                ->lockForUpdate()
+                ->latest('id')
+                ->first();
+
+            if (! $transaction) {
+                return response()->json([
+                    'success' => false,
+                    'error' => ['code' => 'ADDON_NOT_FOUND', 'message' => 'Addon tidak ditemukan atau belum aktif.'],
+                ], 404);
+            }
+
+            $addonAmount = (float) ($transaction->total_amount ?? 0);
+            $currentAmount = (float) ($subscription->amount ?? 0);
+            $newAmount = round(max(0, $currentAmount - $addonAmount), 2);
+
+            $metadata = (array) ($subscription->metadata ?? []);
+            $appliedIds = array_values(array_filter((array) ($metadata['addon_applied_transaction_ids'] ?? []), fn ($v) => is_numeric($v)));
+            $filteredIds = array_values(array_filter($appliedIds, fn ($id) => (int) $id !== (int) $transaction->id));
+            $currentRecurring = (float) ($metadata['addon_recurring_total'] ?? 0);
+            $newRecurring = round(max(0, $currentRecurring - $addonAmount), 2);
+
+            $transaction->update(['status' => 'cancelled']);
+
+            $metadata['addon_applied_transaction_ids'] = $filteredIds;
+            $metadata['addon_recurring_total'] = $newRecurring;
+            $metadata['cancelled_addon_ids'] = array_values(array_unique(array_merge(
+                (array) ($metadata['cancelled_addon_ids'] ?? []),
+                [$transaction->id]
+            )));
+
+            $subscription->update([
+                'amount' => $newAmount,
+                'metadata' => $metadata,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'addon' => [
+                        'id' => $addon->id,
+                        'code' => $addon->code,
+                        'name' => $addon->name,
+                    ],
+                    'previousAmount' => $currentAmount,
+                    'newAmount' => $newAmount,
+                    'effective' => 'next_billing_cycle',
+                ],
+            ]);
         });
     }
 

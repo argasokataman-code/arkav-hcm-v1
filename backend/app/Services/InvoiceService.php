@@ -140,7 +140,7 @@ class InvoiceService
      */
     public function formatInvoice(Invoice $invoice): array
     {
-        $invoice->loadMissing(['company:id,name,code', 'subscription.package']);
+        $invoice->loadMissing(['company:id,name,code', 'subscription.package', 'purchaseTransaction']);
 
         $subscription = $invoice->subscription;
         $package = $subscription?->package;
@@ -181,6 +181,8 @@ class InvoiceService
             'billingTaxRateSnapshot' => $invoice->billing_tax_rate_snapshot !== null ? (float) $invoice->billing_tax_rate_snapshot : null,
             'pricingBreakdown' => $this->parsePricingBreakdown($invoice->notes),
             'notes' => $invoice->notes,
+            'billingPeriodStart' => $invoice->purchaseTransaction?->billing_period_start?->toDateString(),
+            'billingPeriodEnd' => $invoice->purchaseTransaction?->billing_period_end?->toDateString(),
             'pdfPath' => $invoice->pdf_path,
             'createdAt' => $invoice->created_at?->toIso8601String(),
             'updatedAt' => $invoice->updated_at?->toIso8601String(),

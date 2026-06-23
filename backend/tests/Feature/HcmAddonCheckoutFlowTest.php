@@ -28,6 +28,28 @@ class HcmAddonCheckoutFlowTest extends TestCase
             'password' => 'StrongPass1',
         ], $company);
 
+        $package = Package::query()->create([
+            'code' => 'enterprise',
+            'name' => 'Enterprise',
+            'monthly_price' => 1299000,
+            'yearly_price' => 12990000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+            'is_global_admin_only' => false,
+            'sort_order' => 1,
+        ]);
+
+        Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => 'enterprise',
+            'status' => 'active',
+            'starts_at' => now()->subDays(30),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 1299000,
+        ]);
+
         $addon = PackageAddon::query()->create([
             'code' => 'asset_management',
             'name' => 'Asset Management',
@@ -115,6 +137,28 @@ class HcmAddonCheckoutFlowTest extends TestCase
             'email' => 'addon-reuse-admin@example.com',
             'password' => 'StrongPass1',
         ], $company);
+
+        $package = Package::query()->create([
+            'code' => 'enterprise',
+            'name' => 'Enterprise',
+            'monthly_price' => 1299000,
+            'yearly_price' => 12990000,
+            'billing_unit' => 'company',
+            'status' => 'active',
+            'is_global_admin_only' => false,
+            'sort_order' => 1,
+        ]);
+
+        Subscription::query()->create([
+            'company_id' => $company->id,
+            'package_uuid' => $package->uuid,
+            'plan_code' => 'enterprise',
+            'status' => 'active',
+            'starts_at' => now()->subDays(30),
+            'ends_at' => now()->addMonth(),
+            'billing_cycle' => 'monthly',
+            'amount' => 1299000,
+        ]);
 
         $addon = PackageAddon::query()->create([
             'code' => 'tickets',

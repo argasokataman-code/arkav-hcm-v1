@@ -24,6 +24,7 @@
     var taxBreakdownList = document.querySelector("[data-invoice-modal-tax-breakdown-list]");
     var modal = null;
     var currentInvoice = null;
+    var cachedRows = [];
     var searchTimer = null;
     var manualModalOpen = false;
     var invoiceSettingsCache = null;
@@ -582,6 +583,7 @@
     }
 
     function renderTable(rows) {
+        cachedRows = rows || [];
         if (!listContainer) return;
         var html = `
           <div class="card">
@@ -625,6 +627,7 @@
                                 <i class="ti ti-download"></i>
                                                             </button>
                               ${r.isPaid ? "" : `<button class="btn btn-sm btn-primary" data-invoice-mock-pay="${esc(r.id)}">Pay Now</button>`}
+                              ${(r.isPaid && isAddonInvoice(r)) ? `<button class="btn btn-sm btn-outline-danger" data-addon-cancel="${esc(r.id)}">Cancel Add-on</button>` : ""}
                             </div>
                           </td>
                         </tr>
@@ -834,6 +837,35 @@
                     }
                     clearFeedback();
                     redirectTo(hostedCheckoutUrl);
+                }).catch(function (err) {
+                    showFeedback(parseError(err));
+                });
+                return;
+            }
+            var cancelAddonBtn = e.target.closest("[data-addon-cancel]");
+            if (cancelAddonBtn) {
+                if (!window.confirm("Yakin ingin membatalkan add-on ini? Add-on akan berakhir di siklus billing berikutnya.")) {
+                    return;
+                }
+                var invId = cancelAddonBtn.getAttribute("data-addon-cancel");
+                var inv = currentInvoice || (cachedRows || []).find(function (r) { return String(r.id) === invId; });
+                var addonId = inv ? (inv.pricingBreakdown && inv.pricingBreakdown.addonId ? inv.pricingBreakdown.addonId : null) : null;
+                if (!addonId) {
+                    var notes = parseInvoiceNotes(inv);
+                    var pricing = notes && notes.pricing_breakdown;
+                    addonId = pricing && pricing.addon_id ? pricing.addon_id : null;
+                }
+                if (!addonId) {
+                    showFeedback("Tidak dapat mengidentifikasi add-on. Silakan hubungi support.");
+                    return;
+                }
+                api("post", "/hcm/billing/addons/cancel", { addon_id: addonId }).then(function (payload) {
+                    if (payload && payload.success === true) {
+                        showFeedback("Add-on berhasil dibatalkan. Efek pada siklus billing berikutnya.", "success");
+                        load();
+                    } else {
+                        showFeedback(payload && payload.error ? payload.error.message : "Gagal membatalkan add-on.");
+                    }
                 }).catch(function (err) {
                     showFeedback(parseError(err));
                 });

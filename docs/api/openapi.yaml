@@ -4446,6 +4446,18 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
         '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Leave]
+      summary: Cancel leave request (owner only, pending or approved)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UuidPath'
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /v1/hcm/leave-settings:
     get:
       tags: [Leave]

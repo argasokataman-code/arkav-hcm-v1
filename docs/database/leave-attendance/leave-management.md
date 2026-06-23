@@ -36,6 +36,7 @@ Index:
 - `allow_negative_balance BOOLEAN NOT NULL DEFAULT 0`
 - `max_carry_days SMALLINT UNSIGNED NULL`
 - `expire_after_days SMALLINT UNSIGNED NULL`
+- `max_consecutive_days SMALLINT UNSIGNED NULL` (batas maksimal hari berturut-turut per pengajuan)
 - `effective_from DATE NULL`
 - `effective_to DATE NULL`
 - `created_at`, `updated_at`

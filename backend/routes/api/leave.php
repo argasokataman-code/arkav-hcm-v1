@@ -22,6 +22,7 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context', 'hcm.api.fea
     Route::get('/employee-leave-balance', [HcmLeaveRequestController::class, 'getEmployeeBalance']);
     Route::post('/leave-requests', [HcmLeaveRequestController::class, 'store']);
     Route::put('/leave-requests/{id}', [HcmLeaveRequestController::class, 'update'])->whereNumber('id');
+    Route::post('/leave-requests/{id}/cancel', [HcmLeaveRequestController::class, 'cancel'])->whereNumber('id');
     Route::delete('/leave-requests/{id}', [HcmLeaveRequestController::class, 'destroy'])->whereNumber('id');
 
     // Leave Settings

@@ -515,6 +515,26 @@ export function bindLeaves(deps, scope, isAdmin) {
                             errorAlert.scrollIntoView({ behavior: "smooth", block: "start" });
                         }
                     }
+
+                    // Per-field validation errors
+                    var fieldErrors = err.data && err.data.errors;
+                    if (fieldErrors && typeof fieldErrors === "object") {
+                        Object.keys(fieldErrors).forEach(function (fieldName) {
+                            var fieldEl = addForm.querySelector('[data-hcm-field="' + fieldName + '"]');
+                            if (fieldEl) {
+                                fieldEl.classList.add("is-invalid");
+                                var feedbackEl = fieldEl.parentNode.querySelector(".invalid-feedback");
+                                if (!feedbackEl) {
+                                    feedbackEl = document.createElement("div");
+                                    feedbackEl.className = "invalid-feedback";
+                                    fieldEl.parentNode.appendChild(feedbackEl);
+                                }
+                                feedbackEl.textContent = Array.isArray(fieldErrors[fieldName])
+                                    ? fieldErrors[fieldName].join(". ")
+                                    : String(fieldErrors[fieldName]);
+                            }
+                        });
+                    }
                 });
         });
     }
@@ -698,6 +718,26 @@ export function bindLeaves(deps, scope, isAdmin) {
                             errorAlert.classList.remove("d-none");
                             errorAlert.scrollIntoView({ behavior: "smooth", block: "start" });
                         }
+                    }
+
+                    // Per-field validation errors
+                    var fieldErrors = err.data && err.data.errors;
+                    if (fieldErrors && typeof fieldErrors === "object") {
+                        Object.keys(fieldErrors).forEach(function (fieldName) {
+                            var fieldEl = editForm.querySelector('[data-hcm-field="' + fieldName + '"]');
+                            if (fieldEl) {
+                                fieldEl.classList.add("is-invalid");
+                                var feedbackEl = fieldEl.parentNode.querySelector(".invalid-feedback");
+                                if (!feedbackEl) {
+                                    feedbackEl = document.createElement("div");
+                                    feedbackEl.className = "invalid-feedback";
+                                    fieldEl.parentNode.appendChild(feedbackEl);
+                                }
+                                feedbackEl.textContent = Array.isArray(fieldErrors[fieldName])
+                                    ? fieldErrors[fieldName].join(". ")
+                                    : String(fieldErrors[fieldName]);
+                            }
+                        });
                     }
                 });
         });

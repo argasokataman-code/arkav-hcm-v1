@@ -17,6 +17,7 @@ use App\Models\LeavePolicyAssignment;
 use App\Models\LeaveRequest;
 use App\Models\LeaveRequestBreakdown;
 use App\Models\LeaveType;
+use App\Models\OvertimeRequest;
 use App\Models\User;
 use App\Notifications\LeaveApprovalRequestedNotification;
 use App\Notifications\LeaveApprovedNotification;
@@ -470,6 +471,25 @@ class HcmLeaveRequestController extends Controller
             ], 422);
         }
 
+        // Check for OT conflict: approved overtime on same dates
+        $otConflict = OvertimeRequest::query()
+            ->where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->where('status', 'approved')
+            ->whereDate('work_date', '>=', $from->toDateString())
+            ->whereDate('work_date', '<=', $to->toDateString())
+            ->exists();
+
+        if ($otConflict) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'LEAVE_OT_CONFLICT',
+                    'message' => 'Tidak bisa mengajukan cuti karena sudah ada lembur yang disetujui pada rentang tanggal ini.',
+                ],
+            ], 422);
+        }
+
         $days = isset($validated['days'])
             ? (float) $validated['days']
             : $this->calculateLeaveDays($from, $to, $validated['leaveType']);
@@ -486,12 +506,20 @@ class HcmLeaveRequestController extends Controller
         // Check balance if leave type deducts from balance
         $leaveType = $this->resolveLeaveType($validated['leaveType']);
         if ($leaveType && $leaveType->deduct_from_balance) {
-            $balance = EmployeeLeaveBalance::query()
-                ->where('company_id', $companyId)
+            $balanceQuery = EmployeeLeaveBalance::query()
                 ->where('employee_id', $user->id)
                 ->where('leave_type_id', $leaveType->id)
-                ->where('year', (int) $from->year)
-                ->first();
+                ->where('year', (int) $from->year);
+
+            if ($companyId !== null && $companyId > 0) {
+                $balanceQuery->where('company_id', $companyId);
+            } else {
+                $balanceQuery->where(function ($q) {
+                    $q->whereNull('company_id')->orWhere('company_id', 0);
+                });
+            }
+
+            $balance = $balanceQuery->first();
 
             if ($balance) {
                 $availableBalance = (float) $balance->balance;
@@ -511,6 +539,25 @@ class HcmLeaveRequestController extends Controller
                     'error' => [
                         'code' => 'LEAVE_INSUFFICIENT_BALANCE',
                         'message' => 'Saldo cuti tidak mencukupi. Saldo tersedia: 0.0 hari, dibutuhkan: '.number_format($days, 1).' hari.',
+                    ],
+                ], 422);
+            }
+        }
+
+        // Check max_consecutive_days policy
+        $leaveTypeModel = $this->resolveLeaveType($validated['leaveType']);
+        if ($leaveTypeModel) {
+            $policy = $this->resolvePolicyForEmployee(
+                (int) $user->id,
+                (int) $leaveTypeModel->id,
+                $from->toDateString()
+            );
+            if ($policy && $policy->max_consecutive_days !== null && $days > (float) $policy->max_consecutive_days) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'LEAVE_EXCEEDS_MAX_CONSECUTIVE',
+                        'message' => 'Pengajuan cuti melebihi batas maksimal '.$policy->max_consecutive_days.' hari berturut-turut.',
                     ],
                 ], 422);
             }
@@ -723,6 +770,37 @@ class HcmLeaveRequestController extends Controller
                 'success' => false,
                 'error' => ['code' => 'LEAVE_NOT_EDITABLE', 'message' => 'Only pending requests can be edited by employee.'],
             ], 422);
+        }
+
+        // Overlap check when changing dates (employee edit path)
+        if (isset($validated['dateFrom']) || isset($validated['dateTo'])) {
+            $editFrom = Carbon::parse((string) ($validated['dateFrom'] ?? $r->date_from?->toDateString()));
+            $editTo = Carbon::parse((string) ($validated['dateTo'] ?? $r->date_to?->toDateString()));
+
+            $editOverlap = LeaveRequest::query()
+                ->where('company_id', $companyId)
+                ->where('user_id', $r->user_id)
+                ->where('id', '!=', $r->id)
+                ->whereIn('status', ['pending', 'approved'])
+                ->where(function ($q) use ($editFrom, $editTo) {
+                    $q->whereBetween('date_from', [$editFrom->toDateString(), $editTo->toDateString()])
+                        ->orWhereBetween('date_to', [$editFrom->toDateString(), $editTo->toDateString()])
+                        ->orWhere(function ($q2) use ($editFrom, $editTo) {
+                            $q2->where('date_from', '<=', $editFrom->toDateString())
+                                ->where('date_to', '>=', $editTo->toDateString());
+                        });
+                })
+                ->exists();
+
+            if ($editOverlap) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'LEAVE_DATE_OVERLAP',
+                        'message' => 'Sudah ada pengajuan cuti yang tumpang tindih dengan rentang tanggal ini. Periksa kembali jadwal cuti Anda.',
+                    ],
+                ], 422);
+            }
         }
 
         $payload = [];
@@ -1014,6 +1092,47 @@ class HcmLeaveRequestController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function cancel(Request $request, string $id): JsonResponse
+    {
+        $companyId = $this->activeCompanyId($request);
+        $r = $this->resolveLeaveRequestRouteModel($companyId, $id);
+
+        if ($r->user_id !== $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'FORBIDDEN', 'message' => 'Cannot cancel another user leave.'],
+            ], 403);
+        }
+
+        if (! in_array($r->status, ['pending', 'approved'])) {
+            return response()->json([
+                'success' => false,
+                'error' => ['code' => 'LEAVE_NOT_CANCELLABLE', 'message' => 'Only pending or approved requests can be cancelled.'],
+            ], 422);
+        }
+
+        DB::transaction(function () use ($r, $companyId): void {
+            $r = $this->applyTenantScope(LeaveRequest::query()->lockForUpdate(), $companyId)->whereKey($r->id)->firstOrFail();
+            $fromStatus = (string) $r->status;
+
+            $r->update(['status' => 'cancelled']);
+
+            if ($fromStatus === 'approved' && Schema::hasTable('leave_types') && Schema::hasTable('leave_ledger')) {
+                $this->syncApprovedLeaveBalance($r->fresh(), false);
+                $this->markAttendanceOnLeave($r->fresh(), false);
+            }
+
+            $requestor = $r->user;
+            if ($requestor) {
+                $requestor->notify(new LeaveCancelledNotification($r->fresh()));
+            }
+        });
+
+        $this->logHcmActivity($request, 'leave_request', (string) ($r->uuid ?? (string) $r->id), 'cancelled');
+
+        return response()->json(['success' => true]);
+    }
+
     private function resolveLeaveRequestRouteModel(?int $companyId, string $routeId): LeaveRequest
     {
         $query = $this->applyTenantScope(LeaveRequest::query(), $companyId)
@@ -1114,11 +1233,16 @@ class HcmLeaveRequestController extends Controller
 
         // Get balance from EmployeeLeaveBalance
         $balance = EmployeeLeaveBalance::query()
-            ->where('company_id', $companyId)
             ->where('employee_id', $userId)
             ->where('leave_type_id', $resolvedLeaveType->id)
             ->where('year', now()->year)
-            ->first();
+            ->when(
+                $companyId !== null && $companyId > 0,
+                fn ($q) => $q->where('company_id', $companyId),
+                fn ($q) => $q->where(function ($q2) {
+                    $q2->whereNull('company_id')->orWhere('company_id', 0);
+                })
+            )->first();
 
         return response()->json([
             'success' => true,

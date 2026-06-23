@@ -439,10 +439,7 @@ class LeaveRequestsApiTest extends TestCase
             'name' => 'Test Annual Policy',
             'effective_from' => '2026-01-01',
             'effective_to' => null,
-            'max_days_per_year' => 12,
-            'max_consecutive_days' => 5,
-            'requires_approval' => true,
-            'is_active' => true,
+            'days_per_year' => 12,
         ]);
 
         $leave = LeaveRequest::query()->create([
@@ -1053,5 +1050,467 @@ class LeaveRequestsApiTest extends TestCase
         ])->getJson('/v1/hcm/employee-leave-balance?leaveType=Annual%20Leave&userId='.$foreignUser->id)
             ->assertStatus(404)
             ->assertJsonPath('error.code', 'USER_NOT_IN_COMPANY');
+    }
+
+    // ===== GAP 1: Overlap check in update() =====
+
+    public function test_employee_update_rejects_overlapping_dates(): void
+    {
+        $token = $this->bearerToken('leave-overlap-upd@example.com', 'Staff');
+        $user = User::query()->where('email', 'leave-overlap-upd@example.com')->firstOrFail();
+
+        $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+        EmployeeLeaveBalance::create([
+            'company_id' => $user->company_id ?? 1,
+            'employee_id' => $user->id,
+            'leave_type_id' => $annualType->id,
+            'year' => 2026,
+            'balance' => 10.0,
+            'used' => 0.0,
+            'expired' => 0.0,
+            'carried_forward' => 0.0,
+        ]);
+
+        // Create first leave
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/leave-requests', [
+                'leaveType' => 'Annual Leave',
+                'dateFrom' => '2026-05-04',
+                'dateTo' => '2026-05-04',
+                'notes' => 'First leave',
+            ])->assertStatus(201);
+
+        // Create second leave (different date)
+        $resp = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/leave-requests', [
+                'leaveType' => 'Annual Leave',
+                'dateFrom' => '2026-05-11',
+                'dateTo' => '2026-05-11',
+                'notes' => 'Second leave',
+            ])->assertStatus(201);
+        $secondId = $resp->json('data.id');
+
+        // Update second leave to overlap with first → should fail
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->putJson('/v1/hcm/leave-requests/'.$secondId, [
+                'dateFrom' => '2026-05-04',
+                'dateTo' => '2026-05-05',
+            ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'LEAVE_DATE_OVERLAP');
+    }
+
+    // ===== GAP 2: max_consecutive_days policy =====
+
+    public function test_leave_store_rejects_exceeding_max_consecutive_days(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_max_cons_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-max-cons@example.com',
+            'name' => 'Admin Max Cons',
+        ], $company);
+        $employee = User::factory()->create(['password' => bcrypt('StrongPass1')]);
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $employee->id],
+            ['company_id' => $company->id, 'designation' => 'Staff']
+        );
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $employee->email,
+            'password' => 'StrongPass1',
+            'companyCode' => $company->code,
+        ])->assertOk();
+        $employeeToken = (string) $login->json('data.accessToken');
+
+        $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+        EmployeeLeaveBalance::create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'leave_type_id' => $annualType->id,
+            'year' => 2026,
+            'balance' => 20.0,
+            'used' => 0.0,
+        ]);
+
+        // Create policy with max_consecutive_days = 3
+        $policy = LeavePolicy::create([
+            'company_id' => $company->id,
+            'leave_type_id' => $annualType->id,
+            'name' => 'Max 3 days policy',
+            'effective_from' => '2026-01-01',
+            'effective_to' => null,
+            'days_per_year' => 20,
+            'max_consecutive_days' => 3,
+        ]);
+
+        // Try 5 consecutive working days → should be rejected
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$employeeToken,
+            'X-Company-Code' => $company->code,
+        ])->postJson('/v1/hcm/leave-requests', [
+            'leaveType' => 'Annual Leave',
+            'dateFrom' => '2026-06-01',  // Monday
+            'dateTo' => '2026-06-05',    // Friday
+            'notes' => 'Exceeds max consecutive',
+        ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'LEAVE_EXCEEDS_MAX_CONSECUTIVE');
+    }
+
+    // ===== GAP 3: Leave→OT conflict reciprocal =====
+
+    public function test_leave_store_rejects_when_ot_exists_on_same_date(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_ot_conflict_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-leave-ot@example.com',
+            'name' => 'Admin Leave OT',
+        ], $company);
+
+        $employee = User::factory()->create(['password' => bcrypt('StrongPass1')]);
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $employee->id],
+            ['company_id' => $company->id, 'designation' => 'Staff']
+        );
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $employee->email,
+            'password' => 'StrongPass1',
+            'companyCode' => $company->code,
+        ])->assertOk();
+        $employeeToken = (string) $login->json('data.accessToken');
+
+        // Seed an approved overtime request using model
+        $otRequest = \App\Models\OvertimeRequest::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'work_date' => '2026-06-15',
+            'minutes' => 120,
+            'status' => 'approved',
+            'notes' => 'OT exists',
+        ]);
+        dump('OT CREATED: '.$otRequest->id);
+
+        $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+        EmployeeLeaveBalance::create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'leave_type_id' => $annualType->id,
+            'year' => 2026,
+            'balance' => 10.0,
+            'used' => 0.0,
+        ]);
+
+        // Try creating leave on same date as OT → should fail
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$employeeToken,
+            'X-Company-Code' => $company->code,
+        ])->postJson('/v1/hcm/leave-requests', [
+            'leaveType' => 'Annual Leave',
+            'dateFrom' => '2026-06-15',
+            'dateTo' => '2026-06-15',
+            'notes' => 'Leave on OT date',
+        ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'LEAVE_OT_CONFLICT');
+    }
+
+    // ===== GAP 5: Self-cancel endpoint =====
+
+    public function test_employee_can_cancel_own_pending_leave(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_cancel_own_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-cancel-own@example.com',
+            'name' => 'Admin',
+        ], $company);
+
+        $employee = User::factory()->create(['password' => bcrypt('StrongPass1')]);
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $employee->id],
+            ['company_id' => $company->id, 'designation' => 'Staff']
+        );
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $employee->email,
+            'password' => 'StrongPass1',
+            'companyCode' => $company->code,
+        ])->assertOk();
+        $employeeToken = (string) $login->json('data.accessToken');
+
+        $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+        EmployeeLeaveBalance::create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'leave_type_id' => $annualType->id,
+            'year' => 2026,
+            'balance' => 10.0,
+            'used' => 0.0,
+        ]);
+
+        $resp = $this->withHeaders([
+            'Authorization' => 'Bearer '.$employeeToken,
+            'X-Company-Code' => $company->code,
+        ])->postJson('/v1/hcm/leave-requests', [
+            'leaveType' => 'Annual Leave',
+            'dateFrom' => '2026-07-01',
+            'dateTo' => '2026-07-01',
+            'notes' => 'To cancel',
+        ])->assertStatus(201);
+        $leaveId = $resp->json('data.id');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$employeeToken,
+            'X-Company-Code' => $company->code,
+        ])->postJson('/v1/hcm/leave-requests/'.$leaveId.'/cancel')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertSame('cancelled', LeaveRequest::find($leaveId)->status);
+    }
+
+    public function test_employee_cannot_cancel_others_leave(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_cancel_other_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-cancel-other@example.com',
+            'name' => 'Admin',
+        ], $company);
+
+        $employee = User::factory()->create(['password' => bcrypt('StrongPass1')]);
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $employee->email,
+            'password' => 'StrongPass1',
+            'companyCode' => $company->code,
+        ])->assertOk();
+        $otherEmployeeToken = (string) $login->json('data.accessToken');
+
+        $otherUser = User::factory()->create();
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $otherUser->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+
+        $leave = LeaveRequest::create([
+            'company_id' => $company->id,
+            'user_id' => $otherUser->id,
+            'leave_type' => 'Annual',
+            'date_from' => '2026-07-01',
+            'date_to' => '2026-07-01',
+            'days' => 1,
+            'status' => 'pending',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$otherEmployeeToken,
+            'X-Company-Code' => $company->code,
+        ])->postJson('/v1/hcm/leave-requests/'.$leave->id.'/cancel')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+    }
+
+    public function test_cancel_approved_leave_reverses_ledger(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_cancel_ledger_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-cancel-ledger@example.com',
+            'name' => 'Admin Cancel Ledger',
+        ], $company);
+        $adminToken = $admin['token'];
+
+        $employee = User::factory()->create(['password' => bcrypt('StrongPass1')]);
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $employee->id],
+            ['company_id' => $company->id, 'designation' => 'Staff']
+        );
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $employee->email,
+            'password' => 'StrongPass1',
+            'companyCode' => $company->code,
+        ])->assertOk();
+        $employeeToken = (string) $login->json('data.accessToken');
+
+        $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+        EmployeeLeaveBalance::create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'leave_type_id' => $annualType->id,
+            'year' => 2026,
+            'balance' => 10.0,
+            'used' => 0.0,
+        ]);
+
+        // Employee creates leave
+        $resp = $this->withHeaders([
+            'Authorization' => 'Bearer '.$employeeToken,
+            'X-Company-Code' => $company->code,
+        ])->postJson('/v1/hcm/leave-requests', [
+            'leaveType' => 'Annual Leave',
+            'dateFrom' => '2026-07-06',  // Monday
+            'dateTo' => '2026-07-07',    // Tuesday
+            'notes' => 'Will be approved then cancelled',
+        ])->assertStatus(201);
+        $leaveId = $resp->json('data.id');
+
+        // Admin approves
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$adminToken,
+            'X-Company-Code' => $company->code,
+        ])->putJson('/v1/hcm/leave-requests/'.$leaveId, [
+            'status' => 'approved',
+        ])->assertOk();
+
+        // Verify ledger deducted
+        $ledgerSum = (float) LeaveLedger::where('employee_id', $employee->id)
+            ->where('transaction_type', 'usage')
+            ->sum('amount');
+        $this->assertEquals(-2.0, $ledgerSum);
+
+        // Employee cancels approved leave (self-cancel)
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$employeeToken,
+            'X-Company-Code' => $company->code,
+        ])->postJson('/v1/hcm/leave-requests/'.$leaveId.'/cancel')
+            ->assertOk();
+
+        // Verify ledger reversed
+        $netLedger = (float) LeaveLedger::where('employee_id', $employee->id)->sum('amount');
+        $this->assertEquals(0.0, $netLedger);
+
+        $this->assertSame('cancelled', LeaveRequest::find($leaveId)->status);
+    }
+
+    // ===== Gap: Half-day leave =====
+
+    public function test_half_day_leave_stores_correctly(): void
+    {
+        $token = $this->bearerToken('leave-halfday@example.com', 'Staff');
+        $user = User::query()->where('email', 'leave-halfday@example.com')->firstOrFail();
+
+        $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+        EmployeeLeaveBalance::create([
+            'company_id' => $user->company_id ?? 1,
+            'employee_id' => $user->id,
+            'leave_type_id' => $annualType->id,
+            'year' => 2026,
+            'balance' => 10.0,
+            'used' => 0.0,
+        ]);
+
+        $resp = $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/v1/hcm/leave-requests', [
+                'leaveType' => 'Annual Leave',
+                'dateFrom' => '2026-07-13',  // Monday
+                'dateTo' => '2026-07-13',
+                'days' => 0.5,
+                'notes' => 'Half day leave',
+            ])->assertStatus(201);
+
+        $leaveId = $resp->json('data.id');
+        $leave = LeaveRequest::find($leaveId);
+        $this->assertEquals(0.5, (float) $leave->days);
+
+        $breakdown = LeaveRequestBreakdown::where('leave_request_id', $leaveId)->first();
+        $this->assertNotNull($breakdown);
+        $this->assertEquals(0.5, (float) $breakdown->deducted_days);
+    }
+
+    // ===== Gap: Integration cancel+rollback =====
+
+    public function test_approve_cancel_reapprove_ledger_consistent(): void
+    {
+        $company = Company::factory()->create(['code' => 'leave_approve_cancel_re_company']);
+        $admin = $this->createHcmAdminWithCompany([
+            'email' => 'admin-acr@example.com',
+            'name' => 'Admin ACR',
+        ], $company);
+        $adminToken = $admin['token'];
+
+        $employee = User::factory()->create(['password' => bcrypt('StrongPass1')]);
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+        ]);
+        EmployeeProfile::query()->updateOrCreate(
+            ['user_id' => $employee->id],
+            ['company_id' => $company->id, 'designation' => 'Staff']
+        );
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => $employee->email,
+            'password' => 'StrongPass1',
+            'companyCode' => $company->code,
+        ])->assertOk();
+        $employeeToken = (string) $login->json('data.accessToken');
+
+        $annualType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+        EmployeeLeaveBalance::create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'leave_type_id' => $annualType->id,
+            'year' => 2026,
+            'balance' => 10.0,
+            'used' => 0.0,
+        ]);
+
+        $resp = $this->withHeaders([
+            'Authorization' => 'Bearer '.$employeeToken,
+            'X-Company-Code' => $company->code,
+        ])->postJson('/v1/hcm/leave-requests', [
+            'leaveType' => 'Annual Leave',
+            'dateFrom' => '2026-08-03',  // Monday
+            'dateTo' => '2026-08-04',    // Tuesday
+            'notes' => 'ACR test',
+        ])->assertStatus(201);
+        $leaveId = $resp->json('data.id');
+
+        // Approve
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken, 'X-Company-Code' => $company->code])
+            ->putJson('/v1/hcm/leave-requests/'.$leaveId, ['status' => 'approved'])->assertOk();
+
+        // Cancel
+        $this->withHeaders(['Authorization' => 'Bearer '.$employeeToken, 'X-Company-Code' => $company->code])
+            ->postJson('/v1/hcm/leave-requests/'.$leaveId.'/cancel')->assertOk();
+
+        // Admin re-approves (pending → approved)
+        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken, 'X-Company-Code' => $company->code])
+            ->putJson('/v1/hcm/leave-requests/'.$leaveId, ['status' => 'approved'])->assertOk();
+
+        // Net ledger = -2 (one usage, one reversal, one usage again)
+        $net = (float) LeaveLedger::where('employee_id', $employee->id)->sum('amount');
+        $this->assertEquals(-2.0, $net);
     }
 }

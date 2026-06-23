@@ -248,4 +248,60 @@ describe('Leave UI wiring', () => {
     expect(rows[1].querySelector('[data-hcm-leave-edit]')).toBeTruthy();
     expect(rows[1].querySelector('[data-hcm-leave-delete]')).toBeNull();
   });
+
+  it('shows error alert on API error and is-invalid on field errors', async () => {
+    document.body.innerHTML = `
+      <div id="arcav_add_leave"></div>
+      <form data-hcm-leave-form="add">
+        <select data-hcm-field="leaveType" required>
+          <option value="annual_leave">Annual Leave</option>
+        </select>
+        <input data-hcm-field="dateFrom" value="2026-04-14">
+        <input data-hcm-field="dateTo" value="2026-04-15">
+        <input data-hcm-field="days" value="2">
+        <textarea data-hcm-field="notes"></textarea>
+        <div data-hcm-leave-error-add class="d-none">
+          <span data-hcm-error-title></span>
+          <span data-hcm-error-message></span>
+        </div>
+      </form>
+    `;
+
+    const fetchMock = vi.mocked(fetch);
+    let postCallCount = 0;
+    fetchMock.mockImplementation((url, options = {}) => {
+      const urlString = String(url);
+      if (urlString === '/v1/identity/auth/me') {
+        return jsonResponse({ success: true, data: { id: 10, permissions: { 'leave.view': true } } });
+      }
+      if (urlString.startsWith('/v1/hcm/leave-requests?') || urlString === '/v1/hcm/leave-type-options') {
+        return jsonResponse({ success: true, data: [], meta: { summary: { totalRequests: 0 }, holidays: [], pagination: { total: 0, page: 1, perPage: 20, totalPages: 1 } } });
+      }
+      if (urlString === '/v1/hcm/leave-requests' && String(options.method || '').toLowerCase() === 'post') {
+        postCallCount++;
+        return jsonResponse({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Validation failed.' },
+        }, 422);
+      }
+      throw new Error(`Unhandled fetch: ${urlString} ${options.method || 'GET'}`);
+    });
+
+    await loadLeaveModule('/leaves');
+    await flushPromises();
+    await flushPromises();
+
+    expect(postCallCount).toBe(0);
+
+    const form = document.querySelector('[data-hcm-leave-form="add"]');
+    form.querySelector('[data-hcm-field="dateFrom"]').value = 'bad-date';
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flushPromises();
+    await flushPromises();
+
+    expect(postCallCount).toBe(1);
+    const errorAlert = document.querySelector('[data-hcm-leave-error-add]');
+    expect(errorAlert.classList.contains('d-none')).toBe(false);
+    expect(document.querySelector('[data-hcm-error-title]').textContent).toBe('Validation Error');
+  });
 });

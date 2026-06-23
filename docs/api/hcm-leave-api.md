@@ -125,6 +125,7 @@ Status:
 - `pending` (default)
 - `approved`
 - `declined`
+- `cancelled` (via self-cancel endpoint)
 
 ### GET `/leave-requests`
 
@@ -226,6 +227,13 @@ RBAC:
 - Admin boleh buat untuk orang lain via `userId` jika target user anggota tenant aktif
 - Non-admin **tidak boleh** mengirim `userId` (403 `AUTH_FORBIDDEN`)
 
+Error codes:
+- `422 LEAVE_DATE_OVERLAP` — rentang tanggal tumpang tindih dengan pengajuan cuti pending/approved lain
+- `422 LEAVE_OT_CONFLICT` — ada approved overtime pada rentang tanggal yang sama
+- `422 LEAVE_NO_WORKING_DAY` — rentang tanggal tidak memiliki hari kerja
+- `422 LEAVE_INSUFFICIENT_BALANCE` — saldo cuti tidak mencukupi
+- `422 LEAVE_EXCEEDS_MAX_CONSECUTIVE` — melebihi batas maksimal hari berturut-turut menurut kebijakan cuti
+
 Success `201`:
 
 ```json
@@ -239,6 +247,7 @@ RBAC & aturan:
   - hanya boleh edit jika status masih `pending`
   - field editable: `leaveType`, `dateFrom`, `dateTo`, `days`, `notes`
   - jika status bukan `pending` → `422 LEAVE_NOT_EDITABLE`
+  - jika mengubah `dateFrom`/`dateTo` dan tumpang tindih dengan leave lain → `422 LEAVE_DATE_OVERLAP`
 - Admin update request orang lain:
   - body **wajib** `status` in `pending|approved|declined`
   - `notes` optional
@@ -260,6 +269,25 @@ Behavior note (implementation detail, non-breaking):
 RBAC & aturan:
 - Owner saja yang boleh delete; delete request orang lain → `403 FORBIDDEN`
 - Hanya `pending` yang boleh dihapus → `422 LEAVE_NOT_DELETABLE`
+
+Success `200`:
+
+```json
+{ "success": true }
+```
+
+### POST `/leave-requests/{id}/cancel`
+
+Batalkan pengajuan cuti oleh pemilik (employee/self). Bisa membatalkan status `pending` atau `approved`.
+
+RBAC & aturan:
+- Owner saja yang boleh cancel; cancel milik orang lain → `403 FORBIDDEN`
+- Status yang bisa di-cancel: `pending`, `approved`
+- Status lain → `422 LEAVE_NOT_CANCELLABLE`
+- Jika cancel dari `approved`:
+  - Ledger otomatis reversal (saldo dikembalikan)
+  - Attendance `on_leave` diubah jadi `absent`
+  - Notifikasi `LeaveCancelledNotification` dikirim
 
 Success `200`:
 

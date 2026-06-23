@@ -35,11 +35,8 @@ backend/storage/framework/views/*
 backend/bootstrap/cache/*.php
 backend/public/storage
 
-# Release artifacts (allow shared-hosting artifacts for deploy)
-release/*
-!release/shared-hosting/
-release/shared-hosting/*
-!release/shared-hosting/shared-hosting-artifact-*.tar.gz
+# Release artifacts (shared-hosting no longer used)
+release/
 
 # Env / sensitive files
 backend/env.txt
@@ -89,4 +86,3 @@ validation_audit.txt
 *.xls
 *.tgz
 *.tar.gz
-!release/shared-hosting/shared-hosting-artifact-*.tar.gz

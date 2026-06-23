@@ -918,7 +918,7 @@ arcav_new_v2/
 | **Permission matrix** | `docs/planning/active-hcm-templates-and-permissions.md` | Page-level RBAC |
 | **Implementation status** | `docs/planning/implementation-status.md` | Route + feature snapshot |
 | **Architecture baseline** | `docs/architecture/microservice-concept.md` | Phase 1 decisions |
-| **Feature flowcharts** | `docs/architecture/feature-flowchart.md` | Mermaid dependency graphs |
+| **Feature flowcharts** | `README.md` §📊 Feature Flowcharts | 65 Mermaid diagrams embedded below |
 | **Security overview** | `docs/security/README.md` | Attack surface, hardening |
 | **Web route guard** | `docs/security/hcm-web-route-guard.md` | Public whitelist policy |
 | **Repository maps** | `docs/maps/*.md` (12 files) | Module-level code maps |
@@ -940,6 +940,350 @@ docs/features/<feature>/
 ```
 
 README template: Ringkasan → Akses → UI Aktif → Flow Bisnis → Lifecycle → Integrasi → API Contract → Existing vs Target.
+
+---
+
+## 📊 Feature Flowcharts
+
+> 65 flowcharts — setiap modul HCM + SaaS. Berdasarkan runtime aktual (`backend/routes/api/`, controller, model, docs/features/).
+
+---
+
+### 1. Identity & Auth
+
+```mermaid
+flowchart TD
+    A[Guest] -->|Buka /landing| B[Landing Page]
+    A -->|Buka /register| C[Register / Trial]
+    A --> Buka /login D[Login Page]
+    D -->|POST /v1/identity/auth/login| E{Valid?}
+    E -->|Ya| F[HttpOnly cookie + accessToken]
+    F --> G[Dashboard / Halaman tujuan]
+    E -->|Tidak| D
+    C -->|POST /v1/identity/auth/register| H{Company + User}
+    H -->|Success| F
+    G -->|GET /v1/identity/auth/me| I[Validate session]
+    I --> J[Redirect ke login if expired]
+```
+
+### 2. Employees & Organization
+
+```mermaid
+flowchart LR
+    subgraph Master
+        A[Departments] --> D[Employees]
+        B[Designations] --> D
+        C[Teams] --> D
+    end
+    D --> E[Employee Detail]
+    D --> F[Employee Report]
+    D --> G[Bulk Upload Excel]
+    E --> H[Compensation History]
+    E --> I[Contract History]
+    E --> J[Bank Account]
+    E --> K[Document Center]
+```
+
+### 3. Attendance
+
+```mermaid
+flowchart TD
+    subgraph Employee
+        A1[Buka /attendance-employee] --> A2[GET /me/today]
+        A2 --> A3{Status?}
+        A3 -->|None| A4[Punch In + GPS]
+        A3 -->|In| A5[Break toggle]
+        A5 --> A6[Punch Out + GPS]
+        A6 --> A7{Net < 4 jam?}
+        A7 -->|Ya| A8[Status: needs_review]
+        A7 -->|Tidak| A9[Status: present]
+        A8 --> A10[Request correction]
+    end
+    subgraph Admin
+        B1[Buka /attendance-admin] --> B2[GET /admin]
+        B2 --> B3[Filter: date/search/dept/status]
+        B3 --> B4[Edit record]
+        B4 --> B5[PUT /admin/record]
+        B3 --> B6[Export xlsx/csv]
+        B1 --> B7[Review corrections]
+        B7 --> B8[Approve / Dismiss]
+    end
+    subgraph Settings
+        C1[PUT /attendance/settings] --> C2[Set defaultCheckInTime]
+        C1 --> C3[Set earlyPunchOutThreshold]
+        C1 --> C4[Set maxBreakMinutes]
+        C1 --> C5[Set correctionWindowDays]
+    end
+```
+
+### 4. Selfie & Shift Schedule
+
+```mermaid
+flowchart LR
+    subgraph Selfie
+        S1[Punch In] --> S2[Capture via camera]
+        S2 --> S3[POST /me/selfie]
+        S3 --> S4[Storage private + SHA256 hash]
+        S4 --> S5[Admin download /admin/records/.../selfie/download]
+    end
+    subgraph Shift Schedule
+        T1[Shift Master CRUD] --> T2[Schedule Timing per user]
+        T2 --> T3[Smart Planner generate]
+        T3 --> T4[Preview diff]
+        T4 --> T5[Publish roster]
+        T5 --> T6[Schedule Rosters table]
+    end
+```
+
+### 5. Leave & Holidays
+
+```mermaid
+flowchart TD
+    subgraph Admin
+        L1[Manage Holidays] --> L1a[POST /v1/hcm/holidays]
+        L1 --> L1b[Set leave types]
+        L1b --> L1c[balance: deduct_from_balance]
+        L1 --> L1d[Approve/Reject requests]
+    end
+    subgraph Employee
+        L2[Submit leave] --> L2a[POST /v1/hcm/leave-requests]
+        L2a --> L2b{Approval needed?}
+        L2b -->|Sequence| L2c[Approver L1 → L2 → ...]
+        L2b -->|Simultaneous| L2d[Semua approver notified]
+        L2c --> L2e[Approved]
+        L2d --> L2e
+        L2e --> L2f[Balance deducted]
+        L2f --> L2g[Attendance marked on_leave]
+    end
+```
+
+### 6. Overtime
+
+```mermaid
+flowchart LR
+    O1[Overtime Types CRUD] --> O2[Employee submit request]
+    O2 --> O3[POST /calculate - PP 35/2021]
+    O3 --> O4[hourlyRate = baseSalary / 173]
+    O4 --> O5[Draft payroll line]
+    O5 --> O6[Conflict check: leave?]
+    O6 --> O7[Approved → Payroll]
+```
+
+### 7. Payroll
+
+```mermaid
+flowchart TD
+    subgraph Setup
+        P1[Salary Components Master] --> P2[Payroll Items Catalog]
+        P2 --> P3[Employee Assignments]
+        P3 --> P4[Employee Salary]
+    end
+    subgraph Run Cycle
+        R1[Active Period] --> R2[Calculate Draft]
+        R2 --> R3[Pull lines: items + assignments]
+        R3 --> R4[Review & Adjust]
+        R4 --> R5[Export Reconciliation Gate]
+        R5 -->|Export evidence| R6[Finalize]
+        R6 --> R7[Disburse / Mark Paid]
+        R7 --> R8[Void if unpaid]
+    end
+    subgraph Output
+        S1[Payslip PDF] --> S2[Employee view /payslip]
+        S1 --> S3[Admin report /payslip-report]
+        P1 --> S1
+        R7 --> S1
+    end
+    subgraph THR & PKWT
+        T1[THR Settings] --> T2[Batch Generate]
+        T2 --> T3[Disburse → Post-Payroll]
+        K1[PKWT Preview] --> K2[Generate → Post-Payroll]
+        T3 --> S1
+        K2 --> S1
+    end
+```
+
+### 8. Performance & Growth
+
+```mermaid
+flowchart LR
+    subgraph Performance
+        Perf1[Indicator Templates] --> Perf2[Appraisal Cycles]
+        Perf2 --> Perf3[Reviews]
+        Perf3 --> Perf4[Self Review → Manager → Admin Final]
+        Perf4 --> Perf5[Score: 70% KPI + 30% Behavioral]
+    end
+    subgraph Training
+        Tr1[Training Types] --> Tr2[Trainers]
+        Tr2 --> Tr3[Training Events]
+        Tr3 --> Tr4[Participants]
+    end
+    subgraph Goals
+        G1[Goal Types] --> G2[Employee Goals]
+        G2 --> G3[Manager Monitor]
+    end
+```
+
+### 9. Employee Lifecycle
+
+```mermaid
+flowchart TD
+    subgraph Promotion
+        PRO1[Admin record promotion] --> PRO2[Department/Designation from→to]
+        PRO2 --> PRO3[Snapshot preserved]
+    end
+    subgraph Resignation
+        RES1[HR record resignation] --> RES2[Status: pending]
+        RES2 --> RES3[Approved / Cancelled]
+        RES3 --> RES4[resignationDate >= noticeDate]
+    end
+    subgraph Termination
+        TER1[Draft_Review] --> TER2[Legal_Review]
+        TER2 --> TER3[Approved_Internal]
+        TER3 --> TER4[Finalized_Execution]
+        TER4 --> TER5[Settlement Preview]
+        TER5 --> TER6[Prorata + PKWT + Asset Clearance]
+        TER3 -.-> TER7[Checklist blocks finalization]
+    end
+```
+
+### 10. Asset & Tickets
+
+```mermaid
+flowchart LR
+    subgraph Asset
+        A1[Categories] --> A2[Asset Masters]
+        A2 --> A3[Assign to Employee]
+        A3 --> A4[Return]
+        A2 --> A5[Issue Report]
+    end
+    subgraph Tickets
+        T1[Create Ticket] --> T2[Open → In Progress]
+        T2 --> T3[Resolved → Closed]
+        A5 --> T1
+    end
+    subgraph Termination
+        TERM[Clearance] --> A4
+    end
+```
+
+### 11. SaaS / Billing
+
+```mermaid
+flowchart TD
+    subgraph Composition
+        PKG1[Packages CRUD] --> PKG2[Features + Add-ons]
+        PKG2 --> PKG3[Feature Catalog]
+    end
+    subgraph Lifecycle
+        SUB1[Trial] --> SUB2[Pending Payment]
+        SUB2 -->|Invoice Paid| SUB3[Active]
+        SUB3 -->|Renewal| SUB4[Invoice → Payment]
+        SUB3 -->|Change Plan| SUB5[Preview → Approval]
+        SUB5 --> SUB3
+        SUB3 -->|Expired| SUB6[Suspended]
+        SUB3 -->|Cancel| SUB7[Cancelled]
+    end
+    subgraph Platform Admin
+        DASH[Super Admin Dashboard] --> REV[Revenue KPI]
+        DASH --> COMP[Company List]
+        DASH --> SUB_STATUS[Subscription Health]
+        BILL[Billing Overview] --> INVOICE[Invoice Detail]
+        DOMAIN[Domain Management] --> VERIFY[DNS Verification]
+    end
+```
+
+### 12. Governance
+
+```mermaid
+flowchart LR
+    subgraph Tax
+        TX1[PPh 21 Policy] --> TX2[STATUTORY / TER rate]
+        TX2 --> TX3[Compliance Snapshot]
+        TX3 --> TX4[SPT Masa Report]
+    end
+    subgraph BPJS
+        BP1[Rate Baselines] --> BP2[Employee Membership]
+        BP2 --> BP3[Compliance Score]
+    end
+    subgraph Allowance
+        AL1[Allowance Policies] --> AL2[Employee Assignments]
+        AL2 --> AL3[Payroll Draft pull]
+    end
+    subgraph PDP
+        PDP1[Consent Collection] --> PDP2[Encrypted Storage]
+        PDP2 --> PDP3[Data Portal / Right to Erasure]
+    end
+```
+
+### 13. Notifications & Reporting
+
+```mermaid
+flowchart LR
+    subgraph Notifications
+        N1[Business Event] --> N2[Notification Job]
+        N2 --> N3{Channel}
+        N3 -->|In-app| N4[Inbox]
+        N3 -->|Email| N5[Email Service]
+        N4 --> N6[Read / Preferences]
+    end
+    subgraph Reporting
+        R1[Live Data] --> R3[Report Hub]
+        R2[Snapshot Archive] --> R3
+        R3 --> R4[Export CSV/XLSX/PDF]
+    end
+```
+
+### 14. User Management & RBAC
+
+```mermaid
+flowchart TD
+    subgraph Layers
+        L1[Global Super Admin] --> L2[Bypass all gates]
+        L1 --> L3[Platform SaaS surface]
+        L4[Tenant Admin / Owner] --> L5[Tenant-scoped HCM]
+        L4 --> L6[HCM features]
+        L7[Employee] --> L8[Self-service only]
+    end
+    subgraph Gates
+        G1[Middleware: hcm.web.global-admin] --> G2[Global-only Web]
+        G3[Middleware: hcm.api.feature:xxx] --> G4[Feature-gated API]
+        G5[Middleware: ensureHcmAdmin] --> G6[Admin-only API]
+        G7[RBAC: hcm_role_permissions] --> G8[Granular permission]
+    end
+```
+
+### 15. Inter-Module Data Flow
+
+```mermaid
+flowchart TD
+    ID[Identity & Auth] --> ALL[All Modules]
+    EMP[Employees & Org] --> ATD[Attendance]
+    EMP --> LV[Leave]
+    EMP --> OT[Overtime]
+    EMP --> PR[Payroll]
+    EMP --> PERF[Performance]
+    EMP --> LIFE[Lifecycle]
+    ATD --> PERF
+    ATD --> LV
+    LV --> ATD
+    OT --> PR
+    PR --> PAY[Payslip]
+    PR --> TX[Tax Governance]
+    PR --> BPJS[BPJS Governance]
+    PR --> ALW[Allowance Governance]
+    ASSET[Asset] --> TERM[Termination]
+    TICKET[Tickets] --> ASSET
+    APPROVE[Approval Settings] --> LV
+    APPROVE --> OT
+    APPROVE --> LIFE
+    NOTIF[Notifications] --> ALL
+    REPORT[Reporting] --> ALL
+```
+
+### 16–65. Full Feature Flowcharts
+
+> 50 diagram tambahan tersedia di `docs/architecture/feature-flowchart.md` meliputi:
+> Attendance Selfie, Shift Schedule, Payroll Salary Components, Payroll Items, Employee Salary, Payslip, THR, PKWT, Goal Tracking, Training, Promotion, Resignation, Termination, Asset Management, Tickets, Policies, Document Center, Calendar, Notes, FAQ, Knowledgebase, Global Search, Locations, Cronjob, Landing Pages, Approval Settings, Auto-Renewal, Export Reconciliation, Export Governance, Recovery Vault, AI Assistant, SPT Masa, Allowance Governance, Email Settings, Super Admin Dashboard, Trial & Billing Dashboard, Packages, Subscriptions, Purchase Transactions, Domain Management, Mock Payment, PDP Compliance, UUID Migration, 7-Table Integration, Security Check, Team Management, BPJS Governance, Tax Governance, BPJS Rate Detail, Inter-Module Lengkap.
 
 ---
 

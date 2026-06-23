@@ -25,7 +25,8 @@ Single-repository Human Capital Management system — SaaS multi-tenant untuk pe
 15. [Project Structure](#project-structure)
 16. [Key Decisions & Protected Patterns](#key-decisions--protected-patterns)
 17. [Documentation Map](#documentation-map)
-18. [Performance Optimizations](#performance-optimizations)
+18. [📊 Feature Flowcharts](#feature-flowcharts)
+19. [Performance Optimizations](#performance-optimizations)
 
 ---
 

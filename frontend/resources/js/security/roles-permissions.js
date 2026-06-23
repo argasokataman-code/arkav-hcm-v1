@@ -101,6 +101,8 @@
           var modalEl = document.getElementById("rp_role_modal");
           if (window.bootstrap && modalEl) {
             window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            var firstInput = document.querySelector("#rp_role_modal input:not([type=hidden]):not([type=password]), #rp_role_modal select");
+            if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
           }
         });
       }
@@ -112,6 +114,7 @@
         } else {
           roleForm.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(roleForm)) { return; }
             self.submitRoleForm();
           });
         }
@@ -597,6 +600,8 @@
       var modalEl = document.getElementById("rp_role_modal");
       if (window.bootstrap && modalEl) {
         window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        var firstInput = document.querySelector("#rp_role_modal input:not([type=hidden]):not([type=password]), #rp_role_modal select");
+        if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
       }
     },
 
@@ -688,6 +693,8 @@
       var modalEl = document.getElementById("rp_permissions_modal");
       if (window.bootstrap && modalEl) {
         window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        var firstInput = document.querySelector("#rp_permissions_modal input:not([type=hidden]):not([type=password]), #rp_permissions_modal select");
+        if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
       }
     },
 

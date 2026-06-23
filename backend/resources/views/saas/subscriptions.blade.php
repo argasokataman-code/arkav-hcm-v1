@@ -117,7 +117,8 @@
                         <div class="col-md-6 mb-3">
                             <div data-subscription-company-select-group>
                                 <label class="form-label">Company *</label>
-                                <select class="form-select" id="input_subscription_company" required></select>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" id="input_subscription_company" required></select>
                             </div>
                             <div class="d-none" data-subscription-company-readonly-group>
                                 <label class="form-label">Company</label>
@@ -127,17 +128,20 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Package *</label>
-                            <select class="form-select" id="input_subscription_package" required></select>
+                            
+                                <div class="invalid-feedback">Please select an option.</div><select class="form-select" id="input_subscription_package" required></select>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Start Date *</label>
-                            <input type="date" class="form-control" id="input_subscription_start" required>
+                            
+                                <div class="invalid-feedback">Please select a date.</div><input type="date" class="form-control" id="input_subscription_start" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Billing Cycle *</label>
-                            <select class="form-select" id="input_subscription_cycle" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div><select class="form-select" id="input_subscription_cycle" required>
                                 <option value="">Select cycle</option>
                                 <option value="monthly">Monthly</option>
                                 <option value="yearly">Yearly</option>
@@ -147,12 +151,15 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">End Date *</label>
-                            <input type="date" class="form-control" id="input_subscription_end" required>
+                            
+                                <div class="invalid-feedback">Please select a date.</div><input type="date" class="form-control" id="input_subscription_end" required>
                             <small class="text-muted">Diisi otomatis dari start + cycle; bisa disesuaikan.</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Subscription status *</label>
-                            <select class="form-select" id="input_subscription_status" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div>
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" id="input_subscription_status" required>
                                 <option value="active">Active</option>
                                 <option value="trial">Trial</option>
                                 <option value="inactive">Inactive</option>
@@ -200,6 +207,8 @@
                 <p class="text-muted small mb-3">Status menjadi <strong>active</strong>; start date di-set ke hari ini oleh server.</p>
                 <label class="form-label">New end date *</label>
                 <input type="date" class="form-control" id="input_renew_ends_at" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -230,6 +239,8 @@
                     <p class="text-muted small mb-2">Status menjadi <strong>active</strong>; start date di-set ke hari ini oleh server.</p>
                     <label class="form-label">New end date *</label>
                     <input type="date" class="form-control" id="input_renew_by_id_ends_at" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                 </div>
             </div>
             <div class="modal-footer">

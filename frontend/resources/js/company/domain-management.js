@@ -189,6 +189,7 @@
       if (form) {
         form.addEventListener("submit", function (e) {
           e.preventDefault();
+          if (!ArcavValidation.validateForm(form)) { return; }
           self.handleSaveDomain();
         });
       }
@@ -499,7 +500,11 @@
           if (title) title.textContent = "Edit Domain";
           if (submitBtn) submitBtn.textContent = "Update Domain";
 
-          if (self.domainModalInstance) self.domainModalInstance.show();
+          if (self.domainModalInstance) {
+            self.domainModalInstance.show();
+            var firstInput = document.querySelector("#domainModal input:not([type=hidden]):not([type=password]), #domainModal select");
+            if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
+          }
         })
         .catch(function () {
           self.showError("Error loading domain");
@@ -607,7 +612,11 @@
 
           const target = document.getElementById("verification_instructions");
           if (target) target.innerHTML = html;
-          if (self.verificationModalInstance) self.verificationModalInstance.show();
+          if (self.verificationModalInstance) {
+            self.verificationModalInstance.show();
+            var firstInput = document.querySelector("#verificationModal input:not([type=hidden]):not([type=password]), #verificationModal select");
+            if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
+          }
         })
         .catch(function () {
           self.showError("Error loading verification details");

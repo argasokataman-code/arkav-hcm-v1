@@ -207,6 +207,8 @@
         if (modal && window.bootstrap && window.bootstrap.Modal) {
             var bsModal = window.bootstrap.Modal.getOrCreateInstance(modal);
             bsModal.show();
+            var firstInput = document.querySelector("#empTaxEditModal input:not([type=hidden]):not([type=password]), #empTaxEditModal select");
+            if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
         }
     }
 
@@ -225,6 +227,7 @@
     function handleEditSubmit(e) {
         e.preventDefault();
         var form = e.target;
+        if (!ArcavValidation.validateForm(form)) { return; }
         var idInput = form.querySelector('[data-emp-tax-edit-user-id]');
         var npwpInput = form.querySelector('[data-emp-tax-edit-npwp]');
         var taxStatusSel = form.querySelector('[data-emp-tax-edit-tax-status]');

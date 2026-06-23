@@ -13,7 +13,8 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Subject</label>
-                                <input type="text" class="form-control" name="subject" maxlength="255" required>
+                                
+                                    <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" name="subject" maxlength="255" required>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -27,7 +28,9 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Prioritas</label>
-                                <select class="form-select" name="priority" required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div>
+                                        <div class="invalid-feedback">Please select an option.</div><select class="form-select" name="priority" required>
                                     <option value="medium" selected>Medium</option>
                                     <option value="low">Low</option>
                                     <option value="high">High</option>
@@ -53,6 +56,8 @@
                             <div class="mb-0">
                                 <label class="form-label">Deskripsi</label>
                                 <textarea class="form-control" rows="5" name="description" maxlength="10000" required></textarea>
+
+    <div class="invalid-feedback">Please enter text.</div>
                             </div>
                         </div>
                     </div>

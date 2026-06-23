@@ -14,7 +14,8 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Employee <span class="text-danger">*</span></label>
-                            <select class="form-select" name="employeeProfileId" id="arcavDocEmployee" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div><select class="form-select" name="employeeProfileId" id="arcavDocEmployee" required>
                                 <option value="">Pilih employee...</option>
                             </select>
                         </div>
@@ -28,6 +29,8 @@
                             <label class="form-label">Title <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="title" maxlength="255" required
                                 placeholder="Mis: Kontrak Kerja 2025">
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Description</label>
@@ -80,6 +83,8 @@
                             <label class="form-label">Title <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="title" id="arcavDocEditTitle"
                                 maxlength="255" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Category</label>
@@ -130,8 +135,11 @@
                     <div class="row g-2 align-items-end">
                         <div class="col">
                             <label class="form-label">Category Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="name" id="arcavDocCatName"
+                            
+                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" name="name" id="arcavDocCatName"
                                 maxlength="200" required placeholder="Mis: KTP, Kontrak, Sertifikat">
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="col-auto">
                             <button type="submit" class="btn btn-primary" id="arcavDocCatSubmit">

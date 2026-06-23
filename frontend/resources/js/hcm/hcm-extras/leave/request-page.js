@@ -456,10 +456,7 @@ export function bindLeaves(deps, scope, isAdmin) {
         addForm.addEventListener("submit", function (e) {
             e.preventDefault();
             dateHelpers.refreshFormDateHint(addForm);
-            if (!addForm.checkValidity()) {
-                addForm.reportValidity();
-                return;
-            }
+            if (!ArcavValidation.validateForm(addForm)) { return; }
 
             var ltEl = addForm.querySelector('[data-hcm-field="leaveType"]');
             var payload = {
@@ -644,10 +641,7 @@ export function bindLeaves(deps, scope, isAdmin) {
         editForm.addEventListener("submit", function (e) {
             e.preventDefault();
             dateHelpers.refreshFormDateHint(editForm);
-            if (!editForm.checkValidity()) {
-                editForm.reportValidity();
-                return;
-            }
+            if (!ArcavValidation.validateForm(editForm)) { return; }
             var id = editForm.querySelector('[data-hcm-field="id"]').value;
             var owner = editForm.querySelector('[data-hcm-field="ownerUserId"]').value;
             if (!id) {

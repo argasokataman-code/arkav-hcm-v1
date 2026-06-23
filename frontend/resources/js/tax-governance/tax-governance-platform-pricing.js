@@ -118,6 +118,7 @@ export function loadPricingPlansScreenModule(deps, root) {
 
         form.addEventListener("submit", function (event) {
             event.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             var errorNode = qs("[data-pricing-addon-form-error]", form);
             if (errorNode) { errorNode.classList.add("d-none"); }
             var submitBtn = qs("[data-pricing-addon-submit]", root);

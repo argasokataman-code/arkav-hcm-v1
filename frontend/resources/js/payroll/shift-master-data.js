@@ -111,7 +111,20 @@
     function bindShifts() {
         var body = document.querySelector("[data-hcm-shifts-body]");
         var canManageShift = false;
-        var addShiftButton = document.querySelector('[data-bs-target="#arcav_add_shift"]');
+        var openCreateBtn = document.querySelector('[data-bs-target="#arcav_add_shift"]');
+        if (openCreateBtn) {
+            openCreateBtn.addEventListener("click", function (e) {
+                e.preventDefault();
+                var addForm = document.querySelector('[data-hcm-shift-form="add"]');
+                if (addForm) addForm.reset();
+                var modalEl = document.getElementById("arcav_add_shift");
+                if (window.bootstrap && modalEl) {
+                    window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                    var firstInput = document.querySelector("#arcav_add_shift input:not([type=hidden]):not([type=password]), #arcav_add_shift select");
+                    if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
+                }
+            });
+        }
 
         function resolveScheduleManagePermission(mePayload) {
             var user = mePayload && mePayload.data ? mePayload.data : mePayload;
@@ -135,8 +148,8 @@
         }
 
         function syncWriteUiVisibility() {
-            if (addShiftButton) {
-                addShiftButton.classList.toggle("d-none", !canManageShift);
+            if (openCreateBtn) {
+                openCreateBtn.classList.toggle("d-none", !canManageShift);
             }
         }
 
@@ -214,6 +227,15 @@
                     .join("") || '<tr><td colspan="8" class="text-center py-4 text-muted">No shifts yet.</td></tr>';
         }
 
+        var editModalEl = document.getElementById("arcav_edit_shift");
+        if (editModalEl && !editModalEl.getAttribute("data-bound")) {
+            editModalEl.setAttribute("data-bound", "1");
+            editModalEl.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#arcav_edit_shift input:not([type=hidden]):not([type=password]), #arcav_edit_shift select");
+                if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
+            });
+        }
+
         function reload() {
             apiRequest("get", "/v1/hcm/shifts", null)
                 .then(function (p) {
@@ -236,6 +258,7 @@
         if (addForm) {
             addForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(addForm)) { return; }
                 if (!canManageShift) {
                     notify("Kamu tidak punya izin untuk mengelola shift.", true);
                     return;
@@ -317,6 +340,7 @@
             });
             editForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(editForm)) { return; }
                 if (!canManageShift) {
                     notify("Kamu tidak punya izin untuk mengelola shift.", true);
                     return;

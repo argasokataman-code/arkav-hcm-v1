@@ -14,6 +14,8 @@
                         <div class="col-md-6">
                             <label class="form-label">Name</label>
                             <input type="text" class="form-control" name="name" maxlength="200" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Email (opsional)</label>

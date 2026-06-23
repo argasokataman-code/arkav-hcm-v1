@@ -861,6 +861,7 @@
 
             categoryForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(categoryForm)) { return; }
                 var id = categoryForm.querySelector('[data-hcm-category-field="id"]').value.trim();
                 var kind = categoryForm.querySelector('[data-hcm-category-field="kind"]').value;
                 var code = categoryForm.querySelector('[data-hcm-category-field="code"]').value.trim();
@@ -900,6 +901,7 @@
         if (addForm) {
             addForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(addForm)) { return; }
                 var name = addForm.querySelector('[data-hcm-field="name"]').value.trim();
                 var code = addForm.querySelector('[data-hcm-field="code"]').value.trim();
                 var kind = addForm.querySelector('[data-hcm-field="kind"]').value;
@@ -1082,8 +1084,20 @@
 
         var editModal = document.getElementById("arcav_edit_salary_component");
         if (editModal && editForm) {
+            editModal.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#arcav_edit_salary_component input:not([type=hidden]):not([type=password]), #arcav_edit_salary_component select");
+                if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
+            });
             editModal.addEventListener("hidden.bs.modal", function () {
                 setLockedFields(editForm, false);
+            });
+        }
+
+        var addModalEl = document.getElementById("arcav_add_salary_component");
+        if (addModalEl) {
+            addModalEl.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#arcav_add_salary_component input:not([type=hidden]):not([type=password]), #arcav_add_salary_component select");
+                if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
             });
         }
 
@@ -1097,6 +1111,7 @@
         if (editForm) {
             editForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(editForm)) { return; }
                 var id = editForm.querySelector('[data-hcm-field="id"]').value;
                 if (!id) {
                     return;

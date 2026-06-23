@@ -299,6 +299,8 @@
       isActive.checked = true;
     }
     templateModal.show();
+    var firstInput = document.querySelector("#arcav_perf_template_modal input:not([type=hidden]):not([type=password]), #arcav_perf_template_modal select");
+    if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
 
     // UX: "Items" button should jump to items section.
     setTimeout(() => {
@@ -344,11 +346,14 @@
     max.value = item?.ratingScaleMax ?? 5;
 
     itemModal.show();
+    var firstInput = document.querySelector("#arcav_perf_item_modal input:not([type=hidden]):not([type=password]), #arcav_perf_item_modal select");
+    if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
   }
 
   async function saveTemplate(e) {
     e.preventDefault();
     const form = e.currentTarget;
+    if (!ArcavValidation.validateForm(form)) { return; }
     const fd = new FormData(form);
     const payload = {
       name: (fd.get('name') || '').toString(),
@@ -398,11 +403,12 @@
 
   async function saveItem(e) {
     e.preventDefault();
+    const form = e.currentTarget;
+    if (!ArcavValidation.validateForm(form)) { return; }
     if (!activeTemplate?.id) {
       notify('error', 'Simpan template dulu.');
       return;
     }
-    const form = e.currentTarget;
     const fd = new FormData(form);
     const itemId = (itemIdEl?.value || '').trim();
     const payload = {
@@ -640,10 +646,14 @@
       status.value = 'draft';
     }
     cycleModal.show();
+    var firstInput = document.querySelector("#arcav_perf_cycle_modal input:not([type=hidden]):not([type=password]), #arcav_perf_cycle_modal select");
+    if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
   }
 
   async function saveCycle(e) {
     e.preventDefault();
+    const form = e.currentTarget;
+    if (!ArcavValidation.validateForm(form)) { return; }
     const fd = new FormData(e.currentTarget);
     const payload = {
       name: (fd.get('name') || '').toString(),
@@ -983,6 +993,8 @@
 
   async function createReview(e) {
     e.preventDefault();
+    const form = e.currentTarget;
+    if (!ArcavValidation.validateForm(form)) { return; }
     const fd = new FormData(e.currentTarget);
     const payload = {
       cycleId: Number(fd.get('cycleId')),

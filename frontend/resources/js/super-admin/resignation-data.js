@@ -360,11 +360,7 @@
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             clearFlash(flashEl);
-            if (!form.checkValidity()) {
-                form.reportValidity();
-                flash(flashEl, "Mohon lengkapi field yang wajib.", true);
-                return;
-            }
+            if (!ArcavValidation.validateForm(form)) { return; }
             var nd = noticeInput ? String(noticeInput.value || "") : "";
             var rd = resignInput ? String(resignInput.value || "") : "";
             if (nd && rd && nd > rd) {

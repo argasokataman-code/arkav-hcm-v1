@@ -217,7 +217,7 @@
                 '<td><span class="badge badge-' + badge + ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' + status + '</span></td>' +
                 '<td><div class="action-icon d-inline-flex align-items-center">' +
                 '<a href="' + membersUrl + '" class="me-2" title="Assign Members" aria-label="Assign Members"><i class="ti ti-user-plus"></i></a>' +
-                '<a href="#" class="me-2" data-hcm-edit="team" data-id="' + esc(team.id) + '" data-name="' + esc(team.name) + '" data-department-id="' + esc(team.department_id) + '" data-team-lead-id="' + esc(team.team_lead_id || '') + '" data-team-lead-name="' + esc(team.team_lead_name || '') + '" data-active="' + (team.is_active ? "1" : "0") + '" data-bs-toggle="modal" data-bs-target="#edit_team"><i class="ti ti-edit"></i></a>' +
+                '<a href="#" class="me-2" data-hcm-edit="team" data-id="' + esc(team.id) + '" data-name="' + esc(team.name) + '" data-department-id="' + esc(team.department_id) + '" data-team-lead-id="' + esc(team.team_lead_id || '') + '" data-team-lead-name="' + esc(team.team_lead_name || '') + '" data-active="' + (team.is_active ? "1" : "0") + '"><i class="ti ti-edit"></i></a>' +
                 '<a href="#" data-hcm-delete="team" data-id="' + esc(team.id) + '" data-name="' + esc(team.name) + '"><i class="ti ti-trash"></i></a>' +
                 '</div></td>' +
                 '</tr>';
@@ -369,6 +369,7 @@
         if (addForm) {
             addForm.addEventListener('submit', function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(addForm)) { return; }
                 var nameInput = this.querySelector('[data-hcm-field="team-name"]');
                 var deptInput = this.querySelector('[data-hcm-field="team-department"]');
                 var leadInput = this.querySelector('[data-hcm-field="team-lead"]');
@@ -410,6 +411,10 @@
                         editBtn.getAttribute('data-team-lead-name') || ''
                     );
                     form.querySelector('[data-hcm-field="team-active"]').value = editBtn.getAttribute('data-active');
+                    var teamModalEl = document.getElementById('edit_team');
+                    if (teamModalEl && window.bootstrap && window.bootstrap.Modal) {
+                        window.bootstrap.Modal.getOrCreateInstance(teamModalEl).show();
+                    }
                 }
             }
         });
@@ -419,6 +424,7 @@
         if (editForm) {
             editForm.addEventListener('submit', function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(editForm)) { return; }
                 var id = this.dataset.id;
                 var nameInput = this.querySelector('[data-hcm-field="team-name"]');
                 var deptInput = this.querySelector('[data-hcm-field="team-department"]');
@@ -786,6 +792,7 @@
         if (assignForm) {
             assignForm.addEventListener('submit', function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(assignForm)) { return; }
 
                 var select = this.querySelector('[data-team-members-assign-users]');
                 var submitBtn = this.querySelector('[data-team-members-assign-submit]');

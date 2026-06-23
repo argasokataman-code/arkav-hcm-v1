@@ -272,6 +272,8 @@
         modalSubmit.disabled = false;
         modalSubmit.textContent = 'Save';
         modalInstance.show();
+        var firstInput = document.querySelector("#manual_activity_modal input:not([type=hidden]):not([type=password]), #manual_activity_modal select");
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
     }
 
     function openEditModal(id) {
@@ -294,6 +296,8 @@
         modalSubmit.disabled = false;
         modalSubmit.textContent = 'Save';
         modalInstance.show();
+        var firstInput = document.querySelector("#manual_activity_modal input:not([type=hidden]):not([type=password]), #manual_activity_modal select");
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
     }
 
     function parseApiError(payload, fallback) {
@@ -306,6 +310,7 @@
 
     function submitManualActivity(event) {
         event.preventDefault();
+        if (!ArcavValidation.validateForm(modalForm)) { return; }
         setModalError('');
 
         var id = String(modalId.value || '').trim();

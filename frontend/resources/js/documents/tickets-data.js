@@ -278,6 +278,7 @@
         if (!form) return;
         form.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             var fd = new FormData(form);
             var categoryRaw = String(fd.get("category") || "").trim();
             var categoryId = categoryRaw ? Number(categoryRaw) : null;
@@ -332,6 +333,7 @@
             var cForm = e.target.closest("[data-ticket-comment-form]");
             if (cForm) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(cForm)) { return; }
                 var body = String(new FormData(cForm).get("body") || "").trim();
                 apiRequest("post", "/v1/hcm/tickets/" + ticketId + "/comments", { body: body })
                     .then(function () { notify("Komentar ditambahkan."); refreshPageData(); })
@@ -341,6 +343,7 @@
             var aForm = e.target.closest("[data-ticket-attachment-form]");
             if (aForm) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(aForm)) { return; }
                 var fd = new FormData(aForm);
                 apiRequest("post", "/v1/hcm/tickets/" + ticketId + "/attachments", fd)
                     .then(function () { notify("Attachment diupload."); refreshPageData(); })
@@ -349,6 +352,7 @@
             var mForm = e.target.closest("[data-ticket-manage-form]");
             if (mForm) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(mForm)) { return; }
                 var fd = new FormData(mForm);
                 var assigneeRaw = String(fd.get("assigneeUserId") || "").trim();
                 var payload = {
@@ -405,6 +409,7 @@
         if (addForm) {
             addForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(addForm)) { return; }
                 var fd = new FormData(addForm);
                 apiRequest("post", "/v1/hcm/tickets/categories", {
                     name: String(fd.get("name") || "").trim(),
@@ -495,6 +500,13 @@
             }
             refreshPageData();
         });
+        var m = document.getElementById("arcav_ticket_create_modal");
+        if (m) {
+            m.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#arcav_ticket_create_modal input:not([type=hidden]):not([type=password]), #arcav_ticket_create_modal select");
+                if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
+            });
+        }
     }
 
     if (document.readyState === "loading") {

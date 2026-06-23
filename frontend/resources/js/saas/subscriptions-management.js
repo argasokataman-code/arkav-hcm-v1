@@ -176,6 +176,8 @@
       });
       if (this.subscriptionModalInstance) {
         this.subscriptionModalInstance.show();
+        var firstInput = document.querySelector("#subscriptionModal input:not([type=hidden]):not([type=password]), #subscriptionModal select");
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
       }
       try {
         window.history.replaceState({}, "", window.location.pathname);
@@ -323,6 +325,7 @@
       if (form) {
         form.addEventListener("submit", function (e) {
           e.preventDefault();
+          if (!ArcavValidation.validateForm(form)) { return; }
           self.handleSaveSubscription();
         });
       }
@@ -1111,7 +1114,11 @@
             const submitBtn = document.querySelector("#subscriptionForm button[type='submit']");
             if (title) title.textContent = "Edit Subscription";
             if (submitBtn) submitBtn.textContent = "Update Subscription";
-            if (self.subscriptionModalInstance) self.subscriptionModalInstance.show();
+            if (self.subscriptionModalInstance) {
+              self.subscriptionModalInstance.show();
+              var firstInput = document.querySelector("#subscriptionModal input:not([type=hidden]):not([type=password]), #subscriptionModal select");
+              if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
+            }
           } else {
             self.showError("Failed to load subscription");
           }
@@ -1233,6 +1240,8 @@
 
       if (this.subscriptionRenewModalInstance) {
         this.subscriptionRenewModalInstance.show();
+        var firstInput = document.querySelector("#subscriptionRenewModal input:not([type=hidden]):not([type=password]), #subscriptionRenewModal select");
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
       }
     },
 
@@ -1289,6 +1298,8 @@
       this.resetRenewByIdModalUi();
       if (this.subscriptionRenewByIdModalInstance) {
         this.subscriptionRenewByIdModalInstance.show();
+        var firstInput = document.querySelector("#subscriptionRenewByIdModal input:not([type=hidden]):not([type=password]), #subscriptionRenewByIdModal select");
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
       }
     },
 

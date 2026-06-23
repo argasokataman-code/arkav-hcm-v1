@@ -81,6 +81,8 @@
                         <div class="mb-3">
                             <label class="form-label">Name</label>
                             <input type="text" class="form-control" data-hcm-field="name" maxlength="150" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Description</label>
@@ -122,6 +124,8 @@
                         <div class="mb-3">
                             <label class="form-label">Name</label>
                             <input type="text" class="form-control" data-hcm-field="name" maxlength="150" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Description</label>

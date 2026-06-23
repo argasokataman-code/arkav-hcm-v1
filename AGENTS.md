@@ -462,3 +462,52 @@ File di atas **boleh** diubah hanya jika:
 - **`lockForUpdate()`** di transaction — Jangan hapus, ini race condition guard.
 - **`api.token` middleware** di route API — Jangan bypass.
 - **Response envelope** `{ success, data?, error? }` — Jangan ubah format.
+
+---
+
+## 16. Form Validation Standard (WAJIB — Global Helper)
+
+Setiap form modal CREATE/EDIT di halaman **WAJIB** menggunakan global helper:
+
+```js
+var form = document.getElementById("form_id");
+if (!ArcavValidation.validateForm(form)) { return; }
+// lanjut kirim API...
+```
+
+**DILARANG** menulis inline boilerplate berikut di file JS baru:
+```js
+// ❌ DILARANG — panggil ArcavValidation.validateForm() saja
+form.classList.add("was-validated");
+[].forEach.call(form.querySelectorAll('input,select,textarea'), function(e) {
+    e.classList.add('is-invalid');
+    if (e.checkValidity()) e.classList.remove('is-invalid');
+});
+if (!form.checkValidity()) { return; }
+```
+
+### Blade Template
+Setiap field dengan `required`/`minlength` di modal forms WAJIB punya `<div class="invalid-feedback">` sebagai sibling setelah input:
+```blade
+<div class="mb-3">
+    <label class="form-label" for="field_id">Label</label>
+    <input id="field_id" type="text" class="form-control" required>
+    <div class="invalid-feedback">Pesan validasi.</div>
+</div>
+```
+
+### Pre-commit Hook
+Lint script `scripts/lint-form-validation.sh` otomatis cek staged JS file. Kalo ada inline pattern, commit ditolak.
+
+### File Referensi
+- Global helper: `frontend/resources/js/core/arcav-validation.js`
+- CSS rules: `frontend/resources/css/style.css` (cari `.form-control.is-invalid`)
+- Contoh implementasi: `frontend/resources/js/employees/users-management.js` (cari `ArcavValidation.validateForm`)
+- Blade contoh: `backend/resources/views/administration/rbac/users.blade.php`
+- Lint script: `scripts/lint-form-validation.sh`
+- Planning: `docs/planning/form-validation-refactor.md`
+
+### Checklist Task Baru
+- [ ] Form modal CREATE/EDIT pakai `ArcavValidation.validateForm(form)`?
+- [ ] Setiap field `required`/`minlength` punya `<div class="invalid-feedback">`?
+- [ ] CSS `.is-invalid` + `.invalid-feedback` rules sudah ada di `style.css`? (biasanya sudah)

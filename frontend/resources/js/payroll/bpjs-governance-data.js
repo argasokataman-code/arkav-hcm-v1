@@ -317,6 +317,8 @@
         }
 
         window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        var firstInput = document.querySelector("#bpjsPolicyModal input:not([type=hidden]):not([type=password]), #bpjsPolicyModal select");
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
     }
 
     function bindPolicyActions() {
@@ -403,6 +405,7 @@
         if (policyForm) {
             policyForm.addEventListener('submit', function (event) {
                 event.preventDefault();
+                if (!ArcavValidation.validateForm(policyForm)) { return; }
 
                 var id = q('[data-bpjs-policy-id]').value;
                 var isEdit = !!id;
@@ -562,6 +565,8 @@
         hideError(q('[data-bpjs-membership-error]'));
 
         window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        var firstInput = document.querySelector("#bpjsMembershipModal input:not([type=hidden]):not([type=password]), #bpjsMembershipModal select");
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
     }
 
     function bindMembershipActions() {
@@ -601,6 +606,7 @@
         if (form) {
             form.addEventListener('submit', function (event) {
                 event.preventDefault();
+                if (!ArcavValidation.validateForm(form)) { return; }
                 var userId = q('[data-bpjs-membership-user-id]').value;
                 if (!userId) { return; }
 
@@ -946,6 +952,8 @@
         hideError(q('[data-bpjs-baseline-error]'));
 
         window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        var firstInput = document.querySelector("#bpjsRateBaselineModal input:not([type=hidden]):not([type=password]), #bpjsRateBaselineModal select");
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
     }
 
     function bindRateBaselineActions() {
@@ -972,6 +980,7 @@
         if (form) {
             form.addEventListener('submit', function (event) {
                 event.preventDefault();
+                if (!ArcavValidation.validateForm(form)) { return; }
                 var program = q('[data-bpjs-baseline-program]').value;
                 var party = q('[data-bpjs-baseline-party]').value;
                 if (!program || !party) { return; }

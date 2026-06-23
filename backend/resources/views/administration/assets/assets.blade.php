@@ -101,19 +101,23 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Category</label>
-                                <select class="form-select" data-hcm-field="asset_category_id" required></select>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-field="asset_category_id" required></select>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Asset Name</label>
-                                <input type="text" class="form-control" data-hcm-field="name" maxlength="150" required>
+                                
+                                    <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" data-hcm-field="name" maxlength="150" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Purchase Date</label>
-                                <input type="date" class="form-control" data-hcm-field="purchase_date" required>
+                                
+                                    <div class="invalid-feedback">Please select a date.</div><input type="date" class="form-control" data-hcm-field="purchase_date" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Purchase Price</label>
-                                <input type="number" class="form-control" data-hcm-field="purchase_price" min="0" step="0.01" required>
+                                
+                                    <div class="invalid-feedback">Please enter a value.</div><input type="number" class="form-control" data-hcm-field="purchase_price" min="0" step="0.01" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Brand</label>
@@ -186,19 +190,23 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Category</label>
-                                <select class="form-select" data-hcm-field="asset_category_id" required></select>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-field="asset_category_id" required></select>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Asset Name</label>
-                                <input type="text" class="form-control" data-hcm-field="name" maxlength="150" required>
+                                
+                                    <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" data-hcm-field="name" maxlength="150" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Purchase Date</label>
-                                <input type="date" class="form-control" data-hcm-field="purchase_date" required>
+                                
+                                    <div class="invalid-feedback">Please select a date.</div><input type="date" class="form-control" data-hcm-field="purchase_date" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Purchase Price</label>
-                                <input type="number" class="form-control" data-hcm-field="purchase_price" min="0" step="0.01" required>
+                                
+                                    <div class="invalid-feedback">Please enter a value.</div><input type="number" class="form-control" data-hcm-field="purchase_price" min="0" step="0.01" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Brand</label>
@@ -275,10 +283,14 @@
                         <div class="mb-3">
                             <label class="form-label">Employee</label>
                             <select class="form-select" data-hcm-field="employee_id" required></select>
+
+    <div class="invalid-feedback">Please select an option.</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Assigned Date</label>
                             <input type="date" class="form-control" data-hcm-field="assigned_date" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Condition at Assign</label>
@@ -321,6 +333,8 @@
                         <div class="mb-3">
                             <label class="form-label">Returned Date</label>
                             <input type="date" class="form-control" data-hcm-field="returned_date" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Condition at Return</label>
@@ -362,7 +376,9 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Issue Type</label>
-                            <select class="form-select" data-hcm-field="issue_type" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div>
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-field="issue_type" required>
                                 <option value="maintenance">Maintenance</option>
                                 <option value="damaged">Damaged</option>
                                 <option value="lost">Lost</option>
@@ -410,6 +426,8 @@
                         <div class="mb-3">
                             <label class="form-label">Attachment File</label>
                             <input type="file" class="form-control" data-hcm-field="file" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                             <div class="form-text">Maksimum 10 MB per file.</div>
                         </div>
                         <div class="mb-3">

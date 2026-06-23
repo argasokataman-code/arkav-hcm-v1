@@ -50,11 +50,13 @@
                             <form data-thr-settings-form class="row g-2">
                                 <div class="col-md-6">
                                     <label class="form-label">Tahun kalender</label>
-                                    <input type="number" name="calendarYear" class="form-control" min="2000" max="2100" step="1" required data-thr-settings-year>
+                                    
+                                        <div class="invalid-feedback">Please enter a value.</div><input type="number" name="calendarYear" class="form-control" min="2000" max="2100" step="1" required data-thr-settings-year>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Tanggal Lebaran (H) — referensi</label>
-                                    <input type="date" name="eidDate" class="form-control" required data-thr-settings-eid>
+                                    
+                                        <div class="invalid-feedback">Please select a date.</div><input type="date" name="eidDate" class="form-control" required data-thr-settings-eid>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Tanggal pembayaran THR</label>
@@ -96,15 +98,18 @@
                             <form data-payroll-thr-form class="row g-2">
                                 <div class="col-md-6">
                                     <label class="form-label">Tanggal bergabung</label>
-                                    <input type="date" name="joinDate" class="form-control" required>
+                                    
+                                        <div class="invalid-feedback">Please select a date.</div><input type="date" name="joinDate" class="form-control" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Tanggal cut-off</label>
-                                    <input type="date" name="cutoffDate" class="form-control" required data-thr-calc-cutoff>
+                                    
+                                        <div class="invalid-feedback">Please select a date.</div><input type="date" name="cutoffDate" class="form-control" required data-thr-calc-cutoff>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Gaji pokok / bulan</label>
-                                    <input type="number" name="baseMonthlySalary" class="form-control" min="0" step="1000" required placeholder="6000000">
+                                    
+                                        <div class="invalid-feedback">Please enter a value.</div><input type="number" name="baseMonthlySalary" class="form-control" min="0" step="1000" required placeholder="6000000">
                                 </div>
                                 <div class="col-12 mt-2">
                                     <button type="submit" class="btn btn-primary">Hitung estimasi THR</button>

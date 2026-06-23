@@ -52,6 +52,7 @@ export function setupAttendanceAdminEdit(deps) {
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
+    if (!ArcavValidation.validateForm(form)) { return; }
     var userId = parseInt(form.querySelector('[data-attendance-admin-field="userId"]').value, 10);
     var workDate = form.querySelector('[data-attendance-admin-field="workDateInput"]').value;
     if (!userId || !workDate || !/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
@@ -197,6 +198,8 @@ export function setupAttendanceAdminEdit(deps) {
     if (editModalEl && window.bootstrap && window.bootstrap.Modal) {
       var editInst = window.bootstrap.Modal.getOrCreateInstance(editModalEl);
       editInst.show();
+      var firstInput = document.querySelector("#arcav_edit_attendance input:not([type=hidden]):not([type=password]), #arcav_edit_attendance select");
+      if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
     }
   });
 

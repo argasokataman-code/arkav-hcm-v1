@@ -196,6 +196,7 @@
       if (addForm) {
         addForm.addEventListener("submit", function (e) {
           e.preventDefault();
+          if (!ArcavValidation.validateForm(addForm)) { return; }
           self.handleAddCompany(e.target);
         });
       }
@@ -204,6 +205,7 @@
       if (editForm) {
         editForm.addEventListener("submit", function (e) {
           e.preventDefault();
+          if (!ArcavValidation.validateForm(editForm)) { return; }
           self.handleEditCompany(e.target);
         });
       }
@@ -664,6 +666,8 @@
 
       const modal = new bootstrap.Modal(document.getElementById("delete_modal"));
       modal.show();
+      var firstInput = document.querySelector("#delete_modal input:not([type=hidden]):not([type=password]), #delete_modal select");
+      if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
     },
 
     /**

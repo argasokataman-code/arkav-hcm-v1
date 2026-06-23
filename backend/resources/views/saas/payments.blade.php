@@ -87,18 +87,21 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Company *</label>
-                        <select class="form-select" id="input_payment_company_id" required>
+                        
+                            <div class="invalid-feedback">Please select an option.</div><select class="form-select" id="input_payment_company_id" required>
                             <option value="">Loading companies...</option>
                         </select>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Amount *</label>
-                            <input type="number" class="form-control" id="input_payment_amount" step="0.01" required>
+                            
+                                <div class="invalid-feedback">Please enter a value.</div><input type="number" class="form-control" id="input_payment_amount" step="0.01" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Currency *</label>
-                            <select class="form-select" id="input_payment_currency" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div><select class="form-select" id="input_payment_currency" required>
                                 <option value="IDR">IDR</option>
                                 <option value="USD">USD</option>
                             </select>
@@ -107,7 +110,9 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Payment Method *</label>
-                            <select class="form-select" id="input_payment_method" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div>
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" id="input_payment_method" required>
                                 <option value="">Select method</option>
                                 <option value="bank_transfer">Bank Transfer</option>
                                 <option value="credit_card">Credit Card</option>

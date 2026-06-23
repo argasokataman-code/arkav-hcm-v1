@@ -785,18 +785,24 @@
                                 <div class="mb-3">
                                     <label class="form-label">Category</label>
                                     <input type="text" class="form-control" id="faq-add-category" maxlength="60" placeholder="General, Employee, Payroll" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                                 </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label class="form-label">Question</label>
                                     <textarea rows="3" class="form-control" id="faq-add-question" maxlength="220" placeholder="Write the question clearly" required></textarea>
+
+    <div class="invalid-feedback">Please enter text.</div>
                                 </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label class="form-label">Answer</label>
                                     <textarea rows="5" class="form-control" id="faq-add-answer" maxlength="1000" placeholder="Write the answer that should appear in the workspace" required></textarea>
+
+    <div class="invalid-feedback">Please enter text.</div>
                                 </div>
                             </div>
                         </div>
@@ -830,18 +836,24 @@
                                 <div class="mb-3">
                                     <label class="form-label">Category</label>
                                     <input type="text" class="form-control" id="faq-edit-category" maxlength="60" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                                 </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label class="form-label">Question</label>
                                     <textarea rows="3" class="form-control" id="faq-edit-question" maxlength="220" required></textarea>
+
+    <div class="invalid-feedback">Please enter text.</div>
                                 </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label class="form-label">Answer</label>
                                     <textarea rows="5" class="form-control" id="faq-edit-answer" maxlength="1000" required></textarea>
+
+    <div class="invalid-feedback">Please enter text.</div>
                                 </div>
                             </div>
                         </div>

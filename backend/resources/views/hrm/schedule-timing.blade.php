@@ -635,10 +635,14 @@
                             <div class="col-6 mb-3">
                                 <label class="form-label">Jam Mulai</label>
                                 <input type="time" class="form-control" data-st-edit-start required value="09:00">
+
+    <div class="invalid-feedback">This field is required.</div>
                             </div>
                             <div class="col-6 mb-3">
                                 <label class="form-label">Jam Selesai</label>
                                 <input type="time" class="form-control" data-st-edit-end required value="18:00">
+
+    <div class="invalid-feedback">This field is required.</div>
                             </div>
                         </div>
                     </div>

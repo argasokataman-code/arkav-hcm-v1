@@ -98,6 +98,7 @@
 
         form.addEventListener("submit", async function (event) {
             event.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             console.log('Form submission initiated');
             setError("");
             submitButton.disabled = true;

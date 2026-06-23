@@ -250,6 +250,11 @@
             mi = new window.bootstrap.Modal(el);
         }
         mi.show();
+        var modalId = el.getAttribute("id");
+        if (modalId) {
+            var firstInput = document.querySelector("#" + modalId + " input:not([type=hidden]):not([type=password]), #" + modalId + " select");
+            if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
+        }
     }
 
     function hideModal(id) {
@@ -706,7 +711,7 @@
             typeForm.addEventListener("submit", function (e) {
                 e.preventDefault();
                 clearFieldErrors(typeForm);
-                if (typeof typeForm.reportValidity === "function" && !typeForm.reportValidity()) {
+                if (!ArcavValidation.validateForm(typeForm)) {
                     notify("Lengkapi field yang wajib sebelum menyimpan.", true);
                     return;
                 }
@@ -736,7 +741,7 @@
             customForm.addEventListener("submit", function (e) {
                 e.preventDefault();
                 clearFieldErrors(customForm);
-                if (typeof customForm.reportValidity === "function" && !customForm.reportValidity()) {
+                if (!ArcavValidation.validateForm(customForm)) {
                     notify("Lengkapi field yang wajib sebelum menyimpan.", true);
                     return;
                 }

@@ -283,6 +283,7 @@ export function bindHolidaysModule(deps) {
     if (addForm) {
         addForm.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(addForm)) { return; }
             var title = addForm.querySelector('[data-hcm-field="title"]').value.trim();
             var hd = addForm.querySelector('[data-hcm-field="holidayDate"]').value;
             var desc = addForm.querySelector('[data-hcm-field="description"]').value.trim();
@@ -326,6 +327,7 @@ export function bindHolidaysModule(deps) {
 
         editForm.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(editForm)) { return; }
             var id = editForm.querySelector('[data-hcm-field="id"]').value;
             if (!id) {
                 return;
@@ -387,6 +389,16 @@ export function bindHolidaysModule(deps) {
             });
         });
     }
+
+    ["arcav_add_holiday", "arcav_edit_holiday"].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) {
+            el.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#" + id + " input:not([type=hidden]):not([type=password]), #" + id + " select");
+                if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
+            });
+        }
+    });
 
     reload();
 

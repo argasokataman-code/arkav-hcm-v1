@@ -198,6 +198,8 @@
                                 <span class="input-group-text">Rp</span>
                                 <input type="number" class="form-control" name="price_per_unit"
                                        min="0" step="1000" placeholder="Misal: 150000" required>
+
+    <div class="invalid-feedback">Please enter a value.</div>
                             </div>
                             <small class="text-muted">Harga tetap dalam Rupiah - bukan persentase.</small>
                         </div>

@@ -198,11 +198,13 @@
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="company_code" class="form-label">Company Code <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="company_code" name="company_code" required>
+                            
+                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" id="company_code" name="company_code" required>
                         </div>
                         <div class="mb-3">
                             <label for="company_name" class="form-label">Company Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="company_name" name="company_name" required>
+                            
+                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" id="company_name" name="company_name" required>
                         </div>
                         <div class="mb-3">
                             <label for="company_legal_name" class="form-label">Legal Name</label>
@@ -210,7 +212,9 @@
                         </div>
                         <div class="mb-3">
                             <label for="company_status" class="form-label">Status <span class="text-danger">*</span></label>
-                            <select class="form-select" id="company_status" name="company_status" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div>
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" id="company_status" name="company_status" required>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
                             </select>
@@ -218,14 +222,20 @@
                         <div class="mb-3">
                             <label for="company_timezone" class="form-label">Timezone <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="company_timezone" name="company_timezone" placeholder="UTC" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="mb-3">
                             <label for="company_currency" class="form-label">Currency <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="company_currency" name="company_currency" placeholder="IDR" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="mb-3">
                             <label for="company_country" class="form-label">Country Code <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="company_country" name="company_country" placeholder="ID" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -250,11 +260,13 @@
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="edit_company_code" class="form-label">Company Code <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="edit_company_code" name="edit_company_code" required>
+                            
+                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" id="edit_company_code" name="edit_company_code" required>
                         </div>
                         <div class="mb-3">
                             <label for="edit_company_name" class="form-label">Company Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="edit_company_name" name="edit_company_name" required>
+                            
+                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" id="edit_company_name" name="edit_company_name" required>
                         </div>
                         <div class="mb-3">
                             <label for="edit_company_legal_name" class="form-label">Legal Name</label>
@@ -262,7 +274,9 @@
                         </div>
                         <div class="mb-3">
                             <label for="edit_company_status" class="form-label">Status <span class="text-danger">*</span></label>
-                            <select class="form-select" id="edit_company_status" name="edit_company_status" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div>
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" id="edit_company_status" name="edit_company_status" required>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
                             </select>
@@ -270,14 +284,20 @@
                         <div class="mb-3">
                             <label for="edit_company_timezone" class="form-label">Timezone <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="edit_company_timezone" name="edit_company_timezone" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="mb-3">
                             <label for="edit_company_currency" class="form-label">Currency <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="edit_company_currency" name="edit_company_currency" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="mb-3">
                             <label for="edit_company_country" class="form-label">Country Code <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="edit_company_country" name="edit_company_country" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                     </div>
                     <div class="modal-footer">

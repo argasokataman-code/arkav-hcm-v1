@@ -130,10 +130,14 @@
                                         <div class="mb-3" id="rp_code_wrap">
                                             <label class="form-label" for="rp_code">Code</label>
                                             <input id="rp_code" type="text" class="form-control" placeholder="OPS_ADMIN" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label" for="rp_name">Name</label>
                                             <input id="rp_name" type="text" class="form-control" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label" for="rp_description">Description</label>

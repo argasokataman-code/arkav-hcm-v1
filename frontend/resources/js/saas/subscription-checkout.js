@@ -527,6 +527,8 @@
             try {
                 var modal = new bootstrap.Modal(successState);
                 modal.show();
+                var firstInput = successState.querySelector("input:not([type=hidden]):not([type=password]), select");
+                if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
             } catch (_m) {
                 // fallback if bootstrap modal fails
             }
@@ -975,9 +977,9 @@
 
             await loadPackages();
             await loadAddons();
-            if (form) form.addEventListener("submit", submitCheckout);
+            if (form) form.addEventListener("submit", function (e) { e.preventDefault(); if (!ArcavValidation.validateForm(form)) { return; } submitCheckout(e); });
             var addonForm = document.querySelector("[data-checkout-form].checkout-addon-form");
-            if (addonForm) addonForm.addEventListener("submit", submitAddonCheckout);
+            if (addonForm) addonForm.addEventListener("submit", function (e) { e.preventDefault(); if (!ArcavValidation.validateForm(addonForm)) { return; } submitAddonCheckout(e); });
         } catch (e) {
             showFeedback("danger", e && e.message ? e.message : "Gagal memuat halaman checkout.");
         }

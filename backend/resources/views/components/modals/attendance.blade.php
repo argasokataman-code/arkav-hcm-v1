@@ -24,6 +24,8 @@
                             <div class="col-md-12 mb-3">
                                 <label class="form-label">Work date</label>
                                 <input type="date" class="form-control" data-attendance-admin-field="workDateInput" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Check in</label>

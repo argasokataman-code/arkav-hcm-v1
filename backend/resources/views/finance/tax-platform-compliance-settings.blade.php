@@ -302,6 +302,8 @@
                                 <div class="col-md-3">
                                     <label class="form-label">Tax Rate (%)</label>
                                     <input type="number" class="form-control" name="subscription_tax_rate" min="0" max="100" step="0.01" placeholder="Misal: 22.00" required>
+
+    <div class="invalid-feedback">Please enter a value.</div>
                                     <small class="text-muted">Tarif diterapkan ke basis Net Profit.</small>
                                 </div>
                                 <div class="col-md-3">

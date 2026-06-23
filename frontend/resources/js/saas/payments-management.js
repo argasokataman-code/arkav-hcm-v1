@@ -175,6 +175,7 @@
       if (form) {
         form.addEventListener("submit", function (e) {
           e.preventDefault();
+          if (!ArcavValidation.validateForm(form)) { return; }
           self.handleSavePayment();
         });
       }

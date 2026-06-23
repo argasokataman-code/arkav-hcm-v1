@@ -31,6 +31,8 @@
                     <div class="mb-3">
                         <label class="form-label">Nama <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" data-hcm-field="name" required maxlength="200" placeholder="Contoh: Tunjangan shift malam">
+
+    <div class="invalid-feedback">This field is required.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Kode</label>
@@ -39,7 +41,8 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Jenis <span class="text-danger">*</span></label>
-                            <select class="form-select" data-hcm-field="kind" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-field="kind" required>
                                 <option value="addition">Pendapatan (penambah)</option>
                                 <option value="deduction">Potongan</option>
                             </select>
@@ -47,6 +50,8 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Kategori <span class="text-danger">*</span></label>
                             <select class="form-select" data-hcm-field="category" required></select>
+
+    <div class="invalid-feedback">Please select an option.</div>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -158,15 +163,20 @@
                     <div class="mb-3">
                         <label class="form-label">Nama <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" data-hcm-field="name" required maxlength="200">
+
+    <div class="invalid-feedback">This field is required.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Kode <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" data-hcm-field="code" required maxlength="64" pattern="[a-z0-9_\-]+">
+
+    <div class="invalid-feedback">This field is required.</div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Jenis <span class="text-danger">*</span></label>
-                            <select class="form-select" data-hcm-field="kind" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-field="kind" required>
                                 <option value="addition">Pendapatan (penambah)</option>
                                 <option value="deduction">Potongan</option>
                             </select>
@@ -174,6 +184,8 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Kategori <span class="text-danger">*</span></label>
                             <select class="form-select" data-hcm-field="category" required></select>
+
+    <div class="invalid-feedback">Please select an option.</div>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -287,7 +299,8 @@
                         <div class="row g-2">
                             <div class="col-md-3">
                                 <label class="form-label">Jenis</label>
-                                <select class="form-select" data-hcm-category-field="kind" required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-category-field="kind" required>
                                     <option value="addition">Pendapatan</option>
                                     <option value="deduction">Potongan</option>
                                 </select>
@@ -295,10 +308,14 @@
                             <div class="col-md-3">
                                 <label class="form-label">Kode</label>
                                 <input type="text" class="form-control" data-hcm-category-field="code" maxlength="64" pattern="[a-z0-9_\-]+" placeholder="contoh: family_allowance" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Nama kategori</label>
                                 <input type="text" class="form-control" data-hcm-category-field="name" maxlength="150" placeholder="Contoh: Tunjangan keluarga" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label">Urutan</label>

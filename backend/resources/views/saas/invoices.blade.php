@@ -85,7 +85,8 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Company *</label>
-                        <select class="form-select" id="input_invoice_company_id" required>
+                        
+                            <div class="invalid-feedback">Please select an option.</div><select class="form-select" id="input_invoice_company_id" required>
                             <option value="">Loading companies...</option>
                         </select>
                     </div>
@@ -93,22 +94,30 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Amount Due *</label>
                             <input type="number" class="form-control" id="input_invoice_amount" step="0.01" required>
+
+    <div class="invalid-feedback">Please enter a value.</div>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Issue Date *</label>
                             <input type="date" class="form-control" id="input_invoice_issue_date" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Due Date *</label>
                             <input type="date" class="form-control" id="input_invoice_due_date" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Status *</label>
-                            <select class="form-select" id="input_invoice_status" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div>
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" id="input_invoice_status" required>
                                 <option value="">Select status</option>
                                 <option value="draft">Draft</option>
                                 <option value="sent">Sent</option>

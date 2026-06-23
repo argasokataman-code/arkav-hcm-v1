@@ -88,6 +88,8 @@
         if (!el || !window.bootstrap || !window.bootstrap.Modal) { return null; }
         var instance = window.bootstrap.Modal.getOrCreateInstance(el);
         instance.show();
+        var govFirstInput = document.querySelector(modalId + " input:not([type=hidden]):not([type=password]), " + modalId + " select");
+        if (govFirstInput) setTimeout(function () { govFirstInput.focus(); }, 100);
         return instance;
     }
 
@@ -284,6 +286,7 @@
 
     function submitPolicyForm(event) {
         event.preventDefault();
+        if (!event.target.checkValidity()) { event.target.classList.add("was-validated"); return; }
         hideError();
 
         var policyRef = q('[data-allowance-policy-id]').value.trim();

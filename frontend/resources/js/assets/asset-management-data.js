@@ -295,6 +295,8 @@
         var modal = getModal("asset_assign_modal");
         if (modal) {
             modal.show();
+            var firstInput = document.querySelector("#asset_assign_modal input:not([type=hidden]):not([type=password]), #asset_assign_modal select");
+            if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
         }
     }
 
@@ -314,6 +316,8 @@
         var modal = getModal("asset_return_modal");
         if (modal) {
             modal.show();
+            var firstInput = document.querySelector("#asset_return_modal input:not([type=hidden]):not([type=password]), #asset_return_modal select");
+            if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
         }
     }
 
@@ -368,6 +372,8 @@
         var modal = getModal("asset_issue_modal");
         if (modal) {
             modal.show();
+            var firstInput = document.querySelector("#asset_issue_modal input:not([type=hidden]):not([type=password]), #asset_issue_modal select");
+            if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
         }
     }
 
@@ -401,6 +407,8 @@
         var modal = getModal("asset_attachment_modal");
         if (modal) {
             modal.show();
+            var firstInput = document.querySelector("#asset_attachment_modal input:not([type=hidden]):not([type=password]), #asset_attachment_modal select");
+            if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
         }
     }
 
@@ -499,6 +507,8 @@
         var modal = getModal("asset_edit_modal");
         if (modal) {
             modal.show();
+            var firstInput = document.querySelector("#asset_edit_modal input:not([type=hidden]):not([type=password]), #asset_edit_modal select");
+            if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
         }
     }
 
@@ -561,6 +571,7 @@
         if (addForm) {
             addForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(addForm)) { return; }
                 var payload = extractAssetPayload(addForm);
                 var validationErrors = validateAssetPayload(payload);
                 if (validationErrors.length) {
@@ -594,6 +605,7 @@
         if (editForm) {
             editForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(editForm)) { return; }
                 var id = getFormValue(editForm, "id");
                 if (!id) {
                     return;
@@ -631,6 +643,7 @@
         if (assignForm) {
             assignForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(assignForm)) { return; }
                 var assetId = getFormValue(assignForm, "asset_id");
                 if (!assetId) {
                     return;
@@ -674,6 +687,7 @@
         if (returnForm) {
             returnForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(returnForm)) { return; }
                 var assetId = getFormValue(returnForm, "asset_id");
                 if (!assetId) {
                     return;
@@ -718,6 +732,7 @@
         if (issueForm) {
             issueForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(issueForm)) { return; }
 
                 var assetId = getFormValue(issueForm, "asset_id");
                 if (!assetId) {
@@ -756,6 +771,7 @@
         if (attachmentForm) {
             attachmentForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(attachmentForm)) { return; }
 
                 var assetId = getFormValue(attachmentForm, "asset_id");
                 var fileInput = attachmentForm.querySelector('[data-hcm-field="file"]');
@@ -866,6 +882,10 @@
             addModalEl.addEventListener("show.bs.modal", function () {
                 resetAssetAddForm();
             });
+            addModalEl.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#asset_add_modal input:not([type=hidden]):not([type=password]), #asset_add_modal select");
+                if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
+            });
         }
     }
 
@@ -927,10 +947,19 @@
             });
         }
 
+        var addCatModalEl = document.getElementById("asset_category_add_modal");
+        if (addCatModalEl) {
+            addCatModalEl.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#asset_category_add_modal input:not([type=hidden]):not([type=password]), #asset_category_add_modal select");
+                if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
+            });
+        }
+
         var addForm = document.querySelector('[data-hcm-asset-category-form="add"]');
         if (addForm) {
             addForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(addForm)) { return; }
                 var payload = buildCategoryPayload(addForm);
                 setButtonLoading(addForm, true);
                 apiRequest("post", "/v1/hcm/asset-categories", payload)
@@ -960,6 +989,7 @@
         if (editForm) {
             editForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(editForm)) { return; }
                 var id = getFormValue(editForm, "id");
                 if (!id) {
                     return;
@@ -1005,6 +1035,8 @@
                 var editModal = getModal("asset_category_edit_modal");
                 if (editModal) {
                     editModal.show();
+                    var firstInput = document.querySelector("#asset_category_edit_modal input:not([type=hidden]):not([type=password]), #asset_category_edit_modal select");
+                    if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
                 }
                 return;
             }

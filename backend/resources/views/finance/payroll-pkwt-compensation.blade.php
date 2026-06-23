@@ -52,11 +52,13 @@
                             <form class="row g-2" data-pkwt-list-form>
                                 <div class="col-md-6">
                                     <label class="form-label">Tahun</label>
-                                    <input type="number" class="form-control" min="2000" max="2100" step="1" required value="{{ date('Y') }}" data-pkwt-period-year>
+                                    
+                                        <div class="invalid-feedback">Please enter a value.</div><input type="number" class="form-control" min="2000" max="2100" step="1" required value="{{ date('Y') }}" data-pkwt-period-year>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Bulan</label>
-                                    <select class="form-select" required data-pkwt-period-month>
+                                    
+                                        <div class="invalid-feedback">Please select an option.</div><select class="form-select" required data-pkwt-period-month>
                                         @for ($m = 1; $m <= 12; $m++)
                                             <option value="{{ $m }}" {{ (int) date('n') === $m ? 'selected' : '' }}>{{ sprintf('%02d', $m) }} — {{ \Carbon\Carbon::create(null, $m, 1)->translatedFormat('F') }}</option>
                                         @endfor
@@ -98,15 +100,18 @@
                             <form class="row g-2" data-pkwt-calc-form>
                                 <div class="col-md-6">
                                     <label class="form-label">Mulai kontrak</label>
-                                    <input type="date" class="form-control" name="contractStartDate" required>
+                                    
+                                        <div class="invalid-feedback">Please select a date.</div><input type="date" class="form-control" name="contractStartDate" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Akhir kontrak</label>
-                                    <input type="date" class="form-control" name="contractEndDate" required>
+                                    
+                                        <div class="invalid-feedback">Please select a date.</div><input type="date" class="form-control" name="contractEndDate" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Gaji pokok / bulan</label>
-                                    <input type="number" class="form-control" name="baseMonthlySalary" min="0" step="1000" required placeholder="5000000">
+                                    
+                                        <div class="invalid-feedback">Please enter a value.</div><input type="number" class="form-control" name="baseMonthlySalary" min="0" step="1000" required placeholder="5000000">
                                 </div>
                                 <div class="col-12 mt-2">
                                     <button type="submit" class="btn btn-primary">Hitung estimasi</button>

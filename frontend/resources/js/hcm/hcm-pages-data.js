@@ -23,7 +23,7 @@
             return '<tr><td><div class="form-check form-check-md"><input class="form-check-input" type="checkbox"></div></td><td><h6 class="fw-medium"><a href="#">' +
                 esc(r.name) + '</a></h6></td><td>' + esc(desigCount) + '</td><td><span class="badge badge-' + badge +
                 ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' + status +
-                '</span></td><td><div class="action-icon d-inline-flex"><a href="#" class="me-2" data-hcm-edit="department" data-id="' + esc(r.id) + '" data-name="' + esc(r.name) + '" data-active="' + (r.isActive ? "1" : "0") + '" data-bs-toggle="modal" data-bs-target="#edit_department"><i class="ti ti-edit"></i></a><a href="#" data-hcm-delete="department" data-id="' + esc(r.id) + '"><i class="ti ti-trash"></i></a></div></td></tr>';
+                '</span></td><td><div class="action-icon d-inline-flex"><a href="#" class="me-2" data-hcm-edit="department" data-id="' + esc(r.id) + '" data-name="' + esc(r.name) + '" data-active="' + (r.isActive ? "1" : "0") + '"><i class="ti ti-edit"></i></a><a href="#" data-hcm-delete="department" data-id="' + esc(r.id) + '"><i class="ti ti-trash"></i></a></div></td></tr>';
         }).join("") || '<tr><td colspan="5" class="text-center py-4 text-muted">No departments found.</td></tr>';
         body.setAttribute("data-hydrated", "1");
     }
@@ -38,7 +38,7 @@
             return '<tr><td><div class="form-check form-check-md"><input class="form-check-input" type="checkbox"></div></td><td><h6 class="fw-medium fs-14 text-dark">' +
                 esc(r.name) + '</h6></td><td>' + esc(r.department) + '</td><td>' + esc(r.employeeCount) +
                 '</td><td><span class="badge badge-' + badge + ' d-inline-flex align-items-center badge-xs"><i class="ti ti-point-filled me-1"></i>' +
-                status + '</span></td><td><div class="action-icon d-inline-flex"><a href="#" class="me-2" data-hcm-edit="designation" data-id="' + esc(r.id) + '" data-name="' + esc(r.name) + '" data-department-id="' + esc(deptId) + '" data-active="' + (r.isActive ? "1" : "0") + '" data-bs-toggle="modal" data-bs-target="#edit_designation"><i class="ti ti-edit"></i></a><a href="#" data-hcm-delete="designation" data-id="' + esc(r.id) + '"><i class="ti ti-trash"></i></a></div></td></tr>';
+                status + '</span></td><td><div class="action-icon d-inline-flex"><a href="#" class="me-2" data-hcm-edit="designation" data-id="' + esc(r.id) + '" data-name="' + esc(r.name) + '" data-department-id="' + esc(deptId) + '" data-active="' + (r.isActive ? "1" : "0") + '"><i class="ti ti-edit"></i></a><a href="#" data-hcm-delete="designation" data-id="' + esc(r.id) + '"><i class="ti ti-trash"></i></a></div></td></tr>';
         }).join("") || '<tr><td colspan="6" class="text-center py-4 text-muted">No designations found.</td></tr>';
         body.setAttribute("data-hydrated", "1");
     }
@@ -57,7 +57,7 @@
                 : '<span class="text-muted">—</span>';
             return "<tr><td><div class=\"form-check form-check-md\"><input class=\"form-check-input\" type=\"checkbox\"></div></td><td><h6 class=\"fs-14 fw-medium text-gray-9\">" +
                 esc(r.name) + "</h6></td><td>" + esc(r.department) + "</td><td>" + esc(r.description) + "</td><td>" + esc(eff || "-") +
-                "</td><td>" + attCell + "</td><td><div class=\"action-icon d-inline-flex\"><a href=\"#\" class=\"me-2\" data-hcm-edit=\"policy\" data-id=\"" + esc(r.id) + "\" data-name=\"" + esc(r.name) + "\" data-description=\"" + esc(descForAttr) + "\" data-effective-date=\"" + esc(effForInput) + "\" data-department-id=\"" + esc(deptId) + "\" data-bs-toggle=\"modal\" data-bs-target=\"#edit_policy\"><i class=\"ti ti-edit\"></i></a><a href=\"#\" data-hcm-delete=\"policy\" data-id=\"" + esc(r.id) + "\"><i class=\"ti ti-trash\"></i></a></div></td></tr>";
+                "</td><td>" + attCell + "</td><td><div class=\"action-icon d-inline-flex\"><a href=\"#\" class=\"me-2\" data-hcm-edit=\"policy\" data-id=\"" + esc(r.id) + "\" data-name=\"" + esc(r.name) + "\" data-description=\"" + esc(descForAttr) + "\" data-effective-date=\"" + esc(effForInput) + "\" data-department-id=\"" + esc(deptId) + "\"><i class=\"ti ti-edit\"></i></a><a href=\"#\" data-hcm-delete=\"policy\" data-id=\"" + esc(r.id) + "\"><i class=\"ti ti-trash\"></i></a></div></td></tr>";
         }).join("") || '<tr><td colspan="7" class="text-center py-4 text-muted">No policies found.</td></tr>';
         body.setAttribute("data-hydrated", "1");
     }
@@ -226,6 +226,7 @@
         if (depAdd && path === "/departments") {
             depAdd.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(depAdd)) { return; }
                 var name = depAdd.querySelector('[data-hcm-field="department-name"]').value.trim();
                 var active = normalizeYesNo(depAdd.querySelector('[data-hcm-field="department-active"]').value);
                 post("/v1/hcm/departments", { name: name, isActive: active });
@@ -236,12 +237,18 @@
             document.addEventListener("click", function (e) {
                 var btn = e.target.closest('[data-hcm-edit="department"]');
                 if (!btn) return;
+                e.preventDefault();
                 depEdit.dataset.id = btn.dataset.id || "";
                 depEdit.querySelector('[data-hcm-field="department-name"]').value = btn.dataset.name || "";
                 depEdit.querySelector('[data-hcm-field="department-active"]').value = btn.dataset.active === "1" ? "Active" : "Inactive";
+                var depModalEl = document.getElementById("edit_department");
+                if (depModalEl && window.bootstrap && window.bootstrap.Modal) {
+                    window.bootstrap.Modal.getOrCreateInstance(depModalEl).show();
+                }
             });
             depEdit.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(depEdit)) { return; }
                 var id = depEdit.dataset.id;
                 if (!id) return;
                 post("/v1/hcm/departments/" + encodeURIComponent(id), {
@@ -261,6 +268,7 @@
         if (desAdd && path === "/designations") {
             desAdd.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(desAdd)) { return; }
                 var deptSel = desAdd.querySelector('[data-hcm-field="designation-department"]');
                 var base = {
                     name: desAdd.querySelector('[data-hcm-field="designation-name"]').value.trim(),
@@ -275,13 +283,19 @@
             document.addEventListener("click", function (e) {
                 var btn = e.target.closest('[data-hcm-edit="designation"]');
                 if (!btn) return;
+                e.preventDefault();
                 desEdit.dataset.id = btn.dataset.id || "";
                 desEdit.querySelector('[data-hcm-field="designation-name"]').value = btn.dataset.name || "";
                 desEdit.querySelector('[data-hcm-field="designation-department"]').value = btn.dataset.departmentId || "";
                 desEdit.querySelector('[data-hcm-field="designation-active"]').value = btn.dataset.active === "1" ? "Active" : "Inactive";
+                var desModalEl = document.getElementById("edit_designation");
+                if (desModalEl && window.bootstrap && window.bootstrap.Modal) {
+                    window.bootstrap.Modal.getOrCreateInstance(desModalEl).show();
+                }
             });
             desEdit.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(desEdit)) { return; }
                 var id = desEdit.dataset.id;
                 if (!id) return;
                 var deptSelEdit = desEdit.querySelector('[data-hcm-field="designation-department"]');
@@ -304,6 +318,7 @@
         if (polAdd && path === "/policy") {
             polAdd.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(polAdd)) { return; }
                 var nameVal = polAdd.querySelector('[data-hcm-field="policy-name"]').value.trim();
                 var descVal = polAdd.querySelector('[data-hcm-field="policy-description"]').value.trim();
                 var polDeptSel = polAdd.querySelector('[data-hcm-field="policy-department"]');
@@ -325,14 +340,20 @@
             document.addEventListener("click", function (e) {
                 var btn = e.target.closest('[data-hcm-edit="policy"]');
                 if (!btn) return;
+                e.preventDefault();
                 polEdit.dataset.id = btn.dataset.id || "";
                 polEdit.querySelector('[data-hcm-field="policy-name"]').value = btn.dataset.name || "";
                 polEdit.querySelector('[data-hcm-field="policy-description"]').value = btn.dataset.description || "";
                 polEdit.querySelector('[data-hcm-field="policy-effective-date"]').value = btn.dataset.effectiveDate || "";
                 polEdit.querySelector('[data-hcm-field="policy-department"]').value = btn.dataset.departmentId || "";
+                var polModalEl = document.getElementById("edit_policy");
+                if (polModalEl && window.bootstrap && window.bootstrap.Modal) {
+                    window.bootstrap.Modal.getOrCreateInstance(polModalEl).show();
+                }
             });
             polEdit.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(polEdit)) { return; }
                 var id = polEdit.dataset.id;
                 if (!id) return;
                 var nameVal = polEdit.querySelector('[data-hcm-field="policy-name"]').value.trim();

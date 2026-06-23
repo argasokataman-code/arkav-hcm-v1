@@ -324,7 +324,8 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Target Team</label>
-                            <select class="form-select" data-employees-bulk-target-team required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-employees-bulk-target-team required>
                                 <option value="">Select target team</option>
                             </select>
                             <small class="text-muted d-block mt-1">Pilih "Unassign Team" jika ingin mengosongkan assignment team.</small>
@@ -361,6 +362,8 @@
                         <div class="mb-3">
                             <label class="form-label">File Excel</label>
                             <input type="file" class="form-control" accept=".xlsx,.xls,.csv" data-employee-bulk-upload-file required>
+
+    <div class="invalid-feedback">This field is required.</div>
                             <small class="text-muted d-block mt-1">Format didukung: `.xlsx`, `.xls`, `.csv`.</small>
                         </div>
                         <div class="alert alert-light border mb-3">

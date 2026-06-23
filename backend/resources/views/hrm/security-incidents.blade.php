@@ -143,17 +143,23 @@
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label fw-semibold">Judul Insiden <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="title" required maxlength="255"
+                            
+                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" name="title" required maxlength="255"
                                 placeholder="Contoh: Akses tidak sah ke data karyawan bagian payroll">
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold">Deskripsi Insiden <span class="text-danger">*</span></label>
-                            <textarea class="form-control" name="description" rows="4" required maxlength="10000"
+                            
+                                <div class="invalid-feedback">Please enter text.</div><textarea class="form-control" name="description" rows="4" required maxlength="10000"
                                 placeholder="Jelaskan kronologi, dampak, dan langkah awal yang diambil..."></textarea>
+
+    <div class="invalid-feedback">Please enter text.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Tanggal Terdeteksi <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" name="detected_at" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Jumlah Subjek Terdampak</label>

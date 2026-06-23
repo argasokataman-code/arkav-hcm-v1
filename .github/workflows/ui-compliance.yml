@@ -1,0 +1,79 @@
+name: UI/UX Compliance
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+
+jobs:
+  form-validation-lint:
+    name: Form Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check for inline validation pattern in new JS files
+        shell: bash
+        run: |
+          EXIT_CODE=0
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE="${{ github.base_ref }}"
+            git fetch origin "$BASE" --depth=1
+            CHANGED=$(git diff --name-only origin/"$BASE"...HEAD -- 'frontend/resources/js/**/*.js' 2>/dev/null || true)
+          else
+            CHANGED=$(git diff --name-only HEAD~1 -- 'frontend/resources/js/**/*.js' 2>/dev/null || true)
+          fi
+
+          for file in $CHANGED; do
+            if grep -qE 'classList\.add\(["'"'"']was-validated["'"'"']\).*forEach\.call.*querySelectorAll.*is-invalid' "$file" 2>/dev/null; then
+              echo "❌ FAIL: $file — inline validation pattern terdeteksi"
+              echo "   Ganti dengan: if (!ArcavValidation.validateForm(form)) { return; }"
+              EXIT_CODE=1
+            fi
+          done
+
+          if [[ "$EXIT_CODE" -eq 0 ]]; then
+            echo "✅ Semua file JS baru menggunakan ArcavValidation.validateForm()"
+          fi
+          exit "$EXIT_CODE"
+
+  ui-pattern-lint:
+    name: UI Pattern Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check for native confirm/alert in new JS files
+        shell: bash
+        run: |
+          EXIT_CODE=0
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE="${{ github.base_ref }}"
+            git fetch origin "$BASE" --depth=1
+            CHANGED=$(git diff --name-only origin/"$BASE"...HEAD -- 'frontend/resources/js/**/*.js' 2>/dev/null || true)
+          else
+            CHANGED=$(git diff --name-only HEAD~1 -- 'frontend/resources/js/**/*.js' 2>/dev/null || true)
+          fi
+
+          for file in $CHANGED; do
+            if grep -nE '^[^/]*\bwindow\.confirm\b|^[^/]*\bconfirm\(' "$file" 2>/dev/null | grep -v '//.*confirm' | grep -v 'ArcavUi.confirm'; then
+              echo "❌ FAIL: $file — confirm() native terdeteksi"
+              echo "   Ganti dengan: ArcavUi.confirmDelete()"
+              EXIT_CODE=1
+            fi
+            if grep -nE '^[^/]*\bwindow\.alert\b|^[^/]*\balert\(' "$file" 2>/dev/null | grep -v '//.*alert' | grep -v 'showAlert'; then
+              echo "❌ FAIL: $file — alert() native terdeteksi"
+              echo "   Ganti dengan: ArcavUi.showToast()"
+              EXIT_CODE=1
+            fi
+          done
+
+          if [[ "$EXIT_CODE" -eq 0 ]]; then
+            echo "✅ UI patterns compliant"
+          fi
+          exit "$EXIT_CODE"

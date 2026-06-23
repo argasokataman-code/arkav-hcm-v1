@@ -21,12 +21,14 @@
                     @if($arcavLeaveAdmin)
                     <div class="mb-3">
                         <label class="form-label">Employee</label>
-                        <select class="form-select" data-hcm-field="userId" required></select>
+                        
+                            <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-field="userId" required></select>
                     </div>
                     @endif
                     <div class="mb-3">
                         <label class="form-label">Leave type</label>
-                        <select class="form-select" data-hcm-field="leaveType" required>
+                        
+                            <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-field="leaveType" required>
                             <option value="">Memuat jenis cuti…</option>
                         </select>
                         <span class="text-muted fs-12" data-hcm-leave-type-hint>Info potong saldo akan tampil setelah jenis dipilih.</span>
@@ -48,18 +50,24 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">From</label>
-                            <input type="text" class="form-control" data-hcm-field="dateFrom" 
+                            
+                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" data-hcm-field="dateFrom" 
                                    placeholder="YYYY-MM-DD" autocomplete="off" required
                                    pattern="\d{4}-\d{2}-\d{2}" 
                                    title="Format: YYYY-MM-DD">
+
+    <div class="invalid-feedback">This field is required.</div>
                             <small class="text-muted d-block mt-1" data-hcm-date-from-hint>Contoh: 2026-04-20</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">To</label>
-                            <input type="text" class="form-control" data-hcm-field="dateTo" 
+                            
+                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" data-hcm-field="dateTo" 
                                    placeholder="YYYY-MM-DD" autocomplete="off" required
                                    pattern="\d{4}-\d{2}-\d{2}" 
                                    title="Format: YYYY-MM-DD">
+
+    <div class="invalid-feedback">This field is required.</div>
                             <small class="text-muted d-block mt-1" data-hcm-date-to-hint>Contoh: 2026-04-22</small>
                         </div>
                     </div>

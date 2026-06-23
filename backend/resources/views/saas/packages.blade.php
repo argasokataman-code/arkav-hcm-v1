@@ -134,7 +134,8 @@
                                     </p>
                                     <div class="mb-2">
                                         <label class="form-label fw-medium mb-1" style="font-size:.8rem">Nama Paket <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control form-control-sm" id="input_package_name" placeholder="e.g. Starter, Professional, Enterprise" required>
+                                        
+                                            <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control form-control-sm" id="input_package_name" placeholder="e.g. Starter, Professional, Enterprise" required>
                                     </div>
                                     <div class="mb-2">
                                         <label class="form-label fw-medium mb-1" style="font-size:.8rem">Deskripsi</label>
@@ -158,12 +159,14 @@
                                         <label class="form-label fw-medium mb-1" style="font-size:.8rem">Harga (Rp) <span class="text-danger">*</span></label>
                                         <div class="input-group input-group-sm">
                                             <span class="input-group-text">Rp</span>
-                                            <input type="number" class="form-control" id="input_package_price" min="0" step="1" placeholder="0" required>
+                                            
+                                                <div class="invalid-feedback">Please enter a value.</div><input type="number" class="form-control" id="input_package_price" min="0" step="1" placeholder="0" required>
                                         </div>
                                     </div>
                                     <div class="mb-2">
                                         <label class="form-label fw-medium mb-1" style="font-size:.8rem">Billing Cycle <span class="text-danger">*</span></label>
-                                        <select class="form-select form-select-sm" id="input_package_cycle" required>
+                                        
+                                            <div class="invalid-feedback">Please select an option.</div><select class="form-select form-select-sm" id="input_package_cycle" required>
                                             <option value="">Pilih siklus billing</option>
                                             <option value="monthly">Bulanan (Monthly)</option>
                                             <option value="yearly">Tahunan (Yearly)</option>
@@ -398,6 +401,8 @@
                         <div class="col-md-6" id="addon_code_field">
                             <label class="form-label">Code *</label>
                             <input type="text" class="form-control" id="input_addon_code" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                             <div id="addon_code_locked_note" class="form-text text-muted d-none">
                                 <i class="ti ti-lock me-1"></i>Code terkunci — sudah ada transaksi paid.
                             </div>
@@ -405,6 +410,8 @@
                         <div class="col-md-6">
                             <label class="form-label">Name *</label>
                             <input type="text" class="form-control" id="input_addon_name" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Description</label>
@@ -413,6 +420,8 @@
                         <div class="col-md-6">
                             <label class="form-label">Price per Unit *</label>
                             <input type="number" class="form-control" id="input_addon_price" min="0" step="0.01" required>
+
+    <div class="invalid-feedback">Please enter a value.</div>
                         </div>
                     </div>
                     <div class="mt-3">

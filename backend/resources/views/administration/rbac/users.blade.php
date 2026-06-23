@@ -134,14 +134,17 @@
                             <div class="mb-3">
                                 <label class="form-label" for="um_name">Name</label>
                                 <input id="um_name" type="text" class="form-control" required>
+                                <div class="invalid-feedback">Please enter a name.</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" for="um_email">Email</label>
                                 <input id="um_email" type="email" class="form-control" required>
+                                <div class="invalid-feedback">Please enter a valid email address.</div>
                             </div>
                             <div id="um_password_wrap" class="mb-3">
                                 <label class="form-label" for="um_password">Password</label>
                                 <input id="um_password" type="password" class="form-control" minlength="8">
+                                <div class="invalid-feedback">Password must be at least 8 characters.</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label" for="um_status">Status</label>
@@ -149,10 +152,12 @@
                                     <option value="active">Active</option>
                                     <option value="inactive">Inactive</option>
                                 </select>
+                                <div class="invalid-feedback">Please select a status.</div>
                             </div>
                             <div id="um_roles_wrap" class="mb-0">
                                 <label class="form-label" for="um_role_codes">Roles</label>
                                 <select id="um_role_codes" class="form-select" multiple></select>
+                                <div class="invalid-feedback">Please select at least one role.</div>
                             </div>
                         </div>
                         <div class="modal-footer">

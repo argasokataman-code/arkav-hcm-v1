@@ -15,6 +15,8 @@
                         <div class="col-12">
                             <label class="form-label">Jenis Training</label>
                             <input type="text" class="form-control" name="name" maxlength="200" required placeholder="Mis: Git Training">
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Deskripsi (opsional)</label>
@@ -90,10 +92,14 @@
                         <div class="col-md-3">
                             <label class="form-label">Tanggal Mulai</label>
                             <input type="date" class="form-control" name="startDate" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Tanggal Selesai</label>
                             <input type="date" class="form-control" name="endDate" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                         </div>
                         <div class="col-12">
                             <div class="d-flex align-items-center justify-content-between">

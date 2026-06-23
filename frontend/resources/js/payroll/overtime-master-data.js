@@ -230,6 +230,23 @@
                     .join("") || '<tr><td colspan="6" class="text-center py-4 text-muted">No overtime types yet.</td></tr>';
         }
 
+        var addOtModalEl = document.getElementById("arcav_add_ot_type");
+        if (addOtModalEl && !addOtModalEl.getAttribute("data-bound")) {
+            addOtModalEl.setAttribute("data-bound", "1");
+            addOtModalEl.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#arcav_add_ot_type input:not([type=hidden]):not([type=password]), #arcav_add_ot_type select");
+                if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
+            });
+        }
+        var editOtModalEl = document.getElementById("arcav_edit_ot_type");
+        if (editOtModalEl && !editOtModalEl.getAttribute("data-bound")) {
+            editOtModalEl.setAttribute("data-bound", "1");
+            editOtModalEl.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#arcav_edit_ot_type input:not([type=hidden]):not([type=password]), #arcav_edit_ot_type select");
+                if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
+            });
+        }
+
         function reload() {
             apiRequest("get", "/v1/hcm/overtime-types", null)
                 .then(function (p) {
@@ -252,6 +269,7 @@
         if (addForm) {
             addForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(addForm)) { return; }
                 var name = addForm.querySelector('[data-hcm-field="name"]').value.trim();
                 var code = addForm.querySelector('[data-hcm-field="code"]').value.trim();
                 var multRaw = addForm.querySelector('[data-hcm-field="paymentMultiplier"]').value;
@@ -322,6 +340,7 @@
             });
             editForm.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(editForm)) { return; }
                 var id = editForm.querySelector('[data-hcm-field="id"]').value;
                 if (!id) {
                     return;

@@ -325,6 +325,7 @@ export function bindOvertimeModule(deps, isAdmin) {
         }
         addForm.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(addForm)) { return; }
             if (isAdmin && userSel && !userSel.value) {
                 notify("Pilih karyawan.", true);
                 return;
@@ -407,6 +408,7 @@ export function bindOvertimeModule(deps, isAdmin) {
         });
         editForm.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(editForm)) { return; }
             var id = editForm.querySelector('[data-hcm-field="id"]').value;
             var owner = editForm.querySelector('[data-hcm-field="ownerUserId"]').value;
             if (!id) {
@@ -489,6 +491,16 @@ export function bindOvertimeModule(deps, isAdmin) {
             });
         });
     }
+
+    ["arcav_add_overtime", "arcav_edit_overtime"].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) {
+            el.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#" + id + " input:not([type=hidden]):not([type=password]), #" + id + " select");
+                if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
+            });
+        }
+    });
 
     apiRequest("get", "/v1/hcm/overtime-types", null)
         .then(function (tp) {

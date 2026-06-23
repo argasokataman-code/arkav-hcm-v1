@@ -167,6 +167,7 @@ const bootstrapMethods = {
       if (form) {
         form.addEventListener("submit", function (e) {
           e.preventDefault();
+          if (!ArcavValidation.validateForm(form)) { return; }
           self.handleSavePackage(e.target);
         });
       }
@@ -451,6 +452,7 @@ const bootstrapMethods = {
       if (addonForm) {
         addonForm.addEventListener("submit", function (e) {
           e.preventDefault();
+          if (!ArcavValidation.validateForm(addonForm)) { return; }
           self.handleSaveAddon(e.target);
         });
       }

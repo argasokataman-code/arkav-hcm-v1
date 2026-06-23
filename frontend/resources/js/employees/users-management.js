@@ -190,7 +190,8 @@
 
       var openCreateBtn = document.querySelector("[data-bs-target='#um_user_modal']");
       if (openCreateBtn) {
-        openCreateBtn.addEventListener("click", function () {
+        openCreateBtn.addEventListener("click", function (e) {
+          e.preventDefault();
           self.openCreateModal();
         });
       }
@@ -552,6 +553,14 @@
           opt.selected = false;
         });
       }
+      var modalEl = document.getElementById("um_user_modal");
+      if (window.bootstrap && modalEl) {
+        window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      }
+      var nameInput = document.getElementById("um_name");
+      if (nameInput) {
+        nameInput.focus();
+      }
     },
 
     openEditModal: function (userId) {
@@ -585,6 +594,8 @@
 
     submitUserForm: function () {
       var self = this;
+      var form = document.getElementById("um_user_form");
+      if (!ArcavValidation.validateForm(form)) { return; }
       var editingId = this.state.editingId;
       var payload;
 
@@ -746,6 +757,8 @@
     hideModal: function () {
       var modalEl = document.getElementById("um_user_modal");
       if (window.bootstrap && modalEl) {
+        var trigger = document.querySelector("[data-bs-target='#um_user_modal']");
+        if (trigger) trigger.focus();
         window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
       }
     },

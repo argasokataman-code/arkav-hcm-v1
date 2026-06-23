@@ -210,6 +210,8 @@
                             <div class="mb-3">
                                 <label class="form-label">Code <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="leaveTypeCode" placeholder="annual_leave" maxlength="64" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                                 <div class="form-text">Gunakan huruf kecil dan underscore, contoh: <code>annual_leave</code>.</div>
                             </div>
                         </div>
@@ -217,6 +219,8 @@
                             <div class="mb-3">
                                 <label class="form-label">Leave Type <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="leaveTypeName" maxlength="150" placeholder="Annual Leave" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                             </div>
                         </div>
                         <div class="col-md-4">

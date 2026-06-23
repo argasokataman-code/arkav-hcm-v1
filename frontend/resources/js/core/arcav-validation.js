@@ -84,12 +84,35 @@
     codeSlug: /^[a-z0-9_\-]+$/,
   };
 
+  /**
+   * Validate an entire form. Adds .is-invalid to invalid fields, removes from valid ones.
+   * Returns true if the form is valid, false otherwise.
+   */
+  function validateForm(formEl) {
+    if (!formEl) return true;
+    formEl.classList.add('was-validated');
+    var fields = formEl.querySelectorAll('input,select,textarea');
+    var valid = true;
+    for (var i = 0; i < fields.length; i++) {
+      var el = fields[i];
+      if (el.type === 'hidden' || el.type === 'button' || el.type === 'submit') continue;
+      if (!el.checkValidity()) {
+        el.classList.add('is-invalid');
+        valid = false;
+      } else {
+        el.classList.remove('is-invalid');
+      }
+    }
+    return valid;
+  }
+
   window.ArcavValidation = {
     patterns,
     toRegExp,
     applyConstraints,
     clearValidity,
     setInvalid,
+    validateForm,
   };
 })();
 

@@ -120,12 +120,15 @@
                                 <div class="mb-3">
                                     <label class="form-label">Team Name <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" data-hcm-field="team-name" required maxlength="100" placeholder="e.g., Customer Service">
+
+    <div class="invalid-feedback">This field is required.</div>
                                 </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label class="form-label">Department <span class="text-danger">*</span></label>
-                                    <select class="form-select" data-hcm-field="team-department" required>
+                                    
+                                        <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-field="team-department" required>
                                         <option value="">Select Department</option>
                                     </select>
                                 </div>
@@ -174,12 +177,15 @@
                                 <div class="mb-3">
                                     <label class="form-label">Team Name <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" data-hcm-field="team-name" required maxlength="100">
+
+    <div class="invalid-feedback">This field is required.</div>
                                 </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label class="form-label">Department <span class="text-danger">*</span></label>
-                                    <select class="form-select" data-hcm-field="team-department" required>
+                                    
+                                        <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-field="team-department" required>
                                         <option value="">Select Department</option>
                                     </select>
                                 </div>

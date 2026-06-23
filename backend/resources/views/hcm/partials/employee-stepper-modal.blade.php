@@ -96,44 +96,53 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">Full Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="name" placeholder="Nama lengkap employee" minlength="2" maxlength="150" pattern="[A-Za-z .,'\-]{2,150}" title="Full name hanya boleh huruf, spasi, dan tanda baca umum" required>
+                                
+                                    <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" {{ $fieldAttr }}="name" placeholder="Nama lengkap employee" minlength="2" maxlength="150" pattern="[A-Za-z .,'\-]{2,150}" title="Full name hanya boleh huruf, spasi, dan tanda baca umum" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Email <span class="text-danger">*</span></label>
-                                <input type="email" class="form-control" {{ $fieldAttr }}="email" placeholder="email@company.com" required>
+                                
+                                    <div class="invalid-feedback">Please enter a valid email.</div><input type="email" class="form-control" {{ $fieldAttr }}="email" placeholder="email@company.com" required>
                             </div>
 
                             @unless ($isEdit)
                                 <div class="col-md-6">
                                     <label class="form-label">Password <span class="text-danger">*</span></label>
-                                    <input type="password" class="form-control" {{ $fieldAttr }}="password" autocomplete="new-password" placeholder="Minimal 8 karakter" minlength="8" maxlength="64" required>
+                                    
+                                        <div class="invalid-feedback">Password is required.</div><input type="password" class="form-control" {{ $fieldAttr }}="password" autocomplete="new-password" placeholder="Minimal 8 karakter" minlength="8" maxlength="64" required>
                                     <small class="text-muted d-block mt-1">Harus 8-64 karakter dan mengandung huruf besar, huruf kecil, serta angka.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
-                                    <input type="password" class="form-control" {{ $fieldAttr }}="confirmPassword" autocomplete="new-password" placeholder="Ulangi password" minlength="8" maxlength="64" required>
+                                    
+                                        <div class="invalid-feedback">Password is required.</div><input type="password" class="form-control" {{ $fieldAttr }}="confirmPassword" autocomplete="new-password" placeholder="Ulangi password" minlength="8" maxlength="64" required>
                                 </div>
                             @endunless
 
                             <div class="col-md-6">
                                 <label class="form-label">Phone <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="phone" placeholder="08xxxxxxxxxx / +628xxxxxxxxxx" inputmode="tel" minlength="10" maxlength="16" pattern="^\+?[0-9]{10,15}$" required>
+                                
+                                    <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" {{ $fieldAttr }}="phone" placeholder="08xxxxxxxxxx / +628xxxxxxxxxx" inputmode="tel" minlength="10" maxlength="16" pattern="^\+?[0-9]{10,15}$" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">NIK / No. KTP <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="nik" placeholder="16 digit NIK" inputmode="numeric" minlength="16" maxlength="16" pattern="[0-9]{16}" required>
+                                
+                                    <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" {{ $fieldAttr }}="nik" placeholder="16 digit NIK" inputmode="numeric" minlength="16" maxlength="16" pattern="[0-9]{16}" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Place of Birth <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="placeOfBirth" placeholder="Kota lahir" minlength="2" maxlength="150" pattern="[A-Za-z .,'\-]{2,150}" title="Place of birth hanya boleh huruf, spasi, dan tanda baca umum" required>
+                                
+                                    <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" {{ $fieldAttr }}="placeOfBirth" placeholder="Kota lahir" minlength="2" maxlength="150" pattern="[A-Za-z .,'\-]{2,150}" title="Place of birth hanya boleh huruf, spasi, dan tanda baca umum" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Date of Birth <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" {{ $fieldAttr }}="dateOfBirth" max="{{ date('Y-m-d') }}" required>
+                                
+                                    <div class="invalid-feedback">Please select a date.</div><input type="date" class="form-control" {{ $fieldAttr }}="dateOfBirth" max="{{ date('Y-m-d') }}" required>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Gender <span class="text-danger">*</span></label>
-                                <select class="form-select" {{ $fieldAttr }}="gender" required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" {{ $fieldAttr }}="gender" required>
                                     <option value="">Select gender</option>
                                     <option value="male">Male</option>
                                     <option value="female">Female</option>
@@ -142,7 +151,8 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Marital Status <span class="text-danger">*</span></label>
-                                <select class="form-select" {{ $fieldAttr }}="maritalStatus" required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" {{ $fieldAttr }}="maritalStatus" required>
                                     <option value="">Select status</option>
                                     <option value="single">Single</option>
                                     <option value="married">Married</option>
@@ -152,7 +162,8 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Religion <span class="text-danger">*</span></label>
-                                <select class="form-select" {{ $fieldAttr }}="religion" required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" {{ $fieldAttr }}="religion" required>
                                     <option value="">Select religion</option>
                                     @foreach ($religionOptions as $religionOption)
                                         <option value="{{ $religionOption }}">{{ $religionOption }}</option>
@@ -161,7 +172,8 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Nationality <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="nationality" placeholder="Indonesia" value="Indonesia" readonly required>
+                                
+                                    <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" {{ $fieldAttr }}="nationality" placeholder="Indonesia" value="Indonesia" readonly required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Bio / Notes</label>
@@ -172,19 +184,22 @@
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label small text-muted">Province</label>
-                                        <select class="form-select" {{ $fieldAttr }}="provinceId" data-employee-wilayah-province required>
+                                        
+                                            <div class="invalid-feedback">Please select an option.</div><select class="form-select" {{ $fieldAttr }}="provinceId" data-employee-wilayah-province required>
                                             <option value="">Select province</option>
                                         </select>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small text-muted">Regency / City</label>
-                                        <select class="form-select" {{ $fieldAttr }}="regencyId" data-employee-wilayah-regency required disabled>
+                                        
+                                            <div class="invalid-feedback">Please select an option.</div><select class="form-select" {{ $fieldAttr }}="regencyId" data-employee-wilayah-regency required disabled>
                                             <option value="">Select regency</option>
                                         </select>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small text-muted">District</label>
-                                        <select class="form-select" {{ $fieldAttr }}="districtId" data-employee-wilayah-district required disabled>
+                                        
+                                            <div class="invalid-feedback">Please select an option.</div><select class="form-select" {{ $fieldAttr }}="districtId" data-employee-wilayah-district required disabled>
                                             <option value="">Select district</option>
                                         </select>
                                     </div>
@@ -211,7 +226,8 @@
 
                             <div class="col-md-6">
                                 <label class="form-label">Employment Status <span class="text-danger">*</span></label>
-                                <select class="form-select" {{ $fieldAttr }}="employmentStatus" required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" {{ $fieldAttr }}="employmentStatus" required>
                                     <option value="active" selected>Active</option>
                                     <option value="probation">Probation</option>
                                     @if ($isEdit)
@@ -223,7 +239,8 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Employee Type <span class="text-danger">*</span></label>
-                                <select class="form-select" {{ $fieldAttr }}="employeeType" required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" {{ $fieldAttr }}="employeeType" required>
                                     <option value="">Select type</option>
                                     <option value="permanent">Permanent</option>
                                     <option value="contract">Contract</option>
@@ -246,18 +263,21 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label">Base Salary (IDR) <span class="text-danger">*</span></label>
-                                <input type="number" min="0" step="1" class="form-control" {{ $fieldAttr }}="baseSalary" placeholder="0" required>
+                                
+                                    <div class="invalid-feedback">Please enter a value.</div><input type="number" min="0" step="1" class="form-control" {{ $fieldAttr }}="baseSalary" placeholder="0" required>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Contract Type <span class="text-danger">*</span></label>
-                                <select class="form-select" {{ $fieldAttr }}="contractType" required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" {{ $fieldAttr }}="contractType" required>
                                     <option value="permanent" selected>Permanent</option>
                                     <option value="contract">Contract</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Contract Start Date <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" {{ $fieldAttr }}="contractStartDate" required>
+                                
+                                    <div class="invalid-feedback">Please select a date.</div><input type="date" class="form-control" {{ $fieldAttr }}="contractStartDate" required>
                             </div>
                             <div class="col-md-4 d-none" data-employee-contract-end-wrap>
                                 <label class="form-label">Contract End Date <span class="text-danger">*</span></label>
@@ -266,7 +286,8 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Contract Status <span class="text-danger">*</span></label>
-                                <select class="form-select" {{ $fieldAttr }}="contractStatus" required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" {{ $fieldAttr }}="contractStatus" required>
                                     <option value="active" selected>Active</option>
                                     @if ($isEdit)
                                         <option value="ended">Ended</option>
@@ -281,7 +302,8 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label">Bank Name <span class="text-danger">*</span></label>
-                                <select class="form-select" {{ $fieldAttr }}="bankName" required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" {{ $fieldAttr }}="bankName" required>
                                     <option value="">Select bank</option>
                                     @foreach ($bankOptions as $bankOption)
                                         <option value="{{ $bankOption }}">{{ $bankOption }}</option>
@@ -290,11 +312,13 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Bank Account No <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bankAccountNo" placeholder="Nomor rekening" inputmode="numeric" maxlength="30" minlength="8" pattern="[0-9]{8,30}" title="Nomor rekening harus 8-30 digit angka" required>
+                                
+                                    <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" {{ $fieldAttr }}="bankAccountNo" placeholder="Nomor rekening" inputmode="numeric" maxlength="30" minlength="8" pattern="[0-9]{8,30}" title="Nomor rekening harus 8-30 digit angka" required>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Account Holder Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" {{ $fieldAttr }}="bankAccountHolderName" placeholder="Nama pemilik rekening" maxlength="100" minlength="2" pattern="[A-Za-z .,'\-]{2,100}" title="Nama pemilik rekening hanya boleh huruf/spasi/tanda baca umum (2-100 karakter)" required>
+                                
+                                    <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" {{ $fieldAttr }}="bankAccountHolderName" placeholder="Nama pemilik rekening" maxlength="100" minlength="2" pattern="[A-Za-z .,'\-]{2,100}" title="Nama pemilik rekening hanya boleh huruf/spasi/tanda baca umum (2-100 karakter)" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Bank / SWIFT / IFSC Code</label>
@@ -462,6 +486,8 @@
                             <div class="mt-4 pt-3 border-top">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" {{ $fieldAttr }}="dataDisclosureAcknowledged" id="{{ $mode }}_data_disclosure_acknowledged" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                                     <label class="form-check-label" for="{{ $mode }}_data_disclosure_acknowledged">
                                         Saya mengakui pemrosesan dan disclosure data employee sesuai kebijakan perusahaan. <span class="text-danger">*</span>
                                     </label>

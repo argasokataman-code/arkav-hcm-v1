@@ -17,6 +17,8 @@
                     <div class="mb-3">
                         <label class="form-label">Gaji pokok (Rp)</label>
                         <input type="number" class="form-control" data-hcm-field="baseSalary" min="0" step="0.01" max="999999999999.99" required>
+
+    <div class="invalid-feedback">Please enter a value.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Jenis kontrak</label>

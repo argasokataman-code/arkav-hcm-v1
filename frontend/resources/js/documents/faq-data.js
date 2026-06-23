@@ -512,6 +512,10 @@
 
         if (addModal) {
             addModal.addEventListener("hidden.bs.modal", resetAddForm);
+            addModal.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#add_faq input:not([type=hidden]):not([type=password]), #add_faq select");
+                if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
+            });
         }
 
         if (addForm) {
@@ -519,6 +523,7 @@
                 var payload;
                 var error;
                 event.preventDefault();
+                if (!ArcavValidation.validateForm(addForm)) { return; }
                 payload = readAddPayload();
                 error = validatePayload(payload);
                 if (error) {
@@ -538,12 +543,21 @@
             });
         }
 
+        var editModal = document.getElementById("edit_faq");
+        if (editModal) {
+            editModal.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#edit_faq input:not([type=hidden]):not([type=password]), #edit_faq select");
+                if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
+            });
+        }
+
         if (editForm) {
             editForm.addEventListener("submit", function (event) {
                 var payload;
                 var error;
                 var faq;
                 event.preventDefault();
+                if (!ArcavValidation.validateForm(editForm)) { return; }
                 payload = readEditPayload();
                 error = validatePayload(payload);
                 if (error) {

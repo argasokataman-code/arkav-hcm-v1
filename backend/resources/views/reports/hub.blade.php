@@ -252,11 +252,15 @@
                     <div class="mb-3">
                         <label class="form-label">Period Start</label>
                         <input type="date" class="form-control" id="gen_period_start" name="periodStart" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Period End</label>
                         <input type="date" class="form-control" id="gen_period_end" name="periodEnd" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                     </div>
 
                     <div class="form-check mb-3">

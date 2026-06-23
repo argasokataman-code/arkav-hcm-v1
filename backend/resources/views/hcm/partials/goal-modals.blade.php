@@ -15,6 +15,8 @@
                         <div class="col-12">
                             <label class="form-label">Type name</label>
                             <input type="text" class="form-control" name="name" maxlength="120" required placeholder="Mis: Development Goals">
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Description (opsional)</label>
@@ -85,6 +87,8 @@
                         <div class="col-12">
                             <label class="form-label">Subject</label>
                             <input type="text" class="form-control" name="subject" maxlength="200" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Target achievement (opsional)</label>

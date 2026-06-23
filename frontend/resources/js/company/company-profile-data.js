@@ -572,6 +572,7 @@
 
     async function saveCompanyProfile(event) {
         event.preventDefault();
+        if (!ArcavValidation.validateForm(form)) { return; }
         clearFeedback();
 
         var raw = collectPayload();

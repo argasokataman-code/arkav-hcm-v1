@@ -176,6 +176,7 @@
       if (form) {
         form.addEventListener("submit", function (e) {
           e.preventDefault();
+          if (!ArcavValidation.validateForm(form)) { return; }
           self.handleSaveInvoice();
         });
       }
@@ -369,6 +370,8 @@
       
       const modal = window.bootstrap?.Modal?.getOrCreateInstance(document.getElementById("invoiceModal"));
       modal?.show();
+      var firstInput = document.querySelector("#invoiceModal input:not([type=hidden]):not([type=password]), #invoiceModal select");
+      if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
     },
 
     /**

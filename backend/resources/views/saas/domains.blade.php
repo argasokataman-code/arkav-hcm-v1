@@ -83,10 +83,14 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Company *</label>
                             <select class="form-select" id="input_domain_company" required></select>
+
+    <div class="invalid-feedback">Please select an option.</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Domain Name *</label>
                             <input type="text" class="form-control" id="input_domain_name" placeholder="example.com" inputmode="url" autocapitalize="off" spellcheck="false" pattern="^(?=.{1,253}$)(?!-)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                             <div class="form-text">Gunakan host/domain tanpa <span class="fw-medium">http://</span>, slash, atau path.</div>
                         </div>
                     </div>
@@ -95,6 +99,8 @@
                         <div class="d-flex gap-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="verification_type" id="verification_dns" value="dns" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                                 <label class="form-check-label" for="verification_dns">DNS Record</label>
                             </div>
                             <div class="form-check">

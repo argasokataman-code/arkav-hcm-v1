@@ -797,6 +797,7 @@ function loadPricingPlansScreenModuleLoader() {
 
         form.addEventListener("submit", function (event) {
             event.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             clearError(root);
             var payload = buildPolicyEditorPayload(root);
             if (!renderValidationPreview(root, payload)) {
@@ -1045,6 +1046,7 @@ function loadPricingPlansScreenModuleLoader() {
 
             policyForm.addEventListener("submit", function (event) {
                 event.preventDefault();
+                if (!ArcavValidation.validateForm(policyForm)) { return; }
                 clearError(root);
                 showPlatformGate(root, "");
 

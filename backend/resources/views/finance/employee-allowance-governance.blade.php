@@ -156,10 +156,13 @@
                 <div class="modal-body">
                     <input type="hidden" data-allowance-policy-id>
                     <div class="row g-3">
-                        <div class="col-md-6"><label class="form-label">Kode</label><input type="text" class="form-control" data-allowance-policy-code required></div>
-                        <div class="col-md-6"><label class="form-label">Nama</label><input type="text" class="form-control" data-allowance-policy-name required></div>
+                        <div class="col-md-6"><label class="form-label">Kode</label>
+                            <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" data-allowance-policy-code required></div>
+                        <div class="col-md-6"><label class="form-label">Nama</label>
+                            <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" data-allowance-policy-name required></div>
                         <div class="col-md-4"><label class="form-label">Nominal Default</label><input type="number" min="0" step="0.01" class="form-control" data-allowance-policy-default-amount></div>
-                        <div class="col-md-4"><label class="form-label">Mulai Berlaku</label><input type="date" class="form-control" data-allowance-policy-start required></div>
+                        <div class="col-md-4"><label class="form-label">Mulai Berlaku</label><input type="date" class="form-control" data-allowance-policy-start required>
+                            <div class="invalid-feedback">Please select a date.</div></div>
                         <div class="col-md-4"><label class="form-label">Akhir Berlaku</label><input type="date" class="form-control" data-allowance-policy-end></div>
                         <div class="col-md-4">
                             <label class="form-label">Mandatory</label>

@@ -139,11 +139,14 @@
                         <div class="mb-3">
                             <label class="form-label">Title <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" data-manual-activity-title maxlength="255" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Kind <span class="text-danger">*</span></label>
-                                <select class="form-select" data-manual-activity-kind required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-manual-activity-kind required>
                                     <option value="task">Task</option>
                                     <option value="call">Call</option>
                                     <option value="email">Email</option>
@@ -153,7 +156,8 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Status <span class="text-danger">*</span></label>
-                                <select class="form-select" data-manual-activity-status required>
+                                
+                                    <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-manual-activity-status required>
                                     <option value="planned">Planned</option>
                                     <option value="in_progress">In Progress</option>
                                     <option value="completed">Completed</option>

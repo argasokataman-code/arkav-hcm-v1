@@ -332,6 +332,7 @@
 
     async function savePreferences(event) {
         event.preventDefault();
+        if (!ArcavValidation.validateForm(form)) { return; }
         clearFeedback();
 
         var token = await getApiToken();

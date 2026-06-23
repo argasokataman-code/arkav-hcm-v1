@@ -235,10 +235,14 @@
       active.checked = true;
     }
     goalTypeModal.show();
+    var firstInput = document.querySelector("#arcav_goal_type_modal input:not([type=hidden]):not([type=password]), #arcav_goal_type_modal select");
+    if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
   }
 
   async function saveGoalType(e) {
     e.preventDefault();
+    const form = e.currentTarget;
+    if (!ArcavValidation.validateForm(form)) { return; }
     if (!meAdmin) {
       notify('error', 'Hanya HCM Admin yang bisa mengubah goal types.');
       return;
@@ -464,10 +468,14 @@
       lock(prog, false);
     }
     goalModal.show();
+    var firstInput = document.querySelector("#arcav_goal_modal input:not([type=hidden]):not([type=password]), #arcav_goal_modal select");
+    if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
   }
 
   async function saveGoal(e) {
     e.preventDefault();
+    const form = e.currentTarget;
+    if (!ArcavValidation.validateForm(form)) { return; }
     const fd = new FormData(e.currentTarget);
     const id = (goalIdEl?.value || '').trim();
     const managerOnly = !!id && currentEditPerm.isManager && !currentEditPerm.isOwner && !currentEditPerm.isAdmin;

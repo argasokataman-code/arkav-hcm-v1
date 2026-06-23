@@ -223,6 +223,7 @@
         if (!form) return;
         form.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             var fd = new FormData(form);
             var dataTypesRaw = String(fd.get("affected_data_types") || "").trim();
             var body = {
@@ -246,6 +247,14 @@
                 })
                 .catch(function (err) { notify(apiError(err), true); });
         });
+
+        var siModal = document.getElementById("siCreateModal");
+        if (siModal) {
+            siModal.addEventListener("shown.bs.modal", function () {
+                var firstInput = document.querySelector("#siCreateModal input:not([type=hidden]):not([type=password]), #siCreateModal select");
+                if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
+            });
+        }
     }
 
     // ─── Event delegation ────────────────────────────────────────────────────────

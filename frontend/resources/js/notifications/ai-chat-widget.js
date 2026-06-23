@@ -446,6 +446,7 @@
         if (form) {
             form.addEventListener("submit", function (e) {
                 e.preventDefault();
+                if (!ArcavValidation.validateForm(form)) { return; }
                 var input = el("ai-chat-input");
                 if (input) {
                     sendMessage(input.value);

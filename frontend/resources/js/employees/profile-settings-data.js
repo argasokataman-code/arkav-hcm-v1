@@ -774,6 +774,7 @@
 
     async function saveSettings(event) {
         event.preventDefault();
+        if (!ArcavValidation.validateForm(form)) { return; }
         clearFeedback();
 
         var payload = collectPayload();

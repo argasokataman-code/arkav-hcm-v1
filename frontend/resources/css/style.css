@@ -8304,15 +8304,10 @@ fieldset:disabled .btn {
 }
 
 .form-control.is-valid:focus,
-.was-validated .form-control:valid:focus {
-  border-color: #03C95A;
-  box-shadow: none;
-}
+
 
 .form-control.is-valid,
-.was-validated .form-control:valid {
-  border-color: #03C95A;
-}
+
 
 .form-control-color {
   width: 1.75rem;
@@ -28331,3 +28326,27 @@ span.flatpickr-weekday {
 /* End:: swiper js */
 
 /*# sourceMappingURL=style.css.map */
+
+.invalid-feedback {
+  display: none;
+  width: 100%;
+  margin-top: 0.25rem;
+  font-size: 0.875em;
+  color: #dc3545;
+}
+
+
+
+
+.form-control.is-invalid,
+.form-select.is-invalid {
+  border-color: #dc3545 !important;
+}
+.form-control.is-invalid ~ .invalid-feedback,
+.form-select.is-invalid ~ .invalid-feedback {
+  display: block;
+}
+.form-control.is-invalid:focus,
+.form-select.is-invalid:focus {
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}

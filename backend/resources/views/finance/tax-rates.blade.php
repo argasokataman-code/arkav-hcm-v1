@@ -446,15 +446,18 @@
                     <form class="row g-3" data-tax-policy-editor-form>
                         <div class="col-md-4">
                             <label class="form-label">Kode Kebijakan</label>
-                            <input type="text" class="form-control" name="policyCode" required>
+                            
+                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" name="policyCode" required>
                         </div>
                         <div class="col-md-8">
                             <label class="form-label">Nama Kebijakan</label>
-                            <input type="text" class="form-control" name="name" required>
+                            
+                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" name="name" required>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Mulai Berlaku</label>
-                            <input type="date" class="form-control" name="effectiveStartDate" required>
+                            
+                                <div class="invalid-feedback">Please select a date.</div><input type="date" class="form-control" name="effectiveStartDate" required>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Akhir Berlaku</label>

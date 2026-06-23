@@ -69,6 +69,7 @@ export function bindPlannerSubmitHandler(deps) {
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
+    if (!ArcavValidation.validateForm(form)) { return; }
     if (submitBtn) {
       submitBtn.disabled = true;
       var lbl = submitBtn.querySelector('[data-smart-planner-submit-label]');

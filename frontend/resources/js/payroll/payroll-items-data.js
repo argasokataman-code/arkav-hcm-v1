@@ -393,6 +393,7 @@
         }
         form.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             var payload;
             if (link && link.value) {
                 payload = {
@@ -491,6 +492,8 @@
         }
         if (window.bootstrap && window.bootstrap.Modal) {
             window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            var firstInput = document.querySelector("#arcav_payroll_item_edit input:not([type=hidden]):not([type=password]), #arcav_payroll_item_edit select");
+            if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
         }
     }
 
@@ -517,6 +520,7 @@
         }
         form.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             var id = parseInt(form.querySelector('[data-payroll-item-field="id"]').value, 10);
             var linkedSection = document.querySelector("[data-payroll-item-edit-linked]");
             var isLinkedUi = linkedSection && !linkedSection.classList.contains("d-none") && !editUnlinkMode;
@@ -659,6 +663,8 @@
                     t.textContent =
                         pageKindFilter() === "deduction" ? "Tambah item potongan" : "Tambah item penghasilan";
                 }
+                var firstInput = document.querySelector("#arcav_payroll_item_add input:not([type=hidden]):not([type=password]), #arcav_payroll_item_add select");
+                if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
             });
         }
         var editModal = document.getElementById("arcav_payroll_item_edit");

@@ -544,6 +544,7 @@
 
             form.addEventListener('submit', function (event) {
                 event.preventDefault();
+                if (!ArcavValidation.validateForm(form)) { return; }
                 handleSave(provider);
             });
 

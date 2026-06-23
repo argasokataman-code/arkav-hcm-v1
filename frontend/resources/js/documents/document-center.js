@@ -351,6 +351,7 @@
   if (catForm) {
     catForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!ArcavValidation.validateForm(catForm)) { return; }
       const name = catNameInput.value.trim();
       if (!name) return;
       const id = catIdInput.value;
@@ -501,6 +502,7 @@
   if (editForm) {
     editForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!ArcavValidation.validateForm(editForm)) { return; }
       const id = document.getElementById('arcavDocEditId')?.value;
       if (!id) return;
 
@@ -544,6 +546,7 @@
   if (uploadForm) {
     uploadForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!ArcavValidation.validateForm(uploadForm)) { return; }
       const formData = new FormData(uploadForm);
       const submitBtn = document.getElementById('arcavDocUploadSubmit');
       if (submitBtn) {
@@ -602,6 +605,21 @@
       loadCategories();
     });
   }
+
+  // ─── Auto-focus first field on modal open ─────────────────────────────────
+
+  function focusFirstField(modalId) {
+    var firstInput = document.querySelector("#" + modalId + " input:not([type=hidden]):not([type=password]), #" + modalId + " select");
+    if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
+  }
+
+  [uploadModalEl, editModalEl, catModalEl].forEach(function (el) {
+    if (el) {
+      el.addEventListener("shown.bs.modal", function () {
+        focusFirstField(el.id);
+      });
+    }
+  });
 
   // ─── Boot ─────────────────────────────────────────────────────────────────
 

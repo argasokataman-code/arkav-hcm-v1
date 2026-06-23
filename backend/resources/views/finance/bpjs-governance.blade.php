@@ -367,10 +367,14 @@
                                 <div class="col-md-6">
                                     <label class="form-label">Tarif Minimum (%)</label>
                                     <input type="number" class="form-control" step="0.0001" min="0" max="100" data-bpjs-baseline-min-rate required>
+
+    <div class="invalid-feedback">Please enter a value.</div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Tarif Maksimum (%)</label>
                                     <input type="number" class="form-control" step="0.0001" min="0" max="100" data-bpjs-baseline-max-rate required>
+
+    <div class="invalid-feedback">Please enter a value.</div>
                                 </div>
                                 <div class="col-md-12">
                                     <label class="form-label">Basis Upah</label>
@@ -444,7 +448,8 @@
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label class="form-label">Program</label>
-                                    <select class="form-select" data-bpjs-policy-program required>
+                                    
+                                        <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-bpjs-policy-program required>
                                         <option value="bpjs_kesehatan">BPJS Kesehatan</option>
                                         <option value="jht">JHT</option>
                                         <option value="jp">JP</option>
@@ -454,7 +459,8 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Porsi</label>
-                                    <select class="form-select" data-bpjs-policy-party required>
+                                    
+                                        <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-bpjs-policy-party required>
                                         <option value="employee">Pekerja</option>
                                         <option value="employer">Perusahaan</option>
                                     </select>
@@ -462,6 +468,8 @@
                                 <div class="col-md-4">
                                     <label class="form-label">Tarif (%)</label>
                                     <input type="number" class="form-control" step="0.0001" min="0" max="100" data-bpjs-policy-rate required>
+
+    <div class="invalid-feedback">Please enter a value.</div>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Basis Upah</label>
@@ -475,6 +483,8 @@
                                 <div class="col-md-4">
                                     <label class="form-label">Mulai Berlaku</label>
                                     <input type="date" class="form-control" data-bpjs-policy-start required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Sampai Berlaku</label>

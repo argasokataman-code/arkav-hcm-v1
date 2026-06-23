@@ -10,6 +10,8 @@
                     <div class="mb-3">
                         <label class="form-label">Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" data-hcm-field="name" required maxlength="200" placeholder="e.g. Holiday overtime">
+
+    <div class="invalid-feedback">This field is required.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Code</label>
@@ -18,6 +20,8 @@
                     <div class="mb-3">
                         <label class="form-label">Payment multiplier <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" data-hcm-field="paymentMultiplier" required min="0.01" max="99.99" step="0.01" value="1.00">
+
+    <div class="invalid-feedback">Please enter a value.</div>
                         <span class="text-muted small">Hint payroll: 1.00 = regular, 1.50 = setengah kali lipat, dst.</span>
                     </div>
                     <div class="mb-3">
@@ -55,14 +59,20 @@
                     <div class="mb-3">
                         <label class="form-label">Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" data-hcm-field="name" required maxlength="200">
+
+    <div class="invalid-feedback">This field is required.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Code <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" data-hcm-field="code" required maxlength="64">
+
+    <div class="invalid-feedback">This field is required.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Payment multiplier <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" data-hcm-field="paymentMultiplier" required min="0.01" max="99.99" step="0.01">
+
+    <div class="invalid-feedback">Please enter a value.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Description</label>

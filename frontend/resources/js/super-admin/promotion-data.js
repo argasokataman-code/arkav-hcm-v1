@@ -430,11 +430,7 @@
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             clearFlash(flashEl);
-            if (!form.checkValidity()) {
-                form.reportValidity();
-                flash(flashEl, "Mohon lengkapi field yang wajib.", true);
-                return;
-            }
+            if (!ArcavValidation.validateForm(form)) { return; }
             var dept = deptInput ? String(deptInput.value || "").trim() : "";
             var dfrom = fromInput ? String(fromInput.value || "").trim() : "";
             var dto = toInput ? String(toInput.value || "").trim() : "";

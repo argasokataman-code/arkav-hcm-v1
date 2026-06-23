@@ -11,10 +11,14 @@
                     <div class="mb-3">
                         <label class="form-label">Title</label>
                         <input type="text" class="form-control" data-hcm-field="title" required maxlength="200">
+
+    <div class="invalid-feedback">This field is required.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Date</label>
                         <input type="date" class="form-control" data-hcm-field="holidayDate" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Description</label>
@@ -50,10 +54,14 @@
                     <div class="mb-3">
                         <label class="form-label">Title</label>
                         <input type="text" class="form-control" data-hcm-field="title" required maxlength="200">
+
+    <div class="invalid-feedback">This field is required.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Date</label>
                         <input type="date" class="form-control" data-hcm-field="holidayDate" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Description</label>

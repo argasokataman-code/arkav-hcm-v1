@@ -140,6 +140,7 @@
 
         form.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             if (errEl) {
                 errEl.textContent = "";
                 errEl.classList.add("d-none");
@@ -299,6 +300,7 @@
 
         form.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             if (errEl) {
                 errEl.textContent = "";
                 errEl.classList.add("d-none");

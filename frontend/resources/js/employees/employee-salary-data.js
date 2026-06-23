@@ -541,6 +541,8 @@
         var m = getModal();
         if (m) {
             m.show();
+            var salaryFirstInput = document.querySelector("#arcav_employee_salary_compensation_modal input:not([type=hidden]):not([type=password]), #arcav_employee_salary_compensation_modal select");
+            if (salaryFirstInput) setTimeout(function () { salaryFirstInput.focus(); }, 100);
         }
 
         currentAssignmentUserId = String(r.uuid || "").trim();
@@ -563,6 +565,7 @@
         form.setAttribute("data-bound", "1");
         form.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             var uid = readField(form, "userId").trim();
             if (!uid) {
                 notify("Pilih karyawan terlebih dahulu.", true);

@@ -309,6 +309,8 @@
         if (!previewModalEl || !window.bootstrap || !window.bootstrap.Modal) { return false; }
         var modal = window.bootstrap.Modal.getOrCreateInstance(previewModalEl);
         modal.show();
+        var firstInput = previewModalEl.querySelector("input:not([type=hidden]):not([type=password]), select");
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
         return true;
     }
 
@@ -605,6 +607,7 @@
 
     form.addEventListener('submit', function (e) {
         e.preventDefault();
+        if (!ArcavValidation.validateForm(form)) { return; }
         var values = readFormValues();
         values.invoice_document_status_map = readDocumentStatuses();
         saveSettings(values);

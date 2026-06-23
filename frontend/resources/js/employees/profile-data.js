@@ -163,6 +163,7 @@
 
     async function submitProfile(event) {
         event.preventDefault();
+        if (!ArcavValidation.validateForm(form)) { return; }
         clearFeedback();
 
         const payload = collectPayload();

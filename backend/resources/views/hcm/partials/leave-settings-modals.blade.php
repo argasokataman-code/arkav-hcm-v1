@@ -15,16 +15,22 @@
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Leave type</label>
                             <select class="form-select" data-hcm-ls-field="leaveTypeCode" required data-hcm-ls-leave-type-select></select>
+
+    <div class="invalid-feedback">Please select an option.</div>
                             <input type="text" class="form-control d-none mt-2" data-hcm-ls-field="newLeaveTypeName" value="" maxlength="150" placeholder="Nama leave type baru, contoh: Marriage Leave" data-hcm-ls-new-type-input>
                             <input type="text" class="form-control d-none mt-2" data-hcm-ls-field="leaveTypeName" value="" readonly data-hcm-ls-leave-type-readonly>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Policy name</label>
                             <input type="text" class="form-control" data-hcm-ls-field="name" required maxlength="200" placeholder="e.g. 2 Days Leave">
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">No. of days</label>
                             <input type="number" class="form-control" data-hcm-ls-field="days" required step="0.5" min="0.5" max="366" placeholder="2">
+
+    <div class="invalid-feedback">Please enter a value.</div>
                         </div>
                         <div class="col-md-12 mb-3">
                             <label class="form-label">Assign employees (optional)</label>

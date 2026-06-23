@@ -341,6 +341,8 @@
       active.checked = true;
     }
     trainingTypeModal.show();
+    var firstInput = document.querySelector("#arcav_training_type_modal input:not([type=hidden]):not([type=password]), #arcav_training_type_modal select");
+    if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
   }
 
   async function saveTrainingType(e) {
@@ -414,6 +416,8 @@
       trainingDetailDesc.textContent = row?.description || '—';
     }
     trainingDetailModal.show();
+    var firstInput = document.querySelector("#arcav_training_detail_modal input:not([type=hidden]):not([type=password]), #arcav_training_detail_modal select");
+    if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
   }
 
   function renderTrainings() {
@@ -552,6 +556,8 @@
       renderParticipantsSummary();
     }
     trainingModal.show();
+    var firstInput = document.querySelector("#arcav_training_modal input:not([type=hidden]):not([type=password]), #arcav_training_modal select");
+    if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
   }
 
   async function saveTraining(e) {
@@ -562,13 +568,7 @@
       flash(trainingFlash, 'error', msg);
       return;
     }
-    if (trainingForm && typeof trainingForm.checkValidity === 'function' && !trainingForm.checkValidity()) {
-      if (typeof trainingForm.reportValidity === 'function') {
-        trainingForm.reportValidity();
-      }
-      flash(trainingFlash, 'error', 'Form belum lengkap. Mohon periksa kembali data yang diisi.');
-      return;
-    }
+    if (trainingForm && !ArcavValidation.validateForm(trainingForm)) { return; }
     const fd = new FormData(e.currentTarget);
     const id = (trainingIdEl?.value || '').trim();
     const selectedTrainer = trainingTrainerSelect?.value || '';
@@ -649,14 +649,7 @@
     // Some browsers block submit event when invalid; hook click to show feedback.
     if (trainingSaveBtn) {
       trainingSaveBtn.addEventListener('click', (ev) => {
-        if (trainingForm && typeof trainingForm.checkValidity === 'function' && !trainingForm.checkValidity()) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          if (typeof trainingForm.reportValidity === 'function') {
-            trainingForm.reportValidity();
-          }
-          flash(trainingFlash, 'error', 'Form belum lengkap. Mohon periksa kembali data yang diisi.');
-        }
+        if (trainingForm && !ArcavValidation.validateForm(trainingForm)) { return; }
       });
     }
     if (trainingTrainerSelect) {
@@ -686,6 +679,8 @@
       openParticipantsPickerBtn.addEventListener('click', () => {
         trainingModalWasOpenBeforePicker = !!trainingModalEl?.classList.contains('show');
         participantsPicker.show();
+        var firstInput = document.querySelector("#arcav_training_participants_picker input:not([type=hidden]):not([type=password]), #arcav_training_participants_picker select");
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
       });
     }
 
@@ -783,6 +778,8 @@
       active.checked = true;
     }
     trainerModal.show();
+    var firstInput = document.querySelector("#arcav_trainer_modal input:not([type=hidden]):not([type=password]), #arcav_trainer_modal select");
+    if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
   }
 
   async function saveTrainer(e) {

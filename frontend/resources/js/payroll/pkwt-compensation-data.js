@@ -315,6 +315,8 @@
             detail.textContent = "Run #" + String(run.id) + " • Karyawan: " + String(employeeCount) + ". Lanjutkan pencatatan pembayaran manual sekarang?";
         }
         modal.show();
+        var firstInput = document.querySelector("#pkwt_pay_confirm_modal input:not([type=hidden]):not([type=password]), #pkwt_pay_confirm_modal select");
+        if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
         return true;
     }
 
@@ -497,6 +499,8 @@
         var Bootstrap = window.bootstrap;
         if (Bootstrap && Bootstrap.Modal) {
             Bootstrap.Modal.getOrCreateInstance(modal).show();
+            var firstInput = document.querySelector("#pkwt_reconciliation_preview_modal input:not([type=hidden]):not([type=password]), #pkwt_reconciliation_preview_modal select");
+            if (firstInput) setTimeout(function() { firstInput.focus(); }, 100);
         }
     }
 
@@ -522,6 +526,7 @@
         }
         form.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             loadList();
         });
 
@@ -655,9 +660,7 @@
         }
         form.addEventListener("submit", function (e) {
             e.preventDefault();
-            if (typeof form.reportValidity === "function" && !form.reportValidity()) {
-                return;
-            }
+            if (!ArcavValidation.validateForm(form)) { return; }
             if (err) {
                 err.textContent = "";
                 err.classList.add("d-none");

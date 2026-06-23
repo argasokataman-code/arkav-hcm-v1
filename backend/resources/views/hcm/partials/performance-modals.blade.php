@@ -14,7 +14,8 @@
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label">Template name</label>
-                            <input type="text" class="form-control" name="name" placeholder="Mis: Engineering - IC" required maxlength="200">
+                            
+                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" name="name" placeholder="Mis: Engineering - IC" required maxlength="200">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Department (opsional)</label>
@@ -153,7 +154,8 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">Section</label>
-                            <select class="form-select" name="section" required>
+                            
+                                <div class="invalid-feedback">Please select an option.</div><select class="form-select" name="section" required>
                                 <option value="kpi">KPI</option>
                                 <option value="behavioral">Behavioral</option>
                             </select>
@@ -169,6 +171,8 @@
                         <div class="col-12">
                             <label class="form-label">Title</label>
                             <input type="text" class="form-control" name="title" maxlength="255" required>
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Description (opsional)</label>
@@ -213,14 +217,20 @@
                         <div class="col-12">
                             <label class="form-label">Cycle name</label>
                             <input type="text" class="form-control" name="name" maxlength="200" required placeholder="Mis: 2026 H1">
+
+    <div class="invalid-feedback">This field is required.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Period start</label>
                             <input type="date" class="form-control" name="periodStart" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Period end</label>
                             <input type="date" class="form-control" name="periodEnd" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                         </div>
                         <div class="col-12" data-arcav-perf-cycle-status-wrap style="display:none;">
                             <label class="form-label">Status</label>
@@ -260,14 +270,20 @@
                         <div class="col-md-6">
                             <label class="form-label">Cycle</label>
                             <select class="form-select" name="cycleId" required data-arcav-perf-review-cycle></select>
+
+    <div class="invalid-feedback">Please select an option.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Template</label>
                             <select class="form-select" name="templateId" required data-arcav-perf-review-template></select>
+
+    <div class="invalid-feedback">Please select an option.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Employee user ID</label>
                             <input type="number" class="form-control" name="userId" required min="1" placeholder="Masukkan user_id karyawan (Phase 1)">
+
+    <div class="invalid-feedback">Please enter a value.</div>
                             <div class="text-muted fs-12 mt-1">Phase 1: input user_id manual. Nanti bisa kita upgrade ke employee picker.</div>
                         </div>
                     </div>

@@ -133,6 +133,7 @@ export function createScheduleTimingEditModule(deps) {
         }
         form.addEventListener("submit", function (e) {
             e.preventDefault();
+            if (!ArcavValidation.validateForm(form)) { return; }
             var uid = uidInp ? uidInp.value.trim() : "";
             if (!uid) {
                 return;

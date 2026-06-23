@@ -132,6 +132,10 @@ export function bindSalaryBulkUploadModule(deps) {
             }
             showPrerequisiteModal();
         });
+        modalEl.addEventListener("shown.bs.modal", function () {
+            var firstInput = document.querySelector("#employee_bulk_upload input:not([type=hidden]):not([type=password]), #employee_bulk_upload select");
+            if (firstInput) setTimeout(function () { firstInput.focus(); }, 100);
+        });
     }
     if (fileInput) {
         fileInput.addEventListener("change", clearBulkResult);
@@ -171,6 +175,7 @@ export function bindSalaryBulkUploadModule(deps) {
 
     form.addEventListener("submit", function (event) {
         event.preventDefault();
+        if (!ArcavValidation.validateForm(form)) { return; }
         clearBulkResult();
         syncPrerequisiteUiState();
 

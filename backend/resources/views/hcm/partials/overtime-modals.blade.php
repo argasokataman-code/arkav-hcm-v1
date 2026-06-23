@@ -14,10 +14,14 @@
                     <div class="mb-3">
                         <label class="form-label">Work date</label>
                         <input type="date" class="form-control" data-hcm-field="workDate" required>
+
+    <div class="invalid-feedback">Please select a date.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Minutes</label>
                         <input type="number" class="form-control" data-hcm-field="minutes" required min="1" max="1440" placeholder="e.g. 120">
+
+    <div class="invalid-feedback">Please enter a value.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Project (optional)</label>

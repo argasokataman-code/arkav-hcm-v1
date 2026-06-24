@@ -356,7 +356,7 @@ class HcmEmployeeApiTest extends TestCase
                 'departmentId' => $deptB->id,
                 'designationId' => $designation->id,
             ]))
-            ->assertStatus(422);
+            ->assertStatus(422)
             ->assertJsonPath('error.code', 'DESIGNATION_DEPARTMENT_MISMATCH');
     }
 
@@ -1273,7 +1273,7 @@ class HcmEmployeeApiTest extends TestCase
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees/bulk-template')
-            ->assertStatus(422);
+            ->assertStatus(422)
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'EMPLOYEE_BULK_ORG_SETUP_REQUIRED');
     }
@@ -1429,7 +1429,7 @@ class HcmEmployeeApiTest extends TestCase
             'X-Company-Id' => (string) $company->id,
         ])->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(422)
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'EMPLOYEE_COUNT_EXCEEDED');
 
@@ -1568,7 +1568,7 @@ class HcmEmployeeApiTest extends TestCase
         $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
 
-        $upload->assertStatus(422);
+        $upload->assertStatus(422)
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'BULK_UPLOAD_VALIDATION_FAILED')
             ->assertJsonPath('data.createdRows', 0)
@@ -1609,7 +1609,7 @@ class HcmEmployeeApiTest extends TestCase
         $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
 
-        $upload->assertStatus(422);
+        $upload->assertStatus(422)
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'BULK_UPLOAD_VALIDATION_FAILED');
 
@@ -1913,7 +1913,7 @@ class HcmEmployeeApiTest extends TestCase
             ->post('/v1/hcm/employees/'.$admin->id.'/profile-photo', [
                 'photo' => $file,
             ])
-            ->assertStatus(422);
+            ->assertStatus(422)
             ->assertJson([
                 'success' => false,
                 'error' => [
@@ -1935,7 +1935,7 @@ class HcmEmployeeApiTest extends TestCase
             ->post('/v1/hcm/employees/'.$admin->id.'/profile-photo', [
                 'photo' => $file,
             ])
-            ->assertStatus(422);
+            ->assertStatus(422)
             ->assertJson([
                 'success' => false,
                 'error' => [

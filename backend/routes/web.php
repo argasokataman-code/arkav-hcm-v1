@@ -1673,6 +1673,10 @@ Route::get('/email-settings', function () {
     return view('settings.email-settings');
 })->middleware('hcm.web.global-admin')->name('email-settings');
 
+Route::get('/log-viewer', function () {
+    return view('settings.log-viewer');
+})->middleware('hcm.web.global-admin')->name('log-viewer');
+
 Route::get('/tax-rates', function () {
     return view('tax-rates');
 })->middleware('hcm.web.admin')->name('tax-rates');

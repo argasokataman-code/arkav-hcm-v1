@@ -126,3 +126,6 @@ require __DIR__.'/api/mock-payments.php';
 
 // Invoice Management
 require __DIR__.'/api/invoice.php';
+
+// Log Viewer (Global Admin)
+require __DIR__.'/api/log-viewer.php';

@@ -14,6 +14,7 @@ use App\Models\HcmUserRole;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use Tests\TestCase;
 
@@ -686,5 +687,326 @@ class HcmTeamApiTest extends TestCase
         ]);
 
         $response->assertForbidden();
+    }
+
+    public function test_delete_team_with_members_returns_409(): void
+    {
+        $dept = Department::firstOrCreate([
+            'company_id' => $this->company->id,
+            'name' => 'Support 409',
+        ], ['code' => 'SUPP409']);
+
+        $team = Team::create([
+            'company_id' => $this->company->id,
+            'department_id' => $dept->id,
+            'name' => 'Support Team 409',
+            'is_active' => true,
+        ]);
+
+        $member = User::factory()->create(['email' => 'support-409@example.com']);
+        CompanyUser::firstOrCreate([
+            'user_id' => $member->id,
+            'company_id' => $this->company->id,
+        ]);
+        EmployeeProfile::create([
+            'company_id' => $this->company->id,
+            'user_id' => $member->id,
+            'team_id' => $team->id,
+            'department_id' => $dept->id,
+            'employment_status' => 'active',
+            'nik' => 'SUPP409',
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->deleteJson('/v1/hcm/teams/'.$team->id);
+
+        $response->assertStatus(409);
+        $response->assertJson([
+            'success' => false,
+            'error' => ['code' => 'TEAM_DELETION_BLOCKED'],
+        ]);
+        $this->assertModelExists($team);
+    }
+
+    public function test_create_team_duplicate_name_returns_422(): void
+    {
+        $dept = Department::firstOrCreate([
+            'company_id' => $this->company->id,
+            'name' => 'Eng Duplicate',
+        ], ['code' => 'ENGDUP']);
+
+        Team::create([
+            'company_id' => $this->company->id,
+            'department_id' => $dept->id,
+            'name' => 'Platform Team',
+            'is_active' => true,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/teams', [
+            'name' => 'Platform Team',
+            'department_id' => $dept->id,
+            'is_active' => true,
+        ]);
+
+        $response->assertUnprocessable();
+    }
+
+    public function test_update_team_duplicate_name_returns_422(): void
+    {
+        $dept = Department::firstOrCreate([
+            'company_id' => $this->company->id,
+            'name' => 'Mkt Duplicate',
+        ], ['code' => 'MKTDUP']);
+
+        Team::create([
+            'company_id' => $this->company->id,
+            'department_id' => $dept->id,
+            'name' => 'Social Media Team',
+            'is_active' => true,
+        ]);
+
+        $target = Team::create([
+            'company_id' => $this->company->id,
+            'department_id' => $dept->id,
+            'name' => 'Brand Team',
+            'is_active' => true,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->putJson('/v1/hcm/teams/'.$target->id, [
+            'name' => 'Social Media Team',
+        ]);
+
+        $response->assertUnprocessable();
+    }
+
+    public function test_show_team_by_uuid(): void
+    {
+        $dept = Department::firstOrCreate([
+            'company_id' => $this->company->id,
+            'name' => 'Finance UUID',
+        ], ['code' => 'FINUUID']);
+
+        $team = Team::create([
+            'company_id' => $this->company->id,
+            'department_id' => $dept->id,
+            'name' => 'Finance Team UUID',
+            'is_active' => true,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->getJson('/v1/hcm/teams/'.$team->uuid);
+
+        $response->assertOk();
+        $this->assertEquals($team->name, $response->json('data.name'));
+    }
+
+    public function test_update_team_by_uuid(): void
+    {
+        $dept = Department::firstOrCreate([
+            'company_id' => $this->company->id,
+            'name' => 'HR UUID',
+        ], ['code' => 'HRUUID']);
+
+        $team = Team::create([
+            'company_id' => $this->company->id,
+            'department_id' => $dept->id,
+            'name' => 'HR Team UUID',
+            'is_active' => true,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->putJson('/v1/hcm/teams/'.$team->uuid, [
+            'name' => 'HR Team UUID Updated',
+        ]);
+
+        $response->assertOk();
+        $this->assertEquals('HR Team UUID Updated', $response->json('data.name'));
+    }
+
+    public function test_delete_team_by_uuid(): void
+    {
+        $dept = Department::firstOrCreate([
+            'company_id' => $this->company->id,
+            'name' => 'Ops UUID',
+        ], ['code' => 'OPSUUID']);
+
+        $team = Team::create([
+            'company_id' => $this->company->id,
+            'department_id' => $dept->id,
+            'name' => 'Ops Team UUID',
+            'is_active' => true,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->deleteJson('/v1/hcm/teams/'.$team->uuid);
+
+        $response->assertNoContent();
+        $this->assertModelMissing($team);
+    }
+
+    public function test_cross_company_isolation_list_teams(): void
+    {
+        $deptA = Department::firstOrCreate([
+            'company_id' => $this->company->id,
+            'name' => 'Cross List Dept',
+        ], ['code' => 'CRLIST']);
+
+        Team::create([
+            'company_id' => $this->company->id,
+            'department_id' => $deptA->id,
+            'name' => 'Team Alpha',
+            'is_active' => true,
+        ]);
+
+        $resultB = $this->createHcmAdminWithCompany([
+            'name' => 'Admin B List',
+            'email' => 'admin-b-list-'.rand(1000, 9999).'@example.com',
+            'password' => 'AdminPass1',
+        ]);
+
+        $responseB = $this->withHeaders([
+            'Authorization' => 'Bearer '.$resultB['token'],
+            'X-Company-Id' => (string) $resultB['company']->id,
+        ])->getJson('/v1/hcm/teams');
+
+        $responseB->assertOk();
+        $teamNames = collect($responseB->json('data'))->pluck('name')->all();
+        $this->assertNotContains('Team Alpha', $teamNames);
+    }
+
+    public function test_cross_company_cannot_access_other_company_team_by_id(): void
+    {
+        $deptA = Department::firstOrCreate([
+            'company_id' => $this->company->id,
+            'name' => 'Cross Access Dept',
+        ], ['code' => 'CRACCESS']);
+
+        $teamInA = Team::create([
+            'company_id' => $this->company->id,
+            'department_id' => $deptA->id,
+            'name' => 'Private Team A',
+            'is_active' => true,
+        ]);
+
+        $resultB = $this->createHcmAdminWithCompany([
+            'name' => 'Admin B Access',
+            'email' => 'admin-b-access-'.rand(1000, 9999).'@example.com',
+            'password' => 'AdminPass1',
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$resultB['token'],
+            'X-Company-Id' => (string) $resultB['company']->id,
+        ])->getJson('/v1/hcm/teams/'.$teamInA->id);
+
+        $response->assertNotFound();
+    }
+
+    public function test_bulk_reassign_exceeds_max_employees(): void
+    {
+        $employeeIds = range(1, 201);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/teams/reassign-members', [
+            'employee_ids' => $employeeIds,
+            'target_team_id' => null,
+        ]);
+
+        $response->assertUnprocessable();
+    }
+
+    public function test_teams_search_no_results_returns_empty(): void
+    {
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->getJson('/v1/hcm/teams?search=ZZZZNONEXISTENT');
+
+        $response->assertOk();
+        $this->assertCount(0, $response->json('data'));
+    }
+
+    public function test_create_team_rejects_cross_company_team_lead(): void
+    {
+        $dept = Department::firstOrCreate([
+            'company_id' => $this->company->id,
+            'name' => 'Cross Lead Dept',
+        ], ['code' => 'CRLEAD']);
+
+        $otherCompany = Company::create(['name' => 'Other Co', 'code' => 'OTHER_'.rand(1000, 9999)]);
+        $otherUser = User::factory()->create(['email' => 'other-user-'.rand(1000, 9999).'@example.com']);
+        CompanyUser::firstOrCreate([
+            'user_id' => $otherUser->id,
+            'company_id' => $otherCompany->id,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/teams', [
+            'name' => 'Cross Lead Team',
+            'department_id' => $dept->id,
+            'team_lead_id' => $otherUser->id,
+            'is_active' => true,
+        ]);
+
+        $response->assertUnprocessable();
+    }
+
+    public function test_create_team_without_department_succeeds(): void
+    {
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->postJson('/v1/hcm/teams', [
+            'name' => 'Cross Department Team',
+            'department_id' => null,
+            'is_active' => true,
+        ]);
+
+        $response->assertCreated();
+        $this->assertTrue($response->json('success'));
+        $this->assertNull($response->json('data.department_id'));
+    }
+
+    public function test_update_team_clear_department_succeeds(): void
+    {
+        $dept = Department::firstOrCreate([
+            'company_id' => $this->company->id,
+            'name' => 'Clear Dept',
+        ], ['code' => 'CLRDEPT']);
+
+        $team = Team::create([
+            'company_id' => $this->company->id,
+            'department_id' => $dept->id,
+            'name' => 'Team With Dept',
+            'is_active' => true,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$this->token,
+            'X-Company-Id' => (string) $this->company->id,
+        ])->putJson('/v1/hcm/teams/'.$team->id, [
+            'department_id' => null,
+        ]);
+
+        $response->assertOk();
+        $this->assertNull($response->json('data.department_id'));
     }
 }

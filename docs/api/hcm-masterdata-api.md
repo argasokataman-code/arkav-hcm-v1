@@ -205,8 +205,8 @@ RBAC:
 
 Body:
 - `name` required string max `100`
-- `department_id` required integer exists `departments.id`
-- `team_lead_id` optional integer exists `users.id`
+- `department_id` nullable integer exists `departments.id`
+- `team_lead_id` nullable integer exists `company_users.user_id` dalam tenant aktif
 - `is_active` optional boolean (default `true`)
 
 Success `201`: `{ success: true, data: <team> }`
@@ -217,9 +217,9 @@ RBAC:
 - HCM Admin only (`team.manage`, fallback transisi `employee.manage`)
 
 Body:
-- `name` optional|required string max `100`
-- `department_id` optional|required integer exists `departments.id`
-- `team_lead_id` nullable integer exists `users.id`
+- `name` optional string max `100`
+- `department_id` nullable integer exists `departments.id`
+- `team_lead_id` nullable integer exists `company_users.user_id` dalam tenant aktif
 - `is_active` optional boolean
 
 Success `200`: `{ success: true, data: <team> }`

@@ -59,7 +59,7 @@ final class EmployeeSnapshotService
                 [
                     'department_id' => $departmentId,
                     'designation_id' => $organization['designation_id'] ?? $profile->getRawOriginal('designation_id'),
-                    'team_id' => $teamId ?: $this->resolveTeamId($teamName, $departmentId),
+                    'team_id' => $teamId ?: $this->resolveTeamId($teamName, $departmentId, $profile->company_id),
                     'manager_user_id' => $payload['managerUserId'] ?? $profile->getRawOriginal('manager_user_id'),
                     'team_name' => $teamName,
                     'end_date' => null,
@@ -643,17 +643,19 @@ final class EmployeeSnapshotService
         };
     }
 
-    private function resolveTeamId(mixed $teamName, mixed $departmentId): ?int
+    private function resolveTeamId(mixed $teamName, mixed $departmentId, mixed $companyId): ?int
     {
         $name = trim((string) ($teamName ?? ''));
         $deptId = is_numeric($departmentId) ? (int) $departmentId : null;
-        if ($name === '') {
+        $compId = is_numeric($companyId) ? (int) $companyId : null;
+        if ($name === '' || $compId === null) {
             return null;
         }
 
         $existing = DB::table('teams')
-            ->where('department_id', $deptId)
+            ->where('company_id', $compId)
             ->where('name', $name)
+            ->where('is_active', true)
             ->value('id');
 
         if ($existing) {
@@ -662,6 +664,7 @@ final class EmployeeSnapshotService
 
         return (int) DB::table('teams')->insertGetId([
             'uuid' => (string) Str::uuid(),
+            'company_id' => $compId,
             'department_id' => $deptId,
             'name' => $name,
             'is_active' => true,

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Validation\Rule;
 
 class HcmTeamController extends Controller
 {
@@ -81,9 +82,9 @@ class HcmTeamController extends Controller
         $activeCompanyId = $this->activeCompanyId($request);
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'department_id' => ['required', 'integer', 'exists:departments,id'],
-            'team_lead_id' => ['nullable', 'integer', 'exists:users,id'],
+            'name' => ['required', 'string', 'max:100', Rule::unique('teams')->where(fn ($q) => $q->where('company_id', $activeCompanyId))],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'team_lead_id' => ['nullable', 'integer', Rule::exists('company_users', 'user_id')->where(fn ($q) => $q->where('company_id', $activeCompanyId))],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -169,9 +170,9 @@ class HcmTeamController extends Controller
         }
 
         $validated = $request->validate([
-            'name' => ['sometimes', 'required', 'string', 'max:100'],
-            'department_id' => ['sometimes', 'required', 'integer', 'exists:departments,id'],
-            'team_lead_id' => ['nullable', 'integer', 'exists:users,id'],
+            'name' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('teams')->where(fn ($q) => $q->where('company_id', $activeCompanyId))->ignore($team->id)],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'team_lead_id' => ['nullable', 'integer', Rule::exists('company_users', 'user_id')->where(fn ($q) => $q->where('company_id', $activeCompanyId))],
             'is_active' => ['nullable', 'boolean'],
         ]);
 

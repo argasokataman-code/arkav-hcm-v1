@@ -120,17 +120,16 @@
                                 <div class="mb-3">
                                     <label class="form-label">Team Name <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" data-hcm-field="team-name" required maxlength="100" placeholder="e.g., Customer Service">
-
-    <div class="invalid-feedback">This field is required.</div>
+                                    <div class="invalid-feedback">This field is required.</div>
                                 </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
-                                    <label class="form-label">Department <span class="text-danger">*</span></label>
-                                    
-                                        <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-field="team-department" required>
+                                    <label class="form-label">Department</label>
+                                    <select class="form-select" data-hcm-field="team-department">
                                         <option value="">Select Department</option>
                                     </select>
+                                    <div class="invalid-feedback">Please select an option.</div>
                                 </div>
                             </div>
                             <div class="col-md-12">
@@ -177,17 +176,16 @@
                                 <div class="mb-3">
                                     <label class="form-label">Team Name <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" data-hcm-field="team-name" required maxlength="100">
-
-    <div class="invalid-feedback">This field is required.</div>
+                                    <div class="invalid-feedback">This field is required.</div>
                                 </div>
                             </div>
                             <div class="col-md-12">
                                 <div class="mb-3">
-                                    <label class="form-label">Department <span class="text-danger">*</span></label>
-                                    
-                                        <div class="invalid-feedback">Please select an option.</div><select class="form-select" data-hcm-field="team-department" required>
+                                    <label class="form-label">Department</label>
+                                    <select class="form-select" data-hcm-field="team-department">
                                         <option value="">Select Department</option>
                                     </select>
+                                    <div class="invalid-feedback">Please select an option.</div>
                                 </div>
                             </div>
                             <div class="col-md-12">
@@ -214,24 +212,6 @@
                         <button type="submit" class="btn btn-primary">Save Team</button>
                     </div>
                 </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="delete_modal">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-body text-center">
-                    <span class="avatar avatar-xl bg-transparent-danger text-danger mb-3">
-                        <i class="ti ti-trash-x fs-36"></i>
-                    </span>
-                    <h4 class="mb-1">Confirm Delete</h4>
-                    <p class="mb-3">You want to delete this team. This action cannot be undone. Team must not have active members.</p>
-                    <div class="d-flex justify-content-center">
-                        <a href="javascript:void(0);" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</a>
-                        <a href="{{url('teams')}}" class="btn btn-danger" data-hcm-confirm-delete="team">Yes, Delete</a>
-                    </div>
-                </div>
             </div>
         </div>
     </div>

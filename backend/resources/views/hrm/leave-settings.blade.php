@@ -24,9 +24,9 @@
                 </div>
                 <div class="d-flex my-xl-auto right-content align-items-center flex-wrap ">
                     <div class="mb-2">
-                        <a href="javascript:void(0);" class="btn btn-primary d-flex align-items-center" data-hcm-ls-head-add>
+                        <button type="button" class="btn btn-primary d-flex align-items-center" onclick="window.arcavOpenCustomForm ? window.arcavOpenCustomForm() : alert('Module not loaded. Refresh page.')">
                             <i class="ti ti-circle-plus me-2"></i>Add Custom Policy
-                        </a>
+                        </button>
                     </div>
                     <div class="head-icons ms-2">
                         <a href="javascript:void(0);" class="" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-original-title="Collapse" id="collapse-header">
@@ -45,6 +45,8 @@
 	
     </div>
     <!-- /Page Wrapper -->
+
+    @include('hcm.partials.leave-settings-modals')
 
     @component('components.modal-popup')
     @endcomponent

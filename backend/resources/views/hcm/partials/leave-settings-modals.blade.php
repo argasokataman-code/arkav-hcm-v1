@@ -36,6 +36,10 @@
                             <label class="form-label">Assign employees (optional)</label>
                             <select class="form-select" data-hcm-ls-field="assigneeIds" multiple size="5"></select>
                             <span class="text-muted fs-12">Ctrl/Cmd + click to select multiple. Kosong = tidak dibatasi per orang di UI ini.</span>
+                            <div class="alert alert-info d-none mt-2 mb-0 py-2 small" data-hcm-ls-balance-card>
+                                <span data-hcm-ls-balance-label></span>: <strong><span data-hcm-ls-balance-value>0.0</span> / <span data-hcm-ls-balance-total>0.0</span></strong> hari
+                                <span class="d-none" data-hcm-ls-balance-empty>Belum ada saldo cuti untuk leave type ini.</span>
+                            </div>
                         </div>
                     </div>
                 </div>

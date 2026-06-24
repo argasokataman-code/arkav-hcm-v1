@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Leave;
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\HcmLeaveTypeSetting;
+use App\Models\LeavePolicy;
+use App\Models\LeaveType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -78,8 +80,8 @@ class HcmLeaveTypeController extends Controller
 
         $type = HcmLeaveTypeSetting::query()->create([
             'company_id' => $companyId,
-            'code' => Str::lower(trim((string) $validated['code'])),
-            'name' => trim((string) $validated['name']),
+            'code' => $code = Str::lower(trim((string) $validated['code'])),
+            'name' => $name = trim((string) $validated['name']),
             'is_enabled' => (bool) ($validated['isEnabled'] ?? true),
             'days' => array_key_exists('days', $validated) ? $validated['days'] : null,
             'carry_forward' => (bool) ($validated['carryForward'] ?? false),
@@ -87,6 +89,23 @@ class HcmLeaveTypeController extends Controller
             'earned_leave' => (bool) ($validated['earnedLeave'] ?? false),
             'sort_order' => (int) ($validated['sortOrder'] ?? ((int) (HcmLeaveTypeSetting::query()->where('company_id', $companyId)->max('sort_order') ?? 0) + 1)),
         ]);
+
+        // Sync to foundation tables for balance/policy enforcement
+        $foundation = LeaveType::query()->firstOrCreate(
+            ['company_id' => $companyId, 'code' => $code],
+            ['company_id' => $companyId, 'code' => $code, 'name' => $name, 'is_active' => true],
+        );
+        LeavePolicy::query()->firstOrCreate(
+            ['company_id' => $companyId, 'leave_type_id' => $foundation->id],
+            [
+                'company_id' => $companyId,
+                'leave_type_id' => $foundation->id,
+                'name' => $name,
+                'days_per_year' => $type->days,
+                'carry_forward' => $type->carry_forward,
+                'max_carry_days' => $type->max_carry_days,
+            ],
+        );
 
         return response()->json([
             'success' => true,
@@ -115,7 +134,7 @@ class HcmLeaveTypeController extends Controller
             'sortOrder' => ['nullable', 'integer', 'min:0', 'max:255'],
         ]);
 
-        $type->name = trim((string) $validated['name']);
+        $type->name = $name = trim((string) $validated['name']);
         $type->days = array_key_exists('days', $validated) ? $validated['days'] : null;
         $type->carry_forward = (bool) ($validated['carryForward'] ?? false);
         $type->max_carry_days = array_key_exists('maxCarryDays', $validated) ? $validated['maxCarryDays'] : null;
@@ -125,6 +144,17 @@ class HcmLeaveTypeController extends Controller
             $type->sort_order = (int) $validated['sortOrder'];
         }
         $type->save();
+
+        // Sync name change to foundation
+        LeaveType::query()->where('company_id', $companyId)->where('code', $type->code)->update(['name' => $name]);
+        LeavePolicy::query()
+            ->where('company_id', $companyId)
+            ->whereHas('leaveType', fn ($q) => $q->where('code', $type->code))
+            ->update([
+                'name' => $name,
+                'carry_forward' => $type->carry_forward,
+                'max_carry_days' => $type->max_carry_days,
+            ]);
 
         return response()->json([
             'success' => true,
@@ -143,6 +173,9 @@ class HcmLeaveTypeController extends Controller
             ->where('company_id', $companyId)
             ->findOrFail($id);
         $type->update(['is_enabled' => false]);
+
+        // Also deactivate foundation record
+        LeaveType::query()->where('company_id', $companyId)->where('code', $type->code)->update(['is_active' => false]);
 
         return response()->json([
             'success' => true,

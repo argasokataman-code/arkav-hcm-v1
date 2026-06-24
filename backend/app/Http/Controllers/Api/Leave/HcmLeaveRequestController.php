@@ -1174,6 +1174,7 @@ class HcmLeaveRequestController extends Controller
                 $resolvedCode = match ($code) {
                     'maternity' => 'maternity_leave',
                     'paternity' => 'paternity_leave',
+                    'hospitalisation' => 'sick_leave',
                     'lop' => 'unpaid_leave',
                     default => $code,
                 };
@@ -1314,6 +1315,7 @@ class HcmLeaveRequestController extends Controller
             'annual leave' => 'annual_leave',
             'sick' => 'sick_leave',
             'sick leave' => 'sick_leave',
+            'hospitalisation' => 'sick_leave',
             'maternity' => 'maternity_leave',
             'paternity' => 'paternity_leave',
             'lop' => 'unpaid_leave',

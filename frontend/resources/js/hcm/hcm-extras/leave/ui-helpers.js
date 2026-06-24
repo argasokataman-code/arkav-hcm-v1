@@ -140,6 +140,9 @@ export function createLeaveUiHelpers(deps) {
         var form = modal.querySelector('[data-hcm-leave-form]');
         var userSelect = form ? form.querySelector('[data-hcm-field="userId"]') : null;
         var userId = userSelect && userSelect.value ? userSelect.value : null;
+        if (!userId && !userSelect && window.AuthUser && window.AuthUser.id) {
+            userId = String(window.AuthUser.id);
+        }
         var params = new URLSearchParams();
         params.append("leaveType", selectedLeaveType);
         if (userId) {
@@ -175,6 +178,9 @@ export function createLeaveUiHelpers(deps) {
             })
             .catch(function () {
                 balanceCard.classList.add("d-none");
+                if (window.ArcavUi && typeof window.ArcavUi.showToast === 'function') {
+                    window.ArcavUi.showToast('Gagal memuat saldo cuti.', 'warning');
+                }
             });
     }
 

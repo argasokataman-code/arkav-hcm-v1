@@ -600,18 +600,46 @@
     }
 
     function init() {
-        var path = String(window.location.pathname || "").replace(/\/+$/, "") || "/";
-        if (path !== "/leave-settings") {
+        startLeaveSettingsPage();
+    }
+
+    function refreshPolicyBalanceDisplay() {
+        var leaveTypeEl = document.querySelector('[data-hcm-ls-field="leaveTypeCode"]');
+        var assigneeEl = document.querySelector('[data-hcm-ls-field="assigneeIds"]');
+        var balanceCard = document.querySelector('[data-hcm-ls-balance-card]');
+        var balanceLabel = document.querySelector('[data-hcm-ls-balance-label]');
+        var balanceValue = document.querySelector('[data-hcm-ls-balance-value]');
+        var balanceTotal = document.querySelector('[data-hcm-ls-balance-total]');
+        if (!balanceCard || !balanceLabel || !balanceValue || !balanceTotal) return;
+
+        var leaveType = leaveTypeEl ? leaveTypeEl.value : '';
+        var userId = assigneeEl && assigneeEl.selectedOptions && assigneeEl.selectedOptions.length > 0
+            ? assigneeEl.selectedOptions[0].value : '';
+        if (!leaveType || !userId) {
+            balanceCard.classList.add('d-none');
             return;
         }
 
-        apiRequest("get", "/v1/identity/auth/me", null).then(function (m) {
-            if (m && m.success && m.data && (!m.data.permissions || !m.data.permissions['leave.settings'])) {
-                window.location.replace("/employee-dashboard");
-                return;
-            }
-            startLeaveSettingsPage();
-        });
+        balanceLabel.textContent = leaveTypeEl.options[leaveTypeEl.selectedIndex]?.text || leaveType;
+        apiRequest('get', '/v1/hcm/employee-leave-balance?leaveType=' + encodeURIComponent(leaveType) + '&userId=' + encodeURIComponent(userId), null)
+            .then(function (r) {
+                var available = r && r.success && r.data ? Math.max(0, parseFloat(r.data.balance) || 0) : 0;
+                var total = r && r.success && r.data ? (parseFloat(r.data.used) || 0) + available : 0;
+                if (available > 0) {
+                    balanceValue.textContent = available.toFixed(1);
+                    balanceTotal.textContent = total.toFixed(1);
+                    balanceCard.querySelector('[data-hcm-ls-balance-empty]').classList.add('d-none');
+                    balanceValue.parentElement.classList.remove('d-none');
+                    balanceCard.classList.remove('d-none');
+                } else {
+                    balanceCard.querySelector('[data-hcm-ls-balance-empty]').classList.remove('d-none');
+                    balanceValue.parentElement.classList.add('d-none');
+                    balanceCard.classList.remove('d-none');
+                }
+            })
+            .catch(function () {
+                balanceCard.classList.add('d-none');
+            });
     }
 
     function startLeaveSettingsPage() {
@@ -623,6 +651,12 @@
             var typeSel = e.target.closest('[data-hcm-ls-field="leaveTypeCode"]');
             if (typeSel) {
                 syncLeaveTypeInputMode();
+                setTimeout(refreshPolicyBalanceDisplay, 100);
+                return;
+            }
+            var assigneeSel = e.target.closest('[data-hcm-ls-field="assigneeIds"]');
+            if (assigneeSel) {
+                refreshPolicyBalanceDisplay();
                 return;
             }
             var sw = e.target.closest("[data-hcm-ls-toggle]");
@@ -646,18 +680,16 @@
             );
         });
 
-        document.addEventListener("click", function (e) {
-            var headAdd = e.target.closest("[data-hcm-ls-head-add]");
-            if (headAdd) {
-                e.preventDefault();
-                if (!state.activeTypeCode && state.types.length) {
-                    state.activeTypeCode = state.types[0].code;
-                }
-                loadAssigneeSelect(document.querySelector('[data-hcm-ls-field="assigneeIds"]')).then(function () {
-                    openCustomForm(null);
-                });
-                return;
+        window.arcavOpenCustomForm = function () {
+            if (!state.activeTypeCode && state.types.length) {
+                state.activeTypeCode = state.types[0].code;
             }
+            loadAssigneeSelect(document.querySelector('[data-hcm-ls-field="assigneeIds"]')).then(function () {
+                openCustomForm(null);
+            });
+        };
+
+        document.addEventListener("click", function (e) {
             var openS = e.target.closest("[data-hcm-ls-open-settings]");
             if (openS) {
                 e.preventDefault();

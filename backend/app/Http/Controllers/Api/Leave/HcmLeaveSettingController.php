@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\Leave;
 
 use App\Http\Controllers\Api\Concerns\ChecksPermissions;
 use App\Http\Controllers\Controller;
+use App\Models\EmployeeLeaveBalance;
 use App\Models\HcmLeaveCustomPolicy;
 use App\Models\HcmLeaveTypeSetting;
+use App\Models\LeaveType;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -228,6 +230,7 @@ class HcmLeaveSettingController extends Controller
             $sort = (int) (HcmLeaveTypeSetting::query()->max('sort_order') ?? 0);
             $newCode = $this->ensureLeaveTypeCode($leaveTypeName);
             HcmLeaveTypeSetting::query()->create([
+                'company_id' => $this->activeCompanyId($request),
                 'code' => $newCode,
                 'name' => $leaveTypeName,
                 'is_enabled' => true,
@@ -237,6 +240,11 @@ class HcmLeaveSettingController extends Controller
                 'earned_leave' => false,
                 'sort_order' => $sort + 1,
             ]);
+            // Sync to foundation
+            LeaveType::query()->firstOrCreate(
+                ['company_id' => $this->activeCompanyId($request), 'code' => $newCode],
+                ['company_id' => $this->activeCompanyId($request), 'code' => $newCode, 'name' => $leaveTypeName, 'is_active' => true],
+            );
             $leaveTypeCode = $newCode;
             $type = HcmLeaveTypeSetting::query()->where('code', $leaveTypeCode)->first();
         }
@@ -248,6 +256,20 @@ class HcmLeaveSettingController extends Controller
             'days' => $validated['days'],
             'assignee_user_ids' => $validated['assigneeUserIds'] ?? [],
         ]);
+
+        // Sync leave balances for assigned employees
+        $annualDays = (float) $validated['days'];
+        foreach ($validated['assigneeUserIds'] ?? [] as $assigneeUserId) {
+            EmployeeLeaveBalance::query()->updateOrCreate(
+                [
+                    'company_id' => $this->activeCompanyId($request),
+                    'employee_id' => (int) $assigneeUserId,
+                    'leave_type_id' => $type?->leave_type_id,
+                    'year' => now()->year,
+                ],
+                ['balance' => $annualDays, 'used' => 0],
+            );
+        }
 
         return response()->json([
             'success' => true,

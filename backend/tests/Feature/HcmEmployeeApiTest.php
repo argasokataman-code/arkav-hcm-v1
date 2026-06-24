@@ -356,7 +356,7 @@ class HcmEmployeeApiTest extends TestCase
                 'departmentId' => $deptB->id,
                 'designationId' => $designation->id,
             ]))
-            ->assertStatus(422)
+            ->assertStatus(422);
             ->assertJsonPath('error.code', 'DESIGNATION_DEPARTMENT_MISMATCH');
     }
 
@@ -556,7 +556,7 @@ class HcmEmployeeApiTest extends TestCase
                 'emergencyContacts' => [],
             ]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(422);
     }
 
     public function test_employee_create_rejects_duplicate_nik_in_same_company(): void
@@ -577,7 +577,7 @@ class HcmEmployeeApiTest extends TestCase
             'nik' => '3174011708980017',
         ]));
 
-        $second->assertStatus(422)
+        $second->assertStatus(422);
     }
 
     public function test_employee_contract_rules_require_end_date_only_for_pkwt(): void
@@ -593,7 +593,7 @@ class HcmEmployeeApiTest extends TestCase
                 'employeeType' => 'contract',
             ]));
 
-        $missingEndDate->assertStatus(422)
+        $missingEndDate->assertStatus(422);
 
         $unexpectedEndDate = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->postJson('/v1/hcm/employees', $this->validEmployeePayload([
@@ -603,7 +603,7 @@ class HcmEmployeeApiTest extends TestCase
                 'contractEndDate' => '2026-01-31',
             ]));
 
-        $unexpectedEndDate->assertStatus(422)
+        $unexpectedEndDate->assertStatus(422);
     }
 
     public function test_employee_create_rejects_invalid_background_step_data(): void
@@ -619,7 +619,7 @@ class HcmEmployeeApiTest extends TestCase
                 ['name' => 'ajhsbxkj@#$%^&*123', 'relationship' => 'friend', 'phone' => '08123456789'],
             ],
         ]));
-        $badContactName->assertStatus(422)
+        $badContactName->assertStatus(422);
 
         // Emergency contact: phone with dashes
         $badPhone = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
@@ -629,7 +629,7 @@ class HcmEmployeeApiTest extends TestCase
                 ['name' => 'Budi Santoso', 'relationship' => 'Spouse', 'phone' => '----38912732'],
             ],
         ]));
-        $badPhone->assertStatus(422)
+        $badPhone->assertStatus(422);
 
         // Education: year out of range (398237492783497)
         $badEduYear = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
@@ -639,7 +639,7 @@ class HcmEmployeeApiTest extends TestCase
                 ['institution' => 'Universitas Indonesia', 'degree' => 'S1', 'startYear' => 398237492783497, 'endYear' => null],
             ],
         ]));
-        $badEduYear->assertStatus(422)
+        $badEduYear->assertStatus(422);
 
         // Education: institution with random garbage
         $badEduInst = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
@@ -649,7 +649,7 @@ class HcmEmployeeApiTest extends TestCase
                 ['institution' => 'wdihcnxefgiuywegxnri2u3y49238764928348wdihcnxefgiuywegxnri2u3y49238764928348wdihcnxefgiuywegxnri2u3y49238764928348', 'degree' => 'S1', 'startYear' => 2010, 'endYear' => 2014],
             ],
         ]));
-        $badEduInst->assertStatus(422)
+        $badEduInst->assertStatus(422);
 
         // Experience: future start date
         $badExpDate = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
@@ -659,7 +659,7 @@ class HcmEmployeeApiTest extends TestCase
                 ['company' => 'PT Contoh', 'position' => 'Engineer', 'startDate' => '2099-01-01', 'endDate' => null],
             ],
         ]));
-        $badExpDate->assertStatus(422)
+        $badExpDate->assertStatus(422);
 
         // Experience: company name too long
         $badExpCompany = $this->withHeaders($headers)->postJson('/v1/hcm/employees', $this->validEmployeePayload([
@@ -669,7 +669,7 @@ class HcmEmployeeApiTest extends TestCase
                 ['company' => str_repeat('x', 101), 'position' => 'Engineer', 'startDate' => '2020-01-01', 'endDate' => null],
             ],
         ]));
-        $badExpCompany->assertStatus(422)
+        $badExpCompany->assertStatus(422);
     }
 
     public function test_employee_create_rejects_oversized_personal_text_fields(): void
@@ -687,7 +687,7 @@ class HcmEmployeeApiTest extends TestCase
             'bio' => str_repeat('C', 501),
         ]));
 
-        $response->assertStatus(422)
+        $response->assertStatus(422);
     }
 
     public function test_employee_create_rejects_invalid_bank_account_number_and_holder_name_format(): void
@@ -704,7 +704,7 @@ class HcmEmployeeApiTest extends TestCase
             'bankAccountHolderName' => 'Holder1234',
         ]));
 
-        $response->assertStatus(422)
+        $response->assertStatus(422);
     }
 
     public function test_employee_create_rejects_invalid_name_place_of_birth_and_bpjs_number_format(): void
@@ -722,7 +722,7 @@ class HcmEmployeeApiTest extends TestCase
             'bpjsKetenagakerjaanNo' => '12-AB-45',
         ]));
 
-        $response->assertStatus(422)
+        $response->assertStatus(422);
     }
 
     public function test_employee_create_can_compose_address_from_wilayah_hierarchy(): void
@@ -1273,7 +1273,7 @@ class HcmEmployeeApiTest extends TestCase
 
         $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->getJson('/v1/hcm/employees/bulk-template')
-            ->assertStatus(422)
+            ->assertStatus(422);
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'EMPLOYEE_BULK_ORG_SETUP_REQUIRED');
     }
@@ -1429,7 +1429,7 @@ class HcmEmployeeApiTest extends TestCase
             'X-Company-Id' => (string) $company->id,
         ])->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
 
-        $response->assertStatus(422)
+        $response->assertStatus(422);
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'EMPLOYEE_COUNT_EXCEEDED');
 
@@ -1568,7 +1568,7 @@ class HcmEmployeeApiTest extends TestCase
         $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
 
-        $upload->assertStatus(422)
+        $upload->assertStatus(422);
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'BULK_UPLOAD_VALIDATION_FAILED')
             ->assertJsonPath('data.createdRows', 0)
@@ -1609,7 +1609,7 @@ class HcmEmployeeApiTest extends TestCase
         $upload = $this->withHeaders(['Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $this->company->id])
             ->post('/v1/hcm/employees/bulk-upload', ['file' => $file]);
 
-        $upload->assertStatus(422)
+        $upload->assertStatus(422);
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'BULK_UPLOAD_VALIDATION_FAILED');
 
@@ -1913,7 +1913,7 @@ class HcmEmployeeApiTest extends TestCase
             ->post('/v1/hcm/employees/'.$admin->id.'/profile-photo', [
                 'photo' => $file,
             ])
-            ->assertStatus(422)
+            ->assertStatus(422);
             ->assertJson([
                 'success' => false,
                 'error' => [
@@ -1935,7 +1935,7 @@ class HcmEmployeeApiTest extends TestCase
             ->post('/v1/hcm/employees/'.$admin->id.'/profile-photo', [
                 'photo' => $file,
             ])
-            ->assertStatus(422)
+            ->assertStatus(422);
             ->assertJson([
                 'success' => false,
                 'error' => [

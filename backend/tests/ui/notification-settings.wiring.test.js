@@ -40,6 +40,7 @@ describe('notification settings wiring', () => {
 
     window.AuthUser = { hcmGlobalAdmin: false };
 
+    window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
     global.fetch = vi.fn((target) => {
       if (target === '/v1/hcm/notification-preferences') {
         return Promise.resolve({

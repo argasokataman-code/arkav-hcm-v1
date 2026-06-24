@@ -217,6 +217,7 @@ describe('faq-data.js', function () {
             }),
         };
 
+        dom.window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
         installFetchMock(dom.window);
 
         dom.window.URL.createObjectURL = vi.fn().mockReturnValue('blob:test');

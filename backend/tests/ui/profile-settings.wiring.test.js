@@ -56,6 +56,7 @@ describe('profile settings wiring', () => {
       getToken: vi.fn(() => 'tenant-token'),
     };
 
+    window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
     global.fetch = vi.fn((url, options = {}) => {
       if (url === '/v1/hcm/settings?group=general') {
         return Promise.resolve({
@@ -156,7 +157,6 @@ describe('profile settings wiring', () => {
         });
       }
 
-      window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
       return Promise.reject(new Error(`Unexpected fetch: ${url}`));
     });
   });

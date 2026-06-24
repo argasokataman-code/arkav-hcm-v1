@@ -142,7 +142,7 @@ class HcmProbationTest extends TestCase
             'email' => 'overlimit@example.com',
             'startDate' => '2025-01-01',
             'probationEndDate' => '2026-02-01',
-        ]))->assertStatus(422)
+        ]))->assertStatus(422);
     }
 
     public function test_probation_end_date_exactly_12_months_is_accepted(): void
@@ -158,7 +158,7 @@ class HcmProbationTest extends TestCase
             'email' => 'exactlimit@example.com',
             'startDate' => '2025-01-01',
             'probationEndDate' => '2026-01-01',
-        ]))->assertStatus(201)
+                 ]))->assertStatus(201)
             ->assertJsonPath('success', true);
     }
 

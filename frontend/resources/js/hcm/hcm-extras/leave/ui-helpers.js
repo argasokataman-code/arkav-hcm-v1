@@ -176,11 +176,8 @@ export function createLeaveUiHelpers(deps) {
                     }
                 }
             })
-            .catch(function () {
+            .catch(function (err) {
                 balanceCard.classList.add("d-none");
-                if (window.ArcavUi && typeof window.ArcavUi.showToast === 'function') {
-                    window.ArcavUi.showToast('Gagal memuat saldo cuti.', 'warning');
-                }
             });
     }
 

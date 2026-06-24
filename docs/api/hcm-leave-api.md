@@ -258,6 +258,9 @@ Success `200`:
 { "success": true }
 ```
 
+Authorization note:
+- `isLeaveApprover()` mengecek `leave_approvers` terlebih dahulu, lalu fallback ke `employee_profiles.company_id` untuk memastikan admin company tetap bisa approve meskipun tidak tercatat di tabel approvers.
+
 Behavior note (implementation detail, non-breaking):
 - Saat admin mengubah status request milik user lain:
   - transisi ke `approved` akan sinkronkan transaksi `usage` ke leave ledger foundation,

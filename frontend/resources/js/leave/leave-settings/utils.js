@@ -129,7 +129,7 @@
                 var opts = "";
                 for (var i = 0; i < rows.length; i++) {
                     var r = rows[i];
-                    opts += '<option value="' + esc(String(r.id)) + '">' + esc(r.fullName + " (" + r.email + ")") + "</option>";
+                    opts += '<option value="' + esc(String(r.user_id || r.id)) + '">' + esc(r.fullName + " (" + r.email + ")") + "</option>";
                 }
                 multiEl.innerHTML = opts;
             })

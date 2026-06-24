@@ -50,24 +50,14 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">From</label>
-                            
-                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" data-hcm-field="dateFrom" 
-                                   placeholder="YYYY-MM-DD" autocomplete="off" required
-                                   pattern="\d{4}-\d{2}-\d{2}" 
-                                   title="Format: YYYY-MM-DD">
-
-    <div class="invalid-feedback">This field is required.</div>
+                            <input type="date" class="form-control" data-hcm-field="dateFrom" required>
+                            <div class="invalid-feedback">Please select a start date.</div>
                             <small class="text-muted d-block mt-1" data-hcm-date-from-hint>Contoh: 2026-04-20</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">To</label>
-                            
-                                <div class="invalid-feedback">This field is required.</div><input type="text" class="form-control" data-hcm-field="dateTo" 
-                                   placeholder="YYYY-MM-DD" autocomplete="off" required
-                                   pattern="\d{4}-\d{2}-\d{2}" 
-                                   title="Format: YYYY-MM-DD">
-
-    <div class="invalid-feedback">This field is required.</div>
+                            <input type="date" class="form-control" data-hcm-field="dateTo" required>
+                            <div class="invalid-feedback">Please select an end date.</div>
                             <small class="text-muted d-block mt-1" data-hcm-date-to-hint>Contoh: 2026-04-22</small>
                         </div>
                     </div>

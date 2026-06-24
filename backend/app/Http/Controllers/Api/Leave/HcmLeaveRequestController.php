@@ -1418,7 +1418,11 @@ class HcmLeaveRequestController extends Controller
             ->where('user_id', $userId)
             ->where('company_id', $companyId)
             ->where('status', 'active')
-            ->exists();
+            ->exists()
+            || DB::table('employee_profiles')
+                ->where('user_id', $userId)
+                ->where('company_id', $companyId)
+                ->exists();
     }
 
     private function userNotInCompanyResponse(): JsonResponse

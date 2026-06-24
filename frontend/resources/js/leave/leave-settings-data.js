@@ -638,7 +638,9 @@
                 }
             })
             .catch(function () {
-                balanceCard.classList.add('d-none');
+                balanceCard.querySelector('[data-hcm-ls-balance-empty]').classList.remove('d-none');
+                balanceValue.parentElement.classList.add('d-none');
+                balanceCard.classList.remove('d-none');
             });
     }
 

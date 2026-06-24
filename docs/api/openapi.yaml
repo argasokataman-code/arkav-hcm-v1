@@ -7,6 +7,12 @@ info:
     Implementasi Laravel saat ini menggabungkan banyak endpoint leave/attendance/shift di prefix `/v1/hcm`.
     Lihat `backend/routes/api.php` dan `docs/planning/implementation-status.md` bila path di bawah belum tercantum di file ini.
 
+    ## 2026-06-24: Implementation Fixes
+
+    - Added fallback `employee_profiles` check in `isLeaveApprover()` for leave approval authorization
+      - Admin company tetap bisa approve leave meskipun tidak tercatat di tabel `leave_approvers`
+    - Changed date inputs from text+pattern to `type=date` in leave modals Blade
+
     ## 2026-05-28: Implementation Fixes
 
     - Fixed owner profile photo upload regression (POST `/employees/{id}/profile-photo`)

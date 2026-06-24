@@ -263,6 +263,6 @@ class LeaveSettingsApiTest extends TestCase
             'name' => 'Foreign assignee policy',
             'days' => 2,
             'assigneeUserIds' => [$foreignUser->id],
-        ])->assertStatus(422)
+        ])->assertStatus(422);
     }
 }

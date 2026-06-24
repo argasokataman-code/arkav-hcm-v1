@@ -328,7 +328,7 @@ class LeaveRequestsApiTest extends TestCase
             'X-Company-Code' => $company->code,
         ])->putJson('/v1/hcm/leave-requests/'.$leave->id, [
             'status' => 'declined',
-        ])->assertStatus(422)
+        ])->assertStatus(422);
 
         $this->withHeaders([
             'Authorization' => 'Bearer '.$adminToken,
@@ -1022,7 +1022,7 @@ class LeaveRequestsApiTest extends TestCase
             'leaveType' => 'Annual Leave',
             'dateFrom' => '2026-04-10',
             'dateTo' => '2026-04-11',
-        ])->assertStatus(422)
+        ])->assertStatus(422);
     }
 
     public function test_admin_cannot_view_leave_balance_for_user_outside_active_company(): void

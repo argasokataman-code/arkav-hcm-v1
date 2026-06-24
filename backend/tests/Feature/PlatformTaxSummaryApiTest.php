@@ -79,7 +79,7 @@ class PlatformTaxSummaryApiTest extends TestCase
 
         $this->withHeaders($headers)
             ->getJson('/v1/saas/tax/spt-pph-badan/export?year=2026&format=csv')
-            ->assertStatus(422)
+            ->assertStatus(422);
     }
 
     public function test_dashboard_export_returns_xlsx_for_global_admin(): void

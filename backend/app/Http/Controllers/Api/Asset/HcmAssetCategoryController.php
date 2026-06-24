@@ -58,7 +58,7 @@ class HcmAssetCategoryController extends Controller
         }
 
         $validated = $request->validate([
-            'code' => ['nullable', 'string', 'max:80'],
+            'code' => ['nullable', 'string', 'max:80', Rule::unique('asset_categories')->where(fn ($q) => $q->where('company_id', $companyId))],
             'name' => ['required', 'string', 'max:150', Rule::unique('asset_categories')->where(fn ($q) => $q->where('company_id', $companyId))],
             'description' => ['nullable', 'string', 'max:5000'],
             'is_active' => ['nullable', 'boolean'],
@@ -91,7 +91,7 @@ class HcmAssetCategoryController extends Controller
         }
 
         $validated = $request->validate([
-            'code' => ['nullable', 'string', 'max:80'],
+            'code' => ['nullable', 'string', 'max:80', Rule::unique('asset_categories')->where(fn ($q) => $q->where('company_id', $companyId))->ignore($category->id)],
             'name' => ['sometimes', 'required', 'string', 'max:150', Rule::unique('asset_categories')->where(fn ($q) => $q->where('company_id', $companyId))->ignore($category->id)],
             'description' => ['nullable', 'string', 'max:5000'],
             'is_active' => ['nullable', 'boolean'],

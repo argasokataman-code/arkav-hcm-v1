@@ -160,7 +160,7 @@ class HcmAssetController extends Controller
 
         $validated = $request->validate([
             'employee_id' => ['required', 'integer', 'exists:employee_profiles,id'],
-            'assigned_date' => ['nullable', 'date'],
+            'assigned_date' => ['nullable', 'date', 'before_or_equal:today'],
             'condition_at_assign' => ['nullable', 'string', 'max:30'],
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
@@ -186,7 +186,7 @@ class HcmAssetController extends Controller
         }
 
         $validated = $request->validate([
-            'returned_date' => ['nullable', 'date'],
+            'returned_date' => ['nullable', 'date', 'before_or_equal:today'],
             'condition_at_return' => ['nullable', 'string', 'max:30'],
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
@@ -232,7 +232,7 @@ class HcmAssetController extends Controller
         }
 
         $validated = $request->validate([
-            'file' => ['required', 'file', 'max:10240'],
+            'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,gif,doc,docx,xls,xlsx,txt,csv,zip'],
         ]);
 
         $attachment = $this->assetService->uploadAttachment($asset, $validated['file'], (int) $request->user()->id);

@@ -4174,7 +4174,7 @@ paths:
   /v1/hcm/assets/{asset}/attachments:
     post:
       tags: [HCM]
-      summary: Upload asset attachment (max 10MB)
+      summary: Upload asset attachment (max 10MB, MIME restricted)
       security:
         - bearerAuth: []
       requestBody:
@@ -4185,6 +4185,7 @@ paths:
               type: object
               properties:
                 file: { type: string, format: binary }
+                description: { type: string }
       responses:
         '201':
           description: Created

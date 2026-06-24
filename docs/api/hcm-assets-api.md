@@ -32,7 +32,7 @@ Dokumen ini merangkum kontrak aktif untuk feature Asset Management yang dipakai 
 
 - Fungsi: create category asset.
 - Permission: `asset.manage`
-- Negative: `422` jika `name` duplikat dalam satu company
+- Negative: `422` jika `name` atau `code` duplikat dalam satu company
 - Response: `201`
 
 ### PUT `/v1/hcm/asset-categories/{category}`
@@ -81,6 +81,7 @@ Dokumen ini merangkum kontrak aktif untuk feature Asset Management yang dipakai 
   - `404` jika employee tidak dalam scope company yang sama
   - `422 ASSET_NOT_AVAILABLE` jika status asset bukan `available`
   - `422 ASSET_ALREADY_ASSIGNED` jika sudah ada assignment aktif
+  - `422` jika `assigned_date` melebihi hari ini
 
 ### POST `/v1/hcm/assets/{asset}/return`
 
@@ -89,6 +90,7 @@ Dokumen ini merangkum kontrak aktif untuk feature Asset Management yang dipakai 
 - Negative penting:
   - `422 ASSET_NOT_ASSIGNED`
   - `422 ASSET_RETURN_DATE_INVALID` jika `returned_date < assigned_date`
+  - `422` jika `returned_date` melebihi hari ini
 
 ### POST `/v1/hcm/assets/{asset}/issue-report`
 
@@ -102,3 +104,4 @@ Dokumen ini merangkum kontrak aktif untuk feature Asset Management yang dipakai 
 - Fungsi: upload attachment asset.
 - Permission: `asset.manage`
 - Feature gate tambahan: `asset_attachments`
+- Validasi: max 10MB, tipe file diizinkan: pdf/jpg/jpeg/png/gif/doc/docx/xls/xlsx/txt/csv/zip

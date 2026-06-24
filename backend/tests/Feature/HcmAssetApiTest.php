@@ -881,4 +881,90 @@ class HcmAssetApiTest extends TestCase
             ])
             ->assertStatus(422);
     }
+
+    public function test_create_category_rejects_duplicate_code(): void
+    {
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/asset-categories', [
+                'name' => 'Cat Alpha',
+                'code' => 'ALPHA',
+            ])
+            ->assertStatus(201);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/asset-categories', [
+                'name' => 'Cat Beta',
+                'code' => 'ALPHA',
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_attachment_rejects_invalid_mime_type(): void
+    {
+        Storage::fake('public');
+
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category, [
+            'asset_code' => 'AST-MIME-001',
+            'name' => 'Mime Test Asset',
+        ]);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/attachments', [
+                'file' => UploadedFile::fake()->create('malware.php', 512, 'text/x-php'),
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_assign_rejects_future_assigned_date(): void
+    {
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/assign', [
+                'employee_id' => $this->employeeProfile->id,
+                'assigned_date' => now()->addYear()->toDateString(),
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_return_rejects_future_returned_date(): void
+    {
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/assign', [
+                'employee_id' => $this->employeeProfile->id,
+                'assigned_date' => now()->subDay()->toDateString(),
+            ])
+            ->assertStatus(201);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/return', [
+                'returned_date' => now()->addYear()->toDateString(),
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_category_list_returns_paginated(): void
+    {
+        for ($i = 1; $i <= 25; $i++) {
+            AssetCategory::query()->create([
+                'company_id' => $this->company->id,
+                'code' => 'CAT_'.$i,
+                'name' => 'Pagination Category '.$i,
+                'is_active' => true,
+            ]);
+        }
+
+        $response = $this->withHeaders($this->headers())
+            ->getJson('/v1/hcm/asset-categories')
+            ->assertOk();
+
+        $data = $response->json('data');
+        $this->assertIsArray($data);
+        $this->assertCount(25, $data);
+    }
 }

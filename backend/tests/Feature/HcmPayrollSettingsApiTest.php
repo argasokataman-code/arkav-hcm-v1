@@ -154,6 +154,6 @@ class HcmPayrollSettingsApiTest extends TestCase
                 'payrollTimezone' => 'Invalid/Timezone',
                 'paydayHolidayStrategy' => 'unsupported_strategy',
             ])
-            ->assertStatus(422)
+            ->assertStatus(422);
     }
 }

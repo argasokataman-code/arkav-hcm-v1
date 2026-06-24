@@ -98,6 +98,7 @@ describe('Termination wiring', function () {
         hide() {}
       },
     };
+    window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
     window.ArcavUi = {
       toast: vi.fn(),
       confirmDelete: vi.fn().mockResolvedValue(true),

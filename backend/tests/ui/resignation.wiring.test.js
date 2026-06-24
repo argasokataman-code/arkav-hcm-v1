@@ -82,6 +82,7 @@ describe('Resignation wiring', () => {
     buildResignationDom();
     window.__ARCAV_DISABLE_REDIRECTS__ = true;
     delete window.__ARCAV_LAST_REDIRECT__;
+    window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
     window.AuthApi = {
       getToken: () => 'token-abc',
       getTenantContext: () => ({

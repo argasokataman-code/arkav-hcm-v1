@@ -61,6 +61,7 @@ describe('Attendance UI wiring', () => {
     };
     window.ApiErrorHelper = undefined;
     window.ArcavUi = undefined;
+    window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
     window.L = undefined;
     window.jQuery = undefined;
     installBootstrapModalStub();

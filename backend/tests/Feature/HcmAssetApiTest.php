@@ -547,7 +547,7 @@ class HcmAssetApiTest extends TestCase
                 'purchase_date' => now()->toDateString(),
                 'purchase_price' => 500000,
             ])
-            ->assertStatus(422)
+            ->assertStatus(422);
     }
 
     public function test_return_rejects_date_before_assignment_date(): void

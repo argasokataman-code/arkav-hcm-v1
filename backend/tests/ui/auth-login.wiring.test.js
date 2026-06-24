@@ -31,6 +31,7 @@ describe('Auth login wiring', () => {
     buildLoginDom();
     window.__ARCAV_DISABLE_REDIRECTS__ = true;
     window.history.replaceState({}, '', '/login');
+    window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
   });
 
   it('clears stale tenant context before regular login and redirects on success', async () => {

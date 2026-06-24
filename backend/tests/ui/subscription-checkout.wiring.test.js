@@ -213,6 +213,7 @@ describe('subscription checkout wiring', () => {
       return Promise.reject(new Error(`Unexpected fetch: ${url}`));
     });
 
+    window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
     window.__ARCAV_DISABLE_REDIRECTS__ = true;
     window.__ARCAV_LAST_REDIRECT__ = '';
     window.history.replaceState({}, '', '/subscription');

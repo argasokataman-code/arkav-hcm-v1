@@ -134,6 +134,7 @@ describe("security-incidents-data wiring", () => {
         });
         vi.stubGlobal("fetch", fetchMock);
 
+        window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
         window.bootstrap = {
             Modal: class {
                 static getOrCreateInstance() {

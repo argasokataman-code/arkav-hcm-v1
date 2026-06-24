@@ -103,6 +103,7 @@ describe('invoice settings wiring', () => {
       })),
       getToken: vi.fn(() => 'test-bearer-token'),
     };
+    window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
   });
 
   it('loads settings from API and populates form fields', async () => {

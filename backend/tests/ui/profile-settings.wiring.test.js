@@ -156,6 +156,7 @@ describe('profile settings wiring', () => {
         });
       }
 
+      window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
       return Promise.reject(new Error(`Unexpected fetch: ${url}`));
     });
   });

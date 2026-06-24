@@ -57,6 +57,7 @@ describe('Leave UI wiring', () => {
     };
     window.ApiErrorHelper = undefined;
     window.ArcavUi = undefined;
+    window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
     window.flatpickr = undefined;
     installBootstrapModalStub();
   });

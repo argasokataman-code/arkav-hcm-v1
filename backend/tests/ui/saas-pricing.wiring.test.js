@@ -111,6 +111,7 @@ describe('saas pricing screen wiring', () => {
 
   beforeEach(() => {
     createDom();
+    window.ArcavValidation = { validateForm: vi.fn().mockReturnValue(true) };
     window.bootstrap = {
       Modal: {
         getInstance() {

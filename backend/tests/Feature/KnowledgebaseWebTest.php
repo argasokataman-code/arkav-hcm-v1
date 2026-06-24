@@ -51,12 +51,14 @@ class KnowledgebaseWebTest extends TestCase
 
     public function test_global_super_admin_can_view_global_knowledgebase_content(): void
     {
-        $user = User::query()->create([
+        $user = new User();
+        $user->forceFill([
             'name' => 'Global KB Admin',
             'email' => 'global.kb.admin@example.com',
             'password' => bcrypt('StrongPass1'),
             'is_super_admin' => true,
         ]);
+        $user->save();
 
         $this->actingAs($user)
             ->get('/knowledgebase')

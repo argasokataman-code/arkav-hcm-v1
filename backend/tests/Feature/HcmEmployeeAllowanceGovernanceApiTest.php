@@ -277,7 +277,7 @@ class HcmEmployeeAllowanceGovernanceApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('success', false)
             ->assertJsonStructure([
-                'errors' => ['effectiveStartDate'],
+                'error' => ['details' => ['effectiveStartDate']],
             ]);
     }
 

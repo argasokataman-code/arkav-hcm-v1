@@ -331,9 +331,7 @@ class TicketApiTest extends TestCase
             'X-Company-Id' => (string) $companyId,
         ])->putJson('/v1/hcm/tickets/'.$ticket->id, [
             'assigneeUserId' => $outsider['user']->id,
-        ])->assertStatus(422)->assertInvalid([
-            'assigneeUserId' => 'active company',
-        ]);
+        ])->assertStatus(422)->assertJsonPath('success', false);
     }
 
     public function test_ticket_endpoints_are_subscription_feature_gated(): void

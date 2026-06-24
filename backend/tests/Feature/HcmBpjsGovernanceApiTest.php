@@ -112,7 +112,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('success', false)
             ->assertJsonStructure([
-                'errors' => ['wageBase'],
+                'error' => ['details' => ['wageBase']],
             ]);
 
         $this->withHeaders($headers)
@@ -122,7 +122,7 @@ class HcmBpjsGovernanceApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('success', false)
             ->assertJsonStructure([
-                'errors' => ['ratePercent'],
+                'error' => ['details' => ['ratePercent']],
             ]);
     }
 

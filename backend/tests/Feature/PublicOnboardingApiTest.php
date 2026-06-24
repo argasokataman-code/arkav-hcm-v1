@@ -227,7 +227,9 @@ class PublicOnboardingApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('success', false)
             ->assertJsonPath('error.code', 'VALIDATION_ERROR')
-            ->assertJsonFragment(['field' => 'company.name']);
+            ->assertJsonStructure([
+                'error' => ['details' => ['company.name' => []]],
+            ]);
     }
 
     public function test_guest_can_onboard_company_owner_and_trial_subscription(): void

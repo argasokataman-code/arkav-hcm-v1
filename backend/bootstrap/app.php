@@ -88,6 +88,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'error' => [
                     'code' => 'VALIDATION_ERROR',
                     'message' => $firstMsg ?: 'Validation failed',
+                    'details' => $all,
                 ],
             ], 422);
         });

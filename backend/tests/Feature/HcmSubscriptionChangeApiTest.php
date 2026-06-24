@@ -242,12 +242,14 @@ class HcmSubscriptionChangeApiTest extends TestCase
 
         $pending = HcmSubscriptionChangeRequest::query()->firstOrFail();
 
-        $admin = User::query()->create([
+        $admin = new User();
+        $admin->forceFill([
             'name' => 'F4 Platform Admin',
             'email' => 'qa.login@example.com',
             'password' => bcrypt('StrongPass1'),
             'is_super_admin' => true,
         ]);
+        $admin->save();
         $adminToken = 'tst-f4-admin';
         AuthToken::query()->create([
             'user_id' => $admin->id,
@@ -341,12 +343,14 @@ class HcmSubscriptionChangeApiTest extends TestCase
                 'to_package_uuid' => $ctx['packagePro']->uuid,
             ])->assertStatus(201);
 
-        $secondaryAdmin = User::query()->create([
+        $secondaryAdmin = new User();
+        $secondaryAdmin->forceFill([
             'name' => 'Secondary Global Admin',
             'email' => 'qa.hcm@example.com',
             'password' => bcrypt('StrongPass1'),
             'is_super_admin' => true,
         ]);
+        $secondaryAdmin->save();
 
         $secondaryToken = 'tst-f4-secondary-admin';
         AuthToken::query()->create([
@@ -534,12 +538,14 @@ class HcmSubscriptionChangeApiTest extends TestCase
 
         $requestId = (string) $created->json('data.id');
 
-        $admin = User::query()->create([
+        $admin = new User();
+        $admin->forceFill([
             'name' => 'Primary Super Admin',
             'email' => 'qa.login@example.com',
             'password' => bcrypt('StrongPass1'),
             'is_super_admin' => true,
         ]);
+        $admin->save();
         $adminToken = 'tst-f4-admin-paynew';
         AuthToken::query()->create([
             'user_id' => $admin->id,

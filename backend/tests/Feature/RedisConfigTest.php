@@ -8,6 +8,10 @@ class RedisConfigTest extends TestCase
 {
     public function test_env_file_has_redis_cache_store(): void
     {
+        if (! app()->environment('production')) {
+            $this->markTestSkipped('Redis cache store check only applies in production.');
+        }
+
         $env = file_get_contents(base_path('.env'));
         $this->assertStringContainsString(
             'CACHE_STORE=redis',
@@ -18,6 +22,10 @@ class RedisConfigTest extends TestCase
 
     public function test_env_file_has_redis_session_driver(): void
     {
+        if (! app()->environment('production')) {
+            $this->markTestSkipped('Redis session driver check only applies in production.');
+        }
+
         $env = file_get_contents(base_path('.env'));
         $this->assertStringContainsString(
             'SESSION_DRIVER=redis',

@@ -194,6 +194,7 @@ Behavior:
   - jika break sedang berjalan → 422 `BREAK_IN_PROGRESS`
   - set check-out, bisa auto `needs_review` jika punch out terlalu cepat, response `data.action="out"`
 - jika check-in dan check-out sudah ada → 422 `ATTENDANCE_ALREADY_COMPLETE`
+- jika lokasi di luar geofence aktif → 422 `GEOFENCE_VIOLATION`
 
 ### POST `/attendance/me/break`
 

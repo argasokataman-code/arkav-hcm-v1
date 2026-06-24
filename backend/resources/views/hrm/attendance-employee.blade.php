@@ -133,6 +133,51 @@
             min-height: 180px;
             height: 180px;
         }
+        .arcav-geofence-status {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        .arcav-geofence-status .gf-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            padding: 0.25rem 0.65rem;
+            border-radius: 999px;
+        }
+        .arcav-geofence-status .gf-badge.inside {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .arcav-geofence-status .gf-badge.outside {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .arcav-geofence-status .gf-badge.unverified {
+            background: #fef9c3;
+            color: #854d0e;
+        }
+        .arcav-geofence-status .gf-distance {
+            font-size: 0.8125rem;
+            color: #475569;
+            margin-top: 0.35rem;
+        }
+        .arcav-geofence-status .gf-warning {
+            font-size: 0.75rem;
+            color: #991b1b;
+            background: #fef2f2;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+        .arcav-geofence-status .gf-warning.show {
+            display: block;
+        }
         .arcav-attendance-page .arcav-gps-debug {
             border: 1px dashed var(--border-color, #d9d9d9);
             border-radius: 0.5rem;
@@ -299,11 +344,29 @@
                             <div class="alert alert-warning py-2 px-3 text-start small mb-3 d-none" data-attendance-me-alert></div>
                             <div class="mb-3 flex-grow-1 d-flex flex-column">
                                 <p class="arcav-punch-section-title">Lokasi (wajib saat Punch)</p>
-                                <div id="arcav-attendance-punch-map" class="rounded-3 border bg-white shadow-sm flex-grow-1 w-100"></div>
+                                <div id="arcav-attendance-punch-map"
+                                     class="rounded-3 border bg-white shadow-sm flex-grow-1 w-100"
+                                     data-gf-center-lat="{{ $defaultGeofence['latitude'] ?? '-6.2088' }}"
+                                     data-gf-center-lng="{{ $defaultGeofence['longitude'] ?? '106.8456' }}"
+                                     data-gf-radius="{{ $defaultGeofence['radius_meters'] ?? '500' }}"></div>
                                 <p class="text-muted small mt-2 mb-0">
                                     Peta Leaflet + OpenStreetMap. Jika GPS perangkat ditolak browser, klik titik di peta sebagai lokasi manual.
                                 </p>
                                 <p class="small mb-0 mt-1 text-primary" data-attendance-me-map-hint></p>
+                                <div class="arcav-geofence-status d-none" data-gf-status-box>
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span class="gf-badge unverified" data-gf-badge>
+                                            <i class="ti ti-map-pin"></i> <span data-gf-badge-text>Memeriksa area…</span>
+                                        </span>
+                                    </div>
+                                    <div class="gf-distance" data-gf-distance>
+                                        📍 Jarak dari pusat: <span data-gf-distance-value>—</span>
+                                    </div>
+                                    <div class="gf-warning" data-gf-mock-warning>
+                                        <i class="ti ti-alert-triangle me-1"></i>
+                                        <span data-gf-mock-text>Terdeteksi menggunakan Mock Location / Fake GPS. Hubungi HR untuk verifikasi.</span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="d-grid gap-2 mt-auto">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" data-attendance-gps-debug-btn>

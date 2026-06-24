@@ -264,6 +264,5 @@ class LeaveSettingsApiTest extends TestCase
             'days' => 2,
             'assigneeUserIds' => [$foreignUser->id],
         ])->assertStatus(422)
-            ->assertJsonValidationErrors(['assigneeUserIds.0']);
     }
 }

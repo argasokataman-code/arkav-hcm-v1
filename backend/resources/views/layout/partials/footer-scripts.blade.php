@@ -337,9 +337,12 @@
     <script src="{{ URL::asset('build/js/employees/employee-dashboard/template-binders.js') }}?v={{ file_exists(public_path('build/js/employees/employee-dashboard/template-binders.js')) ? filemtime(public_path('build/js/employees/employee-dashboard/template-binders.js')) : time() }}"></script>
     <script src="{{ URL::asset('build/js/employees/employee-dashboard-data.js') }}?v={{ file_exists(public_path('build/js/employees/employee-dashboard-data.js')) ? filemtime(public_path('build/js/employees/employee-dashboard-data.js')) : time() }}"></script>
 @endif
-@if (Route::is(['attendance-employee', 'employee-dashboard']))
+@if (Route::is(['attendance-employee', 'employee-dashboard', 'geofences']))
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+@endif
+@if (Route::is(['geofences']))
+    <script src="{{ URL::asset('build/js/geofences/geofence-management-data.js') }}?v={{ file_exists(public_path('build/js/geofences/geofence-management-data.js')) ? filemtime(public_path('build/js/geofences/geofence-management-data.js')) : time() }}"></script>
 @endif
 @if (Route::is(['schedule-timing']))
     <script src="{{ URL::asset('build/vendor/fullcalendar/core/index.global.min.js') }}"></script>

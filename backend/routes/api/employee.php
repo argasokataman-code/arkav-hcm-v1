@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Employee\HcmEmployeeController;
 use App\Http\Controllers\Api\Employee\HcmTeamController;
+use App\Http\Controllers\Api\Geofence\HcmGeofenceController;
 use App\Http\Controllers\Api\Location\WilayahLookupController;
 use Illuminate\Support\Facades\Route;
 
@@ -59,4 +60,11 @@ Route::prefix('v1/hcm')->middleware(['api.token', 'tenant.context'])->group(func
     Route::get('/teams/{id}', [HcmTeamController::class, 'show']);
     Route::put('/teams/{id}', [HcmTeamController::class, 'update']);
     Route::delete('/teams/{id}', [HcmTeamController::class, 'destroy']);
+
+    // Geofences
+    Route::get('/geofences', [HcmGeofenceController::class, 'index']);
+    Route::post('/geofences', [HcmGeofenceController::class, 'store']);
+    Route::get('/geofences/{geofence}', [HcmGeofenceController::class, 'show']);
+    Route::put('/geofences/{geofence}', [HcmGeofenceController::class, 'update']);
+    Route::delete('/geofences/{geofence}', [HcmGeofenceController::class, 'destroy']);
 });

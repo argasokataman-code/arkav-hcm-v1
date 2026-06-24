@@ -576,7 +576,7 @@
                             </a>
                             <ul>
                                 <li class="submenu submenu-two">
-                                    <a href="javascript:void(0);" class="{{ Request::is('profile-settings','company-profile','security-settings','notification-settings','tax-employees*','taxes','bpjs-governance*','employee-allowance-governance*','spt-masa-pph21*') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow inside-submenu"></span></a>
+                                    <a href="javascript:void(0);" class="{{ Request::is('profile-settings','company-profile','security-settings','notification-settings','geofences','tax-employees*','taxes','bpjs-governance*','employee-allowance-governance*','spt-masa-pph21*') ? 'active subdrop' : '' }}">General Settings<span class="menu-arrow inside-submenu"></span></a>
                                     <ul>
                                         <li><a href="{{ $mainSidebarProfileUrl }}" class="{{ Request::is('profile-settings','company-profile') ? 'active' : '' }}">{{ $mainSidebarProfileLabel }}</a></li>
                                         @if ($mainSidebarActiveCompanyRole !== 'owner')
@@ -584,6 +584,7 @@
                                         @endif
                                         <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>
                                         <li><a href="{{url('notification-settings')}}" class="{{ Request::is('notification-settings') ? 'active' : '' }}">Notifications</a></li>
+                                        <li><a href="{{url('geofences')}}" class="{{ Request::is('geofences') ? 'active' : '' }}">Geofences</a></li>
                                         @if ($canSeeTaxGovernanceMenu)
                                         <li><a href="{{url('tax-employees')}}" class="{{ Request::is('tax-employees*','taxes') ? 'active' : '' }}">PPh 21 Governance</a></li>
                                         @endif

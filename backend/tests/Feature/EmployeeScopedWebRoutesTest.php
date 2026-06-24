@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
+use App\Models\Geofence;
 use App\Models\Package;
 use App\Models\PackageFeature;
 use App\Models\Subscription;
@@ -100,6 +101,54 @@ class EmployeeScopedWebRoutesTest extends TestCase
         $this->actingAs($employee)->withHeaders($headers)->get('/leaves-employee')->assertOk();
         $this->actingAs($employee)->withHeaders($headers)->get('/tickets-employee')->assertOk();
         $this->actingAs($employee)->withHeaders($headers)->get('/overtime-employee')->assertOk();
+    }
+
+    public function test_attendance_employee_page_renders_geofence_from_database(): void
+    {
+        $company = $this->createCompanyWithActiveSubscriptionFeatures(['attendance']);
+
+        $employee = User::query()->create([
+            'name' => 'Geo Employee',
+            'email' => 'geo.employee@example.com',
+            'password' => bcrypt('StrongPass1'),
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'employment_status' => 'active',
+            'designation' => 'Staff',
+            'team' => 'Operations',
+            'nik' => 'EMP-GEO-001',
+            'hire_date' => now()->subMonth()->toDateString(),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $company->id,
+            'user_id' => $employee->id,
+            'role' => 'employee',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+            'invited_by_user_id' => null,
+        ]);
+
+        Geofence::query()->create([
+            'company_id' => $company->id,
+            'name' => 'Test Geofence',
+            'latitude' => -6.5,
+            'longitude' => 107.0,
+            'radius_meters' => 300,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($employee)
+            ->withHeaders(['X-Company-Code' => $company->code])
+            ->get('/attendance-employee');
+
+        $response->assertOk();
+        $response->assertSee('data-gf-center-lat="-6.5"', false);
+        $response->assertSee('data-gf-center-lng="107"', false);
+        $response->assertSee('data-gf-radius="300"', false);
     }
 
     /**

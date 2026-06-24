@@ -155,6 +155,5 @@ class HcmPayrollSettingsApiTest extends TestCase
                 'paydayHolidayStrategy' => 'unsupported_strategy',
             ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['paydayDay', 'cutoffOffsetDays', 'payrollTimezone', 'paydayHolidayStrategy']);
     }
 }

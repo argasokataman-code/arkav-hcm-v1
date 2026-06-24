@@ -817,7 +817,22 @@ Route::get('/attendance-correction', function () {
 })->middleware(['hcm.web.admin', 'hcm.web.feature:attendance_correction'])->name('attendance-correction');
 
 Route::get('/attendance-employee', function () {
-    return view(view: 'attendance-employee');
+    $activeCompanyId = (int) (request()->attributes->get('activeCompanyId') ?? 0);
+    $defaultGeofence = null;
+    if ($activeCompanyId > 0) {
+        $geo = \App\Models\Geofence::query()
+            ->where('company_id', $activeCompanyId)
+            ->where('is_active', true)
+            ->first();
+        if ($geo) {
+            $defaultGeofence = [
+                'latitude' => (float) $geo->latitude,
+                'longitude' => (float) $geo->longitude,
+                'radius_meters' => (int) $geo->radius_meters,
+            ];
+        }
+    }
+    return view('attendance-employee', compact('defaultGeofence'));
 })->middleware(['hcm.web.feature:attendance', 'hcm.web.employee:attendance-admin'])->name('attendance-employee');
 
 Route::get('/timesheets', function () {
@@ -877,6 +892,10 @@ Route::get('/teams', function () {
 Route::get('/teams/{id}/members', function (string $id) {
     return view('team-members', ['teamId' => $id]);
 })->whereNumber('id')->middleware('hcm.web.admin')->name('team-members');
+
+Route::get('/geofences', function () {
+    return view('administration.geofences.geofences');
+})->middleware('hcm.web.admin')->name('geofences');
 
 Route::get('/overtime-master', function () {
     return view(view: 'overtime-master');

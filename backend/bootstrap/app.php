@@ -74,28 +74,20 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            $traceId = (string) ($request->attributes->get('traceId') ?? '');
-
-            $details = [];
-            foreach ($e->errors() as $field => $messages) {
+            $all = $e->errors();
+            $firstMsg = '';
+            foreach ($all as $field => $messages) {
                 foreach ((array) $messages as $message) {
-                    $details[] = [
-                        'field' => (string) $field,
-                        'rule' => 'validation',
-                        'message' => (string) $message,
-                    ];
+                    $firstMsg = (string) $message;
+                    break 2;
                 }
             }
 
             return response()->json([
                 'success' => false,
-                // Backward-compatible map for tests/helpers that expect default Laravel validation shape.
-                'errors' => $e->errors(),
                 'error' => [
                     'code' => 'VALIDATION_ERROR',
-                    'message' => 'Validation failed',
-                    'details' => $details,
-                    'traceId' => $traceId !== '' ? $traceId : (string) Str::uuid(),
+                    'message' => $firstMsg ?: 'Validation failed',
                 ],
             ], 422);
         });

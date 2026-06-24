@@ -441,7 +441,7 @@
                     'asset-categories',
                     'knowledgebase','knowledgebase/*',                    'users','roles-permissions',
                     'expenses-report','invoice-report','user-report','employee-report','payslip-report','attendance-report','leave-report','daily-report',
-                    'profile-settings','security-settings','notification-settings',
+                    'profile-settings','security-settings','notification-settings','geofences',
                     'business-settings','seo-settings','localization-settings','prefixes','preferences','performance-appraisal','language','authentication-settings','ai-settings',
                     'approval-settings','invoice-settings','leave-type',
                     'email-settings',
@@ -505,6 +505,7 @@
                                     <li><a href="{{url('company-profile')}}" class="{{ Request::is('company-profile') ? 'active' : '' }}">Company Profile</a></li>
                                     <li><a href="{{url('security-settings')}}" class="{{ Request::is('security-settings') ? 'active' : '' }}">Security</a></li>
                                     <li><a href="{{url('notification-settings')}}" class="{{ Request::is('notification-settings') ? 'active' : '' }}">Notifications</a></li>
+                                    <li><a href="{{url('geofences')}}" class="{{ Request::is('geofences') ? 'active' : '' }}">Geofences</a></li>
                                     @if ($canSeeTaxGovernanceMenu)
                                     <li><a href="{{route('tax-employees')}}" class="{{ Request::is('tax-employees','tax-employees/*') ? 'active' : '' }}">PPh 21 Governance</a></li>
                                     @endif

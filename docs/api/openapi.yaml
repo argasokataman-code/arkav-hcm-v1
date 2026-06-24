@@ -12,6 +12,11 @@ info:
     - Added fallback `employee_profiles` check in `isLeaveApprover()` for leave approval authorization
       - Admin company tetap bisa approve leave meskipun tidak tercatat di tabel `leave_approvers`
     - Changed date inputs from text+pattern to `type=date` in leave modals Blade
+    - **New:** Geofence CRUD endpoints under `Attendance` tag
+      - `GET/POST /v1/hcm/geofences` — list (paginated, searchable) + create
+      - `GET/PUT/DELETE /v1/hcm/geofences/{uuidOrId}` — show/update/delete
+      - Permission: `attendance.manage` (mutate) or `attendance.view` (read)
+      - Punch integration: 422 `GEOFENCE_VIOLATION` when outside all active geofences
 
     ## 2026-05-28: Implementation Fixes
 
@@ -4777,6 +4782,165 @@ paths:
           required: true
           schema:
             type: integer
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+
+  # -------------------------
+  # Geofences
+  # -------------------------
+  /v1/hcm/geofences:
+    get:
+      tags: [Attendance]
+      summary: List geofences (paginated, searchable by name)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
+        - { name: perPage, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 100 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        uuid: { type: string }
+                        company_id: { type: integer }
+                        name: { type: string }
+                        latitude: { type: number }
+                        longitude: { type: number }
+                        radius_meters: { type: integer }
+                        is_active: { type: boolean }
+                        created_at: { type: string, format: date-time }
+                        updated_at: { type: string, format: date-time }
+                  meta:
+                    type: object
+                    properties:
+                      page: { type: integer }
+                      perPage: { type: integer }
+                      total: { type: integer }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+    post:
+      tags: [Attendance]
+      summary: Create geofence (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, latitude, longitude, radius_meters]
+              properties:
+                name: { type: string, maxLength: 100 }
+                latitude: { type: number, minimum: -90, maximum: 90 }
+                longitude: { type: number, minimum: -180, maximum: 180 }
+                radius_meters: { type: integer, minimum: 10, maximum: 50000 }
+                is_active: { type: boolean }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      uuid: { type: string }
+                      company_id: { type: integer }
+                      name: { type: string }
+                      latitude: { type: number }
+                      longitude: { type: number }
+                      radius_meters: { type: integer }
+                      is_active: { type: boolean }
+                      created_at: { type: string, format: date-time }
+                      updated_at: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/hcm/geofences/{uuidOrId}:
+    get:
+      tags: [Attendance]
+      summary: Show geofence by ID or UUID
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: uuidOrId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      uuid: { type: string }
+                      company_id: { type: integer }
+                      name: { type: string }
+                      latitude: { type: number }
+                      longitude: { type: number }
+                      radius_meters: { type: integer }
+                      is_active: { type: boolean }
+                      created_at: { type: string, format: date-time }
+                      updated_at: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+    put:
+      tags: [Attendance]
+      summary: Update geofence (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: uuidOrId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 100 }
+                latitude: { type: number, minimum: -90, maximum: 90 }
+                longitude: { type: number, minimum: -180, maximum: 180 }
+                radius_meters: { type: integer, minimum: 10, maximum: 50000 }
+                is_active: { type: boolean }
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/UnauthorizedError' }
+        '403': { $ref: '#/components/responses/ForbiddenError' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Attendance]
+      summary: Delete geofence (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: uuidOrId, in: path, required: true, schema: { type: string } }
       responses:
         '200': { description: OK }
         '401': { $ref: '#/components/responses/UnauthorizedError' }

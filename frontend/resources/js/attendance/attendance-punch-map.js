@@ -6,6 +6,94 @@ export function createPunchMapModule(deps) {
     var setPunchMarker = deps.setPunchMarker;
     var getManualPunchCoords = deps.getManualPunchCoords;
     var setManualPunchCoords = deps.setManualPunchCoords;
+    var geofenceLayer = null;
+    var geofenceLine = null;
+
+    function getGeofenceData() {
+        var el = document.getElementById(punchMapElId);
+        if (!el) return null;
+        var lat = parseFloat(el.getAttribute("data-gf-center-lat"));
+        var lng = parseFloat(el.getAttribute("data-gf-center-lng"));
+        var radius = parseInt(el.getAttribute("data-gf-radius"), 10);
+        if (isNaN(lat) || isNaN(lng) || isNaN(radius)) return null;
+        return { lat: lat, lng: lng, radius: radius };
+    }
+
+    function updateGeofenceStatusUI(employeeLat, employeeLng) {
+        var box = document.querySelector("[data-gf-status-box]");
+        var badge = document.querySelector("[data-gf-badge]");
+        var badgeText = document.querySelector("[data-gf-badge-text]");
+        var distEl = document.querySelector("[data-gf-distance-value]");
+        var gf = getGeofenceData();
+        if (!box || !badge || !badgeText || !distEl) return;
+
+        if (!gf) {
+            box.classList.add("d-none");
+            return;
+        }
+        box.classList.remove("d-none");
+
+        if (employeeLat == null || employeeLng == null) {
+            badge.className = "gf-badge unverified";
+            badgeText.textContent = "Memeriksa area\u2026";
+            distEl.textContent = "\u2014";
+            return;
+        }
+
+        var R = 6371000;
+        var dLat = ((employeeLat - gf.lat) * Math.PI) / 180;
+        var dLng = ((employeeLng - gf.lng) * Math.PI) / 180;
+        var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos((gf.lat * Math.PI) / 180) * Math.cos((employeeLat * Math.PI) / 180) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        var distance = R * c;
+
+        var inside = distance <= gf.radius;
+        badge.className = "gf-badge " + (inside ? "inside" : "outside");
+        badgeText.textContent = inside ? "\u2705 Dalam Area" : "\u274c Di Luar Area";
+        distEl.textContent = Math.round(distance) + " m";
+    }
+
+    function renderGeofenceOnMap(map, employeeLat, employeeLng) {
+        if (geofenceLayer) {
+            try { map.removeLayer(geofenceLayer); } catch (e) {}
+            geofenceLayer = null;
+        }
+        if (geofenceLine) {
+            try { map.removeLayer(geofenceLine); } catch (e) {}
+            geofenceLine = null;
+        }
+        var gf = getGeofenceData();
+        if (!gf || !window.L) return;
+
+        geofenceLayer = window.L.circle([gf.lat, gf.lng], {
+            radius: gf.radius,
+            color: "#0d6efd",
+            fillColor: "#0d6efd",
+            fillOpacity: 0.08,
+            weight: 2,
+            dashArray: "6 4",
+        }).addTo(map);
+
+        if (employeeLat != null && employeeLng != null) {
+            geofenceLine = window.L.polyline(
+                [[gf.lat, gf.lng], [employeeLat, employeeLng]],
+                { color: "#dc3545", weight: 1.5, dashArray: "4 4" }
+            ).addTo(map);
+        }
+
+        var gfMarker = window.L.marker([gf.lat, gf.lng], {
+            icon: window.L.divIcon({
+                className: "gf-center-marker",
+                html: '<span style="background:#0d6efd;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);">\u2302</span>',
+                iconSize: [22, 22],
+                iconAnchor: [11, 11],
+            })
+        }).addTo(map);
+
+        map.fitBounds(geofenceLayer.getBounds().pad(0.3));
+    }
 
     function destroyPunchMap() {
         var punchMap = getPunchMap();
@@ -18,6 +106,8 @@ export function createPunchMapModule(deps) {
             setPunchMap(null);
             setPunchMarker(null);
         }
+        geofenceLayer = null;
+        geofenceLine = null;
         var el = document.getElementById(punchMapElId);
         if (el) {
             el.innerHTML = "";
@@ -46,6 +136,8 @@ export function createPunchMapModule(deps) {
         if (hint) {
             hint.textContent = "Lokasi aktif: " + String(lat.toFixed(6)) + ", " + String(lng.toFixed(6));
         }
+        renderGeofenceOnMap(map, lat, lng);
+        updateGeofenceStatusUI(lat, lng);
         window.setTimeout(function () {
             var activeMap = getPunchMap();
             if (activeMap) {
@@ -68,6 +160,8 @@ export function createPunchMapModule(deps) {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
                 maxZoom: 19,
             }).addTo(map);
+            renderGeofenceOnMap(map, null, null);
+            updateGeofenceStatusUI(null, null);
             map.on("click", function (e) {
                 if (!e || !e.latlng) {
                     return;
@@ -86,6 +180,7 @@ export function createPunchMapModule(deps) {
                 if (hint) {
                     hint.textContent = "Titik manual dipilih: " + String(lat.toFixed(6)) + ", " + String(lng.toFixed(6));
                 }
+                updateGeofenceStatusUI(lat, lng);
             });
             setPunchMap(map);
         }

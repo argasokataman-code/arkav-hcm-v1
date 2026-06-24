@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Attendance;
 
 use App\Models\AttendanceRecord;
 use App\Models\CompanySetting;
+use App\Services\GeofenceService;
 use App\Services\LocationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -382,6 +383,18 @@ class AttendanceEmployeeController extends BaseAttendanceController
         $todayYmd = Carbon::now($this->tz())->toDateString();
         $now = Carbon::now('UTC');
         $activeCompanyId = $this->activeCompanyId($request);
+
+        $geofenceService = new GeofenceService;
+        $activeGeofences = $geofenceService->findActiveGeofences($activeCompanyId);
+        if ($activeGeofences->isNotEmpty() && ! $geofenceService->isWithinAnyGeofence($lat, $lng, $activeCompanyId)) {
+            return response()->json([
+                'success' => false,
+                'error' => [
+                    'code' => 'GEOFENCE_VIOLATION',
+                    'message' => 'Your location is outside the allowed geofence area.',
+                ],
+            ], 422);
+        }
 
         $recQuery = AttendanceRecord::query();
         $this->applyTenantScope($recQuery, $activeCompanyId);

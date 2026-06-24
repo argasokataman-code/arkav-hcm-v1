@@ -69,6 +69,7 @@ Dokumen per fitur dipisah agar tim cepat memahami flow end-to-end (UI, API, atur
 | 46 | **Approval Settings** | ✅ Complete | [→](approval-settings/) | [📘 Implementation](approval-settings/IMPLEMENTATION.md) | [📋 API](approval-settings/API.md), [🧪 E2E Testing](approval-settings/E2E-TESTING.md) |
 | **SOP** | **Security Check** | ✅ Cycles 0-4 | [→](security-check/) | [📘 Implementation](security-check/IMPLEMENTATION.md) | [🧭 Tracker](security-check/TRACKER.md), [📋 Audit Report](security-check/AUDIT-REPORT-2026-04-22.md), 3-tier gate system (pre-push, CI, DAST) |
 | 47 | **PDP Compliance (UU No. 27/2022)** | ✅ Cycles 1-6 Complete | [→](pdp-compliance/) | [📘 Implementation](pdp-compliance/IMPLEMENTATION.md) | [📋 Audit Report](pdp-compliance/AUDIT-REPORT.md), [🧭 Tracker](pdp-compliance/TRACKER.md), [📋 Fix Plan](pdp-compliance/FIX-PLAN-CYCLES.md), [📋 DPO](pdp-compliance/DPO-APPOINTMENT.md), 144 tests (121 PHPUnit + 23 Vitest) |
+| 48 | **Geofence Settings** | ✅ Complete | [→](geofence/) | [📘 Implementation](geofence/IMPLEMENTATION.md) | Leaflet map, CRUD, punch integration, 25 PHPUnit tests |
 
 ---
 

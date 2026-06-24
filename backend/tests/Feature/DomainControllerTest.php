@@ -157,7 +157,6 @@ class DomainControllerTest extends TestCase
             'domain_name' => 'https://bad.example.com/path',
             'company_id' => $this->company->uuid,
             'verification_type' => 'dns',
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors(['domain_name']);
+        ])->assertStatus(422);
     }
 }

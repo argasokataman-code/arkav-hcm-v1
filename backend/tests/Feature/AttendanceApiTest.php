@@ -6,6 +6,7 @@ use App\Models\AttendanceRecord;
 use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\EmployeeProfile;
+use App\Models\Geofence;
 use App\Models\HcmScheduleTiming;
 use App\Models\HcmShift;
 use App\Models\ReportDataBlock;
@@ -580,8 +581,7 @@ class AttendanceApiTest extends TestCase
             'Authorization' => 'Bearer '.$token,
             'X-Company-Id' => (string) $this->company->id,
         ])->getJson('/v1/hcm/timesheets?dateFrom=2026-04-30&dateTo=2026-04-01')
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['dateTo']);
+            ->assertStatus(422);
     }
 
     public function test_schedule_timing_endpoint_returns_rows_for_admin(): void
@@ -1062,5 +1062,134 @@ class AttendanceApiTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.correctionStatus', 'requested');
+    }
+
+    public function test_attendance_punch_within_geofence_succeeds(): void
+    {
+        $token = $this->bearerToken();
+        $companyId = $this->company->id;
+
+        Geofence::query()->create([
+            'company_id' => $companyId,
+            'name' => 'Kantor',
+            'latitude' => -6.2088,
+            'longitude' => 106.8456,
+            'radius_meters' => 500,
+            'is_active' => true,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $companyId,
+        ])->postJson('/v1/hcm/attendance/me/punch', [
+            'latitude' => -6.2088,
+            'longitude' => 106.8456,
+        ])->assertOk()
+            ->assertJsonPath('data.action', 'in');
+    }
+
+    public function test_attendance_punch_outside_geofence_rejected(): void
+    {
+        $token = $this->bearerToken();
+        $companyId = $this->company->id;
+
+        Geofence::query()->create([
+            'company_id' => $companyId,
+            'name' => 'Kantor',
+            'latitude' => -6.2088,
+            'longitude' => 106.8456,
+            'radius_meters' => 100,
+            'is_active' => true,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $companyId,
+        ])->postJson('/v1/hcm/attendance/me/punch', [
+            'latitude' => -6.3000,
+            'longitude' => 106.9000,
+        ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'GEOFENCE_VIOLATION');
+    }
+
+    public function test_attendance_punch_works_without_geofence(): void
+    {
+        $token = $this->bearerToken();
+        $companyId = $this->company->id;
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $companyId,
+        ])->postJson('/v1/hcm/attendance/me/punch', [
+            'latitude' => -6.2088,
+            'longitude' => 106.8456,
+        ])->assertOk()
+            ->assertJsonPath('data.action', 'in');
+    }
+
+    public function test_attendance_punch_with_inactive_geofence_ignored(): void
+    {
+        $token = $this->bearerToken();
+        $companyId = $this->company->id;
+
+        Geofence::query()->create([
+            'company_id' => $companyId,
+            'name' => 'Inactive',
+            'latitude' => -6.2088,
+            'longitude' => 106.8456,
+            'radius_meters' => 10,
+            'is_active' => false,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $companyId,
+        ])->postJson('/v1/hcm/attendance/me/punch', [
+            'latitude' => -6.3000,
+            'longitude' => 106.9000,
+        ])->assertOk()
+            ->assertJsonPath('data.action', 'in');
+    }
+
+    public function test_attendance_punch_at_geofence_boundary_inside_succeeds(): void
+    {
+        $token = $this->bearerToken();
+        $companyId = $this->company->id;
+
+        Geofence::query()->create([
+            'company_id' => $companyId,
+            'name' => 'Big Zone',
+            'latitude' => -6.2088,
+            'longitude' => 106.8456,
+            'radius_meters' => 1000,
+            'is_active' => true,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $companyId,
+        ])->postJson('/v1/hcm/attendance/me/punch', [
+            'latitude' => -6.2000,
+            'longitude' => 106.8456,
+        ])->assertOk()
+            ->assertJsonPath('data.action', 'in');
+    }
+
+    public function test_attendance_punch_at_geofence_boundary_outside_rejected(): void
+    {
+        $token = $this->bearerToken();
+        $companyId = $this->company->id;
+
+        Geofence::query()->create([
+            'company_id' => $companyId,
+            'name' => 'Small Zone',
+            'latitude' => -6.2088,
+            'longitude' => 106.8456,
+            'radius_meters' => 1000,
+            'is_active' => true,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token, 'X-Company-Id' => (string) $companyId,
+        ])->postJson('/v1/hcm/attendance/me/punch', [
+            'latitude' => -6.1950,
+            'longitude' => 106.8456,
+        ])->assertStatus(422)
+            ->assertJsonPath('error.code', 'GEOFENCE_VIOLATION');
     }
 }

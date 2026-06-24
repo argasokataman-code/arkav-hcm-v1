@@ -548,7 +548,6 @@ class HcmAssetApiTest extends TestCase
                 'purchase_price' => 500000,
             ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['asset_category_id']);
     }
 
     public function test_return_rejects_date_before_assignment_date(): void

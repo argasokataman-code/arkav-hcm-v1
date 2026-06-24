@@ -35,6 +35,10 @@ Route::get('/teams/{id}/members', function (string $id) {
     return view(view: 'team-members', data: ['teamId' => $id]);
 })->middleware('hcm.web.admin')->name('team-members');
 
+Route::get('/geofences', function () {
+    return view(view: 'administration.geofences.geofences');
+})->middleware('hcm.web.admin')->name('geofences');
+
 Route::get('/policy', function () {
     return view(view: 'policy');
 })->middleware('hcm.web.admin')->name('policy');

@@ -133,7 +133,7 @@ describe('Auth login wiring', () => {
       companyId: 44,
       companyUuid: '11111111-2222-3333-4444-555555555555',
     });
-    expect(window.__ARCAV_LAST_REDIRECT__).toBe('/index');
+    expect(window.__ARCAV_LAST_REDIRECT__).toBe('/employee-dashboard');
   });
 
   it('prefills company mode from query params and redirects to sanitized next path', async () => {

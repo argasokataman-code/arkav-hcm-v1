@@ -205,7 +205,9 @@
                     <div class="tab-content">
                         <div class="tab-pane fade {{ Request::is('index','employee-dashboard') ? ' show active ' : '' }}"  id="menu-dashboard">
                             <ul class="stack-submenu">
+@if ($isGlobalHcmAdmin || $isHcmAdmin)
                                 <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
+@endif
 @if ($isEmployeeScopedUser || $isGlobalHcmAdmin)
                         <li><a href="{{ $isGlobalHcmAdmin && Route::has('super-admin.employees-monitor') ? route('super-admin.employees-monitor') : url('employee-dashboard') }}" class="{{ Request::is('employee-dashboard','super-admin/employees-monitor') ? 'active' : '' }}">{{ $isGlobalHcmAdmin ? 'Employee Monitor' : 'Employee Dashboard' }}</a></li>
 @endif

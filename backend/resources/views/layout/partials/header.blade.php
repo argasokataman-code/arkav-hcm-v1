@@ -183,7 +183,9 @@
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
+@if ($isGlobalHcmAdmin || $isHcmAdmin)
                                         <li><a href="{{url('index')}}" class="{{ Request::is('index') ? 'active' : '' }}">Admin Dashboard</a></li>
+@endif
 @if ($isGlobalHcmAdmin)
                                         <li><a href="{{ Route::has('super-admin.employees-monitor') ? route('super-admin.employees-monitor') : url('employee-dashboard') }}" class="{{ Request::is('super-admin/employees-monitor') ? 'active' : '' }}">Employee Monitor</a></li>
 @elseif ($isEmployeeScopedUser)

@@ -157,8 +157,14 @@
                 }
 
                 // "Login Employee" mode has no company context → always go to employee dashboard.
-                // "Login Company" mode → go to index (admin dashboard) or `next` param.
-                var defaultAfterLogin = companyModeActive ? "/index" : "/employee-dashboard";
+                // "Login Company" mode → go to index (admin dashboard) if role allows, else employee dashboard.
+                var defaultAfterLogin;
+                if (companyModeActive) {
+                    var activeRole = loginData.activeCompany && loginData.activeCompany.role ? loginData.activeCompany.role.toLowerCase() : '';
+                    defaultAfterLogin = (activeRole === 'owner' || activeRole === 'admin') ? '/index' : '/employee-dashboard';
+                } else {
+                    defaultAfterLogin = '/employee-dashboard';
+                }
                 console.log('Redirecting to:', params.get("next") ? sanitizeNextRedirect(params.get("next")) : defaultAfterLogin);
                 safeRedirect(params.get("next") ? sanitizeNextRedirect(params.get("next")) : defaultAfterLogin);
             } catch (error) {

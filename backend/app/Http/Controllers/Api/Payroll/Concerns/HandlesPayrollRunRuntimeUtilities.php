@@ -34,7 +34,10 @@ trait HandlesPayrollRunRuntimeUtilities
         $query = User::query();
 
         if ($companyId !== null) {
-            $query->whereHas('companyMemberships', fn (Builder $q) => $q->where('company_id', $companyId));
+            $query->where(function (Builder $q) use ($companyId): void {
+                $q->whereHas('companyMemberships', fn (Builder $mem) => $mem->where('company_id', $companyId))
+                  ->orWhereHas('employeeProfile', fn (Builder $prof) => $prof->where('company_id', $companyId));
+            });
         }
 
         if ($this->isNumericUserIdentifier($identifier)) {

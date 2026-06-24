@@ -561,6 +561,15 @@
       if (nameInput) {
         nameInput.focus();
       }
+      var pwInput = document.getElementById("um_password");
+      if (pwInput && window.ArcavValidation && typeof window.ArcavValidation.applyConstraints === 'function') {
+        window.ArcavValidation.applyConstraints(pwInput, {
+          pattern: window.ArcavValidation.patterns.password,
+          message: window.ArcavValidation.messages.password,
+          required: true,
+          minLength: 8,
+        });
+      }
     },
 
     openEditModal: function (userId) {

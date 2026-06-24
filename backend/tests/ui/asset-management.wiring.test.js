@@ -32,4 +32,33 @@ describe('asset management wiring', () => {
     expect(markup).toContain('data-hcm-asset-issue="11"');
     expect(markup).toContain('data-hcm-asset-attach="11"');
   });
+
+  it('maps ASSET_ALREADY_ASSIGNED error to user friendly message', () => {
+    expect(window.AssetManagementRules.formatAssetApiError({
+      error: { code: 'ASSET_ALREADY_ASSIGNED', message: 'raw' },
+    }, 422)).toBe('Asset ini sudah memiliki assignment aktif.');
+  });
+
+  it('maps ASSET_NOT_ASSIGNED error to user friendly message', () => {
+    expect(window.AssetManagementRules.formatAssetApiError({
+      error: { code: 'ASSET_NOT_ASSIGNED', message: 'raw' },
+    }, 422)).toBe('Asset ini belum memiliki assignment aktif.');
+  });
+
+  it('maps ASSET_RETURN_DATE_INVALID error to user friendly message', () => {
+    expect(window.AssetManagementRules.formatAssetApiError({
+      error: { code: 'ASSET_RETURN_DATE_INVALID', message: 'raw' },
+    }, 422)).toBe('Returned date tidak boleh lebih awal dari assigned date.');
+  });
+
+  it('falls back to raw message for unmapped error codes', () => {
+    expect(window.AssetManagementRules.formatAssetApiError({
+      error: { code: 'CATEGORY_IN_USE', message: 'Asset category cannot be deleted while it has assets.' },
+    }, 422)).toBe('Asset category cannot be deleted while it has assets.');
+  });
+
+  it('falls back to status string when no error message', () => {
+    expect(window.AssetManagementRules.formatAssetApiError({}, 404)).toBe('Error 404');
+    expect(window.AssetManagementRules.formatAssetApiError({ error: {} }, 403)).toBe('Error 403');
+  });
 });

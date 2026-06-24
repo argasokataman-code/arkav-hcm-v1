@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Schema;
 
 class AssetCategory extends Model
@@ -46,5 +47,21 @@ class AssetCategory extends Model
     public function assets(): HasMany
     {
         return $this->hasMany(Asset::class);
+    }
+
+    public function resolveRouteBinding($value, $field = null): ?self
+    {
+        $routeField = $field ?? $this->getRouteKeyName();
+
+        $model = $this->newQuery()->where($routeField, $value)->first();
+        if ($model) {
+            return $model;
+        }
+
+        if ($field === null && is_numeric($value)) {
+            return $this->newQuery()->whereKey((int) $value)->first();
+        }
+
+        throw (new ModelNotFoundException)->setModel(static::class, [$value]);
     }
 }

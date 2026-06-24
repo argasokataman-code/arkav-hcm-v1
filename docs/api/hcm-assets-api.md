@@ -32,12 +32,14 @@ Dokumen ini merangkum kontrak aktif untuk feature Asset Management yang dipakai 
 
 - Fungsi: create category asset.
 - Permission: `asset.manage`
+- Negative: `422` jika `name` duplikat dalam satu company
 - Response: `201`
 
 ### PUT `/v1/hcm/asset-categories/{category}`
 
 - Fungsi: update category asset existing.
 - Identifier: numeric category id.
+- Negative: `422` jika `name` duplikat dalam satu company (dengan ignore category saat ini).
 
 ### DELETE `/v1/hcm/asset-categories/{category}`
 
@@ -56,6 +58,7 @@ Dokumen ini merangkum kontrak aktif untuk feature Asset Management yang dipakai 
 - Permission: `asset.manage`
 - Negative penting:
   - `422` jika `asset_category_id` bukan milik company aktif
+  - `422` jika `serial_number` duplikat dalam satu company
   - `422` jika urutan warranty date mundur dari purchase date
 
 ### PUT `/v1/hcm/assets/{asset}`
@@ -74,8 +77,10 @@ Dokumen ini merangkum kontrak aktif untuk feature Asset Management yang dipakai 
 - Fungsi: assign asset ke employee profile tenant aktif.
 - Permission: `asset.manage`
 - Negative penting:
-  - `422 ASSET_NOT_AVAILABLE`
-  - `422 ASSET_ALREADY_ASSIGNED`
+  - `404` jika asset tidak ditemukan atau bukan milik company aktif
+  - `404` jika employee tidak dalam scope company yang sama
+  - `422 ASSET_NOT_AVAILABLE` jika status asset bukan `available`
+  - `422 ASSET_ALREADY_ASSIGNED` jika sudah ada assignment aktif
 
 ### POST `/v1/hcm/assets/{asset}/return`
 
@@ -90,6 +95,7 @@ Dokumen ini merangkum kontrak aktif untuk feature Asset Management yang dipakai 
 - Fungsi: eskalasi issue asset ke ticketing.
 - Permission: `asset.manage`
 - Integrasi: ticket hasil eskalasi wajib menyimpan `company_id` asset.
+- Jika `issue_type=lost` → asset auto-retire (`condition=lost`, `status=retired`).
 
 ### POST `/v1/hcm/assets/{asset}/attachments`
 

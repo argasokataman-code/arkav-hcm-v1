@@ -9,6 +9,7 @@ use App\Services\AssetService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class HcmAssetCategoryController extends Controller
 {
@@ -58,7 +59,7 @@ class HcmAssetCategoryController extends Controller
 
         $validated = $request->validate([
             'code' => ['nullable', 'string', 'max:80'],
-            'name' => ['required', 'string', 'max:150'],
+            'name' => ['required', 'string', 'max:150', Rule::unique('asset_categories')->where(fn ($q) => $q->where('company_id', $companyId))],
             'description' => ['nullable', 'string', 'max:5000'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -91,7 +92,7 @@ class HcmAssetCategoryController extends Controller
 
         $validated = $request->validate([
             'code' => ['nullable', 'string', 'max:80'],
-            'name' => ['sometimes', 'required', 'string', 'max:150'],
+            'name' => ['sometimes', 'required', 'string', 'max:150', Rule::unique('asset_categories')->where(fn ($q) => $q->where('company_id', $companyId))->ignore($category->id)],
             'description' => ['nullable', 'string', 'max:5000'],
             'is_active' => ['nullable', 'boolean'],
         ]);

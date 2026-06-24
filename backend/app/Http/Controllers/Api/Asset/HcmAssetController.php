@@ -251,7 +251,7 @@ class HcmAssetController extends Controller
             'name' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:150'],
             'brand' => ['nullable', 'string', 'max:120'],
             'model' => ['nullable', 'string', 'max:120'],
-            'serial_number' => ['nullable', 'string', 'max:150'],
+            'serial_number' => ['nullable', 'string', 'max:150', Rule::unique('assets')->where(fn ($q) => $q->where('company_id', $companyId ?? 0))->ignore($isUpdate ? $request->route('asset')?->id : null)],
             'purchase_date' => [$isUpdate ? 'sometimes' : 'required', 'date'],
             'purchase_price' => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0'],
             'condition' => ['nullable', 'in:good,damaged,lost'],

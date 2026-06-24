@@ -591,4 +591,294 @@ class HcmAssetApiTest extends TestCase
             ->assertJsonPath('data.0.assetCode', 'AST-RET-001')
             ->assertJsonPath('data.0.status', 'retired');
     }
+
+    public function test_assign_rejects_already_assigned_asset(): void
+    {
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/assign', [
+                'employee_id' => $this->employeeProfile->id,
+                'assigned_date' => now()->toDateString(),
+            ])
+            ->assertStatus(201);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/assign', [
+                'employee_id' => $this->employeeProfile->id,
+                'assigned_date' => now()->toDateString(),
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'ASSET_NOT_AVAILABLE');
+    }
+
+    public function test_assign_rejects_non_available_asset(): void
+    {
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category, [
+            'status' => 'maintenance',
+        ]);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/assign', [
+                'employee_id' => $this->employeeProfile->id,
+                'assigned_date' => now()->toDateString(),
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'ASSET_NOT_AVAILABLE');
+    }
+
+    public function test_return_rejects_not_assigned_asset(): void
+    {
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/return', [
+                'returned_date' => now()->toDateString(),
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'ASSET_NOT_ASSIGNED');
+    }
+
+    public function test_assign_rejects_cross_company_employee(): void
+    {
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category);
+
+        $otherCompany = Company::query()->create([
+            'code' => 'other_emp_co',
+            'name' => 'Other Employee Company',
+            'legal_name' => 'Other Employee Company Ltd',
+            'status' => 'active',
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $otherUser = User::query()->create([
+            'name' => 'Other Employee',
+            'email' => 'other.employee@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        $otherProfile = EmployeeProfile::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $otherUser->id,
+            'employment_status' => 'active',
+            'designation' => 'Staff',
+            'team' => 'Ops',
+            'nik' => 'EMP-OTHER-001',
+            'hire_date' => now()->subMonth()->toDateString(),
+        ]);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/assign', [
+                'employee_id' => $otherProfile->id,
+                'assigned_date' => now()->toDateString(),
+            ])
+            ->assertStatus(404);
+    }
+
+    public function test_delete_category_rejects_if_has_assets(): void
+    {
+        $category = $this->createCategory('monitor', 'Monitor');
+        $this->createAsset($category, [
+            'asset_code' => 'AST-CAT-001',
+            'name' => 'Monitor Asset',
+        ]);
+
+        $this->withHeaders($this->headers())
+            ->deleteJson('/v1/hcm/asset-categories/'.$category->id)
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'CATEGORY_IN_USE');
+    }
+
+    public function test_cross_company_asset_access_returns_404(): void
+    {
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category);
+
+        $otherCompany = Company::query()->create([
+            'code' => 'other_cross_co',
+            'name' => 'Other Cross Company',
+            'legal_name' => 'Other Cross Ltd',
+            'status' => 'active',
+            'timezone' => 'UTC',
+            'currency' => 'IDR',
+            'country_code' => 'ID',
+        ]);
+
+        $otherUser = User::query()->create([
+            'name' => 'Cross Admin',
+            'email' => 'cross.admin@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $otherCompany->id,
+            'user_id' => $otherUser->id,
+            'role' => 'admin',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'cross.admin@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => $otherCompany->code,
+        ]);
+        $login->assertOk();
+        $otherToken = (string) $login->json('data.accessToken');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$otherToken,
+            'X-Company-Code' => $otherCompany->code,
+        ])->getJson('/v1/hcm/assets/'.$asset->id)
+            ->assertStatus(404);
+    }
+
+    public function test_asset_not_found_returns_404(): void
+    {
+        $this->withHeaders($this->headers())
+            ->getJson('/v1/hcm/assets/99999')
+            ->assertStatus(404);
+    }
+
+    public function test_category_not_found_returns_404(): void
+    {
+        $this->withHeaders($this->headers())
+            ->getJson('/v1/hcm/asset-categories')
+            ->assertOk();
+
+        $this->withHeaders($this->headers())
+            ->putJson('/v1/hcm/asset-categories/99999', ['name' => 'Ghost'])
+            ->assertStatus(404);
+    }
+
+    public function test_issue_report_lost_sets_condition_lost_and_status_retired(): void
+    {
+        $category = $this->createCategory('device', 'Device');
+        $asset = $this->createAsset($category, [
+            'asset_code' => 'AST-LOST-001',
+            'name' => 'Lost Asset',
+            'serial_number' => 'SN-LOST-001',
+        ]);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/issue-report', [
+                'issue_type' => 'lost',
+                'priority' => 'high',
+                'description' => 'Asset lost in transit.',
+            ])
+            ->assertStatus(201);
+
+        $this->assertDatabaseHas('assets', [
+            'id' => $asset->id,
+            'condition' => 'lost',
+            'status' => 'retired',
+        ]);
+    }
+
+    public function test_create_asset_rejects_duplicate_serial_number(): void
+    {
+        $category = $this->createCategory();
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets', [
+                'asset_category_id' => $category->id,
+                'name' => 'Asset One',
+                'serial_number' => 'SN-DUP-001',
+                'purchase_date' => now()->subMonth()->toDateString(),
+                'purchase_price' => 1000000,
+            ])
+            ->assertStatus(201);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets', [
+                'asset_category_id' => $category->id,
+                'name' => 'Asset Two',
+                'serial_number' => 'SN-DUP-001',
+                'purchase_date' => now()->subMonth()->toDateString(),
+                'purchase_price' => 2000000,
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_attachment_rejects_file_too_large(): void
+    {
+        Storage::fake('public');
+
+        $category = $this->createCategory();
+        $asset = $this->createAsset($category, [
+            'asset_code' => 'AST-BIG-001',
+            'name' => 'Big File Asset',
+        ]);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/assets/'.$asset->id.'/attachments', [
+                'file' => UploadedFile::fake()->create('huge-file.pdf', 15360, 'application/pdf'),
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_non_admin_cannot_access_assets(): void
+    {
+        $viewer = User::query()->create([
+            'name' => 'No Permission User',
+            'email' => 'no.perm@example.com',
+            'password' => Hash::make('StrongPass1'),
+        ]);
+
+        EmployeeProfile::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $viewer->id,
+            'employment_status' => 'active',
+            'designation' => 'Staff',
+            'team' => 'Ops',
+            'nik' => 'EMP-NOPERM',
+            'hire_date' => now()->subMonth()->toDateString(),
+        ]);
+
+        CompanyUser::query()->create([
+            'company_id' => $this->company->id,
+            'user_id' => $viewer->id,
+            'role' => 'member',
+            'status' => 'active',
+            'joined_at' => now()->subDay(),
+            'invited_by_user_id' => null,
+        ]);
+
+        $login = $this->postJson('/v1/identity/auth/login', [
+            'email' => 'no.perm@example.com',
+            'password' => 'StrongPass1',
+            'companyCode' => $this->company->code,
+        ]);
+        $login->assertOk();
+        $viewerToken = (string) $login->json('data.accessToken');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$viewerToken,
+            'X-Company-Code' => $this->company->code,
+        ])->getJson('/v1/hcm/assets')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'AUTH_FORBIDDEN');
+    }
+
+    public function test_create_category_rejects_duplicate_name(): void
+    {
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/asset-categories', [
+                'name' => 'Unique Category',
+            ])
+            ->assertStatus(201);
+
+        $this->withHeaders($this->headers())
+            ->postJson('/v1/hcm/asset-categories', [
+                'name' => 'Unique Category',
+            ])
+            ->assertStatus(422);
+    }
 }

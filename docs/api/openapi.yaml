@@ -3977,9 +3977,228 @@ paths:
   # -------------------------
   # Asset Management
   # -------------------------
+  /v1/hcm/assets:
+    get:
+      tags: [HCM]
+      summary: List assets (scoped to active tenant)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - { name: status, in: query, required: false, schema: { type: string, enum: [available, assigned, maintenance, retired] } }
+        - { name: condition, in: query, required: false, schema: { type: string, enum: [good, damaged, lost] } }
+        - { name: categoryId, in: query, required: false, schema: { type: integer } }
+        - { name: q, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    post:
+      tags: [HCM]
+      summary: Create asset
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                asset_category_id: { type: integer }
+                name: { type: string, maxLength: 150 }
+                serial_number: { type: string, maxLength: 150 }
+                purchase_date: { type: string, format: date }
+                purchase_price: { type: number }
+                brand: { type: string }
+                model: { type: string }
+                condition: { type: string, enum: [good, damaged, lost] }
+                status: { type: string, enum: [available, assigned, maintenance, retired] }
+                location: { type: string }
+                warranty_start_date: { type: string, format: date }
+                warranty_end_date: { type: string, format: date }
+              required: [asset_category_id, name, purchase_date, purchase_price]
+      responses:
+        '201':
+          description: Created
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /v1/hcm/assets/{asset}:
+    parameters:
+      - { name: asset, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [HCM]
+      summary: Get asset detail
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [HCM]
+      summary: Update asset
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 150 }
+                serial_number: { type: string, maxLength: 150 }
+                condition: { type: string, enum: [good, damaged, lost] }
+                status: { type: string, enum: [available, assigned, maintenance, retired] }
+      responses:
+        '200':
+          description: OK
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [HCM]
+      summary: Retire asset (soft delete)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /v1/hcm/assets/{asset}/assign:
+    post:
+      tags: [HCM]
+      summary: Assign asset to employee
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                employee_id: { type: integer }
+                assigned_date: { type: string, format: date }
+                condition_at_assign: { type: string }
+                notes: { type: string }
+              required: [employee_id]
+      responses:
+        '201':
+          description: Created
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /v1/hcm/assets/{asset}/return:
+    post:
+      tags: [HCM]
+      summary: Return asset from active assignment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                returned_date: { type: string, format: date }
+                condition_at_return: { type: string }
+                notes: { type: string }
+      responses:
+        '200':
+          description: OK
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /v1/hcm/assets/{asset}/issue-report:
+    post:
+      tags: [HCM]
+      summary: Report asset issue (creates ticket)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                issue_type: { type: string, enum: [damaged, lost, maintenance] }
+                priority: { type: string, enum: [low, medium, high, urgent] }
+                description: { type: string }
+              required: [issue_type]
+      responses:
+        '201':
+          description: Created
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /v1/hcm/assets/{asset}/attachments:
+    post:
+      tags: [HCM]
+      summary: Upload asset attachment (max 10MB)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Created
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /v1/hcm/asset-categories:
     get:
-      tags: [Asset Management]
+      tags: [HCM]
       summary: List asset categories
       security:
         - bearerAuth: []

@@ -46,6 +46,7 @@
                             @endif
                         </div>
                         <div class="arcav-kb-article-body">
+                            {{-- ponytail: {!! !!} safe today because body_html is from config/hcm_knowledgebase.php (static). Switch to HTML purify if CRUD panel added later. --}}
                             {!! $article['body_html'] ?? '' !!}
                         </div>
                         <div class="alert alert-light mt-4 mb-0">

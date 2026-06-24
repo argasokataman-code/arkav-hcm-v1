@@ -32,6 +32,7 @@ class LogViewerController extends Controller
 
     public function show(Request $request, string $filename): JsonResponse
     {
+        $filename = basename($filename);
         $path = storage_path('logs/'.$filename);
 
         if (! file_exists($path) || ! str_ends_with($filename, '.log')) {

@@ -28,12 +28,14 @@ class UserGlobalAdminEmailTest extends TestCase
         config()->set('hcm.admin_email', 'qa.login@example.com');
         config()->set('hcm.secondary_admin_email', 'qa.hcm@example.com');
 
-        $user = User::query()->create([
+        $user = new User();
+        $user->forceFill([
             'name' => 'Flagged Global Admin',
             'email' => 'someone.else@example.com',
             'password' => bcrypt('StrongPass1'),
             'is_super_admin' => true,
         ]);
+        $user->save();
 
         $this->assertTrue($user->isGlobalHcmAdmin());
     }

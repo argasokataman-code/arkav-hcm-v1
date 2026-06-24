@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\Ai\AiIntentClassifier;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 /**
  * Regression tests for AiIntentClassifier.
@@ -24,26 +25,26 @@ class HcmAiClassifierNoiseTest extends TestCase
 
     // ─── leave.balance.self ────────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function it_classifies_exact_leave_balance(): void
     {
         $this->assertSame('leave.balance.self', $this->classifier->classify('sisa cuti saya berapa?'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_procedural_cara_mengajukan_cuti(): void
     {
         // Regression: before duplicate-key fix this would have been overwritten
         $this->assertSame('leave.balance.self', $this->classifier->classify('cara mengajukan cuti'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_procedural_how_to_apply_leave(): void
     {
         $this->assertSame('leave.balance.self', $this->classifier->classify('how to apply leave'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_noisy_leave_balance_with_typo(): void
     {
         // "cuti saya" appears in keywords despite surrounding noise
@@ -52,25 +53,25 @@ class HcmAiClassifierNoiseTest extends TestCase
 
     // ─── attendance.today.self ─────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function it_classifies_exact_attendance_today(): void
     {
         $this->assertSame('attendance.today.self', $this->classifier->classify('sudah absen belum?'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_procedural_cara_absen(): void
     {
         $this->assertSame('attendance.today.self', $this->classifier->classify('cara absen'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_procedural_cara_checkin_typo(): void
     {
         $this->assertSame('attendance.today.self', $this->classifier->classify('cara checkin'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_noisy_attendance_question(): void
     {
         $this->assertSame('attendance.today.self', $this->classifier->classify('eh gw udah absen hari ini belum ya?'));
@@ -78,25 +79,25 @@ class HcmAiClassifierNoiseTest extends TestCase
 
     // ─── payslip.latest.self ───────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function it_classifies_exact_payslip(): void
     {
         $this->assertSame('payslip.latest.self', $this->classifier->classify('berapa gaji saya bulan ini?'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_procedural_cara_lihat_gaji(): void
     {
         $this->assertSame('payslip.latest.self', $this->classifier->classify('cara lihat gaji'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_procedural_cara_akses_payslip(): void
     {
         $this->assertSame('payslip.latest.self', $this->classifier->classify('cara akses payslip'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_noisy_gaji_question(): void
     {
         $this->assertSame('payslip.latest.self', $this->classifier->classify('slip gaji saya yang bulan lalu'));
@@ -104,25 +105,25 @@ class HcmAiClassifierNoiseTest extends TestCase
 
     // ─── ticket.list.self ──────────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function it_classifies_exact_ticket_list(): void
     {
         $this->assertSame('ticket.list.self', $this->classifier->classify('tiket yang saya buat'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_procedural_cara_buat_tiket(): void
     {
         $this->assertSame('ticket.list.self', $this->classifier->classify('cara buat tiket'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_procedural_how_to_create_ticket(): void
     {
         $this->assertSame('ticket.list.self', $this->classifier->classify('how to create ticket'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_cara_komplain(): void
     {
         $this->assertSame('ticket.list.self', $this->classifier->classify('cara komplain ke hr'));
@@ -130,7 +131,7 @@ class HcmAiClassifierNoiseTest extends TestCase
 
     // ─── subscription.features.current ───────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function it_classifies_current_subscription_features_question(): void
     {
         $this->assertSame(
@@ -139,7 +140,7 @@ class HcmAiClassifierNoiseTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_english_current_package_features_question(): void
     {
         $this->assertSame(
@@ -150,19 +151,19 @@ class HcmAiClassifierNoiseTest extends TestCase
 
     // ─── leave.history.other (admin + typo heuristic) ─────────────────────
 
-    /** @test */
+    #[Test]
     public function it_classifies_exact_leave_history_other(): void
     {
         $this->assertSame('leave.history.other', $this->classifier->classify('siapa yang pernah cuti'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_typo_karywan_pernah_cuti(): void
     {
         $this->assertSame('leave.history.other', $this->classifier->classify('siapa karywan yg pernah ajukan cuti di peridoe kmaren?'));
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_colloquial_pegawai_ajukan_cuti(): void
     {
         $this->assertSame('leave.history.other', $this->classifier->classify('siapa pegawai yang ajukan cuti bulan lalu'));
@@ -170,13 +171,13 @@ class HcmAiClassifierNoiseTest extends TestCase
 
     // ─── unknown intent ────────────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function it_returns_unknown_for_unrelated_question(): void
     {
         $this->assertSame('unknown', $this->classifier->classify('cuaca hari ini bagaimana?'));
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_unknown_for_empty_noise(): void
     {
         $this->assertSame('unknown', $this->classifier->classify('   '));
@@ -184,12 +185,8 @@ class HcmAiClassifierNoiseTest extends TestCase
 
     // ─── Duplicate key regression ─────────────────────────────────────────
 
-    /**
-     * Ensure "cara mengajukan cuti" resolves to leave.balance.self (NOT unknown),
-     * which would happen if the duplicate key was silently clobbering the first definition.
-     *
-     * @test
-     */
+    /** Ensure "cara mengajukan cuti" resolves to leave.balance.self (NOT unknown), which would happen if the duplicate key was silently clobbering the first definition. */
+    #[Test]
     public function duplicate_key_regression_procedural_leave_not_unknown(): void
     {
         $intent = $this->classifier->classify('cara mengajukan cuti');
@@ -197,9 +194,7 @@ class HcmAiClassifierNoiseTest extends TestCase
         $this->assertSame('leave.balance.self', $intent);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function duplicate_key_regression_procedural_attendance_not_unknown(): void
     {
         $intent = $this->classifier->classify('cara clock in');
@@ -207,9 +202,7 @@ class HcmAiClassifierNoiseTest extends TestCase
         $this->assertSame('attendance.today.self', $intent);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function duplicate_key_regression_procedural_payslip_not_unknown(): void
     {
         $intent = $this->classifier->classify('cara cek gaji');
@@ -217,9 +210,7 @@ class HcmAiClassifierNoiseTest extends TestCase
         $this->assertSame('payslip.latest.self', $intent);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function duplicate_key_regression_procedural_ticket_not_unknown(): void
     {
         $intent = $this->classifier->classify('cara bikin tiket');

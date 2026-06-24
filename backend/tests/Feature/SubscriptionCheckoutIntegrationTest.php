@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SubscriptionCheckoutIntegrationTest extends TestCase
@@ -68,7 +69,8 @@ class SubscriptionCheckoutIntegrationTest extends TestCase
         ]);
     }
 
-    /** @test Integration: Blade renders package cards with correct data attributes matching API expectations. */
+    /** Integration: Blade renders package cards with correct data attributes matching API expectations. */
+    #[Test]
     public function blade_renders_package_cards_with_ids_matching_api()
     {
         $response = $this->actingAs($this->user)->get('/subscription');
@@ -98,7 +100,8 @@ class SubscriptionCheckoutIntegrationTest extends TestCase
         );
     }
 
-    /** @test Integration: Page renders correctly for inactive company with all expected sections. */
+    /** Integration: Page renders correctly for inactive company with all expected sections. */
+    #[Test]
     public function subscription_page_shows_package_cards_and_checkout_form()
     {
         $response = $this->actingAs($this->user)->get('/subscription');
@@ -111,7 +114,8 @@ class SubscriptionCheckoutIntegrationTest extends TestCase
             ->assertSee('checkout-upgrade-form', false);
     }
 
-    /** @test Integration: Pending invoice shows warning + form stays visible + checkout creates invoice. */
+    /** Integration: Pending invoice shows warning + form stays visible + checkout creates invoice. */
+    #[Test]
     public function pending_invoice_shows_warning_and_checkout_still_creates_new_invoice()
     {
         // Create expired subscription + unpaid invoice
@@ -147,7 +151,8 @@ class SubscriptionCheckoutIntegrationTest extends TestCase
             ->assertSee($this->altPackage->name);
     }
 
-    /** @test Integration: Checkout API accepts the same package_uuid format as Blade renders. */
+    /** Integration: Checkout API accepts the same package_uuid format as Blade renders. */
+    #[Test]
     public function checkout_api_accepts_package_uuid_from_blade()
     {
         // Create inactive subscription so checkout is the user's expected path
@@ -186,7 +191,8 @@ class SubscriptionCheckoutIntegrationTest extends TestCase
         $this->assertNotEmpty($responseData['data']['invoice']['id'] ?? '');
     }
 
-    /** @test Integration: Full flow view→checkout creates invoice and updates active package. */
+    /** Integration: Full flow view→checkout creates invoice and updates active package. */
+    #[Test]
     public function full_checkout_flow_creates_invoice_and_updates_subscription()
     {
         Subscription::query()->create([

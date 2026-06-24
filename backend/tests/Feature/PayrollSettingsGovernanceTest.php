@@ -8,6 +8,7 @@ use App\Models\PayrollSettingsSnapshot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 #[IgnoreDeprecations]
@@ -44,7 +45,7 @@ class PayrollSettingsGovernanceTest extends TestCase
         return (string) $login->json('data.accessToken');
     }
 
-    /** @test */
+    #[Test]
     public function can_update_payroll_settings_and_create_audit_trail(): void
     {
         $token = $this->adminToken();
@@ -71,7 +72,7 @@ class PayrollSettingsGovernanceTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function creates_snapshot_when_settings_updated(): void
     {
         $token = $this->adminToken();
@@ -99,7 +100,7 @@ class PayrollSettingsGovernanceTest extends TestCase
         $this->assertEquals(30, $latestSnapshot->settings_data['paydayDay']);
     }
 
-    /** @test */
+    #[Test]
     public function can_retrieve_settings_history(): void
     {
         $token = $this->adminToken();
@@ -129,7 +130,7 @@ class PayrollSettingsGovernanceTest extends TestCase
         $this->assertGreaterThan(0, $response->json('data.total'));
     }
 
-    /** @test */
+    #[Test]
     public function audit_log_only_creates_entries_for_actual_changes(): void
     {
         $token = $this->adminToken();
@@ -158,7 +159,7 @@ class PayrollSettingsGovernanceTest extends TestCase
         $this->assertEquals($count1, $count2);
     }
 
-    /** @test */
+    #[Test]
     public function snapshot_version_increments_on_updates(): void
     {
         $token = $this->adminToken();
@@ -188,7 +189,7 @@ class PayrollSettingsGovernanceTest extends TestCase
         $this->assertGreaterThan($snapshot1->snapshot_version, $snapshot2->snapshot_version);
     }
 
-    /** @test */
+    #[Test]
     public function history_is_tenant_scoped(): void
     {
         $token = $this->adminToken();

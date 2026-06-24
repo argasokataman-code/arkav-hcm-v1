@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Jobs\ApplySubscriptionChangeJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class HcmAddonPlanChangeTest extends TestCase
@@ -26,7 +27,7 @@ class HcmAddonPlanChangeTest extends TestCase
         ])->uuid;
     }
 
-    /** @test */
+    #[Test]
     public function downgrade_preserves_compatible_addon_in_subscription_amount(): void
     {
         $company = $this->createIsolatedTestCompany();
@@ -119,7 +120,7 @@ class HcmAddonPlanChangeTest extends TestCase
             'Downgrade should include compatible addon amount');
     }
 
-    /** @test */
+    #[Test]
     public function downgrade_skips_incompatible_addon_from_subscription_amount(): void
     {
         $company = $this->createIsolatedTestCompany();
@@ -216,7 +217,7 @@ class HcmAddonPlanChangeTest extends TestCase
             'Downgrade should keep paid addon not built-in to target plan');
     }
 
-    /** @test */
+    #[Test]
     public function upgrade_handles_addon_carry_over(): void
     {
         $company = $this->createIsolatedTestCompany();
@@ -308,7 +309,7 @@ class HcmAddonPlanChangeTest extends TestCase
             'Upgrade should keep subscription active');
     }
 
-    /** @test */
+    #[Test]
     public function upgrade_removes_built_in_addon_from_recurring(): void
     {
         $company = $this->createIsolatedTestCompany();

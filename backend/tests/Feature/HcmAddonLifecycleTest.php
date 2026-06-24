@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use App\Services\AddonRecurringSubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class HcmAddonLifecycleTest extends TestCase
@@ -95,7 +96,7 @@ class HcmAddonLifecycleTest extends TestCase
         ];
     }
 
-    /** @test */
+    #[Test]
     public function already_active_addon_blocks_on_active_subscription(): void
     {
         $s = $this->createSetup();
@@ -122,7 +123,7 @@ class HcmAddonLifecycleTest extends TestCase
             ->assertJsonPath('error.code', 'ADDON_ALREADY_ACTIVE');
     }
 
-    /** @test */
+    #[Test]
     public function already_active_addon_allows_repurchase_after_expiry(): void
     {
         $s = $this->createSetup();
@@ -199,7 +200,7 @@ class HcmAddonLifecycleTest extends TestCase
         $this->assertSame(248000.0, $expectedAmount);
     }
 
-    /** @test */
+    #[Test]
     public function mark_as_paid_is_atomic_for_addon_invoice(): void
     {
         $s = $this->createSetup();
@@ -240,7 +241,7 @@ class HcmAddonLifecycleTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function termination_keeps_addon_transactions_paid_for_restore(): void
     {
         $s = $this->createSetup();
@@ -273,7 +274,7 @@ class HcmAddonLifecycleTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function checkout_carries_over_addon_amount_from_old_paid_transactions(): void
     {
         $s = $this->createSetup();
@@ -335,7 +336,7 @@ class HcmAddonLifecycleTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function restore_for_subscription_reapplies_addon_amount(): void
     {
         $s = $this->createSetup();
@@ -389,7 +390,7 @@ class HcmAddonLifecycleTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function checkout_addon_populates_billing_period(): void
     {
         $s = $this->createSetup();
@@ -411,7 +412,7 @@ class HcmAddonLifecycleTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function invoice_format_exposes_billing_period(): void
     {
         $s = $this->createSetup();
@@ -432,7 +433,7 @@ class HcmAddonLifecycleTest extends TestCase
         $this->assertArrayHasKey('billingPeriodEnd', $show->json('data'));
     }
 
-    /** @test */
+    #[Test]
     public function restore_for_subscription_dedup_by_package_addon(): void
     {
         $s = $this->createSetup();
@@ -499,7 +500,7 @@ class HcmAddonLifecycleTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function renewal_excludes_inactive_addon_from_amount(): void
     {
         $s = $this->createSetup(['sub_ends_at' => now()->startOfDay()]);
@@ -542,7 +543,7 @@ class HcmAddonLifecycleTest extends TestCase
         $this->assertSame($s['addon']->code, $notes['inactive_addons_removed']['addon_codes'][0] ?? null);
     }
 
-    /** @test */
+    #[Test]
     public function cancel_addon_removes_amount_and_updates_subscription(): void
     {
         $s = $this->createSetup();
@@ -580,7 +581,7 @@ class HcmAddonLifecycleTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function cancel_addon_returns_404_for_inactive_addon(): void
     {
         $s = $this->createSetup();
@@ -592,7 +593,7 @@ class HcmAddonLifecycleTest extends TestCase
             ])->assertStatus(422);
     }
 
-    /** @test */
+    #[Test]
     public function trial_subscription_cannot_buy_addon(): void
     {
         $s = $this->createSetup(['sub_status' => 'trial']);
@@ -605,7 +606,7 @@ class HcmAddonLifecycleTest extends TestCase
             ->assertJsonPath('error.code', 'NO_ACTIVE_SUBSCRIPTION');
     }
 
-    /** @test */
+    #[Test]
     public function no_subscription_cannot_buy_addon(): void
     {
         $company = $this->createIsolatedTestCompany();

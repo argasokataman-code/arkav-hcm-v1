@@ -202,6 +202,7 @@
 				</div>
 			</a>
 			<nav class="nav-links">
+				<a href="{{ route('qa') }}">Q&A</a>
 				<a href="{{ route('privacy-policy') }}">Kebijakan Privasi</a>
 				<a href="{{ route('terms-condition') }}">Syarat & Ketentuan</a>
 				<a href="{{ route('landing') }}" class="btn-primary">Kembali</a>

@@ -26,6 +26,7 @@ export default function PricingScene({
 }: PricingSceneProps) {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [pricingPage, setPricingPage] = useState(0);
+  const [annual, setAnnual] = useState(false);
 
   const hasExternalPackages = externalPackages.length > 0;
 
@@ -164,6 +165,27 @@ export default function PricingScene({
             </div>
           </div>
         </div>
+
+        {/* Billing toggle */}
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            onClick={() => setAnnual(false)}
+            className={`text-xs font-mono font-bold px-3 py-1.5 border transition-all cursor-pointer ${
+              !annual ? "bg-[#FF6600] border-[#FF6600] text-white" : "border-gray-200 text-gray-500 bg-white hover:border-gray-300"
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setAnnual(true)}
+            className={`text-xs font-mono font-bold px-3 py-1.5 border transition-all cursor-pointer flex items-center gap-1.5 ${
+              annual ? "bg-[#FF6600] border-[#FF6600] text-white" : "border-gray-200 text-gray-500 bg-white hover:border-gray-300"
+            }`}
+          >
+            Annual
+            <span className="text-[8px] bg-white/20 px-1 py-0.5">Hemat s.d. 15%</span>
+          </button>
+        </div>
       </motion.div>
 
       {/* RIGHT COLUMN: SaaS Product Showroom — paginated cards */}
@@ -196,20 +218,30 @@ export default function PricingScene({
                   )}
                 </div>
 
-                {/* Title & price */}
+                  {/* Title & price */}
                 <div className="relative z-10 space-y-1">
                   <h3 className="text-lg font-extrabold font-display text-gray-900">{tier.name}</h3>
                   <p className="text-[10px] text-gray-500 leading-relaxed font-medium line-clamp-2">{tier.desc}</p>
                   <div className="pt-1">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-extrabold font-mono tracking-tight text-gray-950">{formatIDR(tier.unitPrice)}</span>
-                      <span className="text-[8px] text-gray-400 font-mono font-bold">/bln</span>
-                    </div>
-                    {(tier as any).yearlyPrice ? (
-                      <p className="text-[7px] text-gray-400 font-mono font-bold uppercase">{tier.rateDesc} • {formatIDR((tier as any).yearlyPrice)}/thn</p>
+                    {annual ? (
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xl font-extrabold font-mono tracking-tight text-gray-950">
+                          {formatIDR(Math.round(((tier as any).yearlyPrice || tier.unitPrice * 12 * 0.85) / 12))}
+                        </span>
+                        <span className="text-[8px] text-gray-400 font-mono font-bold">/bln</span>
+                        <span className="text-[8px] font-mono font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1 py-0.5">HEMAT 15%</span>
+                      </div>
                     ) : (
-                      <p className="text-[7px] text-gray-400 font-mono font-bold uppercase">{tier.rateDesc}</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xl font-extrabold font-mono tracking-tight text-gray-950">{formatIDR(tier.unitPrice)}</span>
+                        <span className="text-[8px] text-gray-400 font-mono font-bold">/bln</span>
+                      </div>
                     )}
+                    <p className="text-[7px] text-gray-400 font-mono font-bold uppercase">
+                      {annual
+                        ? formatIDR(Math.round((tier as any).yearlyPrice || tier.unitPrice * 12 * 0.85)) + '/thn'
+                        : tier.rateDesc}
+                    </p>
                   </div>
                 </div>
 

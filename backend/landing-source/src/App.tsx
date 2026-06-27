@@ -10,6 +10,11 @@ import PayrollScene from "./components/PayrollScene";
 import EmployeeScene from "./components/EmployeeScene";
 import AnalyticsScene from "./components/AnalyticsScene";
 import PricingScene from "./components/PricingScene";
+import QaScene from "./components/QaScene";
+import TestimonialScene from "./components/TestimonialScene";
+import TrustScene from "./components/TrustScene";
+import HowItWorksScene from "./components/HowItWorksScene";
+import DemoScene from "./components/DemoScene";
 import FinaleScene from "./components/FinaleScene";
 import OnboardingModal from "./components/OnboardingModal";
 
@@ -48,7 +53,7 @@ export default function App() {
       setOnboardingOpen(true);
     }
   }, []);
-  const totalSlides = 8;
+  const totalSlides = 13;
   const isCooldownRef = useRef(false);
   const touchStartRef = useRef<number | null>(null);
 
@@ -60,6 +65,11 @@ export default function App() {
     "EMPLOYEE",
     "ANALYTICS",
     "PAKET",
+    "Q&A",
+    "TESTIMONIAL",
+    "KEPATUHAN",
+    "CARA PAKAI",
+    "DEMO",
     "CTA PENUTUP"
   ];
 
@@ -349,14 +359,39 @@ export default function App() {
             <PricingScene packages={packages} onOpenOnboarding={openOnboarding} turnstileEnabled={turnstileEnabled} turnstileSiteKey={turnstileSiteKey} turnstileHideTestNotice={turnstileHideTestNotice} hasActiveTrialPackages={hasActiveTrialPackages} />
           </section>
 
-          {/* SCENE 08 — CTA PENUTUP */}
+          {/* SCENE 08 — Q&A */}
           <section className="w-full h-auto py-4" id="scene-08">
+            <QaScene isMobile={isMobile} />
+          </section>
+
+          {/* SCENE 09 — TESTIMONIAL */}
+          <section className="w-full h-auto py-4" id="scene-09">
+            <TestimonialScene isMobile={isMobile} />
+          </section>
+
+          {/* SCENE 10 — KEPATUHAN */}
+          <section className="w-full h-auto py-4" id="scene-10">
+            <TrustScene />
+          </section>
+
+          {/* SCENE 11 — CARA PAKAI */}
+          <section className="w-full h-auto py-4" id="scene-11">
+            <HowItWorksScene />
+          </section>
+
+          {/* SCENE 12 — DEMO */}
+          <section className="w-full h-auto py-4" id="scene-12">
+            <DemoScene />
+          </section>
+
+          {/* SCENE 13 — CTA PENUTUP */}
+          <section className="w-full h-auto py-4" id="scene-13">
             <FinaleScene onNavigate={navigateToSlide} isMobile={isMobile} onOpenOnboarding={openOnboarding} />
           </section>
         </div>
       ) : (
         <motion.main 
-          className="flex w-[800vw] h-full z-10 force-gpu"
+          className="flex w-[1300vw] h-full z-10 force-gpu"
           animate={{ x: isMobile ? "0vw" : `-${currentSlide * 100}vw` }}
           transition={{ type: "spring", stiffness: 120, damping: 22 }}
         >
@@ -395,8 +430,33 @@ export default function App() {
             <PricingScene packages={packages} onOpenOnboarding={openOnboarding} turnstileEnabled={turnstileEnabled} turnstileSiteKey={turnstileSiteKey} turnstileHideTestNotice={turnstileHideTestNotice} hasActiveTrialPackages={hasActiveTrialPackages} />
           </section>
 
-          {/* SCENE 08 — CTA PENUTUP */}
+          {/* SCENE 08 — Q&A */}
           <section className="w-[100vw] h-full flex-shrink-0" id="scene-08">
+            <QaScene isMobile={isMobile} />
+          </section>
+
+          {/* SCENE 09 — TESTIMONIAL */}
+          <section className="w-[100vw] h-full flex-shrink-0" id="scene-09">
+            <TestimonialScene isMobile={isMobile} />
+          </section>
+
+          {/* SCENE 10 — KEPATUHAN */}
+          <section className="w-[100vw] h-full flex-shrink-0" id="scene-10">
+            <TrustScene />
+          </section>
+
+          {/* SCENE 11 — CARA PAKAI */}
+          <section className="w-[100vw] h-full flex-shrink-0" id="scene-11">
+            <HowItWorksScene />
+          </section>
+
+          {/* SCENE 12 — DEMO */}
+          <section className="w-[100vw] h-full flex-shrink-0" id="scene-12">
+            <DemoScene />
+          </section>
+
+          {/* SCENE 13 — CTA PENUTUP */}
+          <section className="w-[100vw] h-full flex-shrink-0" id="scene-13">
             <FinaleScene onNavigate={navigateToSlide} isMobile={isMobile} onOpenOnboarding={openOnboarding} />
           </section>
         </motion.main>

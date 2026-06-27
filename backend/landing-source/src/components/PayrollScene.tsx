@@ -42,6 +42,12 @@ export default function PayrollScene() {
     return "8+ hari kerja";
   };
 
+  const manualHours = employeeCount * 0.75; // 45 mins per employee manual
+  const arkavHours = employeeCount * 0.05; // 3 mins per employee automated
+  const hoursSaved = Math.round(manualHours - arkavHours);
+  const hrSalaryPerHour = 35000; // ~Rp 7jt/month / 200 hours
+  const monthlySavings = Math.round(hoursSaved * hrSalaryPerHour);
+
   return (
     <div className="w-full h-full min-h-[90vh] flex flex-col lg:flex-row items-center justify-center px-4 md:px-16 lg:px-24 py-16 gap-12 relative select-none tech-grid">
       {/* Background World Glow Layer (Financial Energy Stream - Soft warm white) */}
@@ -106,6 +112,16 @@ export default function PayrollScene() {
               </span>
               <p className="text-sm font-bold text-emerald-600 font-mono">{getProcessingTime(employeeCount)}</p>
             </div>
+          </div>
+
+          {/* ROI SAVINGS */}
+          <div className="bg-emerald-50 border border-emerald-100 p-3 text-left">
+            <span className="text-[9px] font-mono font-bold text-emerald-700 uppercase">Estimasi Penghematan/bulan</span>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-lg font-extrabold font-display text-emerald-700">{hoursSaved} jam</span>
+              <span className="text-sm font-bold text-emerald-600">≈ {formatRupiah(monthlySavings)}/bln</span>
+            </div>
+            <p className="text-[8px] text-emerald-500 font-mono mt-0.5">Berdasarkan rata-rata gaji staf HR Rp 35.000/jam</p>
           </div>
         </div>
       </motion.div>

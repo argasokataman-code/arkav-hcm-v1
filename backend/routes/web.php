@@ -1769,6 +1769,10 @@ Route::get('/privacy-policy', function () {
     return view('privacy-policy');
 })->name('privacy-policy');
 
+Route::get('/qa', function () {
+    return view('public.qa');
+})->name('qa');
+
 Route::get('/api-keys', function () {
     return view('api-keys');
 })->name('api-keys');

@@ -39,6 +39,11 @@ export default function GlobalHUD({
       "Role-Based Portals",
       "Command Center Analytics",
       "Flexible Pricing",
+      "Pusat Bantuan",
+      "Testimonial & Statistik",
+      "Keamanan & Kepatuhan",
+      "Cara Mulai",
+      "Demo Produk",
       "Unified Ecosystem"
     ];
     return subLabels[index] || "";
@@ -81,7 +86,12 @@ export default function GlobalHUD({
               { name: "Payroll", index: 3 },
               { name: "Employee", index: 4 },
               { name: "Analytics", index: 5 },
-              { name: "Paket", index: 6 }
+              { name: "Paket", index: 6 },
+              { name: "Q&A", index: 7 },
+              { name: "Testimoni", index: 8 },
+              { name: "Kepatuhan", index: 9 },
+              { name: "Cara Pakai", index: 10 },
+              { name: "Demo", index: 11 }
             ].map((item) => {
               const isActive = currentSlide === item.index;
               return (
@@ -119,7 +129,7 @@ export default function GlobalHUD({
           </button>
           
           <button
-            onClick={() => onNavigate(7)} // Jumps to client-closing grand finale screen
+            onClick={() => onNavigate(12)} // Jumps to client-closing grand finale screen
             className="px-2 py-1.5 sm:px-3.5 sm:py-2.2 rounded-none bg-[#FF6600] hover:bg-orange-600 text-white text-xs font-semibold tracking-wide transition-all duration-200 active:scale-95 cursor-pointer flex items-center gap-1.5"
             id="hud-cta-start"
           >
@@ -206,7 +216,7 @@ export default function GlobalHUD({
             <div className="w-full flex justify-between text-[9px] font-mono text-gray-400">
               <span>01 BERANDA</span>
               <span>04 PAYROLL</span>
-              <span>08 SELESAI</span>
+              <span>12 SELESAI</span>
             </div>
             <div className="grid grid-cols-8 gap-1.5 w-full h-1.5 bg-gray-200/80 rounded-none overflow-hidden">
               {Array.from({ length: totalSlides }).map((_, idx) => {

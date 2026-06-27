@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
 import { 
   Play, 
@@ -15,6 +15,16 @@ interface HeroSceneProps {
 }
 
 export default function HeroScene({ onNavigate, packages = [], onOpenOnboarding }: HeroSceneProps) {
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email.trim()) {
+      setSubscribed(true);
+      // In production: send to API
+    }
+  };
   return (
     <div className="w-full h-full min-h-[90vh] flex flex-col lg:flex-row items-center justify-center px-4 md:px-16 lg:px-24 py-12 lg:py-16 gap-8 lg:gap-16 relative select-none tech-grid">
       {/* Background Soft Gradients (Warm Corporate Accent Layer) */}
@@ -75,6 +85,29 @@ export default function HeroScene({ onNavigate, packages = [], onOpenOnboarding 
             Lihat Alur Kerja Fitur
           </button>
         </div>
+
+        {/* Lead Gen — Email Capture */}
+        <form onSubmit={handleSubscribe} className="flex items-center gap-2 max-w-sm">
+          <input
+            type="email"
+            placeholder="email@perusahaan.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="flex-1 px-3 py-2.5 text-xs border border-gray-200 bg-white text-gray-900 placeholder:text-gray-300 font-sans focus:outline-none focus:border-[#FF6600] transition-colors"
+          />
+          <button
+            type="submit"
+            disabled={subscribed}
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              subscribed
+                ? "bg-emerald-500 text-white cursor-default"
+                : "bg-gray-900 text-white hover:bg-gray-800"
+            }`}
+          >
+            {subscribed ? "Terkirim ✓" : "Dapatkan Info"}
+          </button>
+        </form>
 
         {/* Micro Badges of Trust */}
         <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-6 border-t border-gray-100 text-xs font-mono text-gray-400">

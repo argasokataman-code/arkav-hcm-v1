@@ -71,7 +71,7 @@ jobs:
 
       - name: Upload JUnit results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: junit-${{ matrix.php }}
           path: backend/test-results.xml
@@ -411,7 +411,7 @@ jobs:
 
       - name: Upload QA JSON report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: qa-report-${{ matrix.php }}
           path: backend/qa-report.json
